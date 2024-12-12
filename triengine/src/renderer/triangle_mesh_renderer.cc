@@ -165,6 +165,7 @@ namespace triengine::renderer
 
             _shader_vertmode.destroy();
             _shader_texmode.destroy();
+            _shader_normal_view.destroy();
         }
     }
 
