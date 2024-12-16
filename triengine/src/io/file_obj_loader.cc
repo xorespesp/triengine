@@ -159,7 +159,7 @@ namespace triengine::io
                     const tinyobj::index_t& tinyobj_idx = tinyobj_shapes[s].mesh.indices[index_offset + v];
 
                     const size_t curr_vertex_idx = process_new_vertex(tinyobj_idx);
-                    face_idx(v) = curr_vertex_idx;
+                    face_idx(v) = static_cast<int>(curr_vertex_idx);
                 } // for
 
                 mesh.triangle_indices.push_back(face_idx);

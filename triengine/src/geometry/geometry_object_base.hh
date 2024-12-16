@@ -50,6 +50,11 @@ namespace triengine::geometry
             _model = model;
         }
 
+        /// NOTE: Derived classes are responsible for implementing it.
+        virtual void apply_model_in_place() {
+            TRIENGINE_PANIC("not implemented");
+        }
+
         virtual void translate(
             const vec3_f32& t,
             const bool relative = false)

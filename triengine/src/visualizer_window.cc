@@ -280,7 +280,7 @@ namespace triengine
         _point_light_source_object->color = _render_config.light_opts.point_light.color;
         _light_source_renderer.add_object(_point_light_source_object);
 
-        _origin_axis_frame_object = geometry::triangle_mesh_object::create_axis_frame(0.5f);
+        _origin_axis_frame_object = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
         _origin_axis_frame_object->set_visible(_render_config.show_origin_axis);
         _mesh_renderer.add_object(_origin_axis_frame_object);
 

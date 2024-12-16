@@ -10,11 +10,9 @@ namespace triengine::geometry
     class skeleton_object
         : public geometry_object_base
     {
-        static constexpr float 
-            kDefaultBoneRadius{ 0.006f },
-            kDefaultJointRadius{ 0.010f },
-            kDefaultAxisThickness{ 0.002f },
-            kDefaultAxisLength{ 0.1f };
+        static constexpr float
+            kDefaultBoneRadiusRatio{ 0.09f },
+            kDefaultJointRadius{ 0.0175f };
 
     public:
         std::list<std::shared_ptr<geometry::triangle_mesh_object>>
@@ -53,8 +51,8 @@ namespace triengine::geometry
         );
         
         void add_bone(
-            const vec3_f32& joint1_pos,
-            const vec3_f32& joint2_pos,
+            const vec3_f32& from_joint_pos,
+            const vec3_f32& to_joint_pos,
             const color3_f32& bone_color
         );
 

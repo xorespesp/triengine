@@ -17,6 +17,8 @@ namespace triengine::geometry
 
     void triangle_mesh_object::compute_vertex_normals(const bool smooth_shading)
     {
+        /// TODO: improve this
+
         // Refs:
         // https://slideplayer.com/slide/8344016/
         // https://github.com/isl-org/Open3D/blob/db00e339c1645440dea6951c2971ffa759934112/cpp/open3d/geometry/TriangleMesh.cpp#L116
@@ -85,7 +87,7 @@ namespace triengine::geometry
             vertex_positions.reserve(vertex_positions.size() + rhs.vertex_positions.size());
             vertex_positions.insert(vertex_positions.end(), rhs.vertex_positions.begin(), rhs.vertex_positions.end());
             for (size_t i = new_positions_offset; i < new_positions_offset + rhs.vertex_positions.size(); ++i) {
-                auto& new_position = vertex_positions[i];
+                vec3_f32& new_position = vertex_positions[i];
                 new_position = (rhs.get_model() * vec4_f32(new_position.x(), new_position.y(), new_position.z(), 1.0f)).block<3, 1>(0, 0);
             }
         }
@@ -100,7 +102,7 @@ namespace triengine::geometry
             // In case of non-uniform scaling, simply applying the model matrix does not correctly transform the normal vector.
             const mat3_f32 rhs_normal_matrix = mat3_f32(rhs.get_model().block<3, 3>(0, 0)).inverse().transpose();
             for (size_t i = new_normals_offset; i < new_normals_offset + rhs.vertex_normals.size(); ++i) {
-                auto& new_normal = vertex_normals[i];
+                vec3_f32& new_normal = vertex_normals[i];
                 new_normal = (rhs_normal_matrix * new_normal).normalized();
             }
         }
