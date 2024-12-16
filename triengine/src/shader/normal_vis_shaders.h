@@ -14,21 +14,36 @@ namespace triengine::shader
         layout (location = 1) in vec3 vi_vertNormal; // object-space vertex normal
 
         out VS_OUT {
-            vec3 normal;
+            vec3 vertex_color;
+            vec4 normal_end_position_clip;
         } vs_out;
 
         uniform mat4 u_model; // model matrix
-        uniform mat4 u_view; // view matrix
+        uniform mat4 u_view_proj; // view-projection matrix; `u_proj * u_view`
+        uniform mat3 u_nm; // normal matrix; `mat3(transpose(inverse(u_model)))`
+
+        const float kNormalMagnitude = 0.03; // Unit: [m]
 
         void main()
         {
-            // TODO: compute in cpp side
-            const mat3 normalMatrixInView = mat3(transpose(inverse(u_view * u_model)));
+            // Transform vertex position to world space
+            const vec4 vertex_position_world = u_model * vec4(vi_vertPos, 1.0);
             
-            // NOTE: In order to visualize the normal vectors with a constant length regardless of the object's scale, the normal vectors MUST be normalized.
-            vs_out.normal = normalize(normalMatrixInView * vi_vertNormal);
-            
-            gl_Position = u_view * u_model * vec4(vi_vertPos, 1.0); 
+            // Transform and normalize the normal to world space
+            const vec3 normal_world = normalize(u_nm * vi_vertNormal);
+
+            // Calculate the end position of the normal in world space
+            const vec4 normal_end_world = vertex_position_world + vec4(normal_world * kNormalMagnitude, 0.0);
+
+            // Calculate normal color
+            vs_out.vertex_color = (normal_world * 0.5) + 0.5;
+
+            // Transform the normal end position to clip space
+            vs_out.normal_end_position_clip = u_view_proj * normal_end_world;
+
+            // Transform vertex position to clip space
+            // and set gl_Position for the vertex shader pipeline
+            gl_Position = u_view_proj * vertex_position_world;
         }
     )";
 
@@ -38,20 +53,34 @@ namespace triengine::shader
         layout (line_strip, max_vertices = 6) out;
 
         in VS_OUT {
-            vec3 normal;
+            vec3 vertex_color;
+            vec4 normal_end_position_clip;
         } gs_in[];
 
-        const float kNormalMagnitude = 0.03; // Unit: [m]
+        out GS_OUT {
+            vec3 vertex_color;
+        } gs_out;
 
-        uniform mat4 u_proj; // projection matrix
+        const float kNormalMagnitude = 0.03; // Unit: [m]
+        const float kMaxRenderDist = 5.0; // Unit: [m]
 
         void GenerateLine(int index)
         {
-            gl_Position = u_proj * gl_in[index].gl_Position;
-            EmitVertex();
-            gl_Position = u_proj * (gl_in[index].gl_Position + (vec4(gs_in[index].normal, 0.0) * kNormalMagnitude));
-            EmitVertex();
-            EndPrimitive();
+            const vec4 vertex_position_clip = gl_in[index].gl_Position;
+
+            const float squared_distance = dot(vertex_position_clip, vertex_position_clip); // use dot istead of length to prevent sqrt
+            if (squared_distance < kMaxRenderDist * kMaxRenderDist)
+            {
+                gs_out.vertex_color = gs_in[index].vertex_color;
+
+                gl_Position = vertex_position_clip;
+                EmitVertex();
+
+                gl_Position = gs_in[index].normal_end_position_clip;
+                EmitVertex();
+
+                EndPrimitive();
+            }
         }
 
         void main()
@@ -66,9 +95,13 @@ namespace triengine::shader
     static const char* const kObjectNormalVisFragmentShader = R"(
         out vec4 FragColor;
 
+        in GS_OUT {
+            vec3 vertex_color;
+        } fs_in;
+
         void main()
         {
-            FragColor = vec4(0.0, 1.0, 0.0, 1.0); // RGBA
+            FragColor = vec4(fs_in.vertex_color, 1.0); // RGBA
         }
     )";
 

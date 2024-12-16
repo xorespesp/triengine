@@ -200,6 +200,11 @@ namespace triengine::io
             {
                 mesh.vertex_normals = std::move(vertex_normals);
             }
+            else
+            {
+                TRIENGINE_TRACE("Computing normals..");
+                mesh.compute_vertex_normals(true);
+            }
 
             // if not all triangles have corresponding uvs, then remove uvs
             if (const bool has_uvs = std::all_of(

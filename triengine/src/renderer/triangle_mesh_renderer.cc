@@ -409,8 +409,7 @@ namespace triengine::renderer
         _shader_normal_view.use();
 
         // Update view, projection matrices
-        _shader_normal_view.set_uniform_mat4("u_view", view);
-        _shader_normal_view.set_uniform_mat4("u_proj", projection);
+        _shader_normal_view.set_uniform_mat4("u_view_proj", projection * view);
 
         for (const auto& object : render_objects)
         {
@@ -427,6 +426,10 @@ namespace triengine::renderer
 
             // Update model(transform) matrix
             _shader_normal_view.set_uniform_mat4("u_model", object->get_model());
+
+            // Update normal matrix -> `mat3(transpose(inverse(u_model)))`
+            _shader_normal_view.set_uniform_mat3("u_nm", object->get_model().topLeftCorner<3, 3>().inverse().transpose());
+
 
             // Update VAO
             // ********************************************************************************
