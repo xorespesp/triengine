@@ -21,12 +21,14 @@
   <ItemGroup>
     <ClCompile Include="src\camera.cc" />
     <ClCompile Include="src\extern\glad\glad.c" />
+    <ClCompile Include="src\frame_buffer.cc" />
     <ClCompile Include="src\geometry\light_source_object.cc" />
     <ClCompile Include="src\geometry\lineset_object.cc" />
     <ClCompile Include="src\geometry\pcd_object.cc" />
     <ClCompile Include="src\geometry\skeleton_object.cc" />
     <ClCompile Include="src\geometry\triangle_mesh_object.cc" />
     <ClCompile Include="src\geometry\triangle_mesh_object_factory.cc" />
+    <ClCompile Include="src\io\file_bvh_loader.cc" />
     <ClCompile Include="src\io\file_obj_loader.cc" />
     <ClCompile Include="src\misc\debug_utils.cc" />
     <ClCompile Include="src\misc\opengl_utils.cc" />
@@ -63,6 +65,7 @@
     <ClInclude Include="src\extern\glad\KHR\khrplatform.h" />
     <ClInclude Include="src\extern\stb_image.h" />
     <ClInclude Include="src\extern\tiny_obj_loader.h" />
+    <ClInclude Include="src\frame_buffer.hh" />
     <ClInclude Include="src\geometry\geometry_object_base.hh" />
     <ClInclude Include="src\geometry\geometry_object_basect_base.hh" />
     <ClInclude Include="src\geometry\light_source_object.hh" />
@@ -70,6 +73,7 @@
     <ClInclude Include="src\geometry\pcd_object.hh" />
     <ClInclude Include="src\geometry\skeleton_object.hh" />
     <ClInclude Include="src\geometry\triangle_mesh_object.hh" />
+    <ClInclude Include="src\io\file_bvh_loader.hh" />
     <ClInclude Include="src\io\file_obj_loader.hh" />
     <ClInclude Include="src\lighting_options.hh" />
     <ClInclude Include="src\math.hh" />

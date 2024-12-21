@@ -10,6 +10,7 @@ namespace triengine
         {
             bool enabled{ true }; // enable flag
             bool use_blinn{ true }; // use blinn-phong model
+            bool follow_camera{ false }; // 
 
             color3_f32 color{ color3_f32::all(1.0f) }; // light color
             vec3_f32 direction{ 0.0f, 1.0f, 0.0f }; // world-space light direction

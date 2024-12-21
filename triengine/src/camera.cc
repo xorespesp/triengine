@@ -8,6 +8,13 @@ namespace triengine
         eye_pos = _view_param.lookat_center - (_view_param.camera_front * perspective_scaled_zoom);
     }
 
+    void camera::get_camera_direction(vec3_f32& eye_dir) const
+    {
+        vec3_f32 eye_pos;
+        this->get_camera_position(eye_pos);
+        eye_dir = (_view_param.lookat_center - eye_pos).normalized();
+    }
+
     void camera::get_view_projection(
         mat4_f32& view_matrix/* out */,
         mat4_f32& projection_matrix/* out */) const

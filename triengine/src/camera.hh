@@ -165,6 +165,7 @@ namespace triengine
 
         void set_view_port(view_port viewport) { _view_port = viewport; }
         const view_port& get_view_port() const { return _view_port; }
+        const camera_parameters& get_parameters() const { return _view_param; }
 
         void set_vertical_fov(const float fovy_deg) {
             _vertical_fov = fovy_deg;
@@ -181,8 +182,9 @@ namespace triengine
         void get_lookat_center(vec3_f32& lookat_center/* out */) const {
             lookat_center = _view_param.lookat_center;
         }
-        
+
         void get_camera_position(vec3_f32& eye_pos/* out */) const;
+        void get_camera_direction(vec3_f32& eye_dir/* out */) const;
 
         void get_view_projection(
             mat4_f32& view_matrix/* out */,

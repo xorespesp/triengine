@@ -64,6 +64,13 @@ namespace triengine
 
         bool is_valid() const noexcept;
 
+        // for FBO
+        void reserve(
+            image_format_type image_format,
+            int32_t width_pixels,
+            int32_t height_pixels
+        );
+
         void create_from_memory(
             const uint8_t* image_buffer,
             image_format_type image_format,

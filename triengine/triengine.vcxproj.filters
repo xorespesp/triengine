@@ -69,6 +69,12 @@
     <ClCompile Include="src\geometry\triangle_mesh_object_factory.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\io\file_bvh_loader.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\frame_buffer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -217,6 +223,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\shader\normal_vis_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\io\file_bvh_loader.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\frame_buffer.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

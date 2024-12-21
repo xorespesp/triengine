@@ -495,6 +495,10 @@ namespace triengine
         mat4_f32 view, projection;
         target_camera.get_view_projection(view, projection);
 
+        if (_render_config.light_opts.dir_light.follow_camera) {
+            _curr_focused_camera->get_camera_direction(_render_config.light_opts.dir_light.direction);
+        }
+
         _point_light_source_object->set_visible(_render_config.light_opts.point_light.enabled);
         _point_light_source_object->translate(_render_config.light_opts.point_light.position);
         _point_light_source_object->color = _render_config.light_opts.point_light.color;

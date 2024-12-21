@@ -43,6 +43,92 @@ namespace triengine
         return _texture_id != kInvalidTextureID;
     }
 
+    void texture_2d::reserve(
+        const image_format_type image_format,
+        const int32_t width_pixels,
+        const int32_t height_pixels)
+    {
+        if (image_format == image_format_type::invalid) {
+            TRIENGINE_PANIC("invalid image format");
+        }
+
+        if (!width_pixels || !height_pixels) {
+            TRIENGINE_PANIC("invalid image size");
+        }
+
+        const auto allocate_texture_memory =
+            [](
+                const GLuint texture_id,
+                const image_format_type image_format,
+                const int32_t width_pixels,
+                const int32_t height_pixels
+                )
+            {
+                GLCall(::glBindTexture(GL_TEXTURE_2D, texture_id));
+
+                // Setup texture wrapping/filtering options for display
+                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+
+                // Ref: https://docs.gl/gl4/glTexImage2D
+                // NOTE: Passing a NULL pointer as the `pixels` parameter (the last argument) to `glTexImage2D` is a valid usage scenario. 
+                //       In this case, no actual texture image data is uploaded to the GPU;
+                //       instead, the function simply allocates memory for an "empty" texture with the specified dimensions and format.
+                GLCall(::glTexImage2D(
+                    GL_TEXTURE_2D,                     /*GLenum target*/
+                    0,                                 /*GLint level*/
+                    GL_RGB,                            /*GLint internalformat*/
+                    width_pixels,                      /*GLsizei width*/
+                    height_pixels,                     /*GLsizei height*/
+                    0,                                 /*GLint border*/
+                    static_cast<GLenum>(image_format), /*GLenum format*/
+                    GL_UNSIGNED_BYTE,                  /*GLenum type*/
+                    nullptr                            /*const void *pixels*/
+                ));
+
+                GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
+            };
+
+        if (!this->is_valid())
+        {
+            /// Create new texture
+
+            // Create & Bind Texture
+            GLuint new_tex_id{ kInvalidTextureID };
+            GLCall(::glGenTextures(1, &new_tex_id));
+            
+            allocate_texture_memory(
+                new_tex_id, 
+                image_format, 
+                width_pixels, 
+                height_pixels
+            );
+
+            _texture_id = new_tex_id;
+        }
+        else if (
+            _image_format != image_format || 
+            _width_pixels != width_pixels || 
+            _height_pixels != height_pixels
+            )
+        {
+            /// Rescale existing texture
+
+            allocate_texture_memory(
+                _texture_id,
+                image_format,
+                width_pixels,
+                height_pixels
+            );
+        }
+
+        _image_format = image_format;
+        _width_pixels = width_pixels;
+        _height_pixels = height_pixels;
+    }
+
     void texture_2d::create_from_memory(
         const uint8_t* const image_buffer,
         const image_format_type image_format,
@@ -85,6 +171,7 @@ namespace triengine
             image_buffer                       /*const void *pixels*/
         ));
         GLCall(::glGenerateMipmap(GL_TEXTURE_2D));
+        GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
 
         if (this->is_valid()) {
             this->destroy();
