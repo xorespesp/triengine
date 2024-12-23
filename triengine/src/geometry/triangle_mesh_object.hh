@@ -25,6 +25,9 @@ namespace triengine::geometry
         /// NOTE: Only used in vertex-shading mode
         struct vertex_shading_material
         {
+            float ambient{ 1.0f }; /// ambient intensity
+            float diffuse{ 1.0f }; /// diffuse intensity
+            float specular{ 1.0f }; /// specular intensity
             uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
 
             vertex_shading_material() = default;

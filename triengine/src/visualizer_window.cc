@@ -306,7 +306,7 @@ namespace triengine
         _pcd_renderer.create(_glfw_window.get());
         _skeleton_renderer.create(_glfw_window.get());
 
-        // Initialize Gui Layer
+        // Initialize GUI system
         {
             _gui_mgr = std::make_unique<gui::gui_manager>();
             _gui_mgr->initialize(
@@ -315,11 +315,6 @@ namespace triengine
             );
 
             _scene_window = _gui_mgr->get_scene_window();
-
-            // Render Stats Window
-            //_frame_stats_window = std::make_shared<gui::render_stats_window>();
-            //_frame_stats_window->set_visible(false);
-            //_gui_mgr->add_window(_frame_stats_window);
         }
 
         _point_light_source_object = geometry::light_source_object::create(0.075f);

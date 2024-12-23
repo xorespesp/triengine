@@ -41,6 +41,9 @@ namespace triengine::shader
     static const char* const kTriangleMeshVertModeFragmentShader = R"(
         struct VertexShadingMaterial
         {
+            float ambient; // ambient intensity
+            float diffuse; // diffuse intensity
+            float specular; // specular intensity
             float shininess; // surface shininess scalar (>= 0)
         };
 
@@ -99,11 +102,11 @@ namespace triengine::shader
             const vec3 lightDirInView = normalize(vec3(fi.view * vec4(normalize(-light.direction), 0.0)));
             
             // ambient
-            const vec3 ambient = light.ambientIntensity * light.color;
+            const vec3 ambient = light.ambientIntensity * u_material.ambient * light.color;
             
             // diffuse
             const float diff = max(dot(fragNormalInView, lightDirInView), 0.0);
-            const vec3 diffuse = light.diffuseIntensity * diff * light.color;
+            const vec3 diffuse = light.diffuseIntensity * u_material.diffuse * diff * light.color;
 
             // specular
             vec3 specular;
@@ -111,12 +114,12 @@ namespace triengine::shader
                 // blinn-phong model
                 const vec3 halfwayDirInView = normalize(lightDirInView + eyeDirInView);
                 const float spec = pow(max(dot(fragNormalInView, halfwayDirInView), 0.0), u_material.shininess);
-                specular = light.specularIntensity * spec * light.color;
+                specular = light.specularIntensity * u_material.specular * spec * light.color;
             } else {
                 // phong model
                 const vec3 reflectDirInView = reflect(-lightDirInView, fragNormalInView);
                 const float spec = pow(max(dot(eyeDirInView, reflectDirInView), 0.0), u_material.shininess);
-                specular = light.specularIntensity * spec * light.color;
+                specular = light.specularIntensity * u_material.specular * spec * light.color;
             }
 
             // combine results
@@ -137,11 +140,11 @@ namespace triengine::shader
             const vec3 lightDirInView = normalize(lightPosInView - fi.fragPosInView);
 
             // ambient
-            vec3 ambient = light.ambientIntensity * light.color;
+            vec3 ambient = light.ambientIntensity * u_material.ambient * light.color;
 
             // diffuse
             const float diff = max(dot(fragNormalInView, lightDirInView), 0.0);
-            vec3 diffuse = light.diffuseIntensity * diff * light.color;
+            vec3 diffuse = light.diffuseIntensity * u_material.diffuse * diff * light.color;
 
             // specular
             vec3 specular;
@@ -149,12 +152,12 @@ namespace triengine::shader
                 // blinn-phong model
                 const vec3 halfwayDirInView = normalize(lightDirInView + eyeDirInView);
                 const float spec = pow(max(dot(fragNormalInView, halfwayDirInView), 0.0), u_material.shininess);
-                specular = light.specularIntensity * spec * light.color;
+                specular = light.specularIntensity * u_material.specular * spec * light.color;
             } else {
                 // phong model
                 const vec3 reflectDirInView = reflect(-lightDirInView, fragNormalInView);
                 const float spec = pow(max(dot(eyeDirInView, reflectDirInView), 0.0), u_material.shininess);
-                specular = light.specularIntensity * spec * light.color;
+                specular = light.specularIntensity * u_material.specular * spec * light.color;
             }
 
             // attenuation (ref: http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation)

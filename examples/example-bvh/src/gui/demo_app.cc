@@ -157,9 +157,12 @@ namespace gui
                 const float dT = static_cast<float>(::glfwGetTime());
 
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-                R = Eigen::AngleAxisf(rotSpeed * dT * 0.1f, Eigen::Vector3f::UnitZ())
-                    * Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY())
-                    * Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
+                //R = Eigen::AngleAxisf(rotSpeed * dT * 0.1f, Eigen::Vector3f::UnitZ()) *
+                //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
+                //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
+
+                R = Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX()) *
+                    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
 
                 _obj_texcolor_mesh->rotate(R);
             }

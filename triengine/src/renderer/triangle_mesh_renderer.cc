@@ -238,7 +238,10 @@ namespace triengine::renderer
             // Update model(transform) matrix
             GLCall(::glUniformMatrix4fv(_uloc_vertmode_model, 1, GL_FALSE, object->get_model().data()));
 
-            // Update material shininess
+            // Update material
+            _shader_vertmode.set_uniform_float("u_material.ambient", material->ambient);
+            _shader_vertmode.set_uniform_float("u_material.diffuse", material->diffuse);
+            _shader_vertmode.set_uniform_float("u_material.specular", material->specular);
             _shader_vertmode.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
 
             // Update VAO
