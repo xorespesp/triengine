@@ -7,6 +7,7 @@
 #include "renderer/pcd_renderer.hh"
 #include "renderer/skeleton_renderer.hh"
 #include "lighting_options.hh"
+#include "gui/gui_manager.hh"
 
 #include "extern/glad/glad.h"
 #include <GLFW/glfw3.h>
@@ -23,7 +24,6 @@ namespace triengine
             one_view = 0,
             two_views,
             three_views,
-            four_views,
         };
 
         enum class skeleton_render_mode {
@@ -37,7 +37,7 @@ namespace triengine
             bool show_origin_axis{ true };
             bool show_origin_xz_plane{ false };
             bool show_object_normals{ false };
-            bool wireframe_mode{ false };
+            bool show_wireframe{ false };
             lighting_options light_opts;
             color3_f32 bg_color{ 0.05f, 0.05f, 0.05f };
             std::optional<float> pcd_point_size;
@@ -54,6 +54,9 @@ namespace triengine
     public:
         visualizer_window();
         virtual ~visualizer_window() = default;
+
+        visualizer_window(const visualizer_window&) = delete;
+        visualizer_window& operator=(const visualizer_window&) = delete;
 
         void set_close_callback(close_callback cb) {
             _cb_close = std::move(cb);
@@ -80,7 +83,11 @@ namespace triengine
         }
 
         GLFWwindow* get_glfw_window() const {
-            return _glfw_window;
+            return _glfw_window.get();
+        }
+
+        const camera* get_current_camera() const {
+            return _curr_focused_camera;
         }
 
         float get_dpi_scale_x() const {
@@ -123,7 +130,7 @@ namespace triengine
 
         void set_vertical_fov(float fovy_deg);
 
-        void set_mirror_mode(bool enable);
+        void enable_mirror_mode(bool enable);
 
         void add_render_object(std::shared_ptr<geometry::geometry_object_base> object);
 
@@ -133,13 +140,21 @@ namespace triengine
 
         void clear_render_objects(geometry::geometry_object_type type);
 
-        void render(
-            std::vector<uint8_t>* renderedPixelsBgr = nullptr /* optional */,
-            int* pixelsWidth = nullptr /* optional */,
-            int* pixelsHeight = nullptr /* optional */
-        );
+        void render();
 
         bool poll_events();
+
+        bool is_main_menu_enabled() const {
+            return _gui_mgr->is_main_menu_enabled();
+        }
+
+        void enable_main_menu(bool enable) {
+            _gui_mgr->enable_main_menu(enable);
+        }
+
+        void add_gui_window(std::shared_ptr<gui::iwindow> window) {
+            _gui_mgr->add_window(window);
+        }
 
     private:
         void _render_scene(
@@ -202,28 +217,30 @@ namespace triengine
 
         render_config _render_config;
 
-        GLFWwindow* _glfw_window{ nullptr };
+        std::shared_ptr<GLFWwindow> _glfw_window;
 
         camera _top_left_camera;
         camera _top_right_camera;
-        camera _bottom_left_camera;
         camera _bottom_right_camera;
-        std::array<camera*, 4> _camera_list = {
-            &_top_left_camera, &_top_right_camera, &_bottom_left_camera, &_bottom_right_camera
+        const std::array<camera*, 3> _camera_list = {
+            &_top_left_camera, &_top_right_camera, &_bottom_right_camera
         };
 
-        int32_t _curr_window_width{ -1 };
-        int32_t _curr_window_height{ -1 };
+        int32_t _curr_window_width{};
+        int32_t _curr_window_height{};
         float _curr_dpi_scale_x{ 1.0f };
         float _curr_dpi_scale_y{ 1.0f };
-        vec2_f32 _last_clicked_cursor_pos{ 0.0f, 0.0f };
         camera* _curr_focused_camera{ &_top_left_camera };
+        vec2_f32 _last_clicked_cursor_viewport_pos{};
 
         renderer::light_source_renderer _light_source_renderer;
         renderer::triangle_mesh_renderer _mesh_renderer;
         renderer::lineset_renderer _lineset_renderer;
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;
+
+        std::unique_ptr<gui::gui_manager> _gui_mgr;
+        std::shared_ptr<gui::scene_view_window> _scene_window;
 
         std::shared_ptr<geometry::light_source_object> _point_light_source_object;
         std::shared_ptr<geometry::triangle_mesh_object> _origin_axis_frame_object;

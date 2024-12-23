@@ -1,4 +1,6 @@
 #include "opengl_utils.hh"
+
+#include <GLFW/glfw3.h>
 #include <iostream>
 
 bool triengine::misc::GLCheckError_impl(const debug::source_loc& src_loc)

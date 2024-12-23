@@ -20,7 +20,25 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\camera.cc" />
+    <ClCompile Include="src\extern\fonts\FontAwesome5.cpp" />
+    <ClCompile Include="src\extern\fonts\FontAwesome5Brands.cpp" />
+    <ClCompile Include="src\extern\fonts\RobotoBold.cpp" />
+    <ClCompile Include="src\extern\fonts\RobotoItalic.cpp" />
+    <ClCompile Include="src\extern\fonts\RobotoMonoBold.cpp" />
+    <ClCompile Include="src\extern\fonts\RobotoMonoItalic.cpp" />
+    <ClCompile Include="src\extern\fonts\RobotoMonoRegular.cpp" />
+    <ClCompile Include="src\extern\fonts\RobotoRegular.cpp" />
     <ClCompile Include="src\extern\glad\glad.c" />
+    <ClCompile Include="src\extern\imgui\imgui.cpp" />
+    <ClCompile Include="src\extern\imgui\imgui_demo.cpp" />
+    <ClCompile Include="src\extern\imgui\imgui_draw.cpp" />
+    <ClCompile Include="src\extern\imgui\imgui_impl_glfw.cpp" />
+    <ClCompile Include="src\extern\imgui\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="src\extern\imgui\imgui_tables.cpp" />
+    <ClCompile Include="src\extern\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="src\extern\implot\implot.cpp" />
+    <ClCompile Include="src\extern\implot\implot_demo.cpp" />
+    <ClCompile Include="src\extern\implot\implot_items.cpp" />
     <ClCompile Include="src\frame_buffer.cc" />
     <ClCompile Include="src\geometry\light_source_object.cc" />
     <ClCompile Include="src\geometry\lineset_object.cc" />
@@ -28,6 +46,8 @@
     <ClCompile Include="src\geometry\skeleton_object.cc" />
     <ClCompile Include="src\geometry\triangle_mesh_object.cc" />
     <ClCompile Include="src\geometry\triangle_mesh_object_factory.cc" />
+    <ClCompile Include="src\gui\gui_manager.cc" />
+    <ClCompile Include="src\gui\windows\scene_ctrl_window.cc" />
     <ClCompile Include="src\io\file_bvh_loader.cc" />
     <ClCompile Include="src\io\file_obj_loader.cc" />
     <ClCompile Include="src\misc\debug_utils.cc" />
@@ -61,8 +81,22 @@
     <ClInclude Include="src\basic_types.hh" />
     <ClInclude Include="src\camera.hh" />
     <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\extern\fonts\Fonts.h" />
+    <ClInclude Include="src\extern\fonts\IconsFontAwesome5.h" />
+    <ClInclude Include="src\extern\fonts\IconsFontAwesome5Brands.h" />
     <ClInclude Include="src\extern\glad\glad.h" />
     <ClInclude Include="src\extern\glad\KHR\khrplatform.h" />
+    <ClInclude Include="src\extern\imgui\imconfig.h" />
+    <ClInclude Include="src\extern\imgui\imgui.h" />
+    <ClInclude Include="src\extern\imgui\imgui_impl_glfw.h" />
+    <ClInclude Include="src\extern\imgui\imgui_impl_opengl3.h" />
+    <ClInclude Include="src\extern\imgui\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="src\extern\imgui\imgui_internal.h" />
+    <ClInclude Include="src\extern\imgui\imstb_rectpack.h" />
+    <ClInclude Include="src\extern\imgui\imstb_textedit.h" />
+    <ClInclude Include="src\extern\imgui\imstb_truetype.h" />
+    <ClInclude Include="src\extern\implot\implot.h" />
+    <ClInclude Include="src\extern\implot\implot_internal.h" />
     <ClInclude Include="src\extern\stb_image.h" />
     <ClInclude Include="src\extern\tiny_obj_loader.h" />
     <ClInclude Include="src\frame_buffer.hh" />
@@ -73,6 +107,12 @@
     <ClInclude Include="src\geometry\pcd_object.hh" />
     <ClInclude Include="src\geometry\skeleton_object.hh" />
     <ClInclude Include="src\geometry\triangle_mesh_object.hh" />
+    <ClInclude Include="src\gui\gui_manager.hh" />
+    <ClInclude Include="src\gui\iwindow.hh" />
+    <ClInclude Include="src\gui\windows\log_window.hh" />
+    <ClInclude Include="src\gui\windows\render_stats_window.hh" />
+    <ClInclude Include="src\gui\windows\scene_ctrl_window.hh" />
+    <ClInclude Include="src\gui\windows\scene_view_window.hh" />
     <ClInclude Include="src\io\file_bvh_loader.hh" />
     <ClInclude Include="src\io\file_obj_loader.hh" />
     <ClInclude Include="src\lighting_options.hh" />
@@ -151,10 +191,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(Platform)-$(Configuration)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)build\$(ShortProjectName)\$(Platform)-$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir)src\extern\imgui;$(ProjectDir)src\extern\implot;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(Platform)-$(Configuration)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)build\$(ShortProjectName)\$(Platform)-$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir)src\extern\imgui;$(ProjectDir)src\extern\implot;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>

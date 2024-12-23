@@ -10,30 +10,31 @@ namespace triengine
         {
             bool enabled{ true }; // enable flag
             bool use_blinn{ true }; // use blinn-phong model
-            bool follow_camera{ false }; // 
+            bool follow_camera{ true }; // use camera direction as light direction
 
-            color3_f32 color{ color3_f32::all(1.0f) }; // light color
             vec3_f32 direction{ 0.0f, 1.0f, 0.0f }; // world-space light direction
+            color3_f32 color{ color3_f32::all(1.0f) }; // light color
 
-            float ambientIntensity{ 0.1f }; // ambient intensity
-            float diffuseIntensity{ 0.1f }; // diffuse intensity
-            float specularIntensity{ 0.025f }; // specular intensity
+            float ambientIntensity{ 0.2f }; // ambient intensity
+            float diffuseIntensity{ 0.2f }; // diffuse intensity
+            float specularIntensity{ 0.2f }; // specular intensity
         } dir_light;
 
         struct point_light_options
         {
             bool enabled{ true }; // enable flag
             bool use_blinn{ true }; // use blinn-phong model
+            bool show_light_source{ true }; // show light source object (not used in shader)
 
-            color3_f32 color{ color3_f32::all(1.0f) }; // light color
             vec3_f32 position{ 0.0f, -1.5f, 0.0f }; // world-space light position
+            color3_f32 color{ color3_f32::all(1.0f) }; // light color
 
             // Ref: https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
             float Kc{ 1.0f }; // attenuation (constant term)
             float Kl{ 0.14f }; // attenuation (linear term)
             float Kq{ 0.07f }; // attenuation (quadraatic term)
 
-            float ambientIntensity{ 0.3f }; // ambient intensity
+            float ambientIntensity{ 0.0f }; // ambient intensity
             float diffuseIntensity{ 0.85f }; // diffuse intensity
             float specularIntensity{ 0.7f }; // specular intensity
         } point_light;

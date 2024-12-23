@@ -9,15 +9,17 @@ namespace triengine
     // NOTE: Viewport placement is relative to the lower-left corner of the window content area.
     struct view_port
     {
-        int x, y; // lower left corner of the viewport rectangle (Unit: [pixel])
-        int width, height; // width and height of the viewport. (Unit: [pixel])
+        int32_t x{}, y{}; // lower left corner of the viewport rectangle (Unit: [pixel])
+        int32_t width{}, height{}; // width and height of the viewport. (Unit: [pixel])
 
-        // Screen coordinates are relative to the lower-left corner of the window content area.
-        bool contains(vec2_f32 screen_pos) const noexcept {
-            const int
-                vx = static_cast<int>(std::floor(screen_pos.x())) - x,
-                vy = static_cast<int>(std::floor(screen_pos.y())) - y;
-            return 0 <= vx && vx < width && 0 <= vy && vy < height;
+        // Viewport screen coordinates are relative to the lower-left corner of the window content area.
+        bool contains(vec2_f32 viewport_screen_pos) const noexcept {
+            const int32_t
+                vx = static_cast<int32_t>(std::floor(viewport_screen_pos.x())) - x,
+                vy = static_cast<int32_t>(std::floor(viewport_screen_pos.y())) - y;
+            return 
+                0 <= vx && vx < width && 
+                0 <= vy && vy < height;
         }
 
     }; // struct
@@ -110,7 +112,7 @@ namespace triengine
 
         static constexpr float
             kMinZoom = 0.1f,
-            kMaxZoom = 15.0f,
+            kMaxZoom = 30.0f,
             kDefaultZoom = kMinZoom + (kMaxZoom - kMinZoom) * 0.15f;
 
         static constexpr float
@@ -137,54 +139,58 @@ namespace triengine
     class camera
     {
     private:
+        view_port _view_port{};
+        camera_parameters _view_param{ kDefaultView };
 
-    private:
-        camera_parameters _view_param;
-        view_port _view_port;
-        bool _flag_mirror_mode;
-
-        // Camera options
-        float _mouse_sensitivity;
-        float _vertical_fov; // Unit: [degree]
-        float _perspective_factor; // 0: Orthographic; 1: Full perspective.
+        float _mouse_sensitivity{ kDefaultMouseSensitivity };
+        float _vertical_fov{ kDefaultFOV }; // Unit: [degree]
+        float _perspective_factor{ kDefaulPerspectiveFactor }; // 0: Orthographic; 1: Full perspective.
+        bool _flag_mirror_mode{ false };
 
     public:
-        camera()
-            : _view_param{ kDefaultView }
-            , _view_port{}
-            , _flag_mirror_mode{ false }
-            , _mouse_sensitivity{ kDefaultMouseSensitivity }
-            , _vertical_fov{ kDefaultFOV }
-            , _perspective_factor{ kDefaulPerspectiveFactor }
-        { }
+        camera() = default;
 
         void reset() {
             _view_param = kDefaultView;
+            _mouse_sensitivity = kDefaultMouseSensitivity;
+            _vertical_fov = kDefaultFOV;
             _perspective_factor = kDefaulPerspectiveFactor;
         }
 
-        void set_view_port(view_port viewport) { _view_port = viewport; }
         const view_port& get_view_port() const { return _view_port; }
-        const camera_parameters& get_parameters() const { return _view_param; }
-
-        void set_vertical_fov(const float fovy_deg) {
-            _vertical_fov = fovy_deg;
+        void set_view_port(view_port viewport) {
+            _view_port = viewport;
         }
 
-        void set_mirror_mode(const bool enable) {
-            _flag_mirror_mode = enable;
-        }
-
-        void set_lookat_center(const vec3_f32& lookat_center) {
-            _view_param.lookat_center = lookat_center;
+        const camera_parameters& get_parameters() const {
+            return _view_param;
         }
 
         void get_lookat_center(vec3_f32& lookat_center/* out */) const {
             lookat_center = _view_param.lookat_center;
         }
 
+        void set_lookat_center(const vec3_f32& lookat_center) {
+            _view_param.lookat_center = lookat_center;
+        }
+
         void get_camera_position(vec3_f32& eye_pos/* out */) const;
         void get_camera_direction(vec3_f32& eye_dir/* out */) const;
+
+        float get_mouse_sensitivity() const { return _mouse_sensitivity; }
+        void set_mouse_sensitivity(float sensitivity) {
+            _mouse_sensitivity = sensitivity;
+        }
+
+        float get_vertical_fov() const { return _vertical_fov; }
+        void set_vertical_fov(float fovy_deg) {
+            _vertical_fov = fovy_deg;
+        }
+
+        bool mirror_mode_enabled() const { return _flag_mirror_mode; }
+        void enable_mirror_mode(bool enable) {
+            _flag_mirror_mode = enable;
+        }
 
         void get_view_projection(
             mat4_f32& view_matrix/* out */,
