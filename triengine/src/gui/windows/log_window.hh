@@ -89,7 +89,7 @@ namespace triengine::gui
         }
 
         void render(
-            [[maybe_unused]] const window_placement_info placeInfo) override
+            [[maybe_unused]] const window_render_context& render_ctx) override
         {
             // Options menu
             if (ImGui::BeginPopup("Options")) {

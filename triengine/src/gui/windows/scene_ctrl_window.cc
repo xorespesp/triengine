@@ -13,7 +13,7 @@ namespace triengine::gui
     { }
 
     void scene_control_window::render(
-        [[maybe_unused]] const gui::window_placement_info placeInfo)
+        [[maybe_unused]] const window_render_context& render_ctx)
     {
         if (_vis_window)
         {

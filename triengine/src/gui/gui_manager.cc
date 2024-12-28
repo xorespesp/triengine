@@ -80,7 +80,7 @@ namespace triengine::gui
         _flag_initialized = true;
         this->change_dpi_scale(dpi_scale_factor);
 
-        _scene_window = std::make_shared<gui::scene_view_window>(_vis_window->get_glfw_window());
+        _scene_window = std::make_shared<gui::scene_view_window>(_vis_window);
         this->add_window(_scene_window);
 
         _scene_ctrl_window = std::make_shared<gui::scene_control_window>(_vis_window);
@@ -225,7 +225,9 @@ namespace triengine::gui
             window->pre_render(window_flags);
 
             if (ImGui::Begin(window->get_window_name(), &is_opened, window_flags)) {
-                window->render(window_placement_info{});
+                window_render_context render_ctx;
+                render_ctx.dpi_scale = _dpi_scale_factor;
+                window->render(render_ctx);
             }
 
             // Always call a matching End() for each Begin() call, regardless of its return value!

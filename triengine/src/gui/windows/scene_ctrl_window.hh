@@ -2,8 +2,8 @@
 #include "../iwindow.hh"
 #include "../../frame_buffer.hh"
 
-// forward declaration
 namespace triengine {
+    // forward declaration
     class visualizer_window;
 }
 
@@ -27,7 +27,7 @@ namespace triengine::gui
             return ImVec2{ 450.0f, 620.0f };
         }
 
-        void render(gui::window_placement_info placeInfo) override;
+        void render(const window_render_context& render_ctx) override;
 
     }; // class
 

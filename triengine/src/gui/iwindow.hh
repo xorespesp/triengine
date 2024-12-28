@@ -9,8 +9,10 @@
 
 namespace triengine::gui
 {
-    struct window_placement_info {
-        ImVec2 size, position;
+    struct window_render_context {
+        float dpi_scale{ 1.0f };
+
+        window_render_context() = default;
     };
 
     class iwindow
@@ -45,12 +47,7 @@ namespace triengine::gui
         virtual ImVec2 get_initial_window_size() const = 0;
 
         // Draw widgets to fill your window (ImGui::Begin()/ImGui::End() will be called for you).
-        // Size constraints will be automatically applied to your window, but if you want to know
-        // how much space you have access to, placementInfo has that.
-        virtual void render(
-            window_placement_info placementInfo
-        ) = 0;
-
+        virtual void render(const window_render_context& /*render_ctx*/) = 0;
         virtual void pre_render(ImGuiWindowFlags& /*window_flags*/) {}
         virtual void post_render() {}
     };

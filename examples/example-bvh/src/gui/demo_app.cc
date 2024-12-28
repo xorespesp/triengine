@@ -99,6 +99,7 @@ namespace gui
         if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
             triengine::io::load_obj_file(
                 triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
+                //triengine_resource_dir / "objects/car_engine/car_engine.obj",
                 *new_obj
             ))
         {
@@ -153,7 +154,7 @@ namespace gui
             // for testing
             if (_obj_texcolor_mesh)
             {
-                constexpr float rotSpeed = triengine::math::pi<float>() / 32.0f;
+                constexpr float rotSpeed = triengine::math::pi<float>() / 8.0f;
                 const float dT = static_cast<float>(::glfwGetTime());
 
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order

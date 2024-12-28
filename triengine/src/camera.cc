@@ -4,8 +4,7 @@ namespace triengine
 {
     void camera::get_camera_position(vec3_f32& eye_pos) const
     {
-        const float perspective_scaled_zoom = this->_get_perspective_scaled_zoom();
-        eye_pos = _view_param.lookat_center - (_view_param.camera_front * perspective_scaled_zoom);
+        eye_pos = _view_param.lookat_center - (_view_param.camera_front * this->_get_perspective_scaled_zoom());
     }
 
     void camera::get_camera_direction(vec3_f32& eye_dir) const
@@ -28,12 +27,11 @@ namespace triengine
             _view_param.camera_up
         );
 
-        const float perspective_scaled_fovy = this->_get_perspective_scaled_fovy();
         projection_matrix = math::perspective(
-            math::deg2rad(perspective_scaled_fovy),
+            math::deg2rad(this->_get_perspective_scaled_fovy()),
             static_cast<float>(_view_port.width) / static_cast<float>(_view_port.height),
             0.1f,
-            200.f
+            200.0f
         );
 
         if (_flag_mirror_mode) {
@@ -137,24 +135,18 @@ namespace triengine
             kMinZoom,
             kMaxZoom
         );
+        //TRIENGINE_TRACE("update zoom: %f", _view_param.zoom);
     }
 
     void camera::process_mouse_scroll_for_perspective(
         const float scroll_yoffset)
     {
-        _perspective_factor = std::clamp(
-            _perspective_factor + (scroll_yoffset * _mouse_sensitivity),
-            kMinPerspectiveFactor,
-            kMaxPerspectiveFactor
+        _perspective_scale_factor = std::clamp(
+            _perspective_scale_factor + (scroll_yoffset * _mouse_sensitivity),
+            kMinPerspectiveScaleFactor,
+            kMaxPerspectiveScaleFactor
         );
-    }
-
-    float camera::_get_perspective_scaled_zoom() const {
-        return _view_param.zoom / _perspective_factor;
-    }
-
-    float camera::_get_perspective_scaled_fovy() const {
-        return _vertical_fov * _perspective_factor;
+        TRIENGINE_TRACE("update perspective_factor: %f", _perspective_scale_factor);
     }
 
 } // namespace

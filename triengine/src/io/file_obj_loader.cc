@@ -254,6 +254,11 @@ namespace triengine::io
             }
         }
 
+        TRIENGINE_TRACE("loaded vertex_positions size: %lu", mesh.vertex_positions.size());
+        TRIENGINE_TRACE("loaded vertex_normals size: %lu", mesh.vertex_normals.size());
+        TRIENGINE_TRACE("loaded vertex_colors size: %lu", mesh.vertex_colors.size());
+        TRIENGINE_TRACE("loaded triangle_indices size: %lu", mesh.triangle_indices.size());
+        TRIENGINE_TRACE("loaded vertex_uvs size: %lu", mesh.vertex_uvs.size());
         return true;
     }
 

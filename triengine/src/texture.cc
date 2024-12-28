@@ -19,11 +19,7 @@ namespace triengine
 
     texture_2d::texture_2d(texture_2d&& rhs) noexcept
     {
-        std::swap(_texture_id, rhs._texture_id);
-        std::swap(_image_format, rhs._image_format);
-        std::swap(_width_pixels, rhs._width_pixels);
-        std::swap(_height_pixels, rhs._height_pixels);
-        rhs.destroy();
+        *this = std::move(rhs);
     }
 
     texture_2d& texture_2d::operator=(texture_2d&& rhs) noexcept
@@ -55,6 +51,11 @@ namespace triengine
         if (!width_pixels || !height_pixels) {
             TRIENGINE_PANIC("invalid image size");
         }
+
+        const bool realloc_needed =
+            _image_format != image_format ||
+            _width_pixels != width_pixels ||
+            _height_pixels != height_pixels;
 
         const auto allocate_texture_memory =
             [](
@@ -108,11 +109,7 @@ namespace triengine
 
             _texture_id = new_tex_id;
         }
-        else if (
-            _image_format != image_format || 
-            _width_pixels != width_pixels || 
-            _height_pixels != height_pixels
-            )
+        else if (realloc_needed)
         {
             /// Rescale existing texture
 

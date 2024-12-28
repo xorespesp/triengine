@@ -128,7 +128,7 @@ namespace triengine
 
         void set_window_position(int xpos, int ypos);
 
-        void set_vertical_fov(float fovy_deg);
+        void set_fovy(float fovy_deg);
 
         void enable_mirror_mode(bool enable);
 

@@ -135,6 +135,9 @@
     <ClCompile Include="src\gui\windows\scene_ctrl_window.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\gui\windows\scene_view_window.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />

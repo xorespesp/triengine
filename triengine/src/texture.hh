@@ -64,7 +64,7 @@ namespace triengine
 
         bool is_valid() const noexcept;
 
-        // for FBO
+        // for Non-MSAA FBO
         void reserve(
             image_format_type image_format,
             int32_t width_pixels,

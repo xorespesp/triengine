@@ -48,6 +48,7 @@
     <ClCompile Include="src\geometry\triangle_mesh_object_factory.cc" />
     <ClCompile Include="src\gui\gui_manager.cc" />
     <ClCompile Include="src\gui\windows\scene_ctrl_window.cc" />
+    <ClCompile Include="src\gui\windows\scene_view_window.cc" />
     <ClCompile Include="src\io\file_bvh_loader.cc" />
     <ClCompile Include="src\io\file_obj_loader.cc" />
     <ClCompile Include="src\misc\debug_utils.cc" />

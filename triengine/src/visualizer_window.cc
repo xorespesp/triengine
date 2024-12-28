@@ -118,7 +118,7 @@ namespace triengine
         //::glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // Enable OpenGL debug context
 #endif // ^^^ TRIENGINE_DEBUG_MODE ^^^
 
-        ::glfwWindowHint(GLFW_SAMPLES, 4); // Set framebuffer MSAA quality to 4x
+        //::glfwWindowHint(GLFW_SAMPLES, 4); // Set framebuffer MSAA quality to 4x
 
         GLFWmonitor* const monitor_info = ::glfwGetPrimaryMonitor();
         const GLFWvidmode* const display_info = ::glfwGetVideoMode(monitor_info);
@@ -295,7 +295,7 @@ namespace triengine
         ::glfwSwapInterval((show_window) ? 1 : 0); // glfwSwapInterval(1) -> Enable vsync
 
         // Context Settings
-        GLCall(::glEnable(GL_MULTISAMPLE));
+        //GLCall(::glEnable(GL_MULTISAMPLE));
         GLCall(::glDisable(GL_BLEND));
         GLCall(::glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
         GLCall(::glClearDepth(1.0f));
@@ -365,10 +365,10 @@ namespace triengine
         }
     }
 
-    void visualizer_window::set_vertical_fov(float fovy_deg)
+    void visualizer_window::set_fovy(float fovy_deg)
     {
         for (auto& cam : _camera_list) {
-            cam->set_vertical_fov(fovy_deg);
+            cam->set_fovy(fovy_deg);
         }
     }
 
@@ -461,9 +461,10 @@ namespace triengine
         // Ref: https://learnopengl.com/Getting-started/Hello-Triangle
         GLCall(::glPolygonMode(GL_FRONT_AND_BACK, _render_config.show_wireframe ? GL_LINE : GL_FILL));
 
+        const vec2_i32 scene_size{ _scene_window->get_framebuffer_size() };
         const int32_t
-            W = _scene_window->get_framebuffer_width(),
-            H = _scene_window->get_framebuffer_height();
+            W = scene_size.x(),
+            H = scene_size.y();
 
         // NOTE: Viewport placement is relative to the lower-left corner of the window content area.
         switch (_render_config.view_layout) {
@@ -673,13 +674,10 @@ namespace triengine
             _curr_focused_camera =
                 [this, curr_cursor_viewport_pos]() -> camera*
                 {
-                    const float
-                        W = static_cast<float>(_scene_window->get_framebuffer_width()),
-                        H = static_cast<float>(_scene_window->get_framebuffer_height());
-
+                    const vec2_f32 scene_size{ _scene_window->get_framebuffer_size().cast<float>() };
                     const bool
-                        is_top_side = curr_cursor_viewport_pos.y() > H / 2,
-                        is_left_side = curr_cursor_viewport_pos.x() < W / 2;
+                        is_top_side = curr_cursor_viewport_pos.y() > scene_size.y() / 2,
+                        is_left_side = curr_cursor_viewport_pos.x() < scene_size.x() / 2;
 
                     switch (_render_config.view_layout) {
                     case view_layout_mode::three_views:

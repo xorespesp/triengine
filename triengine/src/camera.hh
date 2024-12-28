@@ -106,19 +106,19 @@ namespace triengine
             kDefaultMouseSensitivity = 0.2f;
 
         static constexpr float
-            kMinFOV = 45.0f,
-            kMaxFOV = 145.0f,
-            kDefaultFOV = 65.0f;
+            kMinFovy = 45.0f,
+            kMaxFvoy = 145.0f,
+            kDefaultFovy = 65.0f;
 
         static constexpr float
             kMinZoom = 0.1f,
-            kMaxZoom = 30.0f,
+            kMaxZoom = 50.0f,
             kDefaultZoom = kMinZoom + (kMaxZoom - kMinZoom) * 0.15f;
 
-        static constexpr float
-            kMinPerspectiveFactor = 0.1f, // Orthographic projection
-            kMaxPerspectiveFactor = 1.0f, // Perspective projection
-            kDefaulPerspectiveFactor = kMaxPerspectiveFactor;
+        static constexpr float // 0: Orthographic projection; 1: Perspective projection
+            kMinPerspectiveScaleFactor = 0.1f, 
+            kMaxPerspectiveScaleFactor = 1.0f, 
+            kDefaulPerspectiveScaleFactor = 0.7f;
 
         static const vec3_f32
             kDefaultLookAtCenter{ 0.0f, 0.0f, 1.5f },
@@ -143,8 +143,8 @@ namespace triengine
         camera_parameters _view_param{ kDefaultView };
 
         float _mouse_sensitivity{ kDefaultMouseSensitivity };
-        float _vertical_fov{ kDefaultFOV }; // Unit: [degree]
-        float _perspective_factor{ kDefaulPerspectiveFactor }; // 0: Orthographic; 1: Full perspective.
+        float _fovy{ kDefaultFovy }; // Vertical FoV. Unit: [degree]
+        float _perspective_scale_factor{ kDefaulPerspectiveScaleFactor }; // 0: Orthographic; 1: Full perspective.
         bool _flag_mirror_mode{ false };
 
     public:
@@ -153,44 +153,60 @@ namespace triengine
         void reset() {
             _view_param = kDefaultView;
             _mouse_sensitivity = kDefaultMouseSensitivity;
-            _vertical_fov = kDefaultFOV;
-            _perspective_factor = kDefaulPerspectiveFactor;
+            _fovy = kDefaultFovy;
+            _perspective_scale_factor = kDefaulPerspectiveScaleFactor;
         }
 
-        const view_port& get_view_port() const { return _view_port; }
+        const view_port& get_view_port() const noexcept {
+            return _view_port;
+        }
+
         void set_view_port(view_port viewport) {
             _view_port = viewport;
         }
 
-        const camera_parameters& get_parameters() const {
+        const camera_parameters& get_parameters() const noexcept {
             return _view_param;
         }
 
-        void get_lookat_center(vec3_f32& lookat_center/* out */) const {
-            lookat_center = _view_param.lookat_center;
+        const vec3_f32& get_lookat_center() const noexcept {
+            return _view_param.lookat_center;
         }
 
         void set_lookat_center(const vec3_f32& lookat_center) {
             _view_param.lookat_center = lookat_center;
         }
 
-        void get_camera_position(vec3_f32& eye_pos/* out */) const;
-        void get_camera_direction(vec3_f32& eye_dir/* out */) const;
+        float get_mouse_sensitivity() const noexcept {
+            return _mouse_sensitivity;
+        }
 
-        float get_mouse_sensitivity() const { return _mouse_sensitivity; }
         void set_mouse_sensitivity(float sensitivity) {
             _mouse_sensitivity = sensitivity;
         }
 
-        float get_vertical_fov() const { return _vertical_fov; }
-        void set_vertical_fov(float fovy_deg) {
-            _vertical_fov = fovy_deg;
+        float get_fovy() const noexcept {
+            return _fovy;
         }
 
-        bool mirror_mode_enabled() const { return _flag_mirror_mode; }
+        void set_fovy(float fovy_deg) {
+            _fovy = fovy_deg;
+        }
+
+        bool mirror_mode_enabled() const noexcept {
+            return _flag_mirror_mode;
+        }
+
         void enable_mirror_mode(bool enable) {
             _flag_mirror_mode = enable;
         }
+
+        float get_perspective_scale_factor() const noexcept {
+            return _perspective_scale_factor;
+        }
+
+        void get_camera_position(vec3_f32& eye_pos/* out */) const;
+        void get_camera_direction(vec3_f32& eye_dir/* out */) const;
 
         void get_view_projection(
             mat4_f32& view_matrix/* out */,
@@ -234,8 +250,13 @@ namespace triengine
         );
 
     private:
-        float _get_perspective_scaled_zoom() const;
-        float _get_perspective_scaled_fovy() const;
+        float _get_perspective_scaled_zoom() const noexcept {
+            return _view_param.zoom / _perspective_scale_factor;
+        }
+
+        float _get_perspective_scaled_fovy() const noexcept {
+            return _fovy * _perspective_scale_factor;
+        }
 
     }; // class
 
