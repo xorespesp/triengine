@@ -79,6 +79,8 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
+# but keep Wavefront .obj model resources (compiled MSVC objects still ignored above)
+!**/resources/**/*.obj
 *.iobj
 *.pch
 *.pdb
