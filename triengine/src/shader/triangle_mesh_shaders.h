@@ -22,15 +22,13 @@ namespace triengine::shader
         uniform mat4 u_model; // model matrix
         uniform mat4 u_view; // view matrix
         uniform mat4 u_proj; // projection matrix
+        uniform mat3 u_nmv; // normal matrix in view-space; `mat3(transpose(inverse(u_view * u_model)))`
 
         void main()
         {
-            // TODO: compute in cpp side
-            const mat3 normalMatrixInView = mat3(transpose(inverse(u_view * u_model)));
-
             vo.view = u_view;
             vo.fragPosInView = vec3(u_view * u_model * vec4(vi_vertPos, 1.0));
-            vo.fragNormalInView = normalMatrixInView * vi_vertNormal;
+            vo.fragNormalInView = u_nmv * vi_vertNormal;
             vo.fragColor = vi_vertColor;
 
             gl_Position = u_proj * vec4(vo.fragPosInView, 1.0);
@@ -219,15 +217,13 @@ namespace triengine::shader
         uniform mat4 u_model; // model matrix
         uniform mat4 u_view; // view matrix
         uniform mat4 u_proj; // projection matrix
+        uniform mat3 u_nmv; // normal matrix in view-space; `mat3(transpose(inverse(u_view * u_model)))`
 
         void main()
         {
-            // TODO: compute in cpp side
-            const mat3 normalMatrixInView = mat3(transpose(inverse(u_view * u_model)));
-
             vo.view = u_view;
             vo.fragPosInView = vec3(u_view * u_model * vec4(vi_vertPos, 1.0));
-            vo.fragNormalInView = normalMatrixInView * vi_vertNormal;
+            vo.fragNormalInView = u_nmv * vi_vertNormal;
             vo.texCoords = vi_texCoords;
 
             gl_Position = u_proj * vec4(vo.fragPosInView, 1.0);

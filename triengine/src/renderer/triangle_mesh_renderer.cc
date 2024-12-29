@@ -236,7 +236,11 @@ namespace triengine::renderer
             TRIENGINE_ASSERT(material != nullptr && material->is_valid());
 
             // Update model(transform) matrix
-            GLCall(::glUniformMatrix4fv(_uloc_vertmode_model, 1, GL_FALSE, object->get_model().data()));
+            const mat4_f32& model = object->get_model();
+            GLCall(::glUniformMatrix4fv(_uloc_vertmode_model, 1, GL_FALSE, model.data()));
+
+            // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
+            _shader_vertmode.set_uniform_mat3("u_nmv", (view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update material
             _shader_vertmode.set_uniform_float("u_material.ambient", material->ambient);
@@ -333,7 +337,11 @@ namespace triengine::renderer
             TRIENGINE_ASSERT(material != nullptr && material->is_valid());
 
             // Update model(transform) matrix
-            GLCall(::glUniformMatrix4fv(_uloc_texmode_model, 1, GL_FALSE, object->get_model().data()));
+            const mat4_f32& model = object->get_model();
+            GLCall(::glUniformMatrix4fv(_uloc_texmode_model, 1, GL_FALSE, model.data()));
+
+            // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
+            _shader_texmode.set_uniform_mat3("u_nmv", (view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update material shininess
             _shader_texmode.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
@@ -428,10 +436,11 @@ namespace triengine::renderer
             TRIENGINE_ASSERT(!triangle_indices.empty());
 
             // Update model(transform) matrix
-            _shader_normal_view.set_uniform_mat4("u_model", object->get_model());
+            const mat4_f32& model = object->get_model();
+            _shader_normal_view.set_uniform_mat4("u_model", model);
 
-            // Update normal matrix -> `mat3(transpose(inverse(u_model)))`
-            _shader_normal_view.set_uniform_mat3("u_nm", object->get_model().topLeftCorner<3, 3>().inverse().transpose());
+            // Update normal matrix; `mat3(transpose(inverse(u_model)))`
+            _shader_normal_view.set_uniform_mat3("u_nm", model.inverse().transpose().topLeftCorner<3, 3>());
 
 
             // Update VAO

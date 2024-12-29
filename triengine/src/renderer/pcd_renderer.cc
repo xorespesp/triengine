@@ -129,7 +129,11 @@ namespace triengine::renderer
             }
 
             // Update model(transform) matrix
-            GLCall(::glUniformMatrix4fv(_uloc_model, 1, GL_FALSE, object->get_model().data()));
+            const mat4_f32& model = object->get_model();
+            GLCall(::glUniformMatrix4fv(_uloc_model, 1, GL_FALSE, model.data()));
+
+            // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
+            _shader.set_uniform_mat3("u_nmv", (view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update VAO
             // ********************************************************************************
