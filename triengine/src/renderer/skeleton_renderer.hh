@@ -7,7 +7,7 @@
 namespace triengine::renderer
 {
     class skeleton_renderer
-        : public renderer_base<geometry::skeleton_object>
+        : public object_renderer_base<geometry::skeleton_object>
     {
     private:
         // Render options
@@ -24,10 +24,6 @@ namespace triengine::renderer
 
         void create(GLFWwindow* window) override;
         void destroy() override;
-        void render(
-            const mat4_f32& view,
-            const mat4_f32& projection,
-            const lighting_options& light_opts
-        ) override;
+        void render(const render_context& render_ctx) override;
     };
 }

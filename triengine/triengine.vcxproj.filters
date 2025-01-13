@@ -138,6 +138,9 @@
     <ClCompile Include="src\gui\windows\scene_view_window.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\renderer\infinite_grid_renderer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -352,6 +355,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\gui\windows\scene_ctrl_window.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shader\infinite_grid_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderer\infinite_grid_renderer.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

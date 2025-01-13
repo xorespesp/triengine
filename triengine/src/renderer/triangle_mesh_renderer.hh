@@ -2,12 +2,10 @@
 #include "renderer_base.hh"
 #include "../geometry/triangle_mesh_object.hh"
 
-#include <list>
-
 namespace triengine::renderer
 {
     class triangle_mesh_renderer
-        : public renderer_base<geometry::triangle_mesh_object>
+        : public object_renderer_base<geometry::triangle_mesh_object>
     {
     private:
         // OpenGL shaders
@@ -48,38 +46,27 @@ namespace triengine::renderer
         // Renderer functions
         void create(GLFWwindow* window) override;
         void destroy() override;
-        void render(
-            const mat4_f32& view,
-            const mat4_f32& projection,
-            const lighting_options& light_opts
-        ) override;
+        void render(const render_context& render_ctx) override;
 
         void render(
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-            const mat4_f32& view,
-            const mat4_f32& projection,
-            const lighting_options& light_opts
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
+            const render_context& render_ctx
         );
 
     private:
         void _render_vertex_shading_objects(
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-            const mat4_f32& view,
-            const mat4_f32& projection,
-            const lighting_options& light_opts
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
+            const render_context& render_ctx
         );
 
         void _render_texture_shading_objects(
             const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-            const mat4_f32& view,
-            const mat4_f32& projection,
-            const lighting_options& light_opts
+            const render_context& render_ctx
         );
         
         void _render_objects_normals(
             const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-            const mat4_f32& view,
-            const mat4_f32& projection
+            const render_context& render_ctx
         );
 
     }; // class

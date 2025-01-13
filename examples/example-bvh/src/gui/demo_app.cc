@@ -44,7 +44,7 @@ namespace gui
 
         _vis_window->enable_mirror_mode(false);
         _vis_window->get_render_config().pcd_point_size = 2.5f;
-        _vis_window->get_render_config().show_origin_xz_plane = true;
+        //_vis_window->get_render_config().show_origin_xz_plane = true;
         _vis_window->get_render_config().light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
 
         _vis_window->set_key_callback(
@@ -96,39 +96,38 @@ namespace gui
         _log_window->set_visible(false);
         _vis_window->add_gui_window(_log_window);
 
-        if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
-            triengine::io::load_obj_file(
-                triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
-                //triengine_resource_dir / "objects/car_engine/car_engine.obj",
-                *new_obj
-            ))
-        {
-            //new_obj->compute_vertex_normals();
-            new_obj->set_model(
-                triengine::math::scale(new_obj->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
-            );
+        //if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
+        //    triengine::io::load_obj_file(
+        //        triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
+        //        //triengine_resource_dir / "objects/car_engine/car_engine.obj",
+        //        *new_obj
+        //    ))
+        //{
+        //    //new_obj->compute_vertex_normals();
+        //    new_obj->set_model(
+        //        triengine::math::scale(new_obj->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
+        //    );
 
-            new_obj->apply_model_in_place();
+        //    new_obj->apply_model_in_place();
 
-            Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-            R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
-            new_obj->rotate(R, true);
-            new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
-            _vis_window->add_render_object(new_obj);
-            _obj_texcolor_mesh = new_obj;
-        }
+        //    Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+        //    R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
+        //        * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
+        //        * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+        //    new_obj->rotate(R, true);
+        //    new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
+        //    _vis_window->add_render_object(new_obj);
+        //    _obj_texcolor_mesh = new_obj;
+        //}
 
-        //if constexpr (false)
-        {
-            auto obj_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame();
+        //{
+        //    auto obj_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame();
 
-            //obj_axis_frame->paint_uniform_color(_get_next_color());
-            obj_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
+        //    //obj_axis_frame->paint_uniform_color(_get_next_color());
+        //    obj_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
 
-            _vis_window->add_render_object(obj_axis_frame);
-        }
+        //    _vis_window->add_render_object(obj_axis_frame);
+        //}
     }
 
     void demo_app::destroy()

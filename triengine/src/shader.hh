@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "misc/debug_utils.hh"
+#include "misc/opengl_utils.hh"
 
 #include "extern/glad/glad.h"
 #include <GLFW/glfw3.h>
@@ -15,7 +16,8 @@
 
 namespace triengine
 {
-    enum class shader_object_type : GLenum {
+    enum class shader_object_type : GLenum
+    {
         vertex = GL_VERTEX_SHADER,
         fragment = GL_FRAGMENT_SHADER,
         geometry = GL_GEOMETRY_SHADER,

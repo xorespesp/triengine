@@ -1,12 +1,13 @@
 #pragma once
 #include "common.h"
 #include "camera.hh"
+#include "lighting_options.hh"
+#include "renderer/infinite_grid_renderer.hh"
 #include "renderer/light_source_renderer.hh"
 #include "renderer/triangle_mesh_renderer.hh"
 #include "renderer/lineset_renderer.hh"
 #include "renderer/pcd_renderer.hh"
 #include "renderer/skeleton_renderer.hh"
-#include "lighting_options.hh"
 #include "gui/gui_manager.hh"
 
 #include "extern/glad/glad.h"
@@ -34,10 +35,11 @@ namespace triengine
 
         struct render_config {
             view_layout_mode view_layout{ view_layout_mode::one_view };
-            bool show_origin_axis{ true };
-            bool show_origin_xz_plane{ false };
-            bool show_object_normals{ false };
             bool show_wireframe{ false };
+            bool show_object_normals{ false };
+            bool show_origin_axis{ true };
+            bool show_origin_xz_grid{ false };
+            renderer::infinite_grid_options infgrid_opts;
             lighting_options light_opts;
             color3_f32 bg_color{ 0.05f, 0.05f, 0.05f };
             std::optional<float> pcd_point_size;
@@ -233,6 +235,7 @@ namespace triengine
         camera* _curr_focused_camera{ &_top_left_camera };
         vec2_f32 _last_clicked_cursor_viewport_pos{};
 
+        renderer::infinite_grid_renderer _infgrid_renderer;
         renderer::light_source_renderer _light_source_renderer;
         renderer::triangle_mesh_renderer _mesh_renderer;
         renderer::lineset_renderer _lineset_renderer;
@@ -244,7 +247,6 @@ namespace triengine
 
         std::shared_ptr<geometry::light_source_object> _point_light_source_object;
         std::shared_ptr<geometry::triangle_mesh_object> _origin_axis_frame_object;
-        std::shared_ptr<geometry::lineset_object> _origin_xz_plane_object;
 
     }; // class
 } // namespace

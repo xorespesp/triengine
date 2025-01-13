@@ -4,18 +4,24 @@
 #include "../shader.hh"
 #include "../texture.hh"
 #include "../lighting_options.hh"
+#include "../camera.hh"
+
+#include <list>
 
 namespace triengine::renderer
 {
-    template <typename _RenderObject>
+    struct render_context
+    {
+        mat4_f32 view{};
+        mat4_f32 projection{};
+        lighting_options const* light_opts{ nullptr };
+        camera const* camera{ nullptr };
+    };
+
     class renderer_base
     {
-    public:
-        using render_object_type = _RenderObject;
-
     private:
         bool _creation_flag{ false };
-        std::list<std::shared_ptr<render_object_type>> _render_objects;
 
     protected:
         void set_creation_flag(bool created) {
@@ -28,6 +34,30 @@ namespace triengine::renderer
 
         renderer_base(const renderer_base&) = delete;
         renderer_base& operator= (const renderer_base&) = delete;
+
+        bool is_created() const noexcept {
+            return _creation_flag;
+        }
+
+        virtual void create(GLFWwindow* window) = 0;
+        virtual void destroy() = 0;
+        virtual void render(const render_context& render_ctx) = 0;
+
+    }; // class
+
+    template <typename _RenderObject>
+    class object_renderer_base
+        : public renderer_base
+    {
+    public:
+        using render_object_type = _RenderObject;
+
+    protected:
+        std::list<std::shared_ptr<render_object_type>> _render_objects;
+
+    public:
+        object_renderer_base() = default;
+        virtual ~object_renderer_base() = default;
 
         const auto& get_objects() const noexcept {
             return _render_objects;
@@ -44,18 +74,6 @@ namespace triengine::renderer
         void clear_objects() {
             _render_objects.clear();
         }
-
-        bool is_created() const noexcept {
-            return _creation_flag;
-        }
-
-        virtual void create(GLFWwindow* window) = 0;
-        virtual void destroy() = 0;
-        virtual void render(
-            const mat4_f32& view,
-            const mat4_f32& projection,
-            const lighting_options& light_opts
-        ) = 0;
 
     }; // class
 

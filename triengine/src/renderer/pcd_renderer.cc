@@ -85,10 +85,7 @@ namespace triengine::renderer
         _point_size = point_size;
     }
 
-    void pcd_renderer::render(
-        const mat4_f32& view,
-        const mat4_f32& projection,
-        const lighting_options& light_opts)
+    void pcd_renderer::render(const render_context& render_ctx)
     {
         const auto& render_objects = this->get_objects();
 
@@ -102,11 +99,11 @@ namespace triengine::renderer
         _shader.use();
 
         // Update model/view/projective matrices in shader
-        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_proj, 1, GL_FALSE, projection.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, render_ctx.view.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_proj, 1, GL_FALSE, render_ctx.projection.data()));
 
         // Update light options in shader
-        light_opts.apply_to_shader(_shader);
+        render_ctx.light_opts->apply_to_shader(_shader);
 
         // Update point size
         GLCall(::glPointSize(static_cast<GLfloat>(_point_size.value_or(1.0f/* default size */))));
@@ -133,7 +130,7 @@ namespace triengine::renderer
             GLCall(::glUniformMatrix4fv(_uloc_model, 1, GL_FALSE, model.data()));
 
             // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-            _shader.set_uniform_mat3("u_nmv", (view * model).inverse().transpose().topLeftCorner<3, 3>());
+            _shader.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update VAO
             // ********************************************************************************

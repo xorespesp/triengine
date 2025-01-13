@@ -50,9 +50,15 @@ namespace triengine::gui
 
                 ImGui::ColorEdit3("BG Color", render_config.bg_color.data());
                 ImGui::Checkbox("Show Origin Axes", &render_config.show_origin_axis);
-                ImGui::Checkbox("Show Origin XZ Plane", &render_config.show_origin_xz_plane);
                 ImGui::Checkbox("Show Object Normals", &render_config.show_object_normals);
                 ImGui::Checkbox("Show Wireframe", &render_config.show_wireframe);
+
+                if (ImGui::CollapsingHeader("Grid Render Options"))
+                {
+                    ImGui::Checkbox("Show Grid", &render_config.show_origin_xz_grid);
+                    ImGui::ColorEdit3("Grid Color", render_config.infgrid_opts.grid_color.data());
+                    ImGui::DragFloat("Grid Cell Size", &render_config.infgrid_opts.grid_cell_size, 0.001f, 0.025f, FLT_MAX);
+                }
 
                 {
                     using enum_type = triengine::visualizer_window::skeleton_render_mode;

@@ -169,24 +169,17 @@ namespace triengine::renderer
         }
     }
 
-    void triangle_mesh_renderer::render(
-        const mat4_f32& view,
-        const mat4_f32& projection,
-        const lighting_options& light_opts)
+    void triangle_mesh_renderer::render(const render_context& render_ctx)
     {
         this->render(
             this->get_objects(), 
-            view,
-            projection,
-            light_opts
+            render_ctx
         );
     }
 
     void triangle_mesh_renderer::render(
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-        const mat4_f32& view,
-        const mat4_f32& projection,
-        const lighting_options& light_opts)
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
+        const render_context& render_ctx)
     {
         if (render_objects.empty()) {
             return;
@@ -195,28 +188,26 @@ namespace triengine::renderer
         // Enable depth testing
         GLCall(::glEnable(GL_DEPTH_TEST));
 
-        this->_render_vertex_shading_objects(render_objects, view, projection, light_opts);
-        this->_render_texture_shading_objects(render_objects, view, projection, light_opts);
+        this->_render_vertex_shading_objects(render_objects, render_ctx);
+        this->_render_texture_shading_objects(render_objects, render_ctx);
 
         if (_show_object_normals) { // for debugging
-            this->_render_objects_normals(render_objects, view, projection);
+            this->_render_objects_normals(render_objects, render_ctx);
         }
     }
 
     void triangle_mesh_renderer::_render_vertex_shading_objects(
         const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const mat4_f32& view, 
-        const mat4_f32& projection, 
-        const lighting_options& light_opts)
+        const render_context& render_ctx)
     {
         _shader_vertmode.use();
 
         // Update view, projection matrices
-        GLCall(::glUniformMatrix4fv(_uloc_vertmode_view, 1, GL_FALSE, view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_vertmode_proj, 1, GL_FALSE, projection.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_vertmode_view, 1, GL_FALSE, render_ctx.view.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_vertmode_proj, 1, GL_FALSE, render_ctx.projection.data()));
 
         // Update light options in shader
-        light_opts.apply_to_shader(_shader_vertmode);
+        render_ctx.light_opts->apply_to_shader(_shader_vertmode);
 
         for (const auto& object : render_objects)
         {
@@ -240,7 +231,7 @@ namespace triengine::renderer
             GLCall(::glUniformMatrix4fv(_uloc_vertmode_model, 1, GL_FALSE, model.data()));
 
             // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-            _shader_vertmode.set_uniform_mat3("u_nmv", (view * model).inverse().transpose().topLeftCorner<3, 3>());
+            _shader_vertmode.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update material
             _shader_vertmode.set_uniform_float("u_material.ambient", material->ambient);
@@ -306,18 +297,16 @@ namespace triengine::renderer
 
     void triangle_mesh_renderer::_render_texture_shading_objects(
         const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const mat4_f32& view, 
-        const mat4_f32& projection, 
-        const lighting_options& light_opts)
+        const render_context& render_ctx)
     {
         _shader_texmode.use();
         
         // Update view, projection matrices
-        GLCall(::glUniformMatrix4fv(_uloc_texmode_view, 1, GL_FALSE, view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_texmode_proj, 1, GL_FALSE, projection.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_texmode_view, 1, GL_FALSE, render_ctx.view.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_texmode_proj, 1, GL_FALSE, render_ctx.projection.data()));
 
         // Update light options in shader
-        light_opts.apply_to_shader(_shader_texmode);
+        render_ctx.light_opts->apply_to_shader(_shader_texmode);
 
         for (const auto& object : render_objects)
         {
@@ -341,7 +330,7 @@ namespace triengine::renderer
             GLCall(::glUniformMatrix4fv(_uloc_texmode_model, 1, GL_FALSE, model.data()));
 
             // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-            _shader_texmode.set_uniform_mat3("u_nmv", (view * model).inverse().transpose().topLeftCorner<3, 3>());
+            _shader_texmode.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update material shininess
             _shader_texmode.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
@@ -414,13 +403,12 @@ namespace triengine::renderer
 
     void triangle_mesh_renderer::_render_objects_normals(
         const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const mat4_f32& view, 
-        const mat4_f32& projection)
+        const render_context& render_ctx)
     {
         _shader_normal_view.use();
 
         // Update view, projection matrices
-        _shader_normal_view.set_uniform_mat4("u_view_proj", projection * view);
+        _shader_normal_view.set_uniform_mat4("u_view_proj", render_ctx.projection * render_ctx.view);
 
         for (const auto& object : render_objects)
         {

@@ -53,6 +53,7 @@
     <ClCompile Include="src\io\file_obj_loader.cc" />
     <ClCompile Include="src\misc\debug_utils.cc" />
     <ClCompile Include="src\misc\opengl_utils.cc" />
+    <ClCompile Include="src\renderer\infinite_grid_renderer.cc" />
     <ClCompile Include="src\renderer\light_source_renderer.cc" />
     <ClCompile Include="src\renderer\lineset_renderer.cc" />
     <ClCompile Include="src\renderer\pcd_renderer.cc" />
@@ -121,6 +122,7 @@
     <ClInclude Include="src\misc\debug_utils.hh" />
     <ClInclude Include="src\misc\opengl_utils.hh" />
     <ClInclude Include="src\misc\string_utils.hh" />
+    <ClInclude Include="src\renderer\infinite_grid_renderer.hh" />
     <ClInclude Include="src\renderer\light_source_renderer.hh" />
     <ClInclude Include="src\renderer\lineset_renderer.hh" />
     <ClInclude Include="src\renderer\pcd_renderer.hh" />
@@ -128,6 +130,7 @@
     <ClInclude Include="src\renderer\skeleton_renderer.hh" />
     <ClInclude Include="src\renderer\triangle_mesh_renderer.hh" />
     <ClInclude Include="src\shader.hh" />
+    <ClInclude Include="src\shader\infinite_grid_shaders.h" />
     <ClInclude Include="src\shader\lighting_shaders.h" />
     <ClInclude Include="src\shader\lineset_shaders.h" />
     <ClInclude Include="src\shader\normal_vis_shaders.h" />

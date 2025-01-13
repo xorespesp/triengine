@@ -35,14 +35,11 @@ namespace triengine::renderer
         }
     }
 
-    void skeleton_renderer::render(
-        const mat4_f32& view,
-        const mat4_f32& projection,
-        const lighting_options& light_opts)
+    void skeleton_renderer::render(const render_context& render_ctx)
     {
         for (const auto& object : this->get_objects()) {
-            _mesh_renderer.render(object->joint_objects, view, projection, light_opts);
-            _mesh_renderer.render(object->bone_objects, view, projection, light_opts);
+            _mesh_renderer.render(object->joint_objects, render_ctx);
+            _mesh_renderer.render(object->bone_objects, render_ctx);
         }
     }
 

@@ -295,6 +295,7 @@ namespace triengine
         ::glfwSwapInterval((show_window) ? 1 : 0); // glfwSwapInterval(1) -> Enable vsync
 
         // Context Settings
+        GLCall(::glEnable(GL_DEPTH_TEST));
         //GLCall(::glEnable(GL_MULTISAMPLE));
         GLCall(::glDisable(GL_BLEND));
         GLCall(::glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
@@ -305,6 +306,7 @@ namespace triengine
         _lineset_renderer.create(_glfw_window.get());
         _pcd_renderer.create(_glfw_window.get());
         _skeleton_renderer.create(_glfw_window.get());
+        _infgrid_renderer.create(_glfw_window.get());
 
         // Initialize GUI system
         {
@@ -326,11 +328,6 @@ namespace triengine
         _origin_axis_frame_object = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
         _origin_axis_frame_object->set_visible(_render_config.show_origin_axis);
         _mesh_renderer.add_object(_origin_axis_frame_object);
-
-        _origin_xz_plane_object = geometry::lineset_object::create_xz_plane(200.0f, 200);
-        _origin_xz_plane_object->paint_uniform_color(color3_f32{ 0.3f, 0.3f, 0.3f });
-        _origin_xz_plane_object->set_visible(_render_config.show_origin_xz_plane);
-        _lineset_renderer.add_object(_origin_xz_plane_object);
     }
 
     void visualizer_window::close_window()
@@ -353,6 +350,7 @@ namespace triengine
             _lineset_renderer.destroy();
             _mesh_renderer.destroy();
             _light_source_renderer.destroy();
+            _infgrid_renderer.destroy();
 
             _glfw_window.reset();
         }
@@ -520,40 +518,49 @@ namespace triengine
         // Change view port
         GLCall(::glViewport(viewport.x, viewport.y, viewport.width, viewport.height));
 
-        // Update view/projection matrix
-        mat4_f32 view, projection;
-        target_camera.get_view_projection(view, projection);
-
         if (_render_config.light_opts.dir_light.follow_camera) {
             _curr_focused_camera->get_camera_direction(_render_config.light_opts.dir_light.direction);
+        }
+
+        renderer::render_context render_ctx; {
+            target_camera.get_view_projection(render_ctx.view, render_ctx.projection);
+            render_ctx.light_opts = &_render_config.light_opts;
+            render_ctx.camera = &target_camera;
         }
 
         _point_light_source_object->set_visible(_render_config.light_opts.point_light.enabled && _render_config.light_opts.point_light.show_light_source);
         _point_light_source_object->translate(_render_config.light_opts.point_light.position);
         _point_light_source_object->color = _render_config.light_opts.point_light.color;
 
-        _lineset_renderer.render(view, projection, _render_config.light_opts);
+        _lineset_renderer.render(render_ctx);
 
         _origin_axis_frame_object->set_visible(_render_config.show_origin_axis);
-        _origin_xz_plane_object->set_visible(_render_config.show_origin_xz_plane);
 
         _mesh_renderer.enable_object_normal_rendering(_render_config.show_object_normals);
-        _mesh_renderer.render(view, projection, _render_config.light_opts);
-        _light_source_renderer.render(view, projection, _render_config.light_opts);
+        _mesh_renderer.render(render_ctx);
+
+        _light_source_renderer.render(render_ctx);
 
         if (_render_config.pcd_point_size) {
             _pcd_renderer.set_pcd_point_size(*_render_config.pcd_point_size);
         }
-        _pcd_renderer.render(view, projection, _render_config.light_opts);
+        _pcd_renderer.render(render_ctx);
+
+        _infgrid_renderer.set_options(_render_config.infgrid_opts);
+        if (_render_config.show_origin_xz_grid) {
+            // NOTE: The infinite grid renderer must be rendered last to allow for alpha-blending.
+            //       (except the skeleton renderer, which sometimes causes the depth buffer to be reset).
+            _infgrid_renderer.render(render_ctx);
+        }
 
         if (_render_config.skeleton_mode == skeleton_render_mode::skeleton_overlay ||
             _render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis)
         {
             GLCall(::glClear(GL_DEPTH_BUFFER_BIT)); // Enable skeleton overlay
         }
-
         _skeleton_renderer.show_joint_axis(_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
-        _skeleton_renderer.render(view, projection, _render_config.light_opts);
+        _skeleton_renderer.render(render_ctx);
+
     }
 
     void visualizer_window::_handle_glfw_window_close_event(

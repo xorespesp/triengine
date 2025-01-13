@@ -72,10 +72,7 @@ namespace triengine::renderer
         }
     }
 
-    void lineset_renderer::render(
-        const mat4_f32& view,
-        const mat4_f32& projection,
-        [[maybe_unused]] const lighting_options& light_opts)
+    void lineset_renderer::render(const render_context& render_ctx)
     {
         const auto& render_objects = this->get_objects();
 
@@ -94,8 +91,8 @@ namespace triengine::renderer
         _shader.use();
 
         // Update view/projective matrices in shader
-        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_proj, 1, GL_FALSE, projection.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, render_ctx.view.data()));
+        GLCall(::glUniformMatrix4fv(_uloc_proj, 1, GL_FALSE, render_ctx.projection.data()));
 
         for (const auto& object : render_objects)
         {
