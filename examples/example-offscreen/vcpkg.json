@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "example-offscreen",
+  "version": "0.0.1",
+  "dependencies": [
+    {
+      "name": "glfw3"
+    },
+    {
+      "name": "eigen3"
+    },
+    {
+      "name": "spdlog"
+    }
+  ],
+  "overrides": [
+    {
+      "name": "glfw3",
+      "version": "3.3.8",
+      "port-version": 0
+    },
+    {
+      "name": "eigen3",
+      "version": "3.4.0",
+      "port-version": 4
+    },
+    {
+      "name": "spdlog",
+      "version": "1.14.1",
+      "port-version": 0
+    }
+  ],
+  "builtin-baseline": "b7601ed37e1e1ce11a4f61b4b94a23e39d465f1d"
+}
