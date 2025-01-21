@@ -8,8 +8,8 @@
 #include <array>
 #include <magic_enum.hpp>
 
-#include "triengine/math.hh"
-#include "triengine/io/file_obj_loader.hh"
+#include <triengine/math.hh>
+#include <triengine/io/file_obj_loader.hh>
 
 namespace gui
 {
