@@ -157,56 +157,41 @@ namespace triengine
             _perspective_scale_factor = kDefaulPerspectiveScaleFactor;
         }
 
-        const view_port& get_view_port() const noexcept {
-            return _view_port;
-        }
+        camera_parameters& get_parameters() noexcept { return _view_param; }
+        const camera_parameters& get_parameters() const noexcept { return _view_param; }
 
+        const view_port& get_view_port() const noexcept { return _view_port; }
         void set_view_port(view_port viewport) {
             _view_port = viewport;
         }
 
-        const camera_parameters& get_parameters() const noexcept {
-            return _view_param;
-        }
-
-        const vec3_f32& get_lookat_center() const noexcept {
-            return _view_param.lookat_center;
-        }
-
-        void set_lookat_center(const vec3_f32& lookat_center) {
+        const vec3_f32& get_lookat_center() const noexcept { return _view_param.lookat_center; }
+        void set_lookat_center(const vec3_f32& lookat_center) noexcept {
             _view_param.lookat_center = lookat_center;
         }
 
-        float get_mouse_sensitivity() const noexcept {
-            return _mouse_sensitivity;
-        }
-
-        void set_mouse_sensitivity(float sensitivity) {
+        float get_mouse_sensitivity() const noexcept { return _mouse_sensitivity; }
+        void set_mouse_sensitivity(float sensitivity) noexcept {
             _mouse_sensitivity = sensitivity;
         }
 
-        float get_fovy() const noexcept {
-            return _fovy;
-        }
-
-        void set_fovy(float fovy_deg) {
+        float get_fovy() const noexcept { return _fovy; }
+        void set_fovy(float fovy_deg) noexcept {
             _fovy = fovy_deg;
         }
 
-        bool mirror_mode_enabled() const noexcept {
-            return _flag_mirror_mode;
-        }
-
-        void enable_mirror_mode(bool enable) {
+        bool mirror_mode_enabled() const noexcept { return _flag_mirror_mode; }
+        void enable_mirror_mode(bool enable) noexcept {
             _flag_mirror_mode = enable;
         }
 
-        float get_perspective_scale_factor() const noexcept {
-            return _perspective_scale_factor;
+        float get_perspective_scale_factor() const noexcept { return _perspective_scale_factor; }
+        void set_perspective_scale_factor(float scale_factor) noexcept {
+            _perspective_scale_factor = scale_factor;
         }
 
-        void get_camera_position(vec3_f32& eye_pos/* out */) const;
-        void get_camera_direction(vec3_f32& eye_dir/* out */) const;
+        vec3_f32 get_camera_position() const;
+        vec3_f32 get_camera_direction() const;
 
         void get_view_projection(
             mat4_f32& view_matrix/* out */,

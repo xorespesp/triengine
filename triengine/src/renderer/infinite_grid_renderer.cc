@@ -54,10 +54,7 @@ namespace triengine::renderer
         _shader.set_uniform_mat4("u_view", render_ctx.view);
         _shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
-        vec3_f32 eye_pos;
-        render_ctx.camera->get_camera_position(eye_pos);
-        _shader.set_uniform_vec3("u_eyePos", eye_pos);
-
+        _shader.set_uniform_vec3("u_eyePos", render_ctx.camera->get_camera_position());
         _shader.set_uniform_vec3("u_gridColor", _options.grid_color);
         _shader.set_uniform_float("u_gridCellSize", _options.grid_cell_size);
 

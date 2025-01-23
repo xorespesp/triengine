@@ -27,7 +27,10 @@ namespace triengine::renderer
         // Renderer functions
         void create(GLFWwindow* window) override;
         void destroy() override;
-        void render(const render_context& render_ctx) override;
+        void render(
+            const render_context& render_ctx,
+            const std::list<std::shared_ptr<render_object_type>>& render_obj_list
+        ) override;
     };
 
 } // namespace

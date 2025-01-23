@@ -4,6 +4,10 @@
   "version": "0.0.1",
   "dependencies": [
     {
+      "name": "opencv",
+      "default-features": true
+    },
+    {
       "name": "glfw3"
     },
     {
@@ -14,6 +18,11 @@
     }
   ],
   "overrides": [
+    {
+      "name": "opencv4",
+      "version": "4.8.0",
+      "port-version": 10
+    },
     {
       "name": "glfw3",
       "version": "3.3.8",

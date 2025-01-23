@@ -1,16 +1,9 @@
 #pragma once
 #include "renderer_base.hh"
+#include "../infinite_grid_options.hh"
 
 namespace triengine::renderer
 {
-    struct infinite_grid_options
-    {
-        vec3_f32 grid_color{ 0.5f, 0.5f, 0.5f };
-        float grid_cell_size{ 0.05f };
-
-        infinite_grid_options() = default;
-    };
-
     class infinite_grid_renderer
         : public renderer_base
     {

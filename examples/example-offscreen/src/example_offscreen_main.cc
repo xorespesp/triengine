@@ -1,11 +1,12 @@
-#pragma once
+﻿#pragma once
 #include <utils/logger.hh>
 #include <utils/path_utils.hh>
 
-#include <triengine/visualizer_window.hh>
-#include <triengine/frame_buffer.hh>
+#include <triengine/offscreen_window.hh>
 #include <triengine/math.hh>
 #include <triengine/io/file_obj_loader.hh>
+
+#include <opencv2/opencv.hpp>
 
 #include <memory>
 #include <array>
@@ -18,8 +19,9 @@ namespace gui
     class demo_app
     {
     private:
-        std::unique_ptr<triengine::visualizer_window> _vis_window;
-        std::shared_ptr<triengine::frame_buffer> _frame_buffer;
+        std::unique_ptr<triengine::offscreen_window> _off_window;
+        triengine::scene* _scene{ nullptr };
+        triengine::camera* _camera{ nullptr };
 
         std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh;
 
@@ -27,73 +29,37 @@ namespace gui
         demo_app() = default;
         ~demo_app() = default;
 
-        void set_close_callback(
-            triengine::visualizer_window::close_callback cb
-        );
-
-        void set_key_callback(
-            triengine::visualizer_window::key_callback cb
-        );
-
         void create(
             const std::filesystem::path& triengine_resource_dir)
         {
             LOG_TRACE("%s() ENTER", __func__);
 
-            _vis_window = std::make_unique<triengine::visualizer_window>();
-            _vis_window->create_window("Triengine Orbbec Demo"
-                " (Build: " __DATE__ ", " __TIME__
-#if defined (_DEBUG)
-                " DBG"
-#else  // ^^^ _DEBUG ^^^ / vvv !_DEBUG vvv
-                " REL"
-#endif // ^^^ !_DEBUG ^^^
-                ")"
-            );
+            _off_window = std::make_unique<triengine::offscreen_window>();
+            _off_window->create_window(1280, 720);
 
-            _vis_window->enable_mirror_mode(false);
-            _vis_window->get_render_config().pcd_point_size = 2.5f;
-            //_vis_window->get_render_config().show_origin_xz_plane = true;
-            _vis_window->get_render_config().light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+            _camera = _off_window->get_current_camera();
 
-            _vis_window->set_key_callback(
-                [this](
-                    [[maybe_unused]] triengine::visualizer_window& vis,
-                    [[maybe_unused]] const int key,
-                    [[maybe_unused]] const int scancode,
-                    [[maybe_unused]] const int action,
-                    [[maybe_unused]] const int mods,
-                    [[maybe_unused]] bool& handled)
-                {
-                    if (action != GLFW_RELEASE)
-                    {
-                        switch (key) {
-                        case GLFW_KEY_ESCAPE:
-                            break;
-                        case GLFW_KEY_F12:
-                            _vis_window->enable_main_menu(!_vis_window->is_main_menu_enabled());
-                            break;
-                        case GLFW_KEY_A:
-                            _vis_window->get_render_config().light_opts.point_light.position.x() -= 0.05f; // left
-                            break;
-                        case GLFW_KEY_D:
-                            _vis_window->get_render_config().light_opts.point_light.position.x() += 0.05f; // right
-                            break;
-                        case GLFW_KEY_W:
-                            _vis_window->get_render_config().light_opts.point_light.position.z() += 0.05f; // forward
-                            break;
-                        case GLFW_KEY_S:
-                            _vis_window->get_render_config().light_opts.point_light.position.z() -= 0.05f; // backward
-                            break;
-                        case GLFW_KEY_UP:
-                            _vis_window->get_render_config().light_opts.point_light.position.y() -= 0.05f; // up
-                            break;
-                        case GLFW_KEY_DOWN:
-                            _vis_window->get_render_config().light_opts.point_light.position.y() += 0.05f; // down
-                            break;
-                        }
-                    }
-                });
+            {
+                auto& camera_params = _camera->get_parameters();
+                camera_params.lookat_center = triengine::vec3_f32{ -0.069978f, -0.646604f, -0.001912f };
+                camera_params.camera_front = triengine::vec3_f32{ 0.630178f, -0.076719f, -0.772651f };
+                camera_params.camera_right = triengine::vec3_f32{ -0.774935f, -0.0f, -0.63204f };
+                camera_params.camera_up = triengine::vec3_f32{ -0.048490f, -0.997053f, 0.059452f };
+                camera_params.yaw = 140.799164f;
+                camera_params.pitch = -4.400012f;
+                camera_params.zoom = 0.985002f;
+            }
+
+            _scene = _off_window->get_default_scene();
+            _scene->scn_config.bg_color = triengine::color4_f32::all(0.0f);
+            _scene->scn_config.bg_color.a() = 0.0f;
+            _scene->scn_config.pcd_point_size = 2.5f;
+            _scene->scn_config.show_origin_xz_grid = false;
+            _scene->scn_config.infgrid_opts.grid_color = triengine::vec3_f32{ 1.0f, 0.0f, 0.0f };
+            _scene->scn_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+            _scene->scn_config.light_opts.dir_light.diffuseIntensity = 0.8f;
+
+            _off_window->enable_mirror_mode(false);
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_obj_file(
@@ -115,17 +81,18 @@ namespace gui
                     * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
                 new_obj->rotate(R, true);
                 new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
-                _vis_window->add_render_object(new_obj);
+                _scene->add_object(new_obj);
                 _obj_texcolor_mesh = new_obj;
             }
+
         }
 
         void destroy()
         {
             LOG_TRACE("%s() ENTER", __func__);
 
-            _vis_window->destroy_window();
-            _vis_window.reset();
+            _off_window->destroy_window();
+            _off_window.reset();
 
             LOG_TRACE("%s() LEAVE", __func__);
         }
@@ -134,7 +101,23 @@ namespace gui
         {
             LOG_TRACE("%s() ENTER", __func__);
 
-            while (_vis_window->poll_events())
+            cv::VideoCapture cap;
+            cap.open("source.mp4");
+
+            cv::Mat bg_frame;
+            if (!cap.read(bg_frame)) {
+                LOG_ERROR("failed to read bg frame");
+                return;
+            }
+
+            cv::cvtColor(bg_frame, bg_frame, cv::COLOR_BGR2BGRA);
+
+            LOG_DEBUG("bg frame size: [%dx%d] (type %d)", bg_frame.cols, bg_frame.rows, bg_frame.type());
+            cv::imshow("bg frame", bg_frame);
+            cv::waitKey(0);
+
+            triengine::image frame;
+            for(bool flag_stop{ false }; !flag_stop && _off_window->update_window();)
             {
                 // for testing
                 if (_obj_texcolor_mesh)
@@ -153,9 +136,44 @@ namespace gui
                     _obj_texcolor_mesh->rotate(R);
                 }
 
-                _vis_window->render();
-            } // while
+                _off_window->render(frame);
 
+                cv::Mat cv_frame(
+                    frame.height_pixels(),
+                    frame.width_pixels(),
+                    CV_8UC4,
+                    static_cast<void*>(frame.data()),
+                    frame.stride_bytes()
+                );
+                cv::flip(cv_frame, cv_frame, 0);
+
+                // 2. 알파 채널 추출
+                std::vector<cv::Mat> channels;
+                cv::split(cv_frame, channels); // RGBA 채널 분리
+                cv::Mat alphaChannel = channels[3]; // 알파 채널
+
+                cv::Mat cv_mask;
+                cv::threshold(alphaChannel, cv_mask, 1, 255, cv::THRESH_BINARY);
+
+                cv::Mat cv_result = bg_frame.clone();
+                cv_frame.copyTo(cv_result, cv_mask);
+                cv::imshow("offscreen rendering", cv_result);
+                switch (cv::waitKey(1)) {
+                case 'w':
+                case 'W':
+                    cv::imwrite("frame.png", cv_frame);
+                    break;
+                case 'q':
+                case 'Q':
+                    flag_stop = true;
+                    break;
+                default:
+                    break;
+                }
+
+            } // for
+
+            cv::destroyAllWindows();
             LOG_TRACE("%s() LEAVE", __func__);
         }
 

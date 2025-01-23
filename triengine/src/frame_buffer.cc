@@ -173,11 +173,11 @@ namespace triengine
             // NOTE: Passing a NULL pointer as the `pixels` parameter (the last argument) to `glTexImage2D` is a valid usage scenario. 
             //       In this case, no actual texture image data is uploaded to the GPU;
             //       instead, the function simply allocates memory for an "empty" texture with the specified dimensions and format.
-            constexpr GLenum tex_format = GL_RGB;
+            constexpr GLenum tex_format = GL_RGBA;
             GLCall(::glTexImage2D(
                 GL_TEXTURE_2D,                     /*GLenum target*/
                 0,                                 /*GLint level*/
-                GL_RGB,                            /*GLint internalformat*/
+                GL_RGBA,                           /*GLint internalformat*/
                 width_pixels,                      /*GLsizei width*/
                 height_pixels,                     /*GLsizei height*/
                 0,                                 /*GLint border*/
@@ -195,7 +195,7 @@ namespace triengine
             GLCall(::glTexImage2DMultisample(
                 GL_TEXTURE_2D_MULTISAMPLE, /* GLenum target */
                 sample_count,              /* GLsizei samples */
-                GL_RGB,                    /* GLenum internalformat */
+                GL_RGBA,                   /* GLenum internalformat */
                 width_pixels,              /* GLsizei width */
                 height_pixels,             /* GLsizei height */
                 GL_TRUE                    /* GLboolean fixedsamplelocations */

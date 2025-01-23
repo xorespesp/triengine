@@ -22,7 +22,7 @@ namespace triengine::gui
             bool flag_show_overlay{ true };
             bool flag_window_focused{ false };
             bool flag_invalidate_fbo{ false };
-            int32_t frame_sample_count{ 8 }; // MSAA sample count
+            int32_t fb_sample_count{ 8 }; // MSAA sample count
 
             std::array<float, 100> values{};
             int32_t values_offset = 0;
@@ -34,7 +34,7 @@ namespace triengine::gui
     private:
         visualizer_window* _vis_window;
         triengine::frame_buffer _fb_main;
-        triengine::frame_buffer _fb_copy; // only used in msaa rendering
+        triengine::frame_buffer _fb_msaa_copy; // only used in msaa rendering
         window_state_t _state;
 
     public:
@@ -75,7 +75,7 @@ namespace triengine::gui
         void render(const window_render_context& render_ctx) override;
 
     private:
-        void _render_overlay(const window_render_context& render_ctx);
+        void _render_overlay_ui(const window_render_context& render_ctx);
 
     }; // class
 

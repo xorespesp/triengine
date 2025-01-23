@@ -1,26 +1,13 @@
 #pragma once
 #include "common.h"
+#include "image.hh"
 
 #include "extern/glad/glad.h"
-#include <GLFW/glfw3.h>
 
 #include <filesystem>
 
 namespace triengine
 {
-    // Ref: 
-    // https://stackoverflow.com/a/4745945
-    // https://stackoverflow.com/a/34497547
-    enum class image_format_type : GLenum
-    {
-        invalid = 0,
-        greyscale = GL_RED, // 1 channel (Ref: https://stackoverflow.com/a/69113182)
-        rgb = GL_RGB, // 3 channel
-        bgr = GL_BGR, // 3 channel (NOTE: not a internal format, just a format)
-        rgba = GL_RGBA, // 4 channel
-        bgra = GL_BGRA, // 4 channel (NOTE: not a internal format, just a format)
-    };
-
     // Represents a texture (include material)
     // Refs:
     // https://github.com/ocornut/imgui/wiki/Image-Loading-and-Displaying-Examples#example-for-opengl-users

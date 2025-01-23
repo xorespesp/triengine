@@ -7,7 +7,7 @@
 
 namespace triengine
 {
-    /// normalized RGB color.
+    /// normalized 3-channel RGB color.
     template <typename _Scalar>
     class color3_ {
     public:
@@ -20,18 +20,18 @@ namespace triengine
         std::array<scalar_type, 3> rgb{};
 
     public:
-        static inline color3_ all(scalar_type scalar) {
-            return color3_{ scalar, scalar, scalar };
+        static inline this_type all(scalar_type scalar) {
+            return this_type{ scalar, scalar, scalar };
         }
 
-        static inline color3_ zero() {
+        static inline this_type zero() {
             return all(static_cast<scalar_type>(0));
         }
 
     public:
         color3_() = default;
         color3_(scalar_type r_, scalar_type g_, scalar_type b_) : rgb{ r_, g_, b_ } {}
-        explicit color3_(const Eigen::Vector3<scalar_type>& vec) : rgb{ vec[0], vec[1], vec[2] } {}
+        explicit color3_(const Eigen::Vector3<scalar_type>& v) : rgb{ v[0], v[1], v[2] } {}
 
         const scalar_type* data() const noexcept { return rgb.data(); }
         scalar_type* data() noexcept { return rgb.data(); }
@@ -52,16 +52,67 @@ namespace triengine
         scalar_type& operator()(size_t i) noexcept { return rgb[i]; }
 
         Eigen::Vector3<scalar_type> to_eigen() const {
-            return Eigen::Vector3<scalar_type>{
-                rgb[0],
-                rgb[1],
-                rgb[2]
-            };
+            return Eigen::Vector3<scalar_type>{ rgb[0], rgb[1], rgb[2] };
+        }
+    };
+
+    /// normalized 4-channel RGBA color.
+    template <typename _Scalar>
+    class color4_ {
+    public:
+        using scalar_type = _Scalar;
+        using this_type = color4_;
+
+        static_assert(std::is_floating_point_v<scalar_type>, "!!");
+
+    public:
+        std::array<scalar_type, 4> rgba{};
+
+    public:
+        static inline this_type all(scalar_type scalar) {
+            return this_type{ scalar, scalar, scalar, scalar };
+        }
+
+        static inline this_type zero() {
+            return all(static_cast<scalar_type>(0));
+        }
+
+    public:
+        color4_() = default;
+        color4_(scalar_type r_, scalar_type g_, scalar_type b_, scalar_type a_) : rgba{ r_, g_, b_, a_ } {}
+        explicit color4_(const Eigen::Vector4<scalar_type>& v) : rgba{ v[0], v[1], v[2], v[3] } {}
+
+        const scalar_type* data() const noexcept { return rgba.data(); }
+        scalar_type* data() noexcept { return rgba.data(); }
+
+        const scalar_type& r() const noexcept { return rgba[0]; }
+        scalar_type& r() noexcept { return rgba[0]; }
+
+        const scalar_type& g() const noexcept { return rgba[1]; }
+        scalar_type& g() noexcept { return rgba[1]; }
+
+        const scalar_type& b() const noexcept { return rgba[2]; }
+        scalar_type& b() noexcept { return rgba[2]; }
+        
+        const scalar_type& a() const noexcept { return rgba[3]; }
+        scalar_type& a() noexcept { return rgba[3]; }
+
+        const scalar_type& operator[](size_t i) const noexcept { return rgba[i]; }
+        scalar_type& operator[](size_t i) noexcept { return rgba[i]; }
+
+        const scalar_type& operator()(size_t i) const noexcept { return rgba.at(i); }
+        scalar_type& operator()(size_t i) noexcept { return rgba.at(i); }
+
+        Eigen::Vector4<scalar_type> to_eigen() const {
+            return Eigen::Vector4<scalar_type>{ rgba[0], rgba[1], rgba[2], rgba[3] };
         }
     };
 
     using color3_f32 = color3_<float>;
     using color3_f64 = color3_<double>;
+    
+    using color4_f32 = color4_<float>;
+    using color4_f64 = color4_<double>;
 
     template <typename _Scalar>
     using vec2_ = Eigen::Matrix<_Scalar, 2, 1/*, Eigen::DontAlign*/>;

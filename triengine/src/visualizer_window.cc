@@ -94,8 +94,8 @@ namespace triengine
     void visualizer_window::create_window(
         const std::string& window_name,
         const bool show_window,
-        const int width,
-        const int height,
+        const int32_t width,
+        const int32_t height,
         const bool fullscreen)
     {
         TRIENGINE_ASSERT(!_flag_initialized);
@@ -266,9 +266,6 @@ namespace triengine
             });
 
         ::glfwMakeContextCurrent(_glfw_window.get());
-
-        // glad: load all OpenGL function pointers
-        // ---------------------------------------
         if (!::gladLoadGLLoader((GLADloadproc)::glfwGetProcAddress)) {
             ::glfwTerminate();
             TRIENGINE_PANIC("Failed to load GL functions");
@@ -308,6 +305,8 @@ namespace triengine
         _skeleton_renderer.create(_glfw_window.get());
         _infgrid_renderer.create(_glfw_window.get());
 
+        _default_scene = std::make_shared<scene>();
+
         // Initialize GUI system
         {
             _gui_mgr = std::make_unique<gui::gui_manager>();
@@ -319,15 +318,18 @@ namespace triengine
             _scene_window = _gui_mgr->get_scene_window();
         }
 
-        _point_light_source_object = geometry::light_source_object::create(0.075f);
-        _point_light_source_object->set_visible(_render_config.light_opts.point_light.enabled);
-        _point_light_source_object->translate(_render_config.light_opts.point_light.position);
-        _point_light_source_object->color = _render_config.light_opts.point_light.color;
-        _light_source_renderer.add_object(_point_light_source_object);
+        // Special Geometries
+        {
+            auto& scn = *_default_scene;
 
-        _origin_axis_frame_object = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
-        _origin_axis_frame_object->set_visible(_render_config.show_origin_axis);
-        _mesh_renderer.add_object(_origin_axis_frame_object);
+            _point_light_source_object = geometry::light_source_object::create(0.075f);
+            _point_light_source_object->set_visible(scn.scn_config.light_opts.point_light.enabled);
+            _point_light_source_object->translate(scn.scn_config.light_opts.point_light.position);
+            _point_light_source_object->color = scn.scn_config.light_opts.point_light.color;
+
+            _origin_axis_frame_object = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            _origin_axis_frame_object->set_visible(scn.scn_config.show_origin_axis);
+        }
     }
 
     void visualizer_window::close_window()
@@ -377,87 +379,18 @@ namespace triengine
         }
     }
 
-    void visualizer_window::add_render_object(std::shared_ptr<geometry::geometry_object_base> object)
-    {
-        switch (object->get_type()) {
-        case geometry::geometry_object_type::light_source:
-            _light_source_renderer.add_object(std::static_pointer_cast<geometry::light_source_object>(object));
-            break;
-        case geometry::geometry_object_type::lineset:
-            _lineset_renderer.add_object(std::static_pointer_cast<geometry::lineset_object>(object));
-            break;
-        case geometry::geometry_object_type::pointcloud:
-            _pcd_renderer.add_object(std::static_pointer_cast<geometry::pcd_object>(object));
-            break;
-        case geometry::geometry_object_type::triangle_mesh:
-            _mesh_renderer.add_object(std::static_pointer_cast<geometry::triangle_mesh_object>(object));
-            break;
-        case geometry::geometry_object_type::skeleton:
-            _skeleton_renderer.add_object(std::static_pointer_cast<geometry::skeleton_object>(object));
-            break;
-        }
-    }
-    
-    void visualizer_window::remove_render_object(std::shared_ptr<geometry::geometry_object_base> object)
-    {
-        switch (object->get_type()) {
-        case geometry::geometry_object_type::light_source:
-            _light_source_renderer.remove_object(std::static_pointer_cast<geometry::light_source_object>(object));
-            break;
-        case geometry::geometry_object_type::lineset:
-            _lineset_renderer.remove_object(std::static_pointer_cast<geometry::lineset_object>(object));
-            break;
-        case geometry::geometry_object_type::pointcloud:
-            _pcd_renderer.remove_object(std::static_pointer_cast<geometry::pcd_object>(object));
-            break;
-        case geometry::geometry_object_type::triangle_mesh:
-            _mesh_renderer.remove_object(std::static_pointer_cast<geometry::triangle_mesh_object>(object));
-            break;
-        case geometry::geometry_object_type::skeleton:
-            _skeleton_renderer.remove_object(std::static_pointer_cast<geometry::skeleton_object>(object));
-            break;
-        }
-    }
-
-    void visualizer_window::clear_render_objects()
-    {
-        _light_source_renderer.clear_objects();
-        _lineset_renderer.clear_objects();
-        _pcd_renderer.clear_objects();
-        _mesh_renderer.clear_objects();
-        _skeleton_renderer.clear_objects();
-    }
-
-    void visualizer_window::clear_render_objects(geometry::geometry_object_type type)
-    {
-        switch (type) {
-        case geometry::geometry_object_type::light_source:
-            _light_source_renderer.clear_objects();
-            break;
-        case geometry::geometry_object_type::lineset:
-            _lineset_renderer.clear_objects();
-            break;
-        case geometry::geometry_object_type::pointcloud:
-            _pcd_renderer.clear_objects();
-            break;
-        case geometry::geometry_object_type::triangle_mesh:
-            _mesh_renderer.clear_objects();
-            break;
-        case geometry::geometry_object_type::skeleton:
-            _skeleton_renderer.clear_objects();
-            break;
-        }
-    }
-
     void visualizer_window::render()
     {
         _scene_window->bind_framebuffer();
 
-        GLCall(::glClearColor(_render_config.bg_color.r(), _render_config.bg_color.g(), _render_config.bg_color.b(), 1.0f)); // set clear color
+        scene& scn = *_default_scene;
+
+        const auto& bg_color = scn.scn_config.bg_color;
+        GLCall(::glClearColor(bg_color.r(), bg_color.g(), bg_color.b(), bg_color.a())); // set clear color
         GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)); // clear render buffers
 
         // Ref: https://learnopengl.com/Getting-started/Hello-Triangle
-        GLCall(::glPolygonMode(GL_FRONT_AND_BACK, _render_config.show_wireframe ? GL_LINE : GL_FILL));
+        GLCall(::glPolygonMode(GL_FRONT_AND_BACK, scn.scn_config.show_wireframe ? GL_LINE : GL_FILL));
 
         const vec2_i32 scene_size{ _scene_window->get_framebuffer_size() };
         const int32_t
@@ -465,19 +398,19 @@ namespace triengine
             H = scene_size.y();
 
         // NOTE: Viewport placement is relative to the lower-left corner of the window content area.
-        switch (_render_config.view_layout) {
+        switch (scn.scn_config.view_layout) {
         default:
-        case view_layout_mode::one_view:
-            this->_render_scene(_top_left_camera, view_port{ 0, 0, W, H });
+        case scene_config::view_layout_mode::one_view:
+            this->_render_viewport(_top_left_camera, view_port{ 0, 0, W, H });
             break;
-        case view_layout_mode::two_views:
-            this->_render_scene(_top_left_camera, view_port{ 0, 0, W / 2, H });
-            this->_render_scene(_top_right_camera, view_port{ W / 2, 0, W / 2, H });
+        case scene_config::view_layout_mode::two_views:
+            this->_render_viewport(_top_left_camera, view_port{ 0, 0, W / 2, H });
+            this->_render_viewport(_top_right_camera, view_port{ W / 2, 0, W / 2, H });
             break;
-        case view_layout_mode::three_views:
-            this->_render_scene(_top_left_camera, view_port{ 0, 0, W / 2, H });
-            this->_render_scene(_top_right_camera, view_port{ W / 2, H / 2, W / 2, H / 2 });
-            this->_render_scene(_bottom_right_camera, view_port{ W / 2, 0, W / 2, H / 2 });
+        case scene_config::view_layout_mode::three_views:
+            this->_render_viewport(_top_left_camera, view_port{ 0, 0, W / 2, H });
+            this->_render_viewport(_top_right_camera, view_port{ W / 2, H / 2, W / 2, H / 2 });
+            this->_render_viewport(_bottom_right_camera, view_port{ W / 2, 0, W / 2, H / 2 });
             break;
         }
 
@@ -490,7 +423,7 @@ namespace triengine
         _gui_mgr->render();
     }
 
-    bool visualizer_window::poll_events()
+    bool visualizer_window::update_window()
     {
         ::glfwSwapBuffers(_glfw_window.get());
         ::glfwPollEvents();
@@ -508,58 +441,60 @@ namespace triengine
         return !static_cast<bool>(::glfwWindowShouldClose(_glfw_window.get()));
     }
 
-    void visualizer_window::_render_scene(
+    void visualizer_window::_render_viewport(
         camera& target_camera, 
         const view_port viewport)
     {
+        scene& scn = *_default_scene;
+
         // Assign viewport to target camera.
         target_camera.set_view_port(viewport);
 
         // Change view port
         GLCall(::glViewport(viewport.x, viewport.y, viewport.width, viewport.height));
 
-        if (_render_config.light_opts.dir_light.follow_camera) {
-            _curr_focused_camera->get_camera_direction(_render_config.light_opts.dir_light.direction);
+        if (scn.scn_config.light_opts.dir_light.follow_camera) {
+            scn.scn_config.light_opts.dir_light.direction = _curr_focused_camera->get_camera_direction();
         }
 
         renderer::render_context render_ctx; {
             target_camera.get_view_projection(render_ctx.view, render_ctx.projection);
-            render_ctx.light_opts = &_render_config.light_opts;
+            render_ctx.light_opts = &scn.scn_config.light_opts;
             render_ctx.camera = &target_camera;
         }
 
-        _point_light_source_object->set_visible(_render_config.light_opts.point_light.enabled && _render_config.light_opts.point_light.show_light_source);
-        _point_light_source_object->translate(_render_config.light_opts.point_light.position);
-        _point_light_source_object->color = _render_config.light_opts.point_light.color;
+        _point_light_source_object->set_visible(scn.scn_config.light_opts.point_light.enabled && scn.scn_config.light_opts.point_light.show_light_source);
+        _point_light_source_object->translate(scn.scn_config.light_opts.point_light.position);
+        _point_light_source_object->color = scn.scn_config.light_opts.point_light.color;
 
-        _lineset_renderer.render(render_ctx);
+        _origin_axis_frame_object->set_visible(scn.scn_config.show_origin_axis);
 
-        _origin_axis_frame_object->set_visible(_render_config.show_origin_axis);
+        _lineset_renderer.render(render_ctx, scn.lineset_objects);
 
-        _mesh_renderer.enable_object_normal_rendering(_render_config.show_object_normals);
-        _mesh_renderer.render(render_ctx);
+        _mesh_renderer.enable_object_normal_rendering(scn.scn_config.show_object_normals);
+        _mesh_renderer.render(render_ctx, scn.mesh_objects);
 
-        _light_source_renderer.render(render_ctx);
+        //_light_source_renderer.render(render_ctx);
 
-        if (_render_config.pcd_point_size) {
-            _pcd_renderer.set_pcd_point_size(*_render_config.pcd_point_size);
+        if (scn.scn_config.pcd_point_size) {
+            _pcd_renderer.set_pcd_point_size(scn.scn_config.pcd_point_size.value());
         }
-        _pcd_renderer.render(render_ctx);
+        _pcd_renderer.render(render_ctx, scn.pcd_objects);
 
-        _infgrid_renderer.set_options(_render_config.infgrid_opts);
-        if (_render_config.show_origin_xz_grid) {
+        _infgrid_renderer.set_options(scn.scn_config.infgrid_opts);
+        if (scn.scn_config.show_origin_xz_grid) {
             // NOTE: The infinite grid renderer must be rendered last to allow for alpha-blending.
             //       (except the skeleton renderer, which sometimes causes the depth buffer to be reset).
             _infgrid_renderer.render(render_ctx);
         }
 
-        if (_render_config.skeleton_mode == skeleton_render_mode::skeleton_overlay ||
-            _render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis)
+        if (scn.scn_config.skeleton_mode == scene_config::skeleton_render_mode::skeleton_overlay ||
+            scn.scn_config.skeleton_mode == scene_config::skeleton_render_mode::overlay_with_joint_axis)
         {
             GLCall(::glClear(GL_DEPTH_BUFFER_BIT)); // Enable skeleton overlay
         }
-        _skeleton_renderer.show_joint_axis(_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
-        _skeleton_renderer.render(render_ctx);
+        _skeleton_renderer.show_joint_axis(scn.scn_config.skeleton_mode == scene_config::skeleton_render_mode::overlay_with_joint_axis);
+        _skeleton_renderer.render(render_ctx, scn.skeleton_objects);
 
     }
 
@@ -681,21 +616,23 @@ namespace triengine
             _curr_focused_camera =
                 [this, curr_cursor_viewport_pos]() -> camera*
                 {
+                    scene& scn = *_default_scene;
+
                     const vec2_f32 scene_size{ _scene_window->get_framebuffer_size().cast<float>() };
                     const bool
                         is_top_side = curr_cursor_viewport_pos.y() > scene_size.y() / 2,
                         is_left_side = curr_cursor_viewport_pos.x() < scene_size.x() / 2;
 
-                    switch (_render_config.view_layout) {
-                    case view_layout_mode::three_views:
+                    switch (scn.scn_config.view_layout) {
+                    case scene_config::view_layout_mode::three_views:
                         if (is_left_side) {
                             return &_top_left_camera;
                         } else {
                             return (is_top_side) ? &_top_right_camera : &_bottom_right_camera;
                         }
-                    case view_layout_mode::two_views:
+                    case scene_config::view_layout_mode::two_views:
                         return (is_left_side) ? &_top_left_camera : &_top_right_camera;
-                    case view_layout_mode::one_view:
+                    case scene_config::view_layout_mode::one_view:
                     default:
                         return &_top_left_camera;
                     } // switch

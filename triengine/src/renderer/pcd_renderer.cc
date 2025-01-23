@@ -85,11 +85,11 @@ namespace triengine::renderer
         _point_size = point_size;
     }
 
-    void pcd_renderer::render(const render_context& render_ctx)
+    void pcd_renderer::render(
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
     {
-        const auto& render_objects = this->get_objects();
-
-        if (render_objects.empty()) {
+        if (render_obj_list.empty()) {
             return;
         }
 
@@ -108,7 +108,7 @@ namespace triengine::renderer
         // Update point size
         GLCall(::glPointSize(static_cast<GLfloat>(_point_size.value_or(1.0f/* default size */))));
 
-        for (const auto& object : render_objects)
+        for (const auto& object : render_obj_list)
         {
             if (!object->is_visible()) {
                 continue;

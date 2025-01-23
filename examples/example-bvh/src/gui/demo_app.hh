@@ -12,8 +12,8 @@ namespace gui
     class demo_app
     {
     private:
-        std::unique_ptr<triengine::visualizer_window> _vis_window;
-        std::shared_ptr<triengine::frame_buffer> _frame_buffer;
+        std::unique_ptr<triengine::visualizer_window> _off_window;
+        triengine::scene* _scene{ nullptr };
 
         std::shared_ptr<triengine::gui::log_window> _log_window;
         std::shared_ptr<triengine::gui::render_stats_window> _render_stats_window;

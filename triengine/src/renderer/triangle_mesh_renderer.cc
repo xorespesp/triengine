@@ -169,36 +169,28 @@ namespace triengine::renderer
         }
     }
 
-    void triangle_mesh_renderer::render(const render_context& render_ctx)
-    {
-        this->render(
-            this->get_objects(), 
-            render_ctx
-        );
-    }
-
     void triangle_mesh_renderer::render(
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const render_context& render_ctx)
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
     {
-        if (render_objects.empty()) {
+        if (render_obj_list.empty()) {
             return;
         }
 
         // Enable depth testing
         GLCall(::glEnable(GL_DEPTH_TEST));
 
-        this->_render_vertex_shading_objects(render_objects, render_ctx);
-        this->_render_texture_shading_objects(render_objects, render_ctx);
+        this->_render_vertex_shading_objects(render_ctx, render_obj_list);
+        this->_render_texture_shading_objects(render_ctx, render_obj_list);
 
         if (_show_object_normals) { // for debugging
-            this->_render_objects_normals(render_objects, render_ctx);
+            this->_render_objects_normals(render_ctx, render_obj_list);
         }
     }
 
     void triangle_mesh_renderer::_render_vertex_shading_objects(
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const render_context& render_ctx)
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects)
     {
         _shader_vertmode.use();
 
@@ -296,8 +288,8 @@ namespace triengine::renderer
     }
 
     void triangle_mesh_renderer::_render_texture_shading_objects(
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const render_context& render_ctx)
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects)
     {
         _shader_texmode.use();
         
@@ -402,8 +394,8 @@ namespace triengine::renderer
     }
 
     void triangle_mesh_renderer::_render_objects_normals(
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-        const render_context& render_ctx)
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects)
     {
         _shader_normal_view.use();
 

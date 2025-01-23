@@ -29,11 +29,12 @@ namespace triengine
 
         GLuint id() const noexcept { return _fbo; }
         GLuint color_texture_id() const noexcept { return _color_texture; }
+
         int32_t width_pixels() const noexcept { return _width_pixels; }
         int32_t height_pixels() const noexcept { return _height_pixels; }
         int32_t sample_count() const noexcept { return _sample_count; }
-        bool is_multisampled() const noexcept { return _sample_count > 1; }
 
+        bool is_multisampled() const noexcept { return _sample_count > 1; }
         bool is_valid() const noexcept;
 
         void reserve(

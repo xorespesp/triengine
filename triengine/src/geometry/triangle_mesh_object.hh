@@ -162,6 +162,7 @@ namespace triengine::geometry
         void compute_vertex_normals(bool smooth_shading = false);
 
         void paint_uniform_color(const color3_f32& color) {
+            vertex_colors.clear();
             vertex_colors.resize(vertex_positions.size(), color);
         }
 

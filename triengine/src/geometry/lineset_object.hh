@@ -23,6 +23,7 @@ namespace triengine::geometry
         {}
 
         void paint_uniform_color(const color3_f32& color) {
+            line_colors.clear();
             line_colors.resize(line_points.size(), color);
         }
 

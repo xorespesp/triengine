@@ -17,26 +17,26 @@ namespace triengine::gui
     {
         if (_vis_window)
         {
-            auto& render_config = _vis_window->get_render_config();
+            auto& scn_config = _vis_window->get_default_scene()->scn_config;
 
             if (ImGui::CollapsingHeader("Render Options", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 {
-                    using enum_type = triengine::visualizer_window::view_layout_mode;
+                    using enum_type = triengine::scene_config::view_layout_mode;
                     static const std::unordered_map<enum_type, std::string> item_names = {
                         { enum_type::one_view, "one_view" },
                         { enum_type::two_views, "two_view" },
                         { enum_type::three_views, "three_views" }
                     };
 
-                    const enum_type selected_item = render_config.view_layout;
+                    const enum_type selected_item = scn_config.view_layout;
                     if (ImGui::BeginCombo("View Layout", item_names.find(selected_item)->second.c_str())) {
                         for (int32_t curr_item_value = 0; curr_item_value < static_cast<int32_t>(item_names.size()); ++curr_item_value) {
                             const enum_type curr_item = static_cast<enum_type>(curr_item_value);
                             const bool is_selected = (selected_item == curr_item);
                             if (ImGui::Selectable(item_names.find(curr_item)->second.c_str(), is_selected)) {
                                 // Selection changed
-                                render_config.view_layout = static_cast<enum_type>(curr_item_value);
+                                scn_config.view_layout = static_cast<enum_type>(curr_item_value);
                             }
                 
                             if (is_selected) {
@@ -48,34 +48,34 @@ namespace triengine::gui
                     }
                 }
 
-                ImGui::ColorEdit3("BG Color", render_config.bg_color.data());
-                ImGui::Checkbox("Show Origin Axes", &render_config.show_origin_axis);
-                ImGui::Checkbox("Show Object Normals", &render_config.show_object_normals);
-                ImGui::Checkbox("Show Wireframe", &render_config.show_wireframe);
+                ImGui::ColorEdit4("BG Color", scn_config.bg_color.data());
+                ImGui::Checkbox("Show Origin Axes", &scn_config.show_origin_axis);
+                ImGui::Checkbox("Show Object Normals", &scn_config.show_object_normals);
+                ImGui::Checkbox("Show Wireframe", &scn_config.show_wireframe);
 
                 if (ImGui::CollapsingHeader("Grid Render Options"))
                 {
-                    ImGui::Checkbox("Show Grid", &render_config.show_origin_xz_grid);
-                    ImGui::ColorEdit3("Grid Color", render_config.infgrid_opts.grid_color.data());
-                    ImGui::DragFloat("Grid Cell Size", &render_config.infgrid_opts.grid_cell_size, 0.001f, 0.025f, FLT_MAX);
+                    ImGui::Checkbox("Show Grid", &scn_config.show_origin_xz_grid);
+                    ImGui::ColorEdit3("Grid Color", scn_config.infgrid_opts.grid_color.data());
+                    ImGui::DragFloat("Grid Cell Size", &scn_config.infgrid_opts.grid_cell_size, 0.001f, 0.025f, FLT_MAX);
                 }
 
                 {
-                    using enum_type = triengine::visualizer_window::skeleton_render_mode;
+                    using enum_type = triengine::scene_config::skeleton_render_mode;
                     static const std::unordered_map<enum_type, std::string> item_names = {
                         { enum_type::skeleton_default, "skeleton_default" },
                         { enum_type::skeleton_overlay, "skeleton_overlay" },
                         { enum_type::overlay_with_joint_axis, "overlay_with_joint_axis" }
                     };
 
-                    const enum_type selected_item = render_config.skeleton_mode;
+                    const enum_type selected_item = scn_config.skeleton_mode;
                     if (ImGui::BeginCombo("Skeleton Render Mode", item_names.find(selected_item)->second.c_str())) {
                         for (int32_t curr_item_value = 0; curr_item_value < static_cast<int32_t>(item_names.size()); ++curr_item_value) {
                             const enum_type curr_item = static_cast<enum_type>(curr_item_value);
                             const bool is_selected = (selected_item == curr_item);
                             if (ImGui::Selectable(item_names.find(curr_item)->second.c_str(), is_selected)) {
                                 // Selection changed
-                                render_config.skeleton_mode = static_cast<triengine::visualizer_window::skeleton_render_mode>(curr_item_value);
+                                scn_config.skeleton_mode = static_cast<enum_type>(curr_item_value);
                             }
 
                             if (is_selected) {
@@ -91,7 +91,7 @@ namespace triengine::gui
                 {
                     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
                     {
-                        auto& dir_light_opts = render_config.light_opts.dir_light;
+                        auto& dir_light_opts = scn_config.light_opts.dir_light;
                         ImGui::Checkbox("Enabled##DirLight", &dir_light_opts.enabled);
                         ImGui::Checkbox("Use Blinn##DirLight", &dir_light_opts.use_blinn);
                         ImGui::Checkbox("Follow Camera##DirLight", &dir_light_opts.follow_camera);
@@ -110,7 +110,7 @@ namespace triengine::gui
 
                     if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen))
                     {
-                        auto& point_light_opts = render_config.light_opts.point_light;
+                        auto& point_light_opts = scn_config.light_opts.point_light;
                         ImGui::Checkbox("Enabled##PointLight", &point_light_opts.enabled);
                         ImGui::Checkbox("Use Blinn##PointLight", &point_light_opts.use_blinn);
                         ImGui::Checkbox("Show Light Source##PointLight", &point_light_opts.show_light_source);

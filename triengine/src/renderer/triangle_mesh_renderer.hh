@@ -18,6 +18,7 @@ namespace triengine::renderer
         GLuint // vertex array object
             _vao_vertmode{}, // Coloring by linear-interpolation from vertices, requires vertex colors (as rgb)
             _vao_texmode{}; // Coloring by texture, requires texture uv coordinates (color information)
+
         GLuint // vertex buffer objects
             _vbo_positions{},
             _vbo_normals{},
@@ -46,27 +47,25 @@ namespace triengine::renderer
         // Renderer functions
         void create(GLFWwindow* window) override;
         void destroy() override;
-        void render(const render_context& render_ctx) override;
-
         void render(
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-            const render_context& render_ctx
-        );
+            const render_context& render_ctx,
+            const std::list<std::shared_ptr<render_object_type>>& render_obj_list
+        ) override;
 
     private:
         void _render_vertex_shading_objects(
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects, 
-            const render_context& render_ctx
+            const render_context& render_ctx,
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects
         );
 
         void _render_texture_shading_objects(
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-            const render_context& render_ctx
+            const render_context& render_ctx,
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects
         );
         
         void _render_objects_normals(
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
-            const render_context& render_ctx
+            const render_context& render_ctx,
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects
         );
 
     }; // class

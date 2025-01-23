@@ -2,27 +2,23 @@
 
 namespace triengine
 {
-    void camera::get_camera_position(vec3_f32& eye_pos) const
+    vec3_f32 camera::get_camera_position() const
     {
-        eye_pos = _view_param.lookat_center - (_view_param.camera_front * this->_get_perspective_scaled_zoom());
+        return _view_param.lookat_center - (_view_param.camera_front * this->_get_perspective_scaled_zoom());
     }
 
-    void camera::get_camera_direction(vec3_f32& eye_dir) const
+    vec3_f32 camera::get_camera_direction() const
     {
-        vec3_f32 eye_pos;
-        this->get_camera_position(eye_pos);
-        eye_dir = (_view_param.lookat_center - eye_pos).normalized();
+        const vec3_f32 eye_pos = this->get_camera_position();
+        return (_view_param.lookat_center - eye_pos).normalized();
     }
 
     void camera::get_view_projection(
         mat4_f32& view_matrix/* out */,
         mat4_f32& projection_matrix/* out */) const
     {
-        vec3_f32 camera_pos;
-        this->get_camera_position(camera_pos);
-
         view_matrix = math::lookAt(
-            camera_pos,
+            this->get_camera_position(),
             _view_param.lookat_center,
             _view_param.camera_up
         );

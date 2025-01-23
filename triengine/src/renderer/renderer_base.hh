@@ -47,33 +47,35 @@ namespace triengine::renderer
 
     template <typename _RenderObject>
     class object_renderer_base
-        : public renderer_base
     {
     public:
         using render_object_type = _RenderObject;
 
+    private:
+        bool _creation_flag{ false };
+
     protected:
-        std::list<std::shared_ptr<render_object_type>> _render_objects;
+        void set_creation_flag(bool created) {
+            _creation_flag = created;
+        }
 
     public:
         object_renderer_base() = default;
         virtual ~object_renderer_base() = default;
 
-        const auto& get_objects() const noexcept {
-            return _render_objects;
+        object_renderer_base(const object_renderer_base&) = delete;
+        object_renderer_base& operator= (const object_renderer_base&) = delete;
+
+        bool is_created() const noexcept {
+            return _creation_flag;
         }
 
-        void add_object(std::shared_ptr<render_object_type> object) {
-            _render_objects.push_back(object);
-        }
-
-        void remove_object(std::shared_ptr<render_object_type> object) {
-            _render_objects.remove(object);
-        }
-
-        void clear_objects() {
-            _render_objects.clear();
-        }
+        virtual void create(GLFWwindow* window) = 0;
+        virtual void destroy() = 0;
+        virtual void render(
+            const render_context& render_ctx, 
+            const std::list<std::shared_ptr<render_object_type>>& render_obj_list
+        ) = 0;
 
     }; // class
 

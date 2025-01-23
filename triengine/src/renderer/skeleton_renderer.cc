@@ -35,11 +35,13 @@ namespace triengine::renderer
         }
     }
 
-    void skeleton_renderer::render(const render_context& render_ctx)
+    void skeleton_renderer::render(
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
     {
-        for (const auto& object : this->get_objects()) {
-            _mesh_renderer.render(object->joint_objects, render_ctx);
-            _mesh_renderer.render(object->bone_objects, render_ctx);
+        for (const auto& render_obj : render_obj_list) {
+            _mesh_renderer.render(render_ctx, render_obj->joint_objects);
+            _mesh_renderer.render(render_ctx, render_obj->bone_objects);
         }
     }
 

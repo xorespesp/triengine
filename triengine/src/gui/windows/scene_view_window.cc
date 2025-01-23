@@ -35,10 +35,10 @@ namespace triengine::gui
             _fb_main.reserve(
                 static_cast<int32_t>(curr_content_region_size.x),
                 static_cast<int32_t>(curr_content_region_size.y),
-                _state.frame_sample_count
+                _state.fb_sample_count
             );
 
-            _fb_copy.reserve(
+            _fb_msaa_copy.reserve(
                 static_cast<int32_t>(curr_content_region_size.x),
                 static_cast<int32_t>(curr_content_region_size.y),
                 1
@@ -129,12 +129,12 @@ namespace triengine::gui
 
         if (!flag_window_resizing)
         {
-            bool msaa_enabled = _state.frame_sample_count > 1;
+            const bool msaa_enabled = _state.fb_sample_count > 1;
             if (msaa_enabled)
             {
-                _fb_main.blit_to(_fb_copy, true, false, false);
+                _fb_main.blit_to(_fb_msaa_copy, true, false, false);
                 ImGui::Image(
-                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_copy.color_texture_id())),
+                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_msaa_copy.color_texture_id())),
                     curr_content_region_size,
                     ImVec2(0, 1),
                     ImVec2(1, 0)
@@ -156,7 +156,7 @@ namespace triengine::gui
                 _state.prev_content_region = _state.curr_content_region;
             }
 
-            this->_render_overlay(render_ctx);
+            this->_render_overlay_ui(render_ctx);
         }
         else
         {
@@ -192,7 +192,7 @@ namespace triengine::gui
     }
 
     // Ref: `ShowExampleAppSimpleOverlay(bool* p_open)`
-    void scene_view_window::_render_overlay(const window_render_context& render_ctx)
+    void scene_view_window::_render_overlay_ui(const window_render_context& render_ctx)
     {
         thread_local misc::string::format_string_builder<1024> sb_;
 
@@ -228,7 +228,7 @@ namespace triengine::gui
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5, 5 });
         if (ImGui::Begin("##SceneWindowOverlay", &_state.flag_show_overlay, window_flags))
         {
-            bool msaa_enabled = _state.frame_sample_count > 1;
+            bool msaa_enabled_state = _state.fb_sample_count > 1;
 
             const auto scene_mouse_pos = 
                 [this]() -> std::optional<vec2_f32> {
@@ -241,9 +241,7 @@ namespace triengine::gui
 
             const camera* const curr_camera = _vis_window->get_current_camera();
             const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
-
-            vec3_f32 eye_pos;
-            curr_camera->get_camera_position(eye_pos);
+            const vec3_f32 eye_pos = curr_camera->get_camera_position();
 
             sb_.clear();
             sb_.appendf(
@@ -251,8 +249,8 @@ namespace triengine::gui
                 , _fb_main.width_pixels(), _fb_main.height_pixels()
             );
 
-            if (msaa_enabled) {
-                sb_.appendf("MSAA: Enabled (%dx)\n", _state.frame_sample_count);
+            if (msaa_enabled_state) {
+                sb_.appendf("MSAA: Enabled (%dx)\n", _state.fb_sample_count);
             } else {
                 sb_.append("MSAA: Disabled\n");
             }
@@ -261,15 +259,25 @@ namespace triengine::gui
                 "Camera ID: #%X\n"
                 "Eye Position: [%f, %f, %f]\n"
                 "Eye Center: [%f, %f, %f]\n"
+                "Front: [%f, %f, %f]\n"
+                "Right: [%f, %f, %f]\n"
+                "Up: [%f, %f, %f]\n"
+                "Yaw: %f\n"
+                "Pitch: %f\n"
                 "Zoom: %f\n"
-                "FOV: %.1fdeg\n"
+                "Fovy: %.1fdeg\n"
+                "Perspective Scale: %f"
                 , curr_camera
                 , eye_pos.x(), eye_pos.y(), eye_pos.z()
-                , curr_camera_params->lookat_center.x()
-                , curr_camera_params->lookat_center.y()
-                , curr_camera_params->lookat_center.z()
+                , curr_camera_params->lookat_center.x(), curr_camera_params->lookat_center.y(), curr_camera_params->lookat_center.z()
+                , curr_camera_params->camera_front.x(), curr_camera_params->camera_front.y(), curr_camera_params->camera_front.z()
+                , curr_camera_params->camera_right.x(), curr_camera_params->camera_right.y(), curr_camera_params->camera_right.z()
+                , curr_camera_params->camera_up.x(), curr_camera_params->camera_up.y(), curr_camera_params->camera_up.z()
+                , curr_camera_params->yaw
+                , curr_camera_params->pitch
                 , curr_camera_params->zoom
                 , curr_camera->get_fovy()
+                , curr_camera->get_perspective_scale_factor()
             );
             
             if (scene_mouse_pos) {
@@ -331,8 +339,8 @@ namespace triengine::gui
             // right-click context menu
             if (ImGui::BeginPopupContextWindow())
             {
-                if (ImGui::MenuItem("Enable MSAA", nullptr, &msaa_enabled)) {
-                    _state.frame_sample_count = msaa_enabled ? 4 : 1;
+                if (ImGui::MenuItem("Enable MSAA", nullptr, &msaa_enabled_state)) {
+                    _state.fb_sample_count = msaa_enabled_state ? 4 : 1;
                     _state.flag_invalidate_fbo = true;
                 }
 

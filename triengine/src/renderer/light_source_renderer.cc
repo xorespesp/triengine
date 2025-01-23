@@ -74,11 +74,11 @@ namespace triengine::renderer
         }
     }
 
-    void light_source_renderer::render(const render_context& render_ctx)
+    void light_source_renderer::render(
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
     {
-        const auto& render_objects = this->get_objects();
-
-        if (render_objects.empty()) {
+        if (render_obj_list.empty()) {
             return;
         }
 
@@ -91,7 +91,7 @@ namespace triengine::renderer
         GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, render_ctx.view.data()));
         GLCall(::glUniformMatrix4fv(_uloc_projection, 1, GL_FALSE, render_ctx.projection.data()));
 
-        for (const auto& object : render_objects)
+        for (const auto& object : render_obj_list)
         {
             if (!object->is_visible()) {
                 continue;
