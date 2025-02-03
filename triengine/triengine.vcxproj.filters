@@ -60,7 +60,7 @@
     <ClCompile Include="src\misc\debug_utils.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\misc\opengl_utils.cc">
+    <ClCompile Include="src\misc\gl_utils.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\io\file_obj_loader.cc">
@@ -148,6 +148,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\offscreen_window.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gl_context.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -282,7 +285,7 @@
     <ClInclude Include="src\misc\debug_utils.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\misc\opengl_utils.hh">
+    <ClInclude Include="src\misc\gl_utils.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\misc\string_utils.hh">
@@ -388,6 +391,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\image.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gl_context.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

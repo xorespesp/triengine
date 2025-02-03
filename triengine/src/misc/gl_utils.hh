@@ -26,24 +26,13 @@ namespace triengine::misc
         const debug::source_loc& src_loc
     );
 
-    // singleton
-    class global_glfw_environment final {
-    private:
-        global_glfw_environment();
-
-    public:
-        ~global_glfw_environment();
-        global_glfw_environment(const global_glfw_environment&) = delete;
-        global_glfw_environment& operator=(const global_glfw_environment&) = delete;
-
-    public:
-        // This function initializes the GLFW library for the rendering. 
-        // You have to run this function before creating the visualizer object.
-        // NOTE: This function must be called from the main thread.
-        static void initialize() {
-            static global_glfw_environment inst_{};
-        }
-
-    }; // class
+    // NOTE: Device screen coordinates are relative to the upper-left corner of the window content area.
+    static inline vec2_f32 get_cursor_device_screen_pos(
+        GLFWwindow* const glfw_window)
+    {
+        double xpos, ypos;
+        ::glfwGetCursorPos(glfw_window, &xpos, &ypos);
+        return vec2_f32{ static_cast<float>(xpos), static_cast<float>(ypos) };
+    }
 
 } // namespace

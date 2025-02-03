@@ -2,6 +2,8 @@
 #include "../common.h"
 #include "../math.hh"
 
+#include <string>
+
 namespace triengine::geometry
 {
     enum class geometry_object_type {
@@ -12,11 +14,33 @@ namespace triengine::geometry
         skeleton,
     };
 
+    class object_base
+    {
+    public:
+        static std::string create_unique_name() {
+            static std::atomic_uint32_t cnt_ = 0;
+            return misc::string::c_format("object #%lu", cnt_++);
+        }
+
+    public:
+        object_base() : _name{ create_unique_name() } {}
+        object_base(std::string name) : _name{ std::move(name) } {}
+
+        const std::string& get_name() const { return _name; }
+        void set_name(std::string name) { 
+            _name = std::move(name);
+        }
+
+    private:
+        std::string _name;
+    };
+
     // Refs:
     // https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/Geometry.h
     // https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/Geometry3D.h
 
     class geometry_object_base
+        : public object_base
     {
     private:
         const geometry_object_type _type;

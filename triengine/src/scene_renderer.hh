@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "common.h"
 
-#include "camera.hh"
+#include "gl_context.hh"
 #include "scene.hh"
 #include "frame_buffer.hh"
 
@@ -21,21 +21,19 @@ namespace triengine
     public:
         scene_renderer() = default;
         
-        void create();
-
+        void create(gl_context* glctx);
         void destroy();
 
+        void render_scene(scene& target_scn);
+
     private:
-        int32_t _scene_width{};
-        int32_t _scene_height{};
+        // Sub-renderers
         renderer::infinite_grid_renderer _infgrid_renderer;
         renderer::light_source_renderer _light_source_renderer;
         renderer::triangle_mesh_renderer _mesh_renderer;
         renderer::lineset_renderer _lineset_renderer;
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;
-        frame_buffer _fb_main;
-        frame_buffer _fb_msaa_copy; // only used in msaa rendering
 
     }; // class
 

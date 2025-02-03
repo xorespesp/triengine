@@ -20,8 +20,7 @@ namespace gui
     {
     private:
         std::unique_ptr<triengine::offscreen_window> _off_window;
-        triengine::scene* _scene{ nullptr };
-        triengine::camera* _camera{ nullptr };
+        std::shared_ptr<triengine::scene> _scene;
 
         std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh;
 
@@ -37,29 +36,22 @@ namespace gui
             _off_window = std::make_unique<triengine::offscreen_window>();
             _off_window->create_window(1280, 720);
 
-            _camera = _off_window->get_current_camera();
+            _scene = _off_window->get_current_scene();
+            _scene->render_config.bg_color = triengine::color4_f32::all(0.0f);
+            _scene->render_config.bg_color.a() = 0.0f;
+            _scene->render_config.pcd_point_size = 2.5f;
+            _scene->render_config.show_origin_xz_grid = false;
+            _scene->render_config.infgrid_opts.grid_color = triengine::vec3_f32{ 1.0f, 0.0f, 0.0f };
+            _scene->render_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+            _scene->render_config.light_opts.dir_light.diffuseIntensity = 0.8f;
 
-            {
-                auto& camera_params = _camera->get_parameters();
-                camera_params.lookat_center = triengine::vec3_f32{ -0.069978f, -0.646604f, -0.001912f };
-                camera_params.camera_front = triengine::vec3_f32{ 0.630178f, -0.076719f, -0.772651f };
-                camera_params.camera_right = triengine::vec3_f32{ -0.774935f, -0.0f, -0.63204f };
-                camera_params.camera_up = triengine::vec3_f32{ -0.048490f, -0.997053f, 0.059452f };
-                camera_params.yaw = 140.799164f;
-                camera_params.pitch = -4.400012f;
-                camera_params.zoom = 0.985002f;
-            }
-
-            _scene = _off_window->get_default_scene();
-            _scene->scn_config.bg_color = triengine::color4_f32::all(0.0f);
-            _scene->scn_config.bg_color.a() = 0.0f;
-            _scene->scn_config.pcd_point_size = 2.5f;
-            _scene->scn_config.show_origin_xz_grid = false;
-            _scene->scn_config.infgrid_opts.grid_color = triengine::vec3_f32{ 1.0f, 0.0f, 0.0f };
-            _scene->scn_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
-            _scene->scn_config.light_opts.dir_light.diffuseIntensity = 0.8f;
-
-            _off_window->enable_mirror_mode(false);
+            auto& scn_camera = *_scene->get_camera();
+            scn_camera.set_mirror_mode(false);
+            scn_camera.set_perspective_scale_factor(1.0f);
+            scn_camera.set_fovy(65.0f);
+            scn_camera.set_zoom(1.0f);
+            scn_camera.set_camera_direction(triengine::vec3_f32{ 0.744f, 0.153f, -0.651f });
+            scn_camera.set_camera_position(triengine::vec3_f32{ -1.240f, -0.847f, 1.113f });
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_obj_file(
@@ -101,22 +93,7 @@ namespace gui
         {
             LOG_TRACE("%s() ENTER", __func__);
 
-            cv::VideoCapture cap;
-            cap.open("source.mp4");
-
-            cv::Mat bg_frame;
-            if (!cap.read(bg_frame)) {
-                LOG_ERROR("failed to read bg frame");
-                return;
-            }
-
-            cv::cvtColor(bg_frame, bg_frame, cv::COLOR_BGR2BGRA);
-
-            LOG_DEBUG("bg frame size: [%dx%d] (type %d)", bg_frame.cols, bg_frame.rows, bg_frame.type());
-            cv::imshow("bg frame", bg_frame);
-            cv::waitKey(0);
-
-            triengine::image frame;
+            triengine::image render_frame;
             for(bool flag_stop{ false }; !flag_stop && _off_window->update_window();)
             {
                 // for testing
@@ -136,32 +113,22 @@ namespace gui
                     _obj_texcolor_mesh->rotate(R);
                 }
 
-                _off_window->render(frame);
+                _off_window->render(render_frame);
 
-                cv::Mat cv_frame(
-                    frame.height_pixels(),
-                    frame.width_pixels(),
+                cv::Mat cv_render_frame(
+                    render_frame.height_pixels(),
+                    render_frame.width_pixels(),
                     CV_8UC4,
-                    static_cast<void*>(frame.data()),
-                    frame.stride_bytes()
+                    static_cast<void*>(render_frame.data()),
+                    render_frame.stride_bytes()
                 );
-                cv::flip(cv_frame, cv_frame, 0);
+                cv::flip(cv_render_frame, cv_render_frame, 0);
 
-                // 2. 알파 채널 추출
-                std::vector<cv::Mat> channels;
-                cv::split(cv_frame, channels); // RGBA 채널 분리
-                cv::Mat alphaChannel = channels[3]; // 알파 채널
-
-                cv::Mat cv_mask;
-                cv::threshold(alphaChannel, cv_mask, 1, 255, cv::THRESH_BINARY);
-
-                cv::Mat cv_result = bg_frame.clone();
-                cv_frame.copyTo(cv_result, cv_mask);
-                cv::imshow("offscreen rendering", cv_result);
+                cv::imshow("offscreen rendering", cv_render_frame);
                 switch (cv::waitKey(1)) {
                 case 'w':
                 case 'W':
-                    cv::imwrite("frame.png", cv_frame);
+                    cv::imwrite("frame.png", cv_render_frame);
                     break;
                 case 'q':
                 case 'Q':

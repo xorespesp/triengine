@@ -1,6 +1,6 @@
 #include "texture.hh"
 #include "misc/debug_utils.hh"
-#include "misc/opengl_utils.hh"
+#include "misc/gl_utils.hh"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "extern/stb_image.h"

@@ -1,22 +1,11 @@
 ﻿#pragma once
 #include "common.h"
-#include "camera.hh"
-#include "scene.hh"
-#include "frame_buffer.hh"
+#include "gl_context.hh"
+#include "scene_renderer.hh"
 #include "image.hh"
 
-#include "renderer/infinite_grid_renderer.hh"
-#include "renderer/light_source_renderer.hh"
-#include "renderer/triangle_mesh_renderer.hh"
-#include "renderer/lineset_renderer.hh"
-#include "renderer/pcd_renderer.hh"
-#include "renderer/skeleton_renderer.hh"
-#include "gui/gui_manager.hh"
-
-#include "extern/glad/glad.h"
-#include <GLFW/glfw3.h>
-
 #include <functional>
+#include <unordered_map>
 #include <array>
 
 namespace triengine
@@ -30,17 +19,11 @@ namespace triengine
         offscreen_window(const offscreen_window&) = delete;
         offscreen_window& operator=(const offscreen_window&) = delete;
 
-        GLFWwindow* get_glfw_window() const { return _glfw_window.get(); }
+        const gl_context* get_gl_context() const noexcept { return &_glctx; }
+        gl_context* get_gl_context() noexcept { return &_glctx; }
 
-        const scene* get_default_scene() const { return _default_scene.get(); }
-        scene* get_default_scene() { return _default_scene.get(); }
-
-        const camera* get_current_camera() const { return _curr_focused_camera; }
-        camera* get_current_camera() { return _curr_focused_camera; }
-
-        void set_fovy(float fovy_deg);
-
-        void enable_mirror_mode(bool enable);
+        std::shared_ptr<const scene> get_current_scene() const { return _curr_scn; }
+        std::shared_ptr<scene> get_current_scene() { return _curr_scn; }
 
         void create_window(
             int32_t width,
@@ -52,6 +35,29 @@ namespace triengine
 
         bool update_window();
 
+        std::shared_ptr<scene> create_new_scene() {
+            auto new_scn = std::make_shared<scene>();
+            if (_scn_map.empty()) { _curr_scn = new_scn; }
+            _scn_map.insert({ new_scn->id(), new_scn });
+            return new_scn;
+        }
+
+        void remove_scene(std::shared_ptr<scene> scn) {
+            if (scn) {
+                auto it = _scn_map.find(scn->id());
+                if (it != _scn_map.end()) {
+                    _scn_map.erase(it);
+                    if (_curr_scn->id() == scn->id()) {
+                        _curr_scn = _scn_map.empty() ? nullptr : _scn_map.begin()->second;
+                    }
+                }
+            }
+        }
+
+        void change_scene(std::shared_ptr<scene> scn) {
+            _curr_scn = scn;
+        }
+
         void render(
             image& frame_image/* out */
         );
@@ -59,36 +65,18 @@ namespace triengine
     private:
         void _begin_frame();
         void _end_frame();
-        void _render_viewport(
-            camera& target_camera,
-            view_port viewport
-        );
         
     private:
         bool _flag_initialized{ false };
         bool _flag_invalidate_fbo{ true };
 
-        std::shared_ptr<GLFWwindow> _glfw_window;
-
-        camera _top_left_camera;
-        camera _top_right_camera;
-        camera _bottom_right_camera;
-        const std::array<camera*, 3> _camera_list = {
-            &_top_left_camera, &_top_right_camera, &_bottom_right_camera
-        };
-
+        gl_context _glctx;
         int32_t _curr_window_width{};
         int32_t _curr_window_height{};
-        camera* _curr_focused_camera{ &_top_left_camera };
 
-        renderer::infinite_grid_renderer _infgrid_renderer;
-        renderer::light_source_renderer _light_source_renderer;
-        renderer::triangle_mesh_renderer _mesh_renderer;
-        renderer::lineset_renderer _lineset_renderer;
-        renderer::pcd_renderer _pcd_renderer;
-        renderer::skeleton_renderer _skeleton_renderer;
-
-        std::shared_ptr<scene> _default_scene;
+        scene_renderer _scn_renderer;
+        std::unordered_map<uint32_t/* scene id */, std::shared_ptr<scene>> _scn_map;
+        std::shared_ptr<scene> _curr_scn;
 
         int32_t _fb_sample_count{ 1 };
         frame_buffer _fb_main;

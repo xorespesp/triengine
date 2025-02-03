@@ -46,13 +46,14 @@
     <ClCompile Include="src\geometry\skeleton_object.cc" />
     <ClCompile Include="src\geometry\triangle_mesh_object.cc" />
     <ClCompile Include="src\geometry\triangle_mesh_object_factory.cc" />
+    <ClCompile Include="src\gl_context.cc" />
     <ClCompile Include="src\gui\gui_manager.cc" />
     <ClCompile Include="src\gui\windows\scene_ctrl_window.cc" />
     <ClCompile Include="src\gui\windows\scene_view_window.cc" />
     <ClCompile Include="src\io\file_bvh_loader.cc" />
     <ClCompile Include="src\io\file_obj_loader.cc" />
     <ClCompile Include="src\misc\debug_utils.cc" />
-    <ClCompile Include="src\misc\opengl_utils.cc" />
+    <ClCompile Include="src\misc\gl_utils.cc" />
     <ClCompile Include="src\offscreen_window.cc" />
     <ClCompile Include="src\renderer\infinite_grid_renderer.cc" />
     <ClCompile Include="src\renderer\light_source_renderer.cc" />
@@ -83,6 +84,7 @@
     <ClInclude Include="include\triengine\shader\triangle_mesh_shaders.h" />
     <ClInclude Include="include\triengine\texture.hh" />
     <ClInclude Include="include\triengine\visualizer_window.hh" />
+    <ClInclude Include="src\gl_context.hh" />
     <ClInclude Include="src\image.hh" />
     <ClInclude Include="src\infinite_grid_options.hh" />
     <ClInclude Include="src\offscreen_window.hh" />
@@ -127,7 +129,7 @@
     <ClInclude Include="src\lighting_options.hh" />
     <ClInclude Include="src\math.hh" />
     <ClInclude Include="src\misc\debug_utils.hh" />
-    <ClInclude Include="src\misc\opengl_utils.hh" />
+    <ClInclude Include="src\misc\gl_utils.hh" />
     <ClInclude Include="src\misc\string_utils.hh" />
     <ClInclude Include="src\renderer\infinite_grid_renderer.hh" />
     <ClInclude Include="src\renderer\light_source_renderer.hh" />

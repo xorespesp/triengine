@@ -1,5 +1,5 @@
 #include "frame_buffer.hh"
-#include "misc/opengl_utils.hh"
+#include "misc/gl_utils.hh"
 #include "misc/debug_utils.hh"
 
 namespace triengine

@@ -6,7 +6,7 @@ namespace triengine
 {
     struct infinite_grid_options
     {
-        vec3_f32 grid_color{ 0.5f, 0.5f, 0.5f };
+        vec3_f32 grid_color{ 0.8f, 0.8f, 0.8f };
         float grid_cell_size{ 0.05f };
 
         void apply_to_shader(shader_program& shader) const

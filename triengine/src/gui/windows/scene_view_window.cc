@@ -239,36 +239,39 @@ namespace triengine::gui
                     return std::nullopt;
                 }();
 
-            const camera* const curr_camera = _vis_window->get_current_camera();
+            const camera* const curr_camera = _vis_window->get_current_scene()->get_camera();
             const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
             const vec3_f32 eye_pos = curr_camera->get_camera_position();
+            const vec3_f32 eye_dir = curr_camera->get_camera_direction();
 
             sb_.clear();
             sb_.appendf(
-                "Frame Size: %dx%d\n"
+                "Frame Size: %dx%d"
                 , _fb_main.width_pixels(), _fb_main.height_pixels()
             );
 
             if (msaa_enabled_state) {
-                sb_.appendf("MSAA: Enabled (%dx)\n", _state.fb_sample_count);
+                sb_.appendf("\nMSAA: Enabled (%dx)", _state.fb_sample_count);
             } else {
-                sb_.append("MSAA: Disabled\n");
+                sb_.append("\nMSAA: Disabled");
             }
 
             sb_.appendf(
-                "Camera ID: #%X\n"
-                "Eye Position: [%f, %f, %f]\n"
-                "Eye Center: [%f, %f, %f]\n"
-                "Front: [%f, %f, %f]\n"
-                "Right: [%f, %f, %f]\n"
-                "Up: [%f, %f, %f]\n"
-                "Yaw: %f\n"
-                "Pitch: %f\n"
-                "Zoom: %f\n"
-                "Fovy: %.1fdeg\n"
-                "Perspective Scale: %f"
+                "\nCamera ID: #%X"
+                "\nEye Position: [%f, %f, %f]"
+                "\nEye Direction: [%f, %f, %f]"
+                "\nEye Center: [%f, %f, %f]"
+                "\nFront: [%f, %f, %f]"
+                "\nRight: [%f, %f, %f]"
+                "\nUp: [%f, %f, %f]"
+                "\nYaw: %f"
+                "\nPitch: %f"
+                "\nZoom: %f"
+                "\nFovy: %.1fdeg"
+                "\nPerspective Scale: %f"
                 , curr_camera
                 , eye_pos.x(), eye_pos.y(), eye_pos.z()
+                , eye_dir.x(), eye_dir.y(), eye_dir.z()
                 , curr_camera_params->lookat_center.x(), curr_camera_params->lookat_center.y(), curr_camera_params->lookat_center.z()
                 , curr_camera_params->camera_front.x(), curr_camera_params->camera_front.y(), curr_camera_params->camera_front.z()
                 , curr_camera_params->camera_right.x(), curr_camera_params->camera_right.y(), curr_camera_params->camera_right.z()
@@ -281,14 +284,14 @@ namespace triengine::gui
             );
             
             if (scene_mouse_pos) {
-                sb_.appendf("Cursor Position: [%.1f, %.1f]\n", scene_mouse_pos->x(), scene_mouse_pos->y());
+                sb_.appendf("\nCursor Position: [%.1f, %.1f]", scene_mouse_pos->x(), scene_mouse_pos->y());
             } else {
-                sb_.append("Cursor Position: N/A\n");
+                sb_.append("\nCursor Position: N/A");
             }
 
             {
                 const float curr_fps = ImGui::GetIO().Framerate;
-                sb_.appendf("Frame Time: %.3fms (%.1f FPS)", 1000.0f / curr_fps, curr_fps);
+                sb_.appendf("\nFrame Time: %.3fms (%.1f FPS)", 1000.0f / curr_fps, curr_fps);
 
                 if (_state.refresh_time == 0.0) {
                     _state.refresh_time = ImGui::GetTime();

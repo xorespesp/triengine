@@ -1,4 +1,4 @@
-#include "opengl_utils.hh"
+#include "gl_utils.hh"
 
 #include <GLFW/glfw3.h>
 #include <iostream>
@@ -37,26 +37,4 @@ bool triengine::misc::GLCheckError_impl(const debug::source_loc& src_loc)
     }
 
     return true;
-}
-
-triengine::misc::global_glfw_environment::global_glfw_environment()
-{
-    if (!::glfwInit()) {
-        std::cout << "\nglfwInit() failed" << std::endl;
-        ::exit(EXIT_FAILURE);
-    }
-
-    ::glfwSetErrorCallback(+[](const int err_code, const char* const err_desc) -> void {
-        const auto msg = misc::string::c_format(""
-            "GLFW Error(%d) : %s"
-            , err_code
-            , err_desc
-        );
-        std::cout << '\n' << msg << std::endl;
-    });
-}
-
-triengine::misc::global_glfw_environment::~global_glfw_environment()
-{
-    ::glfwTerminate();
 }

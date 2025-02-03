@@ -17,37 +17,10 @@ namespace triengine::gui
     {
         if (_vis_window)
         {
-            auto& scn_config = _vis_window->get_default_scene()->scn_config;
+            auto& scn_config = _vis_window->get_current_scene()->render_config;
 
             if (ImGui::CollapsingHeader("Render Options", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                {
-                    using enum_type = triengine::scene_config::view_layout_mode;
-                    static const std::unordered_map<enum_type, std::string> item_names = {
-                        { enum_type::one_view, "one_view" },
-                        { enum_type::two_views, "two_view" },
-                        { enum_type::three_views, "three_views" }
-                    };
-
-                    const enum_type selected_item = scn_config.view_layout;
-                    if (ImGui::BeginCombo("View Layout", item_names.find(selected_item)->second.c_str())) {
-                        for (int32_t curr_item_value = 0; curr_item_value < static_cast<int32_t>(item_names.size()); ++curr_item_value) {
-                            const enum_type curr_item = static_cast<enum_type>(curr_item_value);
-                            const bool is_selected = (selected_item == curr_item);
-                            if (ImGui::Selectable(item_names.find(curr_item)->second.c_str(), is_selected)) {
-                                // Selection changed
-                                scn_config.view_layout = static_cast<enum_type>(curr_item_value);
-                            }
-                
-                            if (is_selected) {
-                                // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
-                                ImGui::SetItemDefaultFocus();
-                            }
-                        } // for
-                        ImGui::EndCombo();
-                    }
-                }
-
                 ImGui::ColorEdit4("BG Color", scn_config.bg_color.data());
                 ImGui::Checkbox("Show Origin Axes", &scn_config.show_origin_axis);
                 ImGui::Checkbox("Show Object Normals", &scn_config.show_object_normals);
@@ -61,7 +34,7 @@ namespace triengine::gui
                 }
 
                 {
-                    using enum_type = triengine::scene_config::skeleton_render_mode;
+                    using enum_type = triengine::scene_render_config::skeleton_render_mode;
                     static const std::unordered_map<enum_type, std::string> item_names = {
                         { enum_type::skeleton_default, "skeleton_default" },
                         { enum_type::skeleton_overlay, "skeleton_overlay" },

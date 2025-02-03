@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 #include "misc/debug_utils.hh"
-#include "misc/opengl_utils.hh"
+#include "misc/gl_utils.hh"
 
 #include "extern/glad/glad.h"
 #include <GLFW/glfw3.h>

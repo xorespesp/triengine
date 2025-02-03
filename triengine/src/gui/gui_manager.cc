@@ -67,7 +67,7 @@ namespace triengine::gui
         //io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\malgun.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesKorean());
 
         // Setup Platform/Renderer backends
-        if (!::ImGui_ImplGlfw_InitForOpenGL(vis_window->get_glfw_window(), true)) {
+        if (!::ImGui_ImplGlfw_InitForOpenGL(vis_window->get_gl_context()->get_glfw_window(), true)) {
             TRIENGINE_PANIC("ImGui_ImplGlfw_InitForOpenGL failed");
         }
 

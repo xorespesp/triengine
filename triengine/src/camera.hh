@@ -22,6 +22,16 @@ namespace triengine
                 0 <= vy && vy < height;
         }
 
+        bool operator==(const view_port& rhs) const noexcept {
+            return 
+                x == rhs.x && y == rhs.y &&
+                width == rhs.width && height == rhs.height;
+        }
+
+        bool operator!=(const view_port& rhs) const noexcept {
+            return !(*this == rhs);
+        }
+
     }; // struct
 
     // Camera parameters
@@ -43,6 +53,7 @@ namespace triengine
         // Zoom
         float zoom{};
 
+        camera_parameters() = default;
         camera_parameters(
             const vec3_f32& lookat_center_,
             const vec3_f32& world_up_,
@@ -111,9 +122,9 @@ namespace triengine
             kDefaultFovy = 65.0f;
 
         static constexpr float
-            kMinZoom = 0.1f,
+            kMinZoom = 0.01f,
             kMaxZoom = 50.0f,
-            kDefaultZoom = kMinZoom + (kMaxZoom - kMinZoom) * 0.15f;
+            kDefaultZoom = 1.0f;
 
         static constexpr float // 0: Orthographic projection; 1: Perspective projection
             kMinPerspectiveScaleFactor = 0.1f, 
@@ -128,7 +139,7 @@ namespace triengine
             kDefaultView(
                 kDefaultLookAtCenter,
                 kDefaultWorldUp,
-                0.0f, 0.0f, // yaw, pitch
+                0.0f, 10.0f, // yaw, pitch
                 kDefaultZoom
             );
     } // namespace
@@ -157,17 +168,29 @@ namespace triengine
             _perspective_scale_factor = kDefaulPerspectiveScaleFactor;
         }
 
-        camera_parameters& get_parameters() noexcept { return _view_param; }
-        const camera_parameters& get_parameters() const noexcept { return _view_param; }
-
-        const view_port& get_view_port() const noexcept { return _view_port; }
+        view_port get_view_port() const noexcept { return _view_port; }
         void set_view_port(view_port viewport) {
+            if (_view_port != viewport) {
+                TRIENGINE_TRACE("set camera viewport: %d, %d, %d, %d"
+                    , viewport.x
+                    , viewport.y
+                    , viewport.width
+                    , viewport.height
+                );
+            }
             _view_port = viewport;
         }
+
+        const camera_parameters& get_parameters() const noexcept { return _view_param; }
 
         const vec3_f32& get_lookat_center() const noexcept { return _view_param.lookat_center; }
         void set_lookat_center(const vec3_f32& lookat_center) noexcept {
             _view_param.lookat_center = lookat_center;
+        }
+
+        float get_zoom() const noexcept { return _view_param.zoom; }
+        void set_zoom(float zoom) noexcept {
+            _view_param.zoom = zoom;
         }
 
         float get_mouse_sensitivity() const noexcept { return _mouse_sensitivity; }
@@ -181,7 +204,7 @@ namespace triengine
         }
 
         bool mirror_mode_enabled() const noexcept { return _flag_mirror_mode; }
-        void enable_mirror_mode(bool enable) noexcept {
+        void set_mirror_mode(bool enable) noexcept {
             _flag_mirror_mode = enable;
         }
 
@@ -191,7 +214,10 @@ namespace triengine
         }
 
         vec3_f32 get_camera_position() const;
+        void set_camera_position(const vec3_f32& position);
+
         vec3_f32 get_camera_direction() const;
+        void set_camera_direction(const vec3_f32& direction);
 
         void get_view_projection(
             mat4_f32& view_matrix/* out */,

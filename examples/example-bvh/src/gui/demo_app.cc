@@ -39,12 +39,12 @@ namespace gui
             ")"
         );
 
-        _scene = _off_window->get_default_scene();
-        _scene->scn_config.pcd_point_size = 2.5f;
-        _scene->scn_config.show_origin_xz_grid = true;
-        _scene->scn_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+        _scene = _off_window->get_current_scene();
+        _scene->render_config.pcd_point_size = 2.5f;
+        _scene->render_config.show_origin_xz_grid = true;
+        _scene->render_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+        _scene->get_camera()->set_mirror_mode(false);
 
-        _off_window->enable_mirror_mode(false);
         _off_window->set_key_callback(
             [this](
                 [[maybe_unused]] triengine::visualizer_window& vis, 
@@ -63,22 +63,22 @@ namespace gui
                         _off_window->enable_main_menu(!_off_window->is_main_menu_enabled());
                         break;
                     case GLFW_KEY_A:
-                        _scene->scn_config.light_opts.point_light.position.x() -= 0.05f; // left
+                        _scene->render_config.light_opts.point_light.position.x() -= 0.05f; // left
                         break;
                     case GLFW_KEY_D:
-                        _scene->scn_config.light_opts.point_light.position.x() += 0.05f; // right
+                        _scene->render_config.light_opts.point_light.position.x() += 0.05f; // right
                         break;
                     case GLFW_KEY_W:
-                        _scene->scn_config.light_opts.point_light.position.z() += 0.05f; // forward
+                        _scene->render_config.light_opts.point_light.position.z() += 0.05f; // forward
                         break;
                     case GLFW_KEY_S:
-                        _scene->scn_config.light_opts.point_light.position.z() -= 0.05f; // backward
+                        _scene->render_config.light_opts.point_light.position.z() -= 0.05f; // backward
                         break;
                     case GLFW_KEY_UP:
-                        _scene->scn_config.light_opts.point_light.position.y() -= 0.05f; // up
+                        _scene->render_config.light_opts.point_light.position.y() -= 0.05f; // up
                         break;
                     case GLFW_KEY_DOWN:
-                        _scene->scn_config.light_opts.point_light.position.y() += 0.05f; // down
+                        _scene->render_config.light_opts.point_light.position.y() += 0.05f; // down
                         break;
                     }
                 }

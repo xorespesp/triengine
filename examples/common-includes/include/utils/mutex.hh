@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include <Windows.h>
 #include <atomic>
 #include <mutex>
 
@@ -12,7 +11,6 @@ namespace utils
 		spin_lock() { _flag.clear(); }
 		virtual ~spin_lock() { }
 
-		// make non-copyable
 		spin_lock(const spin_lock&) = delete;
 		spin_lock& operator= (const spin_lock&) = delete;
 

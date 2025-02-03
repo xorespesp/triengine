@@ -13,7 +13,7 @@ namespace gui
     {
     private:
         std::unique_ptr<triengine::visualizer_window> _off_window;
-        triengine::scene* _scene{ nullptr };
+        std::shared_ptr<triengine::scene> _scene;
 
         std::shared_ptr<triengine::gui::log_window> _log_window;
         std::shared_ptr<triengine::gui::render_stats_window> _render_stats_window;

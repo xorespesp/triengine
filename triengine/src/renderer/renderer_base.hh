@@ -1,6 +1,6 @@
 #pragma once
 #include "../common.h"
-#include "../misc/opengl_utils.hh"
+#include "../misc/gl_utils.hh"
 #include "../shader.hh"
 #include "../texture.hh"
 #include "../lighting_options.hh"

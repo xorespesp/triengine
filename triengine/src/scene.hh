@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "common.h"
+#include "camera.hh"
 #include "infinite_grid_options.hh"
 #include "lighting_options.hh"
 #include "geometry/lineset_object.hh"
@@ -13,21 +14,14 @@
 
 namespace triengine
 {
-    struct scene_config
+    struct scene_render_config
     {
-        enum class view_layout_mode {
-            one_view = 0,
-            two_views,
-            three_views,
-        };
-
         enum class skeleton_render_mode {
             skeleton_default = 0,
             skeleton_overlay,
             overlay_with_joint_axis,
         };
 
-        view_layout_mode view_layout{ view_layout_mode::one_view };
         bool show_wireframe{ false };
         bool show_object_normals{ false };
         bool show_origin_axis{ true };
@@ -38,23 +32,37 @@ namespace triengine
         std::optional<float> pcd_point_size;
         skeleton_render_mode skeleton_mode{ skeleton_render_mode::skeleton_overlay };
 
-        scene_config() = default;
+        scene_render_config() = default;
     }; // struct
 
-    // scene은 "무엇을 그리는가"에 대한 정보만 관리
-    // 장면 구성에 필요한 모든 객체(mesh, pcd 등)을 소유하고 관리
-    // 조명 등에 대한 정보도 같이 포함
-    // 단, 카메라 정보는 관리하지 않는다.
+    // The `scene` owns and manages all the information (mesh, pcd, etc.) required for “scene composition” (including cameras)
     class scene
     {
-    public:
-        scene() = default;
+    private:
+        const uint32_t _id{ _create_unique_id() };
+        camera _main_camera; // TODO: multi camera?
 
-        scene_config scn_config;
+    public:
+        scene_render_config render_config;
         std::list<std::shared_ptr<geometry::lineset_object>> lineset_objects;
         std::list<std::shared_ptr<geometry::pcd_object>> pcd_objects;
         std::list<std::shared_ptr<geometry::triangle_mesh_object>> mesh_objects;
         std::list<std::shared_ptr<geometry::skeleton_object>> skeleton_objects;
+
+    private:
+        static uint32_t _create_unique_id() {
+            static std::atomic_uint32_t cnt_ = 0;
+            const uint32_t new_id = cnt_++;
+            return new_id;
+        }
+
+    public:
+        scene() = default;
+        
+        uint32_t id() const noexcept { return _id; }
+
+        const camera* get_camera() const noexcept { return &_main_camera; }
+        camera* get_camera() noexcept { return &_main_camera; }
 
         void add_object(std::shared_ptr<geometry::geometry_object_base> object) {
             switch (object->get_type()) {

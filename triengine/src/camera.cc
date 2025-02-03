@@ -7,10 +7,33 @@ namespace triengine
         return _view_param.lookat_center - (_view_param.camera_front * this->_get_perspective_scaled_zoom());
     }
 
+    void camera::set_camera_position(const vec3_f32& position)
+    {
+        TRIENGINE_TRACE("set camera position: [%f, %f, %f]"
+            , position.x(), position.y(), position.z()
+        );
+
+        _view_param.lookat_center = position + (_view_param.camera_front * this->_get_perspective_scaled_zoom());
+    }
+
     vec3_f32 camera::get_camera_direction() const
     {
         const vec3_f32 eye_pos = this->get_camera_position();
         return (_view_param.lookat_center - eye_pos).normalized();
+    }
+
+    void camera::set_camera_direction(const vec3_f32& direction)
+    {
+        TRIENGINE_TRACE("set camera direction: [%f, %f, %f]"
+            , direction.x(), direction.y(), direction.z()
+        );
+
+        // update camera parameters manually
+        _view_param.camera_front = direction.normalized();
+        _view_param.camera_right = _view_param.camera_front.cross(_view_param.world_up).normalized();
+        _view_param.camera_up = _view_param.camera_right.cross(_view_param.camera_front).normalized();
+        _view_param.yaw = math::rad2deg(std::atan2(_view_param.camera_front.x(), _view_param.camera_front.z()));
+        _view_param.pitch = math::rad2deg(std::asin(_view_param.camera_front.y()));
     }
 
     void camera::get_view_projection(
@@ -26,7 +49,7 @@ namespace triengine
         projection_matrix = math::perspective(
             math::deg2rad(this->_get_perspective_scaled_fovy()),
             static_cast<float>(_view_port.width) / static_cast<float>(_view_port.height),
-            0.1f,
+            0.01f,
             200.0f
         );
 
