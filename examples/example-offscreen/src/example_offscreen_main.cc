@@ -2,7 +2,7 @@
 #include <utils/logger.hh>
 #include <utils/path_utils.hh>
 
-#include <triengine/offscreen_window.hh>
+#include <triengine/visualization/offscreen_renderer.hh>
 #include <triengine/math.hh>
 #include <triengine/io/file_obj_loader.hh>
 
@@ -16,27 +16,21 @@
 
 namespace gui
 {
-    class demo_app
+    class offscreen_demo_app
     {
-    private:
-        std::unique_ptr<triengine::offscreen_window> _off_window;
-        std::shared_ptr<triengine::scene> _scene;
-
-        std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh;
-
     public:
-        demo_app() = default;
-        ~demo_app() = default;
+        offscreen_demo_app() = default;
+        ~offscreen_demo_app() = default;
 
         void create(
             const std::filesystem::path& triengine_resource_dir)
         {
             LOG_TRACE("%s() ENTER", __func__);
 
-            _off_window = std::make_unique<triengine::offscreen_window>();
-            _off_window->create_window(1280, 720);
+            _renderer = std::make_unique<triengine::visualization::offscreen_renderer>();
+            _renderer->create_renderer(1280, 720);
 
-            _scene = _off_window->get_current_scene();
+            _scene = _renderer->get_current_scene();
             _scene->render_config.bg_color = triengine::color4_f32::all(0.0f);
             _scene->render_config.bg_color.a() = 0.0f;
             _scene->render_config.pcd_point_size = 2.5f;
@@ -83,8 +77,8 @@ namespace gui
         {
             LOG_TRACE("%s() ENTER", __func__);
 
-            _off_window->destroy_window();
-            _off_window.reset();
+            _renderer->destroy_renderer();
+            _renderer.reset();
 
             LOG_TRACE("%s() LEAVE", __func__);
         }
@@ -94,7 +88,7 @@ namespace gui
             LOG_TRACE("%s() ENTER", __func__);
 
             triengine::image render_frame;
-            for(bool flag_stop{ false }; !flag_stop && _off_window->update_window();)
+            for(bool flag_stop{ false }; !flag_stop;)
             {
                 // for testing
                 if (_obj_texcolor_mesh)
@@ -113,7 +107,7 @@ namespace gui
                     _obj_texcolor_mesh->rotate(R);
                 }
 
-                _off_window->render(render_frame);
+                _renderer->render(render_frame);
 
                 cv::Mat cv_render_frame(
                     render_frame.height_pixels(),
@@ -144,6 +138,11 @@ namespace gui
             LOG_TRACE("%s() LEAVE", __func__);
         }
 
+    private:
+        std::unique_ptr<triengine::visualization::offscreen_renderer> _renderer;
+        std::shared_ptr<triengine::scene> _scene;
+        std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh;
+
     }; // class
 
 } // namespace
@@ -151,7 +150,7 @@ namespace gui
 void run_demo(
     const std::filesystem::path& triengine_resource_dir)
 {
-    gui::demo_app app;
+    gui::offscreen_demo_app app;
 
     LOG_INFO("Creating app..");
     app.create(triengine_resource_dir);

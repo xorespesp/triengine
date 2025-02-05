@@ -54,7 +54,6 @@
     <ClCompile Include="src\io\file_obj_loader.cc" />
     <ClCompile Include="src\misc\debug_utils.cc" />
     <ClCompile Include="src\misc\gl_utils.cc" />
-    <ClCompile Include="src\offscreen_window.cc" />
     <ClCompile Include="src\renderer\infinite_grid_renderer.cc" />
     <ClCompile Include="src\renderer\light_source_renderer.cc" />
     <ClCompile Include="src\renderer\lineset_renderer.cc" />
@@ -64,7 +63,8 @@
     <ClCompile Include="src\scene.cc" />
     <ClCompile Include="src\scene_renderer.cc" />
     <ClCompile Include="src\texture.cc" />
-    <ClCompile Include="src\visualizer_window.cc" />
+    <ClCompile Include="src\visualization\offscreen_renderer.cc" />
+    <ClCompile Include="src\visualization\visualizer.cc" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
@@ -87,7 +87,6 @@
     <ClInclude Include="src\gl_context.hh" />
     <ClInclude Include="src\image.hh" />
     <ClInclude Include="src\infinite_grid_options.hh" />
-    <ClInclude Include="src\offscreen_window.hh" />
     <ClInclude Include="src\scene.hh" />
     <ClInclude Include="src\basic_types.hh" />
     <ClInclude Include="src\camera.hh" />
@@ -149,7 +148,8 @@
     <ClInclude Include="src\shader\shader_version.h" />
     <ClInclude Include="src\shader\triangle_mesh_shaders.h" />
     <ClInclude Include="src\texture.hh" />
-    <ClInclude Include="src\visualizer_window.hh" />
+    <ClInclude Include="src\visualization\offscreen_renderer.hh" />
+    <ClInclude Include="src\visualization\visualizer.hh" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

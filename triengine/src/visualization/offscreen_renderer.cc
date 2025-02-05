@@ -1,7 +1,7 @@
-﻿#include "offscreen_window.hh"
-#include "misc/string_utils.hh"
-#include "misc/debug_utils.hh"
-#include "misc/gl_utils.hh"
+﻿#include "offscreen_renderer.hh"
+#include "../misc/string_utils.hh"
+#include "../misc/debug_utils.hh"
+#include "../misc/gl_utils.hh"
 
 #include <iostream>
 #include <memory>
@@ -11,15 +11,15 @@
  * https://github.com/glfw/glfw/blob/master/examples/offscreen.c
  */
 
-namespace triengine
+namespace triengine::visualization
 {
-    offscreen_window::offscreen_window()
+    offscreen_renderer::offscreen_renderer()
     {
     }
 
-    void offscreen_window::create_window(
-        const int32_t width,
-        const int32_t height,
+    void offscreen_renderer::create_renderer(
+        const int32_t window_width,
+        const int32_t window_height,
         const bool multisample)
     {
         if (_flag_initialized) {
@@ -29,40 +29,24 @@ namespace triengine
         _glctx.create(
             "",
             false,
-            width,
-            height,
+            window_width,
+            window_height,
             false
         );
-
-        // In to use the member function as callback, set the current class as the Window User Pointer
-        ::glfwSetWindowUserPointer(_glctx.get_glfw_window(), this);
-
-        // Set all callbacks
-        ::glfwSetWindowCloseCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window) {
-                auto pThis = static_cast<offscreen_window*>(::glfwGetWindowUserPointer(window));
-                //pThis->_handle_glfw_window_close_event(window);
-            });
-
-        ::glfwSetFramebufferSizeCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window, int w, int h) {
-                auto pThis = static_cast<offscreen_window*>(::glfwGetWindowUserPointer(window));
-                pThis->_curr_window_width = w;
-                pThis->_curr_window_height = h;
-            });
 
         ::glfwGetWindowSize(_glctx.get_glfw_window(), &_curr_window_width, &_curr_window_height);
         _fb_sample_count = (multisample) ? 8 : 1;
 
         _scn_renderer.create(&_glctx);
 
-        this->create_new_scene();
+        // Create main scene
+        this->add_scene();
 
         TRIENGINE_TRACE("%s() LEAVE", __func__);
         _flag_initialized = true;
     }
 
-    void offscreen_window::destroy_window()
+    void offscreen_renderer::destroy_renderer()
     {
         if (_flag_initialized)
         {
@@ -73,27 +57,35 @@ namespace triengine
         }
     }
 
-    bool offscreen_window::update_window()
+    bool offscreen_renderer::add_scene(std::shared_ptr<scene> scn)
     {
-        ::glfwSwapBuffers(_glctx.get_glfw_window());
-        ::glfwPollEvents();
-
-        /**
-         * https://www.glfw.org/docs/3.0/window.html
-         *
-         * When the user attempts to close the window,
-         * for example by clicking the close widget or using a key chord like Alt+F4,
-         * the close flag of the window is set.
-         *
-         * The window is however not actually destroyed and, unless you watch for this state change, nothing further happens.
-         * The current state of the close flag is returned by glfwWindowShouldClose and can be set or cleared directly with glfwSetWindowShouldClose.
-         */
-        return !static_cast<bool>(::glfwWindowShouldClose(_glctx.get_glfw_window()));
+        if (_scn_map.empty()) { _curr_scn = scn; }
+        const auto [it, success] = _scn_map.insert({ scn->id(), scn });
+        return success;
+    }
+    
+    void offscreen_renderer::remove_scene(std::shared_ptr<scene> scn)
+    {
+        if (scn) {
+            auto it = _scn_map.find(scn->id());
+            if (it != _scn_map.end()) {
+                _scn_map.erase(it);
+                if (_curr_scn->id() == scn->id()) {
+                    _curr_scn = _scn_map.empty() ? nullptr : _scn_map.begin()->second;
+                }
+            }
+        }
     }
 
-    void offscreen_window::render(
+    void offscreen_renderer::change_scene(std::shared_ptr<scene> scn) {
+        _curr_scn = scn;
+    }
+
+    void offscreen_renderer::render(
         image& frame_image)
     {
+        ::glfwSwapBuffers(_glctx.get_glfw_window());
+
         const vec2_i32 scn_size{ _curr_window_width, _curr_window_height };
 
         this->_begin_frame();
@@ -137,7 +129,7 @@ namespace triengine
         GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
     }
 
-    void offscreen_window::_begin_frame()
+    void offscreen_renderer::_begin_frame()
     {
         if (_flag_invalidate_fbo)
         {
@@ -165,7 +157,7 @@ namespace triengine
         _fb_main.bind();
     }
 
-    void offscreen_window::_end_frame()
+    void offscreen_renderer::_end_frame()
     {
         _fb_main.unbind();
     }

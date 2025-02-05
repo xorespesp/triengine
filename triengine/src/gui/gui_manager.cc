@@ -1,6 +1,6 @@
 #include "gui_manager.hh"
 #include "../misc/debug_utils.hh"
-#include "../visualizer_window.hh"
+#include "../visualization/visualizer.hh"
 #include "../shader/shader_version.h"
 #include "../extern/fonts/Fonts.h"
 
@@ -43,12 +43,12 @@ namespace triengine::gui
     }
 
     void gui_manager::initialize(
-        visualizer_window* vis_window,
+        visualization::visualizer* const vis,
         const float dpi_scale_factor)
     {
-        TRIENGINE_ASSERT(vis_window != nullptr);
+        TRIENGINE_ASSERT(vis != nullptr);
 
-        _vis_window = vis_window;
+        _vis = vis;
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -67,7 +67,7 @@ namespace triengine::gui
         //io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\malgun.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesKorean());
 
         // Setup Platform/Renderer backends
-        if (!::ImGui_ImplGlfw_InitForOpenGL(vis_window->get_gl_context()->get_glfw_window(), true)) {
+        if (!::ImGui_ImplGlfw_InitForOpenGL(vis->get_gl_context()->get_glfw_window(), true)) {
             TRIENGINE_PANIC("ImGui_ImplGlfw_InitForOpenGL failed");
         }
 
@@ -80,10 +80,10 @@ namespace triengine::gui
         _flag_initialized = true;
         this->change_dpi_scale(dpi_scale_factor);
 
-        _scene_window = std::make_shared<gui::scene_view_window>(_vis_window);
+        _scene_window = std::make_shared<gui::scene_view_window>(_vis);
         this->add_window(_scene_window);
 
-        _scene_ctrl_window = std::make_shared<gui::scene_control_window>(_vis_window);
+        _scene_ctrl_window = std::make_shared<gui::scene_control_window>(_vis);
         this->add_window(_scene_ctrl_window);
     }
 

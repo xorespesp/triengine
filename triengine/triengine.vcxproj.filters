@@ -18,9 +18,6 @@
     <ClCompile Include="src\camera.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\visualizer_window.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\renderer\light_source_renderer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -147,10 +144,13 @@
     <ClCompile Include="src\scene_renderer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\offscreen_window.cc">
+    <ClCompile Include="src\gl_context.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\gl_context.cc">
+    <ClCompile Include="src\visualization\visualizer.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\visualization\offscreen_renderer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -238,9 +238,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\texture.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\visualizer_window.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\shader\lighting_shaders.h">
@@ -387,13 +384,16 @@
     <ClInclude Include="src\scene_renderer.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\offscreen_window.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\image.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\gl_context.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\visualization\visualizer.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\visualization\offscreen_renderer.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

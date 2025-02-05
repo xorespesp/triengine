@@ -10,9 +10,8 @@
 #include <vector>
 #include <map>
 
- // forward declaration
-namespace triengine {
-    class visualizer_window;
+namespace triengine::visualization {
+    class visualizer; // forward declaration
 }
 
 namespace triengine::gui
@@ -29,7 +28,7 @@ namespace triengine::gui
         bool is_initialized() const noexcept;
 
         void initialize(
-            visualizer_window* vis_window,
+            visualization::visualizer* vis,
             float dpi_scale_factor = 1.0f
         );
 
@@ -68,7 +67,7 @@ namespace triengine::gui
         );
 
     private:
-        visualizer_window* _vis_window{ nullptr };
+        visualization::visualizer* _vis{ nullptr };
         std::map<std::string, ImFont*> _fonts_map;
         std::shared_ptr<gui::scene_view_window> _scene_window;
         std::shared_ptr<gui::scene_control_window> _scene_ctrl_window;

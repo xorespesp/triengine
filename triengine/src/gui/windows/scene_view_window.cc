@@ -1,15 +1,15 @@
 #include "scene_view_window.hh"
-#include "../../visualizer_window.hh"
+#include "../../visualization/visualizer.hh"
 #include "../../misc/string_utils.hh"
 
 namespace triengine::gui
 {
     scene_view_window::scene_view_window(
-        visualizer_window* const vis_window)
-        : _vis_window{ vis_window }
+        visualization::visualizer* const vis)
+        : _vis{ vis }
     {
-        _state.curr_content_region.Max.x = static_cast<float>(vis_window->get_window_width());
-        _state.curr_content_region.Max.y = static_cast<float>(vis_window->get_window_height());
+        _state.curr_content_region.Max.x = static_cast<float>(vis->get_window_width());
+        _state.curr_content_region.Max.y = static_cast<float>(vis->get_window_height());
         _state.flag_invalidate_fbo = true;
     }
 
@@ -239,7 +239,7 @@ namespace triengine::gui
                     return std::nullopt;
                 }();
 
-            const camera* const curr_camera = _vis_window->get_current_scene()->get_camera();
+            const camera* const curr_camera = _vis->get_current_scene()->get_camera();
             const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
             const vec3_f32 eye_pos = curr_camera->get_camera_position();
             const vec3_f32 eye_dir = curr_camera->get_camera_direction();

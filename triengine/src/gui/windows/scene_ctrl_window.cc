@@ -1,6 +1,6 @@
 #include "scene_ctrl_window.hh"
 #include "../../misc/debug_utils.hh"
-#include "../../visualizer_window.hh"
+#include "../../visualization/visualizer.hh"
 
 #include <unordered_map>
 #include <string>
@@ -8,16 +8,16 @@
 namespace triengine::gui
 {
     scene_control_window::scene_control_window(
-        visualizer_window* vis_window)
-        : _vis_window{ vis_window }
+        visualization::visualizer* const vis)
+        : _vis{ vis }
     { }
 
     void scene_control_window::render(
         [[maybe_unused]] const window_render_context& render_ctx)
     {
-        if (_vis_window)
+        if (_vis)
         {
-            auto& scn_config = _vis_window->get_current_scene()->render_config;
+            auto& scn_config = _vis->get_current_scene()->render_config;
 
             if (ImGui::CollapsingHeader("Render Options", ImGuiTreeNodeFlags_DefaultOpen))
             {

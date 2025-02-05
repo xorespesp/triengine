@@ -1,6 +1,6 @@
 #include <utils/logger.hh>
 #include <utils/path_utils.hh>
-#include "gui/demo_app.hh"
+#include "bvh_demo_app.hh"
 
 #include <iostream>
 #include <conio.h>
@@ -8,7 +8,7 @@
  void run_demo(
      const std::filesystem::path& triengine_resource_dir)
  {
-     gui::demo_app app;
+     gui::bvh_demo_app app;
 
      LOG_INFO("Creating app..");
      app.create(triengine_resource_dir);

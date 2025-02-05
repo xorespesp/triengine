@@ -146,15 +146,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\bvh_demo_app.cc" />
     <ClCompile Include="src\example_bvh_main.cc" />
-    <ClCompile Include="src\gui\demo_app.cc" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
     <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\gui\demo_app.hh" />
+    <ClInclude Include="src\bvh_demo_app.hh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

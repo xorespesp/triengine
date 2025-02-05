@@ -5,9 +5,8 @@
 #include <optional>
 #include <array>
 
-namespace triengine {
-    // forward declaration
-    class visualizer_window;
+namespace triengine::visualization {
+    class visualizer; // forward declaration
 }
 
 namespace triengine::gui
@@ -32,13 +31,13 @@ namespace triengine::gui
         };
 
     private:
-        visualizer_window* _vis_window;
+        visualization::visualizer* _vis{ nullptr };
         triengine::frame_buffer _fb_main;
         triengine::frame_buffer _fb_msaa_copy; // only used in msaa rendering
         window_state_t _state;
 
     public:
-        scene_view_window(visualizer_window* vis_window);
+        scene_view_window(visualization::visualizer* vis);
 
         virtual ~scene_view_window() = default;
 

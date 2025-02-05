@@ -1,22 +1,22 @@
-#include "visualizer_window.hh"
-#include "misc/string_utils.hh"
-#include "misc/debug_utils.hh"
-#include "misc/gl_utils.hh"
+#include "visualizer.hh"
+#include "../misc/string_utils.hh"
+#include "../misc/debug_utils.hh"
+#include "../misc/gl_utils.hh"
 
 #include <iostream>
 #include <memory>
 
-namespace triengine
+namespace triengine::visualization
 {
-    visualizer_window::visualizer_window()
+    visualizer::visualizer()
     {
     }
 
-    void visualizer_window::create_window(
+    void visualizer::create_window(
         const std::string& window_name,
         const bool show_window,
-        const int32_t width,
-        const int32_t height,
+        const int32_t window_width,
+        const int32_t window_height,
         const bool fullscreen)
     {
         if (_flag_initialized) {
@@ -26,8 +26,8 @@ namespace triengine
         _glctx.create(
             window_name,
             show_window,
-            width, 
-            height,
+            window_width, 
+            window_height,
             fullscreen
         );
 
@@ -37,37 +37,37 @@ namespace triengine
         // Set all callbacks
         ::glfwSetWindowCloseCallback(_glctx.get_glfw_window(),
             +[](GLFWwindow* window) {
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_window_close_event(window);
             });
 
         ::glfwSetFramebufferSizeCallback(_glctx.get_glfw_window(),
             +[](GLFWwindow* window, int w, int h) {
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_frame_buffer_resize_event(window, w, h);
             });
 
         ::glfwSetKeyCallback(_glctx.get_glfw_window(),
             +[](GLFWwindow* window, int key, int scancode, int action, int mods) {
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_key_event(window, key, scancode, action, mods);
             });
 
         ::glfwSetMouseButtonCallback(_glctx.get_glfw_window(),
             +[](GLFWwindow* window, int button, int action, int mods) {
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_mouse_button_event(window, button, action, mods);
             });
 
         ::glfwSetCursorPosCallback(_glctx.get_glfw_window(),
             +[](GLFWwindow* window, double xpos, double ypos) {
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_mouse_move_event(window, xpos, ypos);
             });
 
         ::glfwSetScrollCallback(_glctx.get_glfw_window(),
             +[](GLFWwindow* window, double xoffset, double yoffset) {
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_mouse_scroll_event(window, xoffset, yoffset);
             });
 
@@ -77,7 +77,7 @@ namespace triengine
         ::glfwSetWindowContentScaleCallback(_glctx.get_glfw_window(),
             +[]([[maybe_unused]] GLFWwindow* window, float xscale, float yscale) {
                 TRIENGINE_TRACE("dpi scale changed: [%f, %f]", xscale, yscale);
-                auto pThis = static_cast<visualizer_window*>(::glfwGetWindowUserPointer(window));
+                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_content_scale_change_event(window, xscale, yscale);
             });
 
@@ -85,7 +85,8 @@ namespace triengine
 
         _scn_renderer.create(&_glctx);
 
-        _curr_scn = std::make_shared<scene>();
+        // Create main scene
+        this->add_scene();
 
         // Initialize GUI system
         {
@@ -114,13 +115,13 @@ namespace triengine
         _flag_initialized = true;
     }
 
-    void visualizer_window::close_window()
+    void visualizer::close_window()
     {
         // Set the close flag
         ::glfwSetWindowShouldClose(_glctx.get_glfw_window(), GL_TRUE);
     }
 
-    void visualizer_window::destroy_window()
+    void visualizer::destroy_window()
     {
         if (_flag_initialized)
         {
@@ -134,7 +135,7 @@ namespace triengine
         }
     }
 
-    void visualizer_window::set_window_position(int xpos, int ypos)
+    void visualizer::set_window_position(int xpos, int ypos)
     {
         if (const auto gl_window = _glctx.get_glfw_window();
             gl_window) {
@@ -142,7 +143,31 @@ namespace triengine
         }
     }
 
-    void visualizer_window::render()
+    bool visualizer::add_scene(std::shared_ptr<scene> new_scn)
+    {
+        if (_scn_map.empty()) { _curr_scn = new_scn; }
+        const auto [it, success] = _scn_map.insert({ new_scn->id(), new_scn });
+        return success;
+    }
+
+    void visualizer::remove_scene(std::shared_ptr<scene> scn)
+    {
+        if (scn) {
+            auto it = _scn_map.find(scn->id());
+            if (it != _scn_map.end()) {
+                _scn_map.erase(it);
+                if (_curr_scn->id() == scn->id()) {
+                    _curr_scn = _scn_map.empty() ? nullptr : _scn_map.begin()->second;
+                }
+            }
+        }
+    }
+
+    void visualizer::change_scene(std::shared_ptr<scene> scn) {
+        _curr_scn = scn;
+    }
+
+    void visualizer::render()
     {
         // Render Scene
         _scene_window->bind_framebuffer();
@@ -161,7 +186,7 @@ namespace triengine
         _gui_mgr->render();
     }
 
-    bool visualizer_window::update_window()
+    bool visualizer::update_window()
     {
         ::glfwSwapBuffers(_glctx.get_glfw_window());
         ::glfwPollEvents();
@@ -179,7 +204,7 @@ namespace triengine
         return !static_cast<bool>(::glfwWindowShouldClose(_glctx.get_glfw_window()));
     }
 
-    void visualizer_window::_handle_glfw_window_close_event(
+    void visualizer::_handle_glfw_window_close_event(
         [[maybe_unused]] GLFWwindow* const window)
     {
         if (_cb_close) {
@@ -192,7 +217,7 @@ namespace triengine
         }
     }
 
-    void visualizer_window::_handle_glfw_frame_buffer_resize_event(
+    void visualizer::_handle_glfw_frame_buffer_resize_event(
         [[maybe_unused]] GLFWwindow* const window,
         [[maybe_unused]] const int width,
         [[maybe_unused]] const int height)
@@ -201,7 +226,7 @@ namespace triengine
         _curr_window_height = height;
     }
 
-    void visualizer_window::_handle_glfw_key_event(
+    void visualizer::_handle_glfw_key_event(
         [[maybe_unused]] GLFWwindow* const window,
         [[maybe_unused]] const int key,
         [[maybe_unused]] const int scancode,
@@ -232,7 +257,7 @@ namespace triengine
         }
     }
 
-    void visualizer_window::_handle_glfw_mouse_button_event(
+    void visualizer::_handle_glfw_mouse_button_event(
         [[maybe_unused]] GLFWwindow* const window,
         [[maybe_unused]] const int button,
         [[maybe_unused]] const int action,
@@ -261,7 +286,7 @@ namespace triengine
         }
     }
 
-    void visualizer_window::_handle_glfw_mouse_move_event(
+    void visualizer::_handle_glfw_mouse_move_event(
         [[maybe_unused]] GLFWwindow* const window,
         [[maybe_unused]] const double cursor_screen_xpos,
         [[maybe_unused]] const double cursor_screen_ypos)
@@ -314,7 +339,7 @@ namespace triengine
         }
     }
 
-    void visualizer_window::_handle_glfw_mouse_scroll_event(
+    void visualizer::_handle_glfw_mouse_scroll_event(
         [[maybe_unused]] GLFWwindow* const window,
         [[maybe_unused]] const double scroll_xoffset,
         [[maybe_unused]] const double scroll_yoffset)
@@ -349,7 +374,7 @@ namespace triengine
         }
     }
 
-    void visualizer_window::_handle_glfw_content_scale_change_event(
+    void visualizer::_handle_glfw_content_scale_change_event(
         [[maybe_unused]] GLFWwindow* const window,
         [[maybe_unused]] const float xscale,
         [[maybe_unused]] const float yscale)

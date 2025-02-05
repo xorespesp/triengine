@@ -1,29 +1,29 @@
 #pragma once
-#include "common.h"
-#include "gl_context.hh"
-#include "scene_renderer.hh"
-#include "gui/gui_manager.hh"
+#include "../common.h"
+#include "../gl_context.hh"
+#include "../scene_renderer.hh"
+#include "../gui/gui_manager.hh"
 
 #include <functional>
 
-namespace triengine
+namespace triengine::visualization
 {
-    class visualizer_window
+    class visualizer
     {
     public:
-        using close_callback = std::function<void(visualizer_window& vis, bool& handled)>;
-        using key_callback = std::function<void(visualizer_window& vis, int key, int scancode, int action, int mods, bool& handled)>;
-        using mouse_button_callback = std::function<void(visualizer_window& vis, int button, int action, int mods, bool& handled)>;
-        using mouse_move_callback = std::function<void(visualizer_window& vis, double cursor_xpos, double cursor_ypos, bool& handled)>;
-        using mouse_scroll_callback = std::function<void(visualizer_window& vis, double scroll_xoffset, double scroll_yoffset, bool& handled)>;
-        using dpi_change_callback = std::function<void(visualizer_window& vis, float xscale, float yscale)>;
+        using close_callback = std::function<void(visualizer& vis, bool& handled)>;
+        using key_callback = std::function<void(visualizer& vis, int key, int scancode, int action, int mods, bool& handled)>;
+        using mouse_button_callback = std::function<void(visualizer& vis, int button, int action, int mods, bool& handled)>;
+        using mouse_move_callback = std::function<void(visualizer& vis, double cursor_xpos, double cursor_ypos, bool& handled)>;
+        using mouse_scroll_callback = std::function<void(visualizer& vis, double scroll_xoffset, double scroll_yoffset, bool& handled)>;
+        using dpi_change_callback = std::function<void(visualizer& vis, float xscale, float yscale)>;
 
     public:
-        visualizer_window();
-        virtual ~visualizer_window() = default;
+        visualizer();
+        virtual ~visualizer() = default;
 
-        visualizer_window(const visualizer_window&) = delete;
-        visualizer_window& operator=(const visualizer_window&) = delete;
+        visualizer(const visualizer&) = delete;
+        visualizer& operator=(const visualizer&) = delete;
 
         const gl_context* get_gl_context() const noexcept { return &_glctx; }
         gl_context* get_gl_context() noexcept { return &_glctx; }
@@ -33,9 +33,6 @@ namespace triengine
 
         int32_t get_window_width() const { return _curr_window_width; }
         int32_t get_window_height() const { return _curr_window_height; }
-
-        std::shared_ptr<const scene> get_current_scene() const { return _curr_scn; }
-        std::shared_ptr<scene> get_current_scene() { return _curr_scn; }
 
         void set_close_callback(close_callback cb) {
             _cb_close = std::move(cb);
@@ -64,8 +61,8 @@ namespace triengine
         void create_window(
             const std::string& window_name,
             bool show_window = true,
-            int32_t width = -1,
-            int32_t height = -1,
+            int32_t window_width = -1,
+            int32_t window_height = -1,
             bool fullscreen = false
         );
 
@@ -75,28 +72,12 @@ namespace triengine
 
         void set_window_position(int xpos, int ypos);
 
-        std::shared_ptr<scene> create_new_scene() {
-            auto new_scn = std::make_shared<scene>();
-            if (_scn_map.empty()) { _curr_scn = new_scn; }
-            _scn_map.insert({ new_scn->id(), new_scn });
-            return new_scn;
-        }
+        std::shared_ptr<const scene> get_current_scene() const { return _curr_scn; }
+        std::shared_ptr<scene> get_current_scene() { return _curr_scn; }
 
-        void remove_scene(std::shared_ptr<scene> scn) {
-            if (scn) {
-                auto it = _scn_map.find(scn->id());
-                if (it != _scn_map.end()) {
-                    _scn_map.erase(it);
-                    if (_curr_scn->id() == scn->id()) {
-                        _curr_scn = _scn_map.empty() ? nullptr : _scn_map.begin()->second;
-                    }
-                }
-            }
-        }
-
-        void change_scene(std::shared_ptr<scene> scn) {
-            _curr_scn = scn;
-        }
+        bool add_scene(std::shared_ptr<scene> scn = std::make_shared<triengine::scene>());
+        void remove_scene(std::shared_ptr<scene> scn);
+        void change_scene(std::shared_ptr<scene> scn);
 
         void render();
 
@@ -186,4 +167,5 @@ namespace triengine
         std::shared_ptr<geometry::triangle_mesh_object> _origin_axis_frame_object;
 
     }; // class
+
 } // namespace
