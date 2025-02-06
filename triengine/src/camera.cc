@@ -2,38 +2,37 @@
 
 namespace triengine
 {
-    vec3_f32 camera::get_camera_position() const
+    vec3_f32 camera::get_position() const
     {
-        return _view_param.lookat_center - (_view_param.camera_front * this->_get_perspective_scaled_zoom());
+        return _camera_params.lookat_center - (_camera_params.camera_front * this->_get_perspective_scaled_zoom());
     }
 
-    void camera::set_camera_position(const vec3_f32& position)
+    void camera::set_position(const vec3_f32& position)
     {
         TRIENGINE_TRACE("set camera position: [%f, %f, %f]"
             , position.x(), position.y(), position.z()
         );
 
-        _view_param.lookat_center = position + (_view_param.camera_front * this->_get_perspective_scaled_zoom());
+        _camera_params.lookat_center = position + (_camera_params.camera_front * this->_get_perspective_scaled_zoom());
     }
 
-    vec3_f32 camera::get_camera_direction() const
+    vec3_f32 camera::get_direction() const
     {
-        const vec3_f32 eye_pos = this->get_camera_position();
-        return (_view_param.lookat_center - eye_pos).normalized();
+        return _camera_params.camera_front;
     }
 
-    void camera::set_camera_direction(const vec3_f32& direction)
+    void camera::set_direction(const vec3_f32& direction)
     {
         TRIENGINE_TRACE("set camera direction: [%f, %f, %f]"
             , direction.x(), direction.y(), direction.z()
         );
 
         // update camera parameters manually
-        _view_param.camera_front = direction.normalized();
-        _view_param.camera_right = _view_param.camera_front.cross(_view_param.world_up).normalized();
-        _view_param.camera_up = _view_param.camera_right.cross(_view_param.camera_front).normalized();
-        _view_param.yaw = math::rad2deg(std::atan2(_view_param.camera_front.x(), _view_param.camera_front.z()));
-        _view_param.pitch = math::rad2deg(std::asin(_view_param.camera_front.y()));
+        _camera_params.camera_front = direction.normalized();
+        _camera_params.camera_right = _camera_params.camera_front.cross(_camera_params.world_up).normalized();
+        _camera_params.camera_up = _camera_params.camera_right.cross(_camera_params.camera_front).normalized();
+        _camera_params.yaw = math::rad2deg(std::atan2(_camera_params.camera_front.x(), _camera_params.camera_front.z()));
+        _camera_params.pitch = math::rad2deg(std::asin(_camera_params.camera_front.y()));
     }
 
     void camera::get_view_projection(
@@ -41,14 +40,14 @@ namespace triengine
         mat4_f32& projection_matrix/* out */) const
     {
         view_matrix = math::lookAt(
-            this->get_camera_position(),
-            _view_param.lookat_center,
-            _view_param.camera_up
+            this->get_position(),
+            _camera_params.lookat_center,
+            _camera_params.camera_up
         );
 
         projection_matrix = math::perspective(
             math::deg2rad(this->_get_perspective_scaled_fovy()),
-            static_cast<float>(_view_port.width) / static_cast<float>(_view_port.height),
+            static_cast<float>(_viewport.width) / static_cast<float>(_viewport.height),
             0.01f,
             200.0f
         );
@@ -75,8 +74,8 @@ namespace triengine
         }
 
         // ndc space to screen space
-        screen_pos.x() = (1.0f + ndc_pos.x() / ndc_pos.z()) / 2.0f * _view_port.width + _view_port.x + 0.5f;
-        screen_pos.y() = (1.0f + ndc_pos.y() / ndc_pos.z()) / 2.0f * _view_port.height + _view_port.y + 0.5f;
+        screen_pos.x() = (1.0f + ndc_pos.x() / ndc_pos.z()) / 2.0f * _viewport.width + _viewport.x + 0.5f;
+        screen_pos.y() = (1.0f + ndc_pos.y() / ndc_pos.z()) / 2.0f * _viewport.height + _viewport.y + 0.5f;
         return true;
     }
 
@@ -92,8 +91,8 @@ namespace triengine
         const mat4_f32 invM = M.inverse();
 
         const vec4_f32 s{
-            /* x */(target_screen_pos.x() - 0.5f - _view_port.x) / _view_port.width * 2.f - 1.f,
-            /* y */(target_screen_pos.y() - 0.5f - _view_port.y) / _view_port.height * 2.f - 1.f,
+            /* x */(target_screen_pos.x() - 0.5f - _viewport.x) / _viewport.width * 2.f - 1.f,
+            /* y */(target_screen_pos.y() - 0.5f - _viewport.y) / _viewport.height * 2.f - 1.f,
             /* z */0.0f,
             /* w */1.0f
         };
@@ -114,14 +113,14 @@ namespace triengine
             xoffset = -xoffset;
         }
 
-        _view_param.yaw += xoffset * _mouse_sensitivity;
-        _view_param.pitch -= yoffset * _mouse_sensitivity;
+        _camera_params.yaw += xoffset * _mouse_sensitivity;
+        _camera_params.pitch -= yoffset * _mouse_sensitivity;
 
         // Make sure that when pitch is out of bounds, screen doesn't get flipped
-        _view_param.pitch = std::clamp(_view_param.pitch, -89.5f, 89.5f);
+        _camera_params.pitch = std::clamp(_camera_params.pitch, -89.5f, 89.5f);
 
         // Update camera vectors(Front, Right, Up) using the updated Euler angles
-        _view_param.update_camera_vectors();
+        _camera_params.update_camera_vectors();
     }
 
     void camera::process_mouse_move_for_translation(
@@ -143,14 +142,14 @@ namespace triengine
         );
 
         const vec3_f32 translation_offset = end_ray - start_ray;
-        _view_param.lookat_center -= translation_offset;
+        _camera_params.lookat_center -= translation_offset;
     }
 
     void camera::process_mouse_scroll_for_zoom(
         const float scroll_yoffset)
     {
-        _view_param.zoom = std::clamp(
-            _view_param.zoom + (scroll_yoffset * _mouse_sensitivity),
+        _camera_params.zoom = std::clamp(
+            _camera_params.zoom + (scroll_yoffset * _mouse_sensitivity),
             kMinZoom,
             kMaxZoom
         );

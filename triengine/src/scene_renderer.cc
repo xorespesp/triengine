@@ -47,7 +47,7 @@ namespace triengine
         GLCall(::glPolygonMode(GL_FRONT_AND_BACK, scn.render_config.show_wireframe ? GL_LINE : GL_FILL));
 
         if (scn.render_config.light_opts.dir_light.follow_camera) {
-            scn.render_config.light_opts.dir_light.direction = scn_camera.get_camera_direction();
+            scn.render_config.light_opts.dir_light.direction = scn_camera.get_direction();
         }
 
         renderer::render_context render_ctx; {

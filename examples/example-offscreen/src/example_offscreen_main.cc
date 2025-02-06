@@ -44,8 +44,8 @@ namespace gui
             scn_camera.set_perspective_scale_factor(1.0f);
             scn_camera.set_fovy(65.0f);
             scn_camera.set_zoom(1.0f);
-            scn_camera.set_camera_direction(triengine::vec3_f32{ 0.744f, 0.153f, -0.651f });
-            scn_camera.set_camera_position(triengine::vec3_f32{ -1.240f, -0.847f, 1.113f });
+            scn_camera.set_direction(triengine::vec3_f32{ 0.744f, 0.153f, -0.651f });
+            scn_camera.set_position(triengine::vec3_f32{ -1.240f, -0.847f, 1.113f });
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_obj_file(

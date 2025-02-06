@@ -6,24 +6,24 @@
 namespace triengine
 {
     // OpenGL-compatible screen viewport
-    // NOTE: Viewport placement is relative to the lower-left corner of the window content area.
+    // (NOTE: Viewport placement is relative to the lower-left corner of the window content area)
     struct view_port
     {
-        int32_t x{}, y{}; // lower left corner of the viewport rectangle (Unit: [pixel])
-        int32_t width{}, height{}; // width and height of the viewport. (Unit: [pixel])
+        int32_t x{}, y{}; // lower-left corner of the viewport area (Unit: [pixel])
+        int32_t width{}, height{}; // viewport width, height (Unit: [pixel])
 
         // Viewport screen coordinates are relative to the lower-left corner of the window content area.
         bool contains(vec2_f32 viewport_screen_pos) const noexcept {
             const int32_t
                 vx = static_cast<int32_t>(std::floor(viewport_screen_pos.x())) - x,
                 vy = static_cast<int32_t>(std::floor(viewport_screen_pos.y())) - y;
-            return 
-                0 <= vx && vx < width && 
+            return
+                0 <= vx && vx < width &&
                 0 <= vy && vy < height;
         }
 
         bool operator==(const view_port& rhs) const noexcept {
-            return 
+            return
                 x == rhs.x && y == rhs.y &&
                 width == rhs.width && height == rhs.height;
         }
@@ -33,6 +33,32 @@ namespace triengine
         }
 
     }; // struct
+
+    namespace
+    {
+        static constexpr float
+            kDefaultMouseSensitivity = 0.2f;
+
+        static constexpr float
+            kMinFovy = 45.0f,
+            kMaxFvoy = 145.0f,
+            kDefaultFovy = 65.0f;
+
+        static constexpr float
+            kMinZoom = 0.01f,
+            kMaxZoom = 50.0f,
+            kDefaultZoom = 1.0f;
+
+        static constexpr float // 0: Orthographic projection; 1: Perspective projection
+            kMinPerspectiveScaleFactor = 0.1f,
+            kMaxPerspectiveScaleFactor = 1.0f,
+            kDefaulPerspectiveScaleFactor = 0.7f;
+
+        static const vec3_f32
+            kDefaultLookAtCenter{ 0.0f, 0.0f, 1.5f },
+            kDefaultWorldUp{ 0.0f, -1.0f, 0.0f };
+
+    } // namespace
 
     // Camera parameters
     struct camera_parameters
@@ -44,14 +70,14 @@ namespace triengine
             camera_right{}; // Camera Right
 
         vec3_f32
-            lookat_center{}, // Target position (location of the camera points to)
-            world_up{}; // World Up
+            lookat_center{ kDefaultLookAtCenter }, // Target position (location of the camera points to)
+            world_up{ kDefaultWorldUp }; // World Up
 
         // Euler Angles (relative to forward direction)
-        float yaw{}, pitch{};
+        float yaw{ 0.0f }, pitch{ 10.0f };
 
         // Zoom
-        float zoom{};
+        float zoom{ kDefaultZoom };
 
         camera_parameters() = default;
         camera_parameters(
@@ -111,47 +137,14 @@ namespace triengine
 
     }; // struct
 
-    namespace 
-    {
-        static constexpr float
-            kDefaultMouseSensitivity = 0.2f;
-
-        static constexpr float
-            kMinFovy = 45.0f,
-            kMaxFvoy = 145.0f,
-            kDefaultFovy = 65.0f;
-
-        static constexpr float
-            kMinZoom = 0.01f,
-            kMaxZoom = 50.0f,
-            kDefaultZoom = 1.0f;
-
-        static constexpr float // 0: Orthographic projection; 1: Perspective projection
-            kMinPerspectiveScaleFactor = 0.1f, 
-            kMaxPerspectiveScaleFactor = 1.0f, 
-            kDefaulPerspectiveScaleFactor = 0.7f;
-
-        static const vec3_f32
-            kDefaultLookAtCenter{ 0.0f, 0.0f, 1.5f },
-            kDefaultWorldUp{ 0.0f, -1.0f, 0.0f };
-
-        static const camera_parameters
-            kDefaultView(
-                kDefaultLookAtCenter,
-                kDefaultWorldUp,
-                0.0f, 10.0f, // yaw, pitch
-                kDefaultZoom
-            );
-    } // namespace
-
     // Abstract camera class
     // https://learnopengl.com/Getting-started/Coordinate-Systems
     // https://learnopengl.com/Getting-started/Camera
     class camera
     {
     private:
-        view_port _view_port{};
-        camera_parameters _view_param{ kDefaultView };
+        view_port _viewport{};
+        camera_parameters _camera_params{};
 
         float _mouse_sensitivity{ kDefaultMouseSensitivity };
         float _fovy{ kDefaultFovy }; // Vertical FoV. Unit: [degree]
@@ -162,15 +155,15 @@ namespace triengine
         camera() = default;
 
         void reset() {
-            _view_param = kDefaultView;
+            _camera_params = camera_parameters{};
             _mouse_sensitivity = kDefaultMouseSensitivity;
             _fovy = kDefaultFovy;
             _perspective_scale_factor = kDefaulPerspectiveScaleFactor;
         }
 
-        view_port get_view_port() const noexcept { return _view_port; }
+        view_port get_view_port() const noexcept { return _viewport; }
         void set_view_port(view_port viewport) {
-            if (_view_port != viewport) {
+            if (_viewport != viewport) {
                 TRIENGINE_TRACE("set camera viewport: %d, %d, %d, %d"
                     , viewport.x
                     , viewport.y
@@ -178,20 +171,10 @@ namespace triengine
                     , viewport.height
                 );
             }
-            _view_port = viewport;
+            _viewport = viewport;
         }
 
-        const camera_parameters& get_parameters() const noexcept { return _view_param; }
-
-        const vec3_f32& get_lookat_center() const noexcept { return _view_param.lookat_center; }
-        void set_lookat_center(const vec3_f32& lookat_center) noexcept {
-            _view_param.lookat_center = lookat_center;
-        }
-
-        float get_zoom() const noexcept { return _view_param.zoom; }
-        void set_zoom(float zoom) noexcept {
-            _view_param.zoom = zoom;
-        }
+        const camera_parameters& get_parameters() const noexcept { return _camera_params; }
 
         float get_mouse_sensitivity() const noexcept { return _mouse_sensitivity; }
         void set_mouse_sensitivity(float sensitivity) noexcept {
@@ -213,12 +196,27 @@ namespace triengine
             _perspective_scale_factor = scale_factor;
         }
 
-        vec3_f32 get_camera_position() const;
-        void set_camera_position(const vec3_f32& position);
+        // Get/Set camera zoom factor
+        float get_zoom() const noexcept { return _camera_params.zoom; }
+        void set_zoom(float zoom) noexcept {
+            _camera_params.zoom = zoom;
+        }
 
-        vec3_f32 get_camera_direction() const;
-        void set_camera_direction(const vec3_f32& direction);
+        // Get/Set location of the camera points to (lookat target vector)
+        const vec3_f32& get_lookat_center() const noexcept { return _camera_params.lookat_center; }
+        void set_lookat_center(const vec3_f32& lookat_center) noexcept {
+            _camera_params.lookat_center = lookat_center;
+        }
 
+        // Get/Set camera world position
+        vec3_f32 get_position() const;
+        void set_position(const vec3_f32& position);
+
+        // Get/Set camera direction (camera front vector)
+        vec3_f32 get_direction() const;
+        void set_direction(const vec3_f32& direction);
+
+        // Get/Set world up vector
         void get_view_projection(
             mat4_f32& view_matrix/* out */,
             mat4_f32& projection_matrix/* out */
@@ -262,7 +260,7 @@ namespace triengine
 
     private:
         float _get_perspective_scaled_zoom() const noexcept {
-            return _view_param.zoom / _perspective_scale_factor;
+            return _camera_params.zoom / _perspective_scale_factor;
         }
 
         float _get_perspective_scaled_fovy() const noexcept {
