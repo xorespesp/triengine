@@ -119,6 +119,74 @@ namespace triengine::math
 	}
 
 	/**
+	 * Unrotate quaternion.
+	 *
+	 * [Note]
+	 * Quaternion inversion(or just conjugate for the normalized case) creates the inverse rotation(the same rotation in the opposite direction).
+	 *
+	 * [Refs]
+	 * https://math.stackexchange.com/a/581728
+	 */
+	template <typename _Ty>
+	static inline Eigen::Quaternion<_Ty> quat_unrotate(const Eigen::Quaternion<_Ty>& q_target)
+	{
+		static_assert(std::is_floating_point_v<_Ty>, "!!");
+		return q_target.inverse();
+	}
+
+	/**
+	 * Combine two rotation quaternions. (apply offset rotation to target rotation)
+	 * Rotation applying order: `q_first` -> `q_second`
+	 *
+	 * [Note]
+	 * multiplying two quaternions is the same as applying both rotations in sequence.
+	 * multiplying order matters when composing quaternions;
+	 * rotations applying is always from right to left:
+	 *     e.g #1) `QW == Qp * Qch` It means we apply `Qch` first, and `Qp` then.
+	 *     e.g #2) `Qch == Qp.Inversed * QW` So we apply `QW` first, then unrotate it by `Qp` back.
+	 *     e.g #3) `Qp == QW * Qch.Inversed` So we apply inverse `Qch` rotation. Then total `QW`. It yield `Qp`.
+	 *     (Note: #2 & #3 work so, provided that `QW` is obtained by #1 formula)
+	 *
+	 * [Refs]
+	 * https://math.stackexchange.com/a/2131519
+	 * https://stackoverflow.com/q/26963207
+	 */
+	template <typename _Ty>
+	static inline Eigen::Quaternion<_Ty> quat_combine(
+		const Eigen::Quaternion<_Ty>& q_first,
+		const Eigen::Quaternion<_Ty>& q_second)
+	{
+		static_assert(std::is_floating_point_v<_Ty>, "!!");
+		// Rotation applying order: `q_first` -> `q_second`
+		return Eigen::Quaternion<_Ty>{ q_second* q_first };
+	}
+
+	/**
+	 * Calculate relative(local) rotation between two quaternions.
+	 *
+	 * [Note]
+	 * Invert `q_parent` and multiply `q_target` to get relative(local) rotation.
+	 *
+	 * [Refs]
+	 * https://math.stackexchange.com/a/2131519
+	 * https://math.stackexchange.com/a/2355070
+	 * https://math.stackexchange.com/a/581728
+	 * https://stackoverflow.com/a/72849029
+	 */
+	template <typename _Ty>
+	static inline Eigen::Quaternion<_Ty> quat_relative(
+		const Eigen::Quaternion<_Ty>& q_target,
+		const Eigen::Quaternion<_Ty>& q_parent)
+	{
+		// Equivalent of: `Vec_Math::Quaternion q_delta = Vec_Math::quat_left_multiply(q_target, Vec_Math::quat_inverse(q_parent));`
+		// Note: In vector multiply operation, left multiply means that you multiply the left vector with the right vector.
+		//       e.g) left_multiply(a, b) == b * a
+		// 
+		// TODO: use `q_parent.inverse()` or `q_parent.normalized.conjugate()` ?
+		return Eigen::Quaternion<_Ty>/* q_delta */{ q_parent.inverse()* q_target };
+	}
+
+	/**
 	 * Create a quaternion representing the rotation of direction vector `a` into direction vector `b`.
 	 * In other words, the built rotation represent a rotation sending the line of direction `a` to the line of direction `b`, both lines passing through the origin.
 	 * Note that the two input vectors do not have to be normalized, and do not need to have the same norm.
@@ -138,37 +206,104 @@ namespace triengine::math
 	}
 
 	/**
-	 * Equivalent of: `glm::lookAtRH` (`glm::lookAt`)
+	 * Perform 3d geometric-transformation(rotation + translation).
+	 *
+	 *    | x' |   | R R R T |   | x |
+	 *    | y' | = | R R R T | * | y |
+	 *    | z' |   | R R R T |   | z |
+	 *    | 1  |   | 0 0 0 1 |   | 1 |
+	 *
+	 * [Refs]
+	 * https://inyongs.tistory.com/132
+	 */
+	template <typename _Ty>
+	static inline Eigen::Vector3<_Ty> vec3_transform(
+		const Eigen::Vector3<_Ty>& point3d/* target 3d point (column vector) */,
+		const Eigen::Matrix4<_Ty>& trans/* 3d geometric transform matrix */)
+	{
+		static_assert(std::is_floating_point_v<_Ty>, "!!");
+
+		Eigen::Vector4<_Ty> vec4;
+		vec4.fill(static_cast<_Ty>(1.0));
+		vec4.head<3>() = point3d;
+
+		vec4 = trans * vec4;
+
+		return Eigen::Vector3<_Ty>{ vec4.head<3>() };
+	}
+
+	/**
+	 * Applies 3D rotation to a point.
+	 *
+	 * [Refs]
+	 * https://en.wikipedia.org/wiki/Rotation_matrix#Ambiguities
+	 */
+	template <typename _Ty>
+	static inline Eigen::Vector3<_Ty> vec3_rotate(
+		const Eigen::Vector3<_Ty>& point3d/* target 3d point (column vector) */,
+		const Eigen::Matrix3<_Ty>& R/* 3d rotation matrix */)
+	{
+		static_assert(std::is_floating_point_v<_Ty>, "!!");
+
+		// https://en.wikipedia.org/wiki/Rotation_matrix#Ambiguities
+		// The point vector can be pre-multiplied by a rotation matrix (`R*v`, where `v` is a column vector), 
+		// or post-multiplied by it (`w*R`, where `w` is a row vector).
+		// However, `R*v` produces a rotation in the opposite direction with respect to `w*R`.
+		// To obtain exactly the same rotation (i.e. the same final coordinates of point vector), 
+		// the equivalent row vector must be post-multiplied by the transpose of `R` (i.e. `w*R^T`).
+
+		return R * point3d; // R*v
+		//return R.transpose().eval() * point_3d; // (R^T)*v == w*R; equivalent of: `Vec_Math::mat3_mul_vector`
+	}
+
+	/**
+	 * Distance between two 3D points in 3d space.
+	 *
+	 * [Refs]
+	 * https://www.engineeringtoolbox.com/distance-relationship-between-two-points-d_1854.html
+	 */
+	template <typename _Ty>
+	static inline _Ty vec3_distance(
+		const Eigen::Vector3<_Ty>& p1,
+		const Eigen::Vector3<_Ty>& p2)
+	{
+		static_assert(std::is_floating_point_v<_Ty>, "!!");
+		return (p1 - p2).norm();
+	}
+
+	/**
+	 * Generate lookAt(view) matrix
 	 * 
 	 * Ref:
 	 * glm/ext/matrix_transform.inl
 	 */
 	template <typename _Scalar>
 	static inline Eigen::Matrix4<_Scalar> lookAt(
-		const Eigen::Vector3<_Scalar>& eye,
-		const Eigen::Vector3<_Scalar>& center,
-		const Eigen::Vector3<_Scalar>& up)
-	{
+		const Eigen::Vector3<_Scalar>& eye_position, // camera position vector
+		const Eigen::Vector3<_Scalar>& eye_target,   // camera lookat position vector (Point that the camera is looking at)
+		const Eigen::Vector3<_Scalar>& world_up      // world up vector
+	) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
 
+		// Calculate camera vectors(front, right, up)
 		const Eigen::Vector3<_Scalar> 
-			f{ (center - eye).normalized() },
-			s{ f.cross(up).normalized() },
-			u{ s.cross(f) };
+			eye_front{ (eye_target - eye_position).normalized() },
+			eye_right{ eye_front.cross(world_up).normalized() },
+			eye_up{ eye_right.cross(eye_front) };
 
 		Eigen::Matrix4f result{ Eigen::Matrix4f::Identity() };
-		result(0, 0) = s.x();
-		result(0, 1) = s.y();
-		result(0, 2) = s.z();
-		result(1, 0) = u.x();
-		result(1, 1) = u.y();
-		result(1, 2) = u.z();
-		result(2, 0) = -f.x();
-		result(2, 1) = -f.y();
-		result(2, 2) = -f.z();
-		result(0, 3) = -s.dot(eye);
-		result(1, 3) = -u.dot(eye);
-		result(2, 3) = f.dot(eye);
+		result(0, 0) = eye_right.x();
+		result(0, 1) = eye_right.y();
+		result(0, 2) = eye_right.z();
+		result(1, 0) = eye_up.x();
+		result(1, 1) = eye_up.y();
+		result(1, 2) = eye_up.z();
+		result(2, 0) = -eye_front.x();
+		result(2, 1) = -eye_front.y();
+		result(2, 2) = -eye_front.z();
+		result(0, 3) = -eye_right.dot(eye_position);
+		result(1, 3) = -eye_up.dot(eye_position);
+		result(2, 3) = eye_front.dot(eye_position);
 
 		return result;
 	}
