@@ -1,6 +1,6 @@
 #include <utils/logger.hh>
 #include <utils/path_utils.hh>
-#include "bvh_demo_app.hh"
+#include "basic_demo_app.hh"
 
 #include <iostream>
 #include <conio.h>
@@ -8,7 +8,7 @@
  void run_demo(
      const std::filesystem::path& triengine_resource_dir)
  {
-     gui::bvh_demo_app app;
+     gui::basic_demo_app app;
 
      LOG_INFO("Creating app..");
      app.create(triengine_resource_dir);
@@ -29,7 +29,7 @@
      ::SetConsoleOutputCP(CP_UTF8); // https://github.com/gabime/spdlog/issues/762
 
      utils::logger::instance().init(utils::logger::init_option()
-         .set_logger_name("example-bvh")
+         .set_logger_name("example-basic")
          .set_logger_level(utils::logger::level::trace)
          .enable_stdout_logging()
          .enable_async_mode()

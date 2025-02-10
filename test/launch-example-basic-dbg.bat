@@ -2,4 +2,4 @@
 	-NoProfile ^
 	-ExecutionPolicy Bypass ^
 	-File ".\launch.ps1" ^
-	"x64-Debug\example-bvh\example-bvh.exe" %*
+	"x64-Debug\example-basic\example-basic.exe" %*

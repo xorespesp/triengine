@@ -22,8 +22,9 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{3050d30f-df32-47bb-bf03-10b7bd614b4b}</ProjectGuid>
-    <RootNamespace>examplebvh</RootNamespace>
+    <RootNamespace>examplebasic</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>example-basic</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -146,15 +147,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\bvh_demo_app.cc" />
-    <ClCompile Include="src\example_bvh_main.cc" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include=".gitignore" />
     <None Include="vcpkg.json" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\bvh_demo_app.hh" />
+    <ClCompile Include="src\basic_demo_app.cc" />
+    <ClCompile Include="src\example_basic_main.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\basic_demo_app.hh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

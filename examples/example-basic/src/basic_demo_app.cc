@@ -1,5 +1,5 @@
 #pragma once
-#include "bvh_demo_app.hh"
+#include "basic_demo_app.hh"
 
 #include <utils/scrolling_buffer.hh>
 #include <utils/bit_cast.hh>
@@ -13,13 +13,13 @@
 
 namespace gui
 {
-    void bvh_demo_app::create(
+    void basic_demo_app::create(
         const std::filesystem::path& triengine_resource_dir)
     {
         LOG_TRACE("%s() ENTER", __func__);
 
         _vis = std::make_unique<triengine::visualization::visualizer>();
-        _vis->create_window("Triengine Orbbec Demo"
+        _vis->create_window("Triengine Demo"
             " (Build: " __DATE__ ", " __TIME__
 #if defined (_DEBUG)
             " DBG"
@@ -118,7 +118,7 @@ namespace gui
         //}
     }
 
-    void bvh_demo_app::destroy()
+    void basic_demo_app::destroy()
     {
         LOG_TRACE("%s() ENTER", __func__);
 
@@ -131,7 +131,7 @@ namespace gui
         LOG_TRACE("%s() LEAVE", __func__);
     }
 
-    void bvh_demo_app::run()
+    void basic_demo_app::run()
     {
         LOG_TRACE("%s() ENTER", __func__);
 
@@ -161,7 +161,7 @@ namespace gui
         LOG_TRACE("%s() LEAVE", __func__);
     }
 
-    void bvh_demo_app::_render()
+    void basic_demo_app::_render()
     {
         _vis->render();
     }

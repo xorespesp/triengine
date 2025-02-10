@@ -9,11 +9,11 @@
 
 namespace gui
 {
-    class bvh_demo_app
+    class basic_demo_app
     {
     public:
-        bvh_demo_app() = default;
-        ~bvh_demo_app() = default;
+        basic_demo_app() = default;
+        ~basic_demo_app() = default;
 
         void create(
             const std::filesystem::path& triengine_resource_dir
