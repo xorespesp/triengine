@@ -79,7 +79,7 @@ namespace triengine
         // Zoom
         float zoom{ kDefaultZoom };
 
-        camera_parameters() = default;
+        camera_parameters() { this->update_camera_vectors(); }
         camera_parameters(
             const vec3_f32& lookat_center_,
             const vec3_f32& world_up_,
@@ -206,6 +206,29 @@ namespace triengine
         const vec3_f32& get_lookat_center() const noexcept { return _camera_params.lookat_center; }
         void set_lookat_center(const vec3_f32& lookat_center) noexcept {
             _camera_params.lookat_center = lookat_center;
+        }
+
+        const vec3_f32& get_front() const noexcept { return _camera_params.camera_front; }
+        void set_front(const vec3_f32& front) noexcept {
+            _camera_params.camera_front = front;
+        }
+
+        const vec3_f32& get_right() const noexcept { return _camera_params.camera_right; }
+        void set_right(const vec3_f32& right) noexcept {
+            _camera_params.camera_right = right;
+        }
+
+        const vec3_f32& get_up() const noexcept { return _camera_params.camera_up; }
+        void set_up(const vec3_f32& up) noexcept {
+            _camera_params.camera_up = up;
+        }
+
+        void set_yaw(float deg) noexcept {
+            _camera_params.yaw = deg;
+        }
+
+        void set_pitch(float deg) noexcept {
+            _camera_params.pitch = deg;
         }
 
         // Get/Set camera world position
