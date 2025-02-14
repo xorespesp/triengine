@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
-#include "math.hh"
+#include "math/constants.hh"
+#include "math/math3d.hh"
 #include "misc/string_utils.hh"
 
 namespace triengine

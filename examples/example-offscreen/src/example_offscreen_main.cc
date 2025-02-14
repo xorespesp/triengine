@@ -3,7 +3,7 @@
 #include <utils/path_utils.hh>
 
 #include <triengine/visualization/offscreen_renderer.hh>
-#include <triengine/math.hh>
+#include <triengine/math/math3d.hh>
 #include <triengine/io/file_obj_loader.hh>
 
 #include <opencv2/opencv.hpp>

@@ -1,6 +1,6 @@
 #pragma once
 #include "../common.h"
-#include "../math.hh"
+#include "../math/math3d.hh"
 
 #include <string>
 

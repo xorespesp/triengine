@@ -1,6 +1,5 @@
 #include "skeleton_object.hh"
 #include "../misc/debug_utils.hh"
-#include "../math.hh"
 
 namespace triengine::geometry
 {

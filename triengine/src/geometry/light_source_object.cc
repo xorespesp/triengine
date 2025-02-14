@@ -1,4 +1,5 @@
 #include "light_source_object.hh"
+#include "../math/constants.hh"
 #include "../misc/debug_utils.hh"
 
 namespace triengine::geometry

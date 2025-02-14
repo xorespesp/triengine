@@ -8,7 +8,7 @@
 #include <array>
 #include <magic_enum.hpp>
 
-#include <triengine/math.hh>
+#include <triengine/math/math3d.hh>
 #include <triengine/io/file_obj_loader.hh>
 
 namespace gui
@@ -108,14 +108,14 @@ namespace gui
             _obj_texcolor_mesh = new_obj;
         }
 
-        //{
-        //    auto obj_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame();
+        {
+            auto obj_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
 
-        //    //obj_axis_frame->paint_uniform_color(_get_next_color());
-        //    obj_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
+            //obj_axis_frame->paint_uniform_color(_get_next_color());
+            //obj_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
 
-        //    _scene->add_object(obj_axis_frame);
-        //}
+            _scene->add_object(obj_axis_frame);
+        }
     }
 
     void basic_demo_app::destroy()

@@ -1,4 +1,5 @@
 #include "triangle_mesh_object.hh"
+#include "../math/constants.hh"
 #include "../misc/debug_utils.hh"
 
 namespace triengine::geometry
@@ -519,7 +520,7 @@ namespace triengine::geometry
             cylinder_height, cone_height, 
             kArrowResolution, kArrowCylinderSplit, kArrowConeSplit);
         mesh_arrow->paint_uniform_color(color3_f32(1.0f, 0.0f, 0.0f)); // R
-        mesh_arrow->rotate(math::mat3_rotation_y(math::deg2rad(-90.0f))); // rotate along y-axis
+        mesh_arrow->rotate(math::mat3_rotation_y_LH(math::deg2rad(-90.0f))); // rotate along y-axis
         *mesh_frame += *mesh_arrow;
 
         // Y-Axis
@@ -528,7 +529,7 @@ namespace triengine::geometry
             cylinder_height, cone_height, 
             kArrowResolution, kArrowCylinderSplit, kArrowConeSplit);
         mesh_arrow->paint_uniform_color(color3_f32(0.0f, 1.0f, 0.0f)); // G
-        mesh_arrow->rotate(math::mat3_rotation_x(math::deg2rad(90.0f))); // rotate along x-axis
+        mesh_arrow->rotate(math::mat3_rotation_x_LH(math::deg2rad(90.0f))); // rotate along x-axis
         *mesh_frame += *mesh_arrow;
 
         // Z-Axis

@@ -1,55 +1,20 @@
-#pragma once
-#include "common.h"
-#include "misc/debug_utils.hh"
+﻿#pragma once
+#include "../common.h"
+#include "../misc/debug_utils.hh"
+
+#include <type_traits>
+#include <algorithm>
 
 namespace triengine::math
 {
-	namespace
-	{
-		/**
-		 * Internal Math Constants.
-		 */
-		static constexpr double
-			kDegToRad = 0.017453292519943295769236907685, // Pi/180
-			kRadToDeg = 57.29577951308232087679815481410, // 180/Pi
-			kPi = 3.141592653589793238462643383280; // Pi
-
-	} // namespace
-
 	/**
-	 * Return M_PI
- 	 */
-	template <typename _Scalar>
-	constexpr _Scalar pi() noexcept {
-		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		return static_cast<_Scalar>(kPi);
-	}
-
-	/**
-	 * Convert angle unit: radian <-> degree
-	 */
-	template <typename _Scalar>
-	constexpr _Scalar rad2deg(const _Scalar rad) noexcept {
-		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		return rad * static_cast<_Scalar>(kRadToDeg);
-	}
-
-	template <typename _Scalar>
-	constexpr _Scalar deg2rad(const _Scalar deg) noexcept {
-		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		return deg * static_cast<_Scalar>(kDegToRad);
-	}
-
-	/**
-	 * Create 3d rotation matrix.
+	 * Create 3d rotation matrix around x-axis. (right-handed)
 	 *
 	 * [Refs]
-	 * https://github.com/GameTechDev/OpenGL-ES-3.0-Deferred-Rendering/blob/149ac95e12c9b35d5c1d3b78200258f1907bc4dc/src/vec_math.h#L612
-	 * https://github.com/meshonline/kinect-openni-bvh-saver/blob/a6eba7471ec98f458a72e1751ee9a947268b67e9/vec_math.h#L548
 	 * https://en.wikipedia.org/wiki/Rotation_matrix#Basic_3D_rotations
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix3<_Scalar> mat3_rotation_x(const _Scalar rad)
+	static inline Eigen::Matrix3<_Scalar> mat3_rotation_x_RH(const _Scalar rad)
 	{
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
 
@@ -57,25 +22,22 @@ namespace triengine::math
 			c = std::cos(rad),
 			s = std::sin(rad);
 
-		Eigen::Matrix3<_Scalar> mr{ Eigen::Matrix3<_Scalar>::Identity() };
-		mr.row(1).y() = c;
-		mr.row(1).z() = s;
-		mr.row(2).y() = -s;
-		mr.row(2).z() = c;
-
-		return mr;
+		Eigen::Matrix3<_Scalar> R{ Eigen::Matrix3<_Scalar>::Identity() };
+		R(1, 1) = c;
+		R(1, 2) = -s;
+		R(2, 1) = s;
+		R(2, 2) = c;
+		return R;
 	}
 
 	/**
-	 * Create 3d rotation matrix.
+	 * Create 3d rotation matrix around x-axis. (left-handed)
 	 *
 	 * [Refs]
-	 * https://github.com/GameTechDev/OpenGL-ES-3.0-Deferred-Rendering/blob/149ac95e12c9b35d5c1d3b78200258f1907bc4dc/src/vec_math.h#L623
-	 * https://github.com/meshonline/kinect-openni-bvh-saver/blob/a6eba7471ec98f458a72e1751ee9a947268b67e9/vec_math.h#L558
 	 * https://en.wikipedia.org/wiki/Rotation_matrix#Basic_3D_rotations
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix3<_Scalar> mat3_rotation_y(const _Scalar rad)
+	static inline Eigen::Matrix3<_Scalar> mat3_rotation_x_LH(const _Scalar rad)
 	{
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
 
@@ -83,25 +45,22 @@ namespace triengine::math
 			c = std::cos(rad),
 			s = std::sin(rad);
 
-		Eigen::Matrix3<_Scalar> mr{ Eigen::Matrix3<_Scalar>::Identity() };
-		mr.row(0).x() = c;
-		mr.row(0).z() = -s;
-		mr.row(2).x() = s;
-		mr.row(2).z() = c;
-
-		return mr;
+		Eigen::Matrix3<_Scalar> R{ Eigen::Matrix3<_Scalar>::Identity() };
+		R(1, 1) = c;
+		R(1, 2) = s;
+		R(2, 1) = -s;
+		R(2, 2) = c;
+		return R;
 	}
 
 	/**
-	 * Create 3d rotation matrix.
+	 * Create 3d rotation matrix around y-axis. (right-handed)
 	 *
 	 * [Refs]
-	 * https://github.com/GameTechDev/OpenGL-ES-3.0-Deferred-Rendering/blob/149ac95e12c9b35d5c1d3b78200258f1907bc4dc/src/vec_math.h#L634
-	 * https://github.com/meshonline/kinect-openni-bvh-saver/blob/a6eba7471ec98f458a72e1751ee9a947268b67e9/vec_math.h#L568
 	 * https://en.wikipedia.org/wiki/Rotation_matrix#Basic_3D_rotations
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix3<_Scalar> mat3_rotation_z(const _Scalar rad)
+	static inline Eigen::Matrix3<_Scalar> mat3_rotation_y_RH(const _Scalar rad)
 	{
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
 
@@ -109,13 +68,81 @@ namespace triengine::math
 			c = std::cos(rad),
 			s = std::sin(rad);
 
-		Eigen::Matrix3<_Scalar> mr{ Eigen::Matrix3<_Scalar>::Identity() };
-		mr.row(0).x() = c;
-		mr.row(0).y() = s;
-		mr.row(1).x() = -s;
-		mr.row(1).y() = c;
+		Eigen::Matrix3<_Scalar> R{ Eigen::Matrix3<_Scalar>::Identity() };
+		R(0, 0) = c;
+		R(0, 2) = s;
+		R(2, 0) = -s;
+		R(2, 2) = c;
+		return R;
+	}
 
-		return mr;
+	/**
+	 * Create 3d rotation matrix around y-axis. (left-handed)
+	 *
+	 * [Refs]
+	 * https://en.wikipedia.org/wiki/Rotation_matrix#Basic_3D_rotations
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix3<_Scalar> mat3_rotation_y_LH(const _Scalar rad)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		const _Scalar
+			c = std::cos(rad),
+			s = std::sin(rad);
+
+		Eigen::Matrix3<_Scalar> R{ Eigen::Matrix3<_Scalar>::Identity() };
+		R(0, 0) = c;
+		R(0, 2) = -s;
+		R(2, 0) = s;
+		R(2, 2) = c;
+		return R;
+	}
+
+	/**
+	 * Create 3d rotation matrix around z-axis. (right-handed)
+	 *
+	 * [Refs]
+	 * https://en.wikipedia.org/wiki/Rotation_matrix#Basic_3D_rotations
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix3<_Scalar> mat3_rotation_z_RH(const _Scalar rad)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		const _Scalar
+			c = std::cos(rad),
+			s = std::sin(rad);
+
+		Eigen::Matrix3<_Scalar> R{ Eigen::Matrix3<_Scalar>::Identity() };
+		R(0, 0) = c;
+		R(0, 1) = -s;
+		R(1, 0) = s;
+		R(1, 1) = c;
+		return R;
+	}
+
+	/**
+	 * Create 3d rotation matrix around z-axis. (left-handed)
+	 *
+	 * [Refs]
+	 * https://en.wikipedia.org/wiki/Rotation_matrix#Basic_3D_rotations
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix3<_Scalar> mat3_rotation_z_LH(const _Scalar rad)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		const _Scalar
+			c = std::cos(rad),
+			s = std::sin(rad);
+
+		Eigen::Matrix3<_Scalar> R{ Eigen::Matrix3<_Scalar>::Identity() };
+		R(0, 0) = c;
+		R(0, 1) = s;
+		R(1, 0) = -s;
+		R(1, 1) = c;
+		return R;
 	}
 
 	/**
@@ -233,7 +260,7 @@ namespace triengine::math
 	}
 
 	/**
-	 * Applies 3D rotation to a point.
+	 * Rotate 3d point around the origin.
 	 *
 	 * [Refs]
 	 * https://en.wikipedia.org/wiki/Rotation_matrix#Ambiguities
@@ -254,6 +281,23 @@ namespace triengine::math
 
 		return R * point3d; // R*v
 		//return R.transpose().eval() * point_3d; // (R^T)*v == w*R; equivalent of: `Vec_Math::mat3_mul_vector`
+	}
+
+	/**
+	 * Rotate 3d point around a specific center.
+	 */
+	template <typename _Ty>
+	static inline Eigen::Vector3<_Ty> vec3_rotate(
+		const Eigen::Vector3<_Ty>& point3d/* target 3d point (column vector) */,
+		const Eigen::Matrix3<_Ty>& R/* 3d rotation matrix */,
+		const Eigen::Vector3<_Ty>& center)
+	{
+		static_assert(std::is_floating_point_v<_Ty>, "!!");
+
+		Eigen::Vector3<_Ty> p = point3d - center; // Move point to rotation center (point - center)
+		p = vec3_rotate(p, R); // Apply rotation
+		p += center; // Move back to original center (rotated vector + center)
+		return p;
 	}
 
 	/**
@@ -486,61 +530,5 @@ namespace triengine::math
 		Result.row(2) *= scale_vec(2);
 		return Result;
 	}
-
-#if defined(_TRIENGINE_HAS_GLM)
-	//
-	// Convert Eigen vector/matrix to GLM vector/matrix
-	//
-	template<glm::qualifier _Q, typename _Scalar, int _Rows, int _Cols>
-	static inline glm::mat<_Rows, _Cols, _Scalar, _Q> eigen2glm(
-		const Eigen::Matrix<_Scalar, _Rows, _Cols>& eMat)
-	{
-		glm::mat<_Rows, _Cols, _Scalar, _Q> gMat;
-		for (int row = 0; row < _Rows; ++row) {
-			for (int col = 0; col < _Cols; ++col) {
-				gMat[col][row] = eMat(row, col);
-			}
-		}
-		return gMat;
-	}
-
-	template<glm::qualifier _Q, typename _Scalar, int _Size>
-	static inline glm::vec<_Size, _Scalar, _Q> eigen2glm(
-		const Eigen::Matrix<_Scalar, _Size, 1>& eVec)
-	{
-		glm::vec<_Size, _Scalar, _Q> gVec;
-		for (int i = 0; i < _Size; ++i) {
-			gVec[i] = eVec(i);
-		}
-		return gVec;
-	}
-
-	//
-	// Convert GLM vector/matrix to Eigen vector/matrix
-	//
-	template<typename _Scalar, int _Rows, int _Cols, glm::qualifier _Q>
-	static inline Eigen::Matrix<_Scalar, _Rows, _Cols> glm2eigen(
-		const glm::mat<_Rows, _Cols, _Scalar, _Q>& gMat)
-	{
-		Eigen::Matrix<_Scalar, _Rows, _Cols> eMat;
-		for (int row = 0; row < _Rows; ++row) {
-			for (int col = 0; col < _Cols; ++col) {
-				eMat(row, col) = gMat[col][row];
-			}
-		}
-		return eMat;
-	}
-
-	template<typename _Scalar, int _Size, glm::qualifier _Q>
-	static inline Eigen::Matrix<_Scalar, _Size, 1> glm2eigen(
-		const glm::vec<_Size, _Scalar, _Q>& gVec)
-	{
-		Eigen::Matrix<_Scalar, _Size, 1> eVec;
-		for (int i = 0; i < _Size; ++i) {
-			eVec(i) = gVec[i];
-		}
-		return eVec;
-	}
-#endif // ^^^ _TRIENGINE_HAS_GLM ^^^
 
 } // namespace

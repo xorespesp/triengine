@@ -87,6 +87,8 @@
     <ClInclude Include="src\gl_context.hh" />
     <ClInclude Include="src\image.hh" />
     <ClInclude Include="src\infinite_grid_options.hh" />
+    <ClInclude Include="src\math\constants.hh" />
+    <ClInclude Include="src\math\glm_utils.hh" />
     <ClInclude Include="src\scene.hh" />
     <ClInclude Include="src\basic_types.hh" />
     <ClInclude Include="src\camera.hh" />
@@ -126,7 +128,7 @@
     <ClInclude Include="src\io\file_bvh_loader.hh" />
     <ClInclude Include="src\io\file_obj_loader.hh" />
     <ClInclude Include="src\lighting_options.hh" />
-    <ClInclude Include="src\math.hh" />
+    <ClInclude Include="src\math\math3d.hh" />
     <ClInclude Include="src\misc\debug_utils.hh" />
     <ClInclude Include="src\misc\gl_utils.hh" />
     <ClInclude Include="src\misc\string_utils.hh" />
