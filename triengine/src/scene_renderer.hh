@@ -35,6 +35,8 @@ namespace triengine
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;
 
+        std::shared_ptr<geometry::light_source_object> _point_light_source_object;
+
     }; // class
 
 } // namespace

@@ -20,6 +20,9 @@ namespace triengine
         _lineset_renderer.create(glctx->get_glfw_window());
         _pcd_renderer.create(glctx->get_glfw_window());
         _skeleton_renderer.create(glctx->get_glfw_window());
+
+        _point_light_source_object = geometry::light_source_object::create(0.1f);
+        _point_light_source_object->set_visible(false);
     }
 
     void scene_renderer::destroy()
@@ -56,9 +59,9 @@ namespace triengine
             render_ctx.camera = &scn_camera;
         }
 
-        //_point_light_source_object->set_visible(scn.scn_config.light_opts.point_light.enabled && scn.scn_config.light_opts.point_light.show_light_source);
-        //_point_light_source_object->translate(scn.scn_config.light_opts.point_light.position);
-        //_point_light_source_object->color = scn.scn_config.light_opts.point_light.color;
+        _point_light_source_object->set_visible(scn.render_config.light_opts.point_light.enabled && scn.render_config.light_opts.point_light.show_light_source);
+        _point_light_source_object->translate(scn.render_config.light_opts.point_light.position);
+        _point_light_source_object->color = scn.render_config.light_opts.point_light.color;
 
         //_origin_axis_frame_object->set_visible(scn.scn_config.show_origin_axis);
 
@@ -67,7 +70,7 @@ namespace triengine
         _mesh_renderer.enable_object_normal_rendering(scn.render_config.show_object_normals);
         _mesh_renderer.render(render_ctx, scn.mesh_objects);
 
-        //_light_source_renderer.render(render_ctx);
+        _light_source_renderer.render(render_ctx, { _point_light_source_object });
 
         if (scn.render_config.pcd_point_size) {
             _pcd_renderer.set_pcd_point_size(scn.render_config.pcd_point_size.value());
