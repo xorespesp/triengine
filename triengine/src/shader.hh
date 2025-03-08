@@ -11,7 +11,6 @@
 #include <filesystem>
 #include <vector>
 #include <array>
-#include <list>
 #include <string>
 
 namespace triengine
@@ -26,17 +25,24 @@ namespace triengine
     class shader_object final
     {
     private:
-        static constexpr GLuint kInvalidShaderID{ static_cast<GLuint>(0) };
+        static constexpr GLuint kInvalidShaderID{ 0u };
 
     private:
+        shader_object_type _type;
         GLuint _shader_id{ kInvalidShaderID }; // shader id
 
     public:
         shader_object(
             shader_object_type shader_type,
             std::initializer_list<const GLchar*> shader_sources)
+            : _type{ shader_type }
         {
-            _shader_id = ::glCreateShader(static_cast<std::underlying_type_t<shader_object_type>>(shader_type)); // NOTE: glCreateShader() returns 0 if an error occurs creating the shader object.
+            // NOTE: `glCreateShader()` returns 0 if an error occurs creating the shader object.
+            _shader_id = ::glCreateShader(static_cast<std::underlying_type_t<shader_object_type>>(shader_type));
+            if (!_shader_id) {
+                TRIENGINE_PANIC("Failed to create shader object");
+            }
+
             ::glShaderSource(_shader_id, static_cast<GLsizei>(shader_sources.size()), shader_sources.begin(), nullptr);
             ::glCompileShader(_shader_id);
 
@@ -44,9 +50,14 @@ namespace triengine
             GLint gl_success = GL_FALSE;
             ::glGetShaderiv(_shader_id, GL_COMPILE_STATUS, &gl_success);
             if (!gl_success) {
-                std::array<char, 512> info_log_buff;
-                ::glGetShaderInfoLog(_shader_id, static_cast<GLsizei>(info_log_buff.size()), nullptr, info_log_buff.data());
-                TRIENGINE_PANIC("Shader compile error: %s", info_log_buff.data());
+                GLint info_log_len{};
+                ::glGetShaderiv(_shader_id, GL_INFO_LOG_LENGTH, &info_log_len);
+
+                std::string info_log;
+                info_log.resize(info_log_len);
+                ::glGetShaderInfoLog(_shader_id, info_log_len, &info_log_len, info_log.data());
+
+                TRIENGINE_PANIC("Failed to compile shader object: %s", info_log.c_str());
             }
         }
 
@@ -57,19 +68,25 @@ namespace triengine
         { }
 
         ~shader_object() {
-            if (_shader_id != kInvalidShaderID) {
-                GLCall(::glDeleteShader(_shader_id));
+            if (this->is_valid()) {
+                ::glDeleteShader(_shader_id);
             }
         }
 
         shader_object(shader_object&& rhs) noexcept
-            : _shader_id{ rhs._shader_id }
         {
-            rhs._shader_id = kInvalidShaderID;
+            *this = std::move(rhs);
         }
 
-        shader_object& operator=(shader_object&& rhs) noexcept {
+        shader_object& operator=(shader_object&& rhs) noexcept
+        {
             if (this != &rhs) {
+                // Delete old shader if exists
+                if (this->is_valid()) {
+                    ::glDeleteShader(_shader_id);
+                }
+                
+                _type = rhs._type;
                 _shader_id = rhs._shader_id;
                 rhs._shader_id = kInvalidShaderID;
             }
@@ -79,8 +96,16 @@ namespace triengine
         shader_object(const shader_object&) = delete;
         shader_object& operator=(const shader_object&) = delete;
 
+        constexpr shader_object_type type() const noexcept {
+            return _type;
+        }
+
         constexpr GLuint id() const noexcept {
             return _shader_id;
+        }
+
+        constexpr bool is_valid() const noexcept {
+            return _shader_id != kInvalidShaderID;
         }
 
     }; // class
@@ -93,11 +118,11 @@ namespace triengine
     class shader_program final
     {
     private:
-        static constexpr GLuint kInvalidProgramID{ static_cast<GLuint>(0) };
+        static constexpr GLuint kInvalidProgramID{ 0u };
 
     private:
         GLuint _program_id{ kInvalidProgramID }; // program id
-        std::list<shader_object> _attached_shaders;
+        std::vector<shader_object> _attached_shaders;
         std::unordered_map<std::string, GLint> _uniforms_cache;
 
     public:
@@ -106,6 +131,25 @@ namespace triengine
             if (this->is_created()) {
                 this->destroy();
             }
+        }
+
+        shader_program(shader_program&& rhs) noexcept
+        {
+            *this = std::move(rhs);
+        }
+
+        shader_program& operator=(shader_program&& rhs) noexcept
+        {
+            if (this != &rhs) {
+                if (this->is_created()) {
+                    this->destroy();
+                }
+                std::swap(_program_id, rhs._program_id);
+                std::swap(_attached_shaders, rhs._attached_shaders);
+                std::swap(_uniforms_cache, rhs._uniforms_cache);
+            }
+
+            return *this;
         }
 
         shader_program(const shader_program&) = delete;
@@ -122,24 +166,21 @@ namespace triengine
         void create() {
             TRIENGINE_ASSERT(!this->is_created());
             _program_id = ::glCreateProgram(); // NOTE: glCreateProgram() returns 0 if an error occurs creating the program object.
-        }
-
-        void attach_shader(shader_object&& new_shader) {
-            TRIENGINE_ASSERT(this->is_created());
-            GLCall(::glAttachShader(_program_id, new_shader.id()));
-            _attached_shaders.emplace_back(std::move(new_shader));
+            if (!_program_id) {
+                TRIENGINE_PANIC("Failed to create shader program");
+            }
         }
 
         void attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources) {
-            this->attach_shader(shader_object{ shader_object_type::vertex, shader_sources });
+            this->_attach_shader(shader_object{ shader_object_type::vertex, shader_sources });
         }
 
         void attach_fragment_shader(std::initializer_list<const GLchar*> shader_sources) {
-            this->attach_shader(shader_object{ shader_object_type::fragment, shader_sources });
+            this->_attach_shader(shader_object{ shader_object_type::fragment, shader_sources });
         }
         
         void attach_geometry_shader(std::initializer_list<const GLchar*> shader_sources) {
-            this->attach_shader(shader_object{ shader_object_type::geometry, shader_sources });
+            this->_attach_shader(shader_object{ shader_object_type::geometry, shader_sources });
         }
 
         void link()
@@ -152,60 +193,22 @@ namespace triengine
             GLint gl_success = GL_FALSE;
             ::glGetProgramiv(_program_id, GL_LINK_STATUS, &gl_success);
             if (!gl_success) {
-                std::array<char, 512> info_log_buff;
-                ::glGetProgramInfoLog(_program_id, static_cast<GLsizei>(info_log_buff.size()), nullptr, info_log_buff.data());
-                TRIENGINE_PANIC("Shader program link error: %s", info_log_buff.data());
+                GLint info_log_len{};
+                ::glGetProgramiv(_program_id, GL_INFO_LOG_LENGTH, &info_log_len);
+
+                std::string info_log;
+                info_log.resize(info_log_len);
+                ::glGetProgramInfoLog(_program_id, info_log_len, &info_log_len, info_log.data());
+
+                TRIENGINE_PANIC("Failed to link shader program: %s", info_log.c_str());
             }
 
-            //
-            // Generate uniforms location cache
-            // See: https://stackoverflow.com/a/20417594
-            //
-
-            // Retrieves the longest length of the uniform variable name among uniform variables (including null terminator)
-            GLint max_active_uniform_var_name_len{};
-            GLCall(::glGetProgramiv(_program_id, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_active_uniform_var_name_len));
-
-            GLint num_of_active_uniforms{};
-            GLCall(::glGetProgramiv(_program_id, GL_ACTIVE_UNIFORMS, &num_of_active_uniforms));
-
-            TRIENGINE_TRACE("----- num_of_active_uniforms = %d", num_of_active_uniforms);
-            for (GLint idx = 0; idx < num_of_active_uniforms; ++idx)
-            {
-                std::string var_name_buff; // variable name in GLSL
-                var_name_buff.resize(max_active_uniform_var_name_len);
-                GLsizei var_name_len;      // name length (excluding the null terminator)
-                GLint var_size;            // data size of the variable
-                GLenum var_type;           // data type of the variable (float, vec3 or mat4, etc)
-
-                // get the name of this uniform
-                ::glGetActiveUniform(
-                    _program_id,
-                    static_cast<GLuint>(idx),
-                    static_cast<GLsizei>(var_name_buff.size()),
-                    &var_name_len,
-                    &var_size,
-                    &var_type,
-                    var_name_buff.data()
-                );
-
-                TRIENGINE_ASSERT(::glGetError() == GL_NO_ERROR);
-                var_name_buff.resize(var_name_len);
-
-                const GLint uloc = ::glGetUniformLocation(_program_id, var_name_buff.c_str());
-                TRIENGINE_ASSERT(uloc != -1);
-
-                TRIENGINE_TRACE("#%d : uniform_cache[\"%s\"(%llu)] = %d", idx, var_name_buff.c_str(), var_name_buff.size(), uloc);
-
-                // cache for later use
-                const auto [_, success] = _uniforms_cache.insert(
-                    std::make_pair(std::move(var_name_buff), uloc)
-                );
-
-                TRIENGINE_ASSERT(success);
-            }
+            //// validate shader program (optional)
+            // glValidateProgram(_program_id);
+            
+            // Build uniform cache
+            this->_build_uniforms_cache();
         }
-
 
         void use()
         {
@@ -213,22 +216,32 @@ namespace triengine
             ::glUseProgram(_program_id);
         }
 
-        void destroy()
+        void destroy() noexcept
         {
-            TRIENGINE_ASSERT(this->is_created());
+            if (this->is_created())
+            {
+                // Unbind if this program is currently in use
+                GLint curr_prog_id{};
+                ::glGetIntegerv(GL_CURRENT_PROGRAM, &curr_prog_id);
+                if (_program_id == static_cast<GLuint>(curr_prog_id)) {
+                    ::glUseProgram(0);
+                }
 
-            // Reset the active shader if we're about to delete it
-            GLint currentProgramId{};
-            ::glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgramId);
-            if (_program_id == static_cast<GLuint>(currentProgramId)) {
-                ::glUseProgram(0);
+                // Detach shaders (optional but clean)
+                for (auto& shdr : _attached_shaders) {
+                    ::glDetachShader(_program_id, shdr.id());
+                }
+
+                // Delete program
+                ::glDeleteProgram(_program_id);
             }
 
+            _program_id = kInvalidProgramID;
             _attached_shaders.clear();
-            GLCall(::glDeleteProgram(_program_id));
-            _program_id = 0;
+            _uniforms_cache.clear();
         }
 
+        // Get uniform location (cached)
         inline GLint get_uniform(const std::string& var_name) const
         {
             TRIENGINE_ASSERT(this->is_created());
@@ -239,6 +252,8 @@ namespace triengine
                 return it->second;
             }
 
+            // if not found in cache, do a direct lookup
+            // TODO: Optionally you can handle -1 gracefully instead of assert
             const GLint uloc = ::glGetUniformLocation(_program_id, var_name.c_str());
             TRIENGINE_ASSERT(uloc != -1);
             return uloc;
@@ -288,6 +303,16 @@ namespace triengine
         }
 
     private:
+
+        void _attach_shader(shader_object&& new_shader) {
+            TRIENGINE_ASSERT(this->is_created());
+            GLCall(::glAttachShader(_program_id, new_shader.id()));
+            _attached_shaders.emplace_back(std::move(new_shader));
+        }
+
+        // Build uniform variables cache after linking
+        // Ref: https://stackoverflow.com/a/20417594
+        void _build_uniforms_cache();
 
     }; // class
 

@@ -62,6 +62,7 @@
     <ClCompile Include="src\renderer\triangle_mesh_renderer.cc" />
     <ClCompile Include="src\scene.cc" />
     <ClCompile Include="src\scene_renderer.cc" />
+    <ClCompile Include="src\shader.cc" />
     <ClCompile Include="src\texture.cc" />
     <ClCompile Include="src\visualization\offscreen_renderer.cc" />
     <ClCompile Include="src\visualization\visualizer.cc" />

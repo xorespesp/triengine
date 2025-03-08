@@ -153,6 +153,9 @@
     <ClCompile Include="src\visualization\offscreen_renderer.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\shader.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
