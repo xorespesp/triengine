@@ -111,9 +111,9 @@ namespace triengine::visualization
                 const bool msaa_enabled = _fb_sample_count > 1;
                 if (msaa_enabled) {
                     _fb_main.blit_to(_fb_msaa_copy, true, false, false);
-                    return _fb_msaa_copy.color_texture_id();
+                    return _fb_msaa_copy.color_attachment()->buffer_id;
                 } else {
-                    return _fb_main.color_texture_id();
+                    return _fb_main.color_attachment()->buffer_id;
                 }
             }();
 
@@ -138,18 +138,48 @@ namespace triengine::visualization
             const int32_t
                 width_pixels = _curr_window_width,
                 height_pixels = _curr_window_height;
-            
-            _fb_main.reserve(
-                width_pixels,
-                height_pixels,
-                _fb_sample_count
-            );
 
-            _fb_msaa_copy.reserve(
-                width_pixels,
-                height_pixels,
-                1
-            );
+            if (!_fb_main.is_valid())
+            {
+                _fb_main = frame_buffer::create_color_depth_stencil_buffer(
+                    { GL_RGBA16F },
+                    GL_DEPTH_COMPONENT24,
+                    GL_STENCIL_INDEX8,
+                    _curr_window_width,
+                    _curr_window_height,
+                    _fb_sample_count
+                );
+            }
+            else
+            {
+                // It is okay to call reallocate every frame, 
+                // as there is an internal reallocation-skip optimization implemented.
+                _fb_main.reallocate(
+                    width_pixels,
+                    height_pixels,
+                    _fb_sample_count
+                );
+            }
+
+            if (!_fb_msaa_copy.is_valid())
+            {
+                _fb_msaa_copy = frame_buffer::create_color_only_buffer(
+                    { GL_RGBA16F },
+                    _curr_window_width,
+                    _curr_window_height,
+                    1
+                );
+            }
+            else
+            {
+                // It is okay to call reallocate every frame, 
+                // as there is an internal reallocation-skip optimization implemented.
+                _fb_msaa_copy.reallocate(
+                    width_pixels,
+                    height_pixels,
+                    1
+                );
+            }
 
             _flag_invalidate_fbo = false;
         }

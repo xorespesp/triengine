@@ -32,17 +32,47 @@ namespace triengine::gui
             const ImVec2
                 curr_content_region_size = _state.curr_content_region.GetSize();
 
-            _fb_main.reserve(
-                static_cast<int32_t>(curr_content_region_size.x),
-                static_cast<int32_t>(curr_content_region_size.y),
-                _state.fb_sample_count
-            );
+            if (!_fb_main.is_valid())
+            {
+                _fb_main = frame_buffer::create_color_depth_stencil_buffer(
+                    { GL_RGBA16F },
+                    GL_DEPTH_COMPONENT24,
+                    GL_STENCIL_INDEX8,
+                    static_cast<int32_t>(curr_content_region_size.x),
+                    static_cast<int32_t>(curr_content_region_size.y),
+                    _state.fb_sample_count
+                );
+            }
+            else
+            {
+                // It is okay to call reallocate every frame, 
+                // as there is an internal reallocation-skip optimization implemented.
+                _fb_main.reallocate(
+                    static_cast<int32_t>(curr_content_region_size.x),
+                    static_cast<int32_t>(curr_content_region_size.y),
+                    _state.fb_sample_count
+                );
+            }
 
-            _fb_msaa_copy.reserve(
-                static_cast<int32_t>(curr_content_region_size.x),
-                static_cast<int32_t>(curr_content_region_size.y),
-                1
-            );
+            if (!_fb_msaa_copy.is_valid())
+            {
+                _fb_msaa_copy = frame_buffer::create_color_only_buffer(
+                    { GL_RGBA16F },
+                    static_cast<int32_t>(curr_content_region_size.x),
+                    static_cast<int32_t>(curr_content_region_size.y),
+                    1
+                );
+            }
+            else
+            {
+                // It is okay to call reallocate every frame, 
+                // as there is an internal reallocation-skip optimization implemented.
+                _fb_msaa_copy.reallocate(
+                    static_cast<int32_t>(curr_content_region_size.x),
+                    static_cast<int32_t>(curr_content_region_size.y),
+                    1
+                );
+            }
 
             _state.flag_invalidate_fbo = false;
         }
@@ -134,7 +164,7 @@ namespace triengine::gui
             {
                 _fb_main.blit_to(_fb_msaa_copy, true, false, false);
                 ImGui::Image(
-                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_msaa_copy.color_texture_id())),
+                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_msaa_copy.color_attachment()->buffer_id)),
                     curr_content_region_size,
                     ImVec2(0, 1),
                     ImVec2(1, 0)
@@ -143,7 +173,7 @@ namespace triengine::gui
             else
             {
                 ImGui::Image(
-                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_main.color_texture_id())),
+                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_main.color_attachment()->buffer_id)),
                     curr_content_region_size,
                     ImVec2(0, 1),
                     ImVec2(1, 0)
