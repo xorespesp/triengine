@@ -8,7 +8,7 @@ namespace triengine::renderer
     infinite_grid_renderer::infinite_grid_renderer()
     { }
 
-    void infinite_grid_renderer::create(GLFWwindow* window)
+    void infinite_grid_renderer::create_impl(GLFWwindow* window)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -20,16 +20,16 @@ namespace triengine::renderer
         //
 
         // Create shader program
-        _shader.create();
-        _shader.attach_vertex_shader({ shader::glslShaderVersion, shader::kInfiniteGridVertexShader });
-        _shader.attach_fragment_shader({ shader::glslShaderVersion, shader::kInfiniteGridFragmentShader });
-        _shader.link();
+        _shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kInfiniteGridVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kInfiniteGridFragmentShader })
+            .link();
 
         // Create empty VAO (for avoid INVALID_OPERATION draw-call error)
         GLCall(::glGenVertexArrays(1, &_vao));
     }
 
-    void infinite_grid_renderer::destroy()
+    void infinite_grid_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -41,14 +41,24 @@ namespace triengine::renderer
         }
     }
 
-    void infinite_grid_renderer::render(const render_context& render_ctx)
+    void infinite_grid_renderer::render_impl(const render_context& render_ctx)
     {
+        if (render_ctx.curr_render_pass != render_pass_type::wboit_transparent_rendering) {
+            return;
+        }
+
         // Enable depth testing
-        GLCall(::glEnable(GL_DEPTH_TEST));
+        //GLCall(::glEnable(GL_DEPTH_TEST));
+
+        // Save previous state
+        //GLint prev_blend_state{};
+        //GLCall(::glGetIntegerv(GL_BLEND, &prev_blend_state));
+        //GLint prev_blend_src_state{};
+        //GLCall(::glGetIntegerv(GL_BLEND_SRC, &prev_blend_src_state));
 
         // Enable blending
-        GLCall(::glEnable(GL_BLEND));
-        GLCall(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        //GLCall(::glEnable(GL_BLEND));
+        //GLCall(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
         _shader.use();
         _shader.set_uniform_mat4("u_view", render_ctx.view);
@@ -72,8 +82,13 @@ namespace triengine::renderer
         // I mean, as long as you always bind another VAO before you draw another object, you really don't have to do this.
         //GLCall(::glBindVertexArray(0));
 
-        // Disable blending (restore original state)
-        GLCall(::glDisable(GL_BLEND));
+        // Restore previous state
+        //if (prev_blend_state) {
+        //    GLCall(::glEnable(GL_BLEND));
+        //} else {
+        //    GLCall(::glDisable(GL_BLEND));
+        //}
+        //GLCall(::glBlendFunc(GL_SRC_ALPHA, prev_blend_src_state));
     }
 
 } // namespace

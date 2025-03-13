@@ -5,7 +5,7 @@
 namespace triengine::renderer
 {
     class infinite_grid_renderer
-        : public renderer_base
+        : public renderer_base<infinite_grid_renderer>
     {
     private:
         // OpenGL shaders
@@ -22,11 +22,11 @@ namespace triengine::renderer
 
         const infinite_grid_options& get_options() const { return _options; }
         void set_options(const infinite_grid_options& options) { _options = options; }
-        
-        // Renderer functions
-        void create(GLFWwindow* window) override;
-        void destroy() override;
-        void render(const render_context& render_ctx) override;
+
+        // CRTP methods
+        void create_impl(GLFWwindow* window);
+        void destroy_impl();
+        void render_impl(const render_context& render_ctx);
 
     }; // class
 

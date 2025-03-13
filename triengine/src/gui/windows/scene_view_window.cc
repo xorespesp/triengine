@@ -13,14 +13,9 @@ namespace triengine::gui
         _state.flag_invalidate_fbo = true;
     }
 
-    bool scene_view_window::is_framebuffer_valid() const
+    const frame_buffer& scene_view_window::get_framebuffer() const noexcept
     {
-        return _fb_main.is_valid();
-    }
-
-    vec2_i32 scene_view_window::get_framebuffer_size() const
-    {
-        return vec2_i32{ _fb_main.width_pixels(), _fb_main.height_pixels() };
+        return _fb_main;
     }
 
     void scene_view_window::bind_framebuffer()
@@ -35,12 +30,11 @@ namespace triengine::gui
             if (!_fb_main.is_valid())
             {
                 _fb_main = frame_buffer::create_color_depth_stencil_buffer(
-                    { GL_RGBA16F },
+                    GL_RGBA16F,
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,
                     static_cast<int32_t>(curr_content_region_size.x),
-                    static_cast<int32_t>(curr_content_region_size.y),
-                    _state.fb_sample_count
+                    static_cast<int32_t>(curr_content_region_size.y)
                 );
             }
             else
@@ -49,28 +43,7 @@ namespace triengine::gui
                 // as there is an internal reallocation-skip optimization implemented.
                 _fb_main.reallocate(
                     static_cast<int32_t>(curr_content_region_size.x),
-                    static_cast<int32_t>(curr_content_region_size.y),
-                    _state.fb_sample_count
-                );
-            }
-
-            if (!_fb_msaa_copy.is_valid())
-            {
-                _fb_msaa_copy = frame_buffer::create_color_only_buffer(
-                    { GL_RGBA16F },
-                    static_cast<int32_t>(curr_content_region_size.x),
-                    static_cast<int32_t>(curr_content_region_size.y),
-                    1
-                );
-            }
-            else
-            {
-                // It is okay to call reallocate every frame, 
-                // as there is an internal reallocation-skip optimization implemented.
-                _fb_msaa_copy.reallocate(
-                    static_cast<int32_t>(curr_content_region_size.x),
-                    static_cast<int32_t>(curr_content_region_size.y),
-                    1
+                    static_cast<int32_t>(curr_content_region_size.y)
                 );
             }
 
@@ -159,26 +132,12 @@ namespace triengine::gui
 
         if (!flag_window_resizing)
         {
-            const bool msaa_enabled = _state.fb_sample_count > 1;
-            if (msaa_enabled)
-            {
-                _fb_main.blit_to(_fb_msaa_copy, true, false, false);
-                ImGui::Image(
-                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_msaa_copy.color_attachment()->buffer_id)),
-                    curr_content_region_size,
-                    ImVec2(0, 1),
-                    ImVec2(1, 0)
-                );
-            }
-            else
-            {
-                ImGui::Image(
-                    static_cast<ImTextureID>(static_cast<uint64_t>(_fb_main.color_attachment()->buffer_id)),
-                    curr_content_region_size,
-                    ImVec2(0, 1),
-                    ImVec2(1, 0)
-                );
-            }
+            ImGui::Image(
+                static_cast<ImTextureID>(static_cast<uint64_t>(_fb_main.color_attachment()->buffer_id)),
+                curr_content_region_size,
+                ImVec2(0, 1),
+                ImVec2(1, 0)
+            );
 
             if (flag_window_size_changed)
             {
@@ -258,8 +217,6 @@ namespace triengine::gui
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5, 5 });
         if (ImGui::Begin("##SceneWindowOverlay", &_state.flag_show_overlay, window_flags))
         {
-            bool msaa_enabled_state = _state.fb_sample_count > 1;
-
             const auto scene_mouse_pos = 
                 [this]() -> std::optional<vec2_f32> {
                     if (ImGui::IsMousePosValid()) {
@@ -278,12 +235,6 @@ namespace triengine::gui
                 "Frame Size: %dx%d"
                 , _fb_main.width_pixels(), _fb_main.height_pixels()
             );
-
-            if (msaa_enabled_state) {
-                sb_.appendf("\nMSAA: Enabled (%dx)", _state.fb_sample_count);
-            } else {
-                sb_.append("\nMSAA: Disabled");
-            }
 
             sb_.appendf(
                 "\nCamera ID: #%X"
@@ -366,14 +317,10 @@ namespace triengine::gui
                 ImGui::PopStyleColor(4);
                 ImGui::PopStyleVar();
             }
+
             // right-click context menu
             if (ImGui::BeginPopupContextWindow())
             {
-                if (ImGui::MenuItem("Enable MSAA", nullptr, &msaa_enabled_state)) {
-                    _state.fb_sample_count = msaa_enabled_state ? 4 : 1;
-                    _state.flag_invalidate_fbo = true;
-                }
-
                 if (ImGui::BeginMenu("Layout")) {
                     if (ImGui::MenuItem("Custom", NULL, location == -1)) { location = -1; }
                     if (ImGui::MenuItem("Center", NULL, location == -2)) { location = -2; }

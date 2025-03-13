@@ -16,7 +16,7 @@ namespace triengine::renderer
         _flag_show_joint_axis = show;
     }
 
-    void skeleton_renderer::create(GLFWwindow* window)
+    void skeleton_renderer::create_impl(GLFWwindow* window)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -24,7 +24,7 @@ namespace triengine::renderer
         _mesh_renderer.create(window);
     }
 
-    void skeleton_renderer::destroy()
+    void skeleton_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -34,13 +34,20 @@ namespace triengine::renderer
         }
     }
 
-    void skeleton_renderer::render(
+    void skeleton_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
-        for (const auto& render_obj : render_obj_list) {
-            _mesh_renderer.render(render_ctx, render_obj->joint_objects);
-            _mesh_renderer.render(render_ctx, render_obj->bone_objects);
+        for (const auto& object : render_obj_list)
+        {
+            if (predicate && !predicate(*object, predicate_userdata)) {
+                continue;
+            }
+
+            _mesh_renderer.render(render_ctx, object->joint_objects);
+            _mesh_renderer.render(render_ctx, object->bone_objects);
         }
     }
 

@@ -5,14 +5,16 @@
 namespace triengine::renderer
 {
     class triangle_mesh_renderer
-        : public object_renderer_base<geometry::triangle_mesh_object>
+        : public object_renderer_base<triangle_mesh_renderer, geometry::triangle_mesh_object>
     {
     private:
         // OpenGL shaders
         shader_program 
-            _shader_vertmode,
-            _shader_texmode,
-            _shader_normal_view;
+            _vertmode_solid_shader,
+            _vertmode_transparent_shader,
+            _texmode_solid_shader,
+            _texmode_transparent_shader,
+            _normal_vis_shader;
 
         // OpenGL objects
         GLuint // vertex array object
@@ -27,15 +29,6 @@ namespace triengine::renderer
 
         GLuint _ibo{}; // index buffer object
 
-        // OpenGL shader uniform locations
-        GLint _uloc_vertmode_model{}; // model matrix
-        GLint _uloc_vertmode_view{}; // view matrix
-        GLint _uloc_vertmode_proj{}; // projection matrix
-
-        GLint _uloc_texmode_model{}; // model matrix
-        GLint _uloc_texmode_view{}; // view matrix
-        GLint _uloc_texmode_proj{}; // projection matrix
-
         bool _show_object_normals{ false };
 
     public:
@@ -44,28 +37,36 @@ namespace triengine::renderer
         // Toggle object's normal visualization.
         void enable_object_normal_rendering(bool enable);
 
-        // Renderer functions
-        void create(GLFWwindow* window) override;
-        void destroy() override;
-        void render(
+        // CRTP methods
+        void create_impl(GLFWwindow* window);
+        void destroy_impl();
+        void render_impl(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list
-        ) override;
+            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+            pred_callback_type predicate,
+            void* predicate_userdata
+        );
 
     private:
         void _render_vertex_shading_objects(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+            pred_callback_type predicate,
+            void* predicate_userdata
         );
 
         void _render_texture_shading_objects(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+            pred_callback_type predicate,
+            void* predicate_userdata
         );
-        
+
         void _render_objects_normals(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects
+            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+            pred_callback_type predicate,
+            void* predicate_userdata
         );
 
     }; // class

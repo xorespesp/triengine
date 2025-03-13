@@ -6,5 +6,5 @@ It uses `Eigen` for its internal math operations, making it convenient for proje
 - Point cloud rendering
 - Line set rendering
 - Triangle mesh rendering
-- Multi-camera system
 - Lighting system
+- Order-Independent Transparency

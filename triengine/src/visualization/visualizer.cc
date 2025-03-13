@@ -172,10 +172,15 @@ namespace triengine::visualization
         // Render Scene
         _scene_window->bind_framebuffer();
 
+        const frame_buffer& curr_fb = _scene_window->get_framebuffer();
+
         scene& scn = *_curr_scn;
-        const vec2_i32 scn_size{ _scene_window->get_framebuffer_size() };
-        scn.get_camera()->set_view_port(view_port{0, 0, scn_size.x(),  scn_size.y()});
-        _scn_renderer.render_scene(scn);
+        scn.get_camera()->set_view_port(view_port{ 0, 0, curr_fb.width_pixels(), curr_fb.height_pixels() });
+
+        _scn_renderer.render(
+            curr_fb,
+            scn
+        );
 
         _scene_window->unbind_framebuffer();
 

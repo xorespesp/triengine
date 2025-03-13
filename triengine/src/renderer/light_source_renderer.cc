@@ -1,14 +1,14 @@
 #include "light_source_renderer.hh"
 
 #include "../misc/debug_utils.hh"
-#include "../shader/lighting_shaders.h"
+#include "../shader/light_source_shaders.h"
 
 namespace triengine::renderer
 {
     light_source_renderer::light_source_renderer()
     {}
 
-    void light_source_renderer::create(GLFWwindow* window)
+    void light_source_renderer::create_impl(GLFWwindow* window)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -20,16 +20,10 @@ namespace triengine::renderer
         //
 
         // Create shader program
-        _shader.create();
-        _shader.attach_vertex_shader({ shader::glslShaderVersion, shader::kLightSourceVertexShader });
-        _shader.attach_fragment_shader({ shader::glslShaderVersion, shader::kLightSourceFragmentShader });
-        _shader.link();
-
-        // Get shader index
-        _uloc_model = _shader.get_uniform("u_model");
-        _uloc_view = _shader.get_uniform("u_view");
-        _uloc_projection = _shader.get_uniform("u_proj");
-        _uloc_color = _shader.get_uniform("u_color");
+        _shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kLightSourceVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kLightSourceFragmentShader })
+            .link();
 
         // ********************** Generate Vertex Array Object (VAO) **********************
         // Create & Bind VAO
@@ -59,7 +53,7 @@ namespace triengine::renderer
         // ********************************************************************************
     }
 
-    void light_source_renderer::destroy()
+    void light_source_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -74,26 +68,37 @@ namespace triengine::renderer
         }
     }
 
-    void light_source_renderer::render(
+    void light_source_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
+        if (render_ctx.curr_render_pass != render_pass_type::wboit_solid_rendering) {
+            return;
+        }
+
         if (render_obj_list.empty()) {
             return;
         }
 
-        // Enable depth testing
-        GLCall(::glEnable(GL_DEPTH_TEST));
+        auto& draw_shader = _shader;
+        draw_shader.use();
 
-        _shader.use();
+        // Enable depth testing
+        //GLCall(::glEnable(GL_DEPTH_TEST));
 
         // Update view/projective matrices in shader
-        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, render_ctx.view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_projection, 1, GL_FALSE, render_ctx.projection.data()));
+        draw_shader.set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
         for (const auto& object : render_obj_list)
         {
             if (!object->is_visible()) {
+                continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
                 continue;
             }
 
@@ -105,12 +110,11 @@ namespace triengine::renderer
             TRIENGINE_ASSERT(vertex_normals.size() == vertex_positions.size() || vertex_normals.empty());
             TRIENGINE_ASSERT(!triangle_indices.empty());
 
-            // Update model(transform) matrix
-            GLCall(::glUniformMatrix4fv(_uloc_model, 1, GL_FALSE, object->get_model().data()));
+            // Update model(transform) matrix in shader
+            draw_shader.set_uniform_mat4("u_model", object->get_model());
 
             // Update color
-            GLCall(::glUniform3f(_uloc_color, triangle_color.r(), triangle_color.g(), triangle_color.b()));
-
+            draw_shader.set_uniform_vec3("u_color", triangle_color.r(), triangle_color.g(), triangle_color.b());
             // Update VAO
             // ********************************************************************************
 

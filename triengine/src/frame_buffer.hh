@@ -98,8 +98,15 @@ namespace triengine
         void reallocate(
             int32_t width_pixels,
             int32_t height_pixels,
-            int32_t sample_count = 1
+            int32_t sample_count
         );
+
+        void reallocate(
+            int32_t width_pixels,
+            int32_t height_pixels)
+        {
+            this->reallocate(width_pixels, height_pixels, _sample_count);
+        }
 
         /**
          * @brief Safely destroys the FBO and releases GPU resources of its attachments.
@@ -108,12 +115,10 @@ namespace triengine
 
         /**
          * @brief Binds this FBO to GL_FRAMEBUFFER target.
-         *        If there are multiple color attachments, sets up glDrawBuffers accordingly.
-         *        If there are no color attachments, sets glDrawBuffer(GL_NONE).
          * @throws std::runtime_error if the FBO is invalid.
          */
-        void bind();
-        void unbind();
+        void bind() const;
+        void unbind() const;
 
         /**
          * @brief Blits the content of this FBO into another FBO.
@@ -156,6 +161,24 @@ namespace triengine
             bool use_renderbuffer = false
         );
 
+        static frame_buffer create_color_only_buffer(
+            GLenum internal_color_format,
+            int32_t width_pixels,
+            int32_t height_pixels,
+            int32_t sample_count = 1,
+            const frame_buffer_texture_params_t& color_tex_params = {},
+            bool use_renderbuffer = false
+        ) {
+            return create_color_only_buffer(
+                { internal_color_format },
+                width_pixels,
+                height_pixels,
+                sample_count,
+                color_tex_params,
+                use_renderbuffer
+            );
+        }
+
         /**
          * @brief Creates a new FBO with a depth-only attachment.
          * @param internal_depth_format e.g., `GL_DEPTH_COMPONENT24`, `GL_DEPTH_COMPONENT32F`
@@ -196,13 +219,35 @@ namespace triengine
         static frame_buffer create_color_depth_only_buffer(
             std::initializer_list<GLenum> internal_color_formats,
             GLenum internal_depth_format,
-            int32_t width,
-            int32_t height,
-            int32_t samples = 1,
+            int32_t width_pixels,
+            int32_t height_pixels,
+            int32_t sample_count = 1,
             const frame_buffer_texture_params_t& color_tex_params = {},
             bool use_renderbuffer_for_color = false,
             bool use_renderbuffer_for_depth = true
         );
+
+        static frame_buffer create_color_depth_only_buffer(
+            GLenum internal_color_format,
+            GLenum internal_depth_format,
+            int32_t width_pixels,
+            int32_t height_pixels,
+            int32_t sample_count = 1,
+            const frame_buffer_texture_params_t& color_tex_params = {},
+            bool use_renderbuffer_for_color = false,
+            bool use_renderbuffer_for_depth = true
+        ) {
+            return create_color_depth_only_buffer(
+                { internal_color_format },
+                internal_depth_format,
+                width_pixels,
+                height_pixels,
+                sample_count,
+                color_tex_params,
+                use_renderbuffer_for_color,
+                use_renderbuffer_for_depth
+            );
+        }
 
         /**
          * @brief Creates a framebuffer with single color / multiple color(MRT) + depth + stencil attachments.
@@ -229,6 +274,32 @@ namespace triengine
             bool use_renderbuffer_for_depth = true,
             bool use_renderbuffer_for_stencil = true
         );
+
+        static frame_buffer create_color_depth_stencil_buffer(
+            GLenum internal_color_format,
+            GLenum internal_depth_format,
+            GLenum internal_stencil_format,
+            int32_t width_pixels,
+            int32_t height_pixels,
+            int32_t sample_count = 1,
+            const frame_buffer_texture_params_t& color_tex_params = {},
+            bool use_renderbuffer_for_color = false,
+            bool use_renderbuffer_for_depth = true,
+            bool use_renderbuffer_for_stencil = true
+        ) {
+            return create_color_depth_stencil_buffer(
+                { internal_color_format },
+                internal_depth_format,
+                internal_stencil_format,
+                width_pixels,
+                height_pixels,
+                sample_count,
+                color_tex_params,
+                use_renderbuffer_for_color,
+                use_renderbuffer_for_depth,
+                use_renderbuffer_for_stencil
+            );
+        }
 
     private:
 

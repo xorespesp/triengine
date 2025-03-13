@@ -5,13 +5,6 @@ namespace triengine::shader
 {
     // Infinite Grid Vertex Shader
     static const char* const kInfiniteGridVertexShader = R"(
-        out VertOut
-        {
-            vec3 vertPos; // vertex position in world space
-            vec3 eyePos; // camera position in world-space
-            float gridSize; // total grid size (unit: [m])
-        } vo;
-
         const vec3 g_vertexPositions[4] = vec3[4](
 	        vec3(-1.0, 0.0, -1.0), // [0]: bottom left
 	        vec3( 1.0, 0.0, -1.0), // [1]: bottom right
@@ -24,6 +17,19 @@ namespace triengine::shader
 	        2, 0, 3  // second triangle
         );
         
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
+        out VS_OUT
+        {
+            vec3 vertPos; // vertex position in world space
+            vec3 eyePos; // camera position in world-space
+            float gridSize; // total grid size (unit: [m])
+        } vso;
+
+		////////////////////////////////////////////
+		// shader uniforms
+		////////////////////////////////////////////
         uniform mat4 u_view; // view matrix
         uniform mat4 u_proj; // projection matrix
         uniform vec3 u_eyePos; // camera position in world-space
@@ -39,26 +45,42 @@ namespace triengine::shader
             currVertexPos.z += u_eyePos.z;
 
             gl_Position = u_proj * u_view * vec4(currVertexPos, 1.0);
-            vo.vertPos = currVertexPos;
-            vo.eyePos = u_eyePos;
-            vo.gridSize = u_gridSize;
+            vso.vertPos = currVertexPos;
+            vso.eyePos = u_eyePos;
+            vso.gridSize = u_gridSize;
         }
     )";
 
     // Infinite Grid Fragment Shader
     static const char* const kInfiniteGridFragmentShader = R"(
-        in VertOut
+        #define WBOIT_ENABLED 1
+
+		////////////////////////////////////////////
+		// shader inputs
+		////////////////////////////////////////////
+        in VS_OUT
         {
             vec3 vertPos; // vertex position in world space
             vec3 eyePos; // camera position in world-space
             float gridSize; // total grid size (unit: [m])
-        } fi;
+        } fsi;
 
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
+        #if WBOIT_ENABLED
+        layout (location = 0) out vec4 fso_accum;
+        layout (location = 1) out float fso_reveal;
+        #else  // ^^^ WBOIT_ENABLED ^^^ / VVV !WBOIT_ENABLED VVV
+        out vec4 fso_fragColor;
+        #endif // ^^^ !WBOIT_ENABLED ^^^
+
+		////////////////////////////////////////////
+		// shader uniforms
+		////////////////////////////////////////////
         uniform float u_gridMinPixelsBetweenCells = 2.0;
         uniform float u_gridCellSize = 1.0;
         uniform vec3  u_gridColor = vec3(0.0, 1.0, 0.0);
-
-        out vec4 fo_fragColor;
 
         // modulo function; returns the value of x modulo y.
         // (equivalent of: https://registry.khronos.org/OpenGL-Refpages/gl4/html/mod.xhtml)
@@ -82,11 +104,11 @@ namespace triengine::shader
 	        const float thickness = 2.0; // grid line thickness
 
             // vertical grid line opacity (world x-axis)
-	        const float modDivX = mod_f32(fi.vertPos.x, gridCellSize) / (thickness * ldx);
+	        const float modDivX = mod_f32(fsi.vertPos.x, gridCellSize) / (thickness * ldx);
             const float gridOpacityX = 1.0 - abs(sat_f32(modDivX) * 2.0 - 1.0);
 
             // horizontal grid line opacity (world z-axis)
-	        const float modDivZ = mod_f32(fi.vertPos.z, gridCellSize) / (thickness * ldz);
+	        const float modDivZ = mod_f32(fsi.vertPos.z, gridCellSize) / (thickness * ldz);
             const float gridOpacityZ = 1.0 - abs(sat_f32(modDivZ) * 2.0 - 1.0);
 
             // 수직선 opacity, 수평선 opacity 값 중 더 큰 값을 grid opacity 값으로 사용
@@ -97,17 +119,17 @@ namespace triengine::shader
         float calcGridPixelOpacity_v2(vec2 dvx, vec2 dvz, float gridCellSize)
         {
             // 거리 계산: 그리드 라인으로부터의 최소 거리
-            float gridX = mod_f32(fi.vertPos.x, gridCellSize);
+            float gridX = mod_f32(fsi.vertPos.x, gridCellSize);
             gridX = min(gridX, gridCellSize - gridX); // 그리드 라인까지의 최소 거리
 
-            float gridZ = mod_f32(fi.vertPos.z, gridCellSize);
+            float gridZ = mod_f32(fsi.vertPos.z, gridCellSize);
             gridZ = min(gridZ, gridCellSize - gridZ); // 그리드 라인까지의 최소 거리
 
             // `fwidth`를 사용하여 엣지의 두께를 결정하고 부드러운 그라데이션 적용
             // NOTE: `fwidth(p)` is equivalent to `abs(dFdx(p)) + abs(dFdy(p))`
             // https://registry.khronos.org/OpenGL-Refpages/gl4/html/fwidth.xhtml
-            float lineWidthX = abs(dvx.x) + abs(dvx.y); //fwidth(fi.vertPos.x);
-            float lineWidthZ = abs(dvz.x) + abs(dvz.y); //fwidth(fi.vertPos.z);
+            float lineWidthX = abs(dvx.x) + abs(dvx.y); //fwidth(fsi.vertPos.x);
+            float lineWidthZ = abs(dvz.x) + abs(dvz.y); //fwidth(fsi.vertPos.z);
 
             // line의 두께 조절
             const float thickness = 1.25; // grid line thickness
@@ -124,8 +146,8 @@ namespace triengine::shader
 
         void main()
         {
-            const vec2 dvx = vec2( dFdx(fi.vertPos.x), dFdy(fi.vertPos.x) );
-            const vec2 dvz = vec2( dFdx(fi.vertPos.z), dFdy(fi.vertPos.z) );
+            const vec2 dvx = vec2( dFdx(fsi.vertPos.x), dFdy(fsi.vertPos.x) );
+            const vec2 dvz = vec2( dFdx(fsi.vertPos.z), dFdy(fsi.vertPos.z) );
 
             const float ldx = length(dvx);
             const float ldz = length(dvz);
@@ -156,11 +178,39 @@ namespace triengine::shader
                 }
             }
 
-            const float distanceToCamera = length(fi.vertPos.xz - fi.eyePos.xz);
-            const float falloffOpacity = smoothstep(1.0, 0.0, sat_f32(distanceToCamera / fi.gridSize));
+            const float distanceToCamera = length(fsi.vertPos.xz - fsi.eyePos.xz);
+            const float falloffOpacity = smoothstep(1.0, 0.0, sat_f32(distanceToCamera / fsi.gridSize));
             resultColor.a *= falloffOpacity;
 
-	        fo_fragColor = resultColor;
+        #if WBOIT_ENABLED
+
+            ////////////////////////////////////////////////////////////////////
+            // WBOIT pass
+            ////////////////////////////////////////////////////////////////////
+
+	        const vec4 blendColor = resultColor;
+            
+	        // weight function
+	        const float weight =
+		        max(min(1.0, max(max(blendColor.r, blendColor.g), blendColor.b) * blendColor.a), blendColor.a) *
+		        clamp(0.03 / (1e-5 + pow(gl_FragCoord.z / 200, 4.0)), 1e-2, 3e3);
+                
+	        // store pixel color accumulation
+	        fso_accum = vec4(blendColor.rgb * blendColor.a, blendColor.a) * weight;
+	            
+	        // store pixel revealage threshold
+	        fso_reveal = blendColor.a;
+
+        #else  // ^^^ WBOIT_ENABLED ^^^ / VVV !WBOIT_ENABLED VVV
+
+            ////////////////////////////////////////////////////////////////////
+            // Output
+            ////////////////////////////////////////////////////////////////////
+
+            fso_fragColor = resultColor;
+
+        #endif // ^^^ !WBOIT_ENABLED ^^^
+
         }
     )";
 

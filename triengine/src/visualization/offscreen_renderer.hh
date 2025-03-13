@@ -24,8 +24,7 @@ namespace triengine::visualization
 
         void create_renderer(
             int32_t width,
-            int32_t height,
-            bool multisample = true
+            int32_t height
         );
 
         void destroy_renderer();
@@ -57,9 +56,7 @@ namespace triengine::visualization
         std::unordered_map<uint32_t/* scene id */, std::shared_ptr<scene>> _scn_map;
         std::shared_ptr<scene> _curr_scn;
 
-        int32_t _fb_sample_count{ 1 };
         frame_buffer _fb_main;
-        frame_buffer _fb_msaa_copy; // only used in msaa rendering
 
     }; // class
 

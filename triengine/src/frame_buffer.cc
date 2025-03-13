@@ -245,7 +245,7 @@ namespace triengine
         _sample_count = 1;
     }
 
-    void frame_buffer::bind()
+    void frame_buffer::bind() const
     {
         if (!this->is_valid()) {
             TRIENGINE_PANIC("attempting to bind an invalid framebuffer");
@@ -253,6 +253,7 @@ namespace triengine
 
         GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, _fbo_id));
 
+#if FALSE
         if (this->has_color_attachment())
         {
             // If we have color attachments, set up the draw buffers for MRT
@@ -269,9 +270,10 @@ namespace triengine
             GLCall(::glDrawBuffer(GL_NONE));
             GLCall(::glReadBuffer(GL_NONE));
         }
+#endif
     }
 
-    void frame_buffer::unbind()
+    void frame_buffer::unbind() const
     {
         GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, 0));
     }
@@ -394,9 +396,9 @@ namespace triengine
     frame_buffer frame_buffer::create_color_depth_only_buffer(
         const std::initializer_list<GLenum> internal_color_formats,
         const GLenum internal_depth_format,
-        const int32_t width,
-        const int32_t height,
-        const int32_t samples,
+        const int32_t width_pixels,
+        const int32_t height_pixels,
+        const int32_t sample_count,
         const frame_buffer_texture_params_t& color_tex_params,
         const bool use_renderbuffer_for_color,
         const bool use_renderbuffer_for_depth)
@@ -429,7 +431,7 @@ namespace triengine
         }
 
         // Allocate & attach
-        new_fb.reallocate(width, height, samples);
+        new_fb.reallocate(width_pixels, height_pixels, sample_count);
         return new_fb;
     }
 

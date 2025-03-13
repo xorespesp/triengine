@@ -25,10 +25,11 @@ namespace triengine::geometry
         /// NOTE: Only used in vertex-shading mode
         struct vertex_shading_material
         {
-            float ambient{ 1.0f }; /// ambient intensity
-            float diffuse{ 1.0f }; /// diffuse intensity
-            float specular{ 1.0f }; /// specular intensity
+            float ambient{ 1.0f }; /// ambient intensity; [0.0...1.0]
+            float diffuse{ 1.0f }; /// diffuse intensity; [0.0...1.0]
+            float specular{ 1.0f }; /// specular intensity; [0.0...1.0]
             uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
+            float alpha{ 1.0f }; /// object transparency (WBOIT); [0.0...1.0]
 
             vertex_shading_material() = default;
 
@@ -43,6 +44,7 @@ namespace triengine::geometry
             texture_2d diffuse_map; /// diffuse-map texture
             texture_2d specular_map; /// specular-map texture
             uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
+            float alpha{ 1.0f }; /// object transparency (WBOIT); [0.0...1.0]
 
             texture_shading_material() = default;
 
@@ -180,6 +182,17 @@ namespace triengine::geometry
             }
 
             this->set_model(mat4_f32::Identity());
+        }
+
+        bool is_opaque() const noexcept {
+            const float alpha{ [this]() {
+                switch (_shading_mode) {
+                case shading_mode::vertex: return this->get_vertex_shading_material()->alpha;
+                case shading_mode::texture: return this->get_texture_shading_material()->alpha;
+                default: return 1.0f;
+                }
+            }() };
+            return std::fabs(1.0f - std::clamp(alpha, 0.0f, 1.0f)) < std::numeric_limits<float>::epsilon();
         }
 
         void clear() {

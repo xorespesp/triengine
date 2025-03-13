@@ -21,7 +21,6 @@ namespace triengine::gui
             bool flag_show_overlay{ true };
             bool flag_window_focused{ false };
             bool flag_invalidate_fbo{ false };
-            int32_t fb_sample_count{ 8 }; // MSAA sample count
 
             std::array<float, 100> values{};
             int32_t values_offset = 0;
@@ -32,8 +31,7 @@ namespace triengine::gui
 
     private:
         visualization::visualizer* _vis{ nullptr };
-        triengine::frame_buffer _fb_main;
-        triengine::frame_buffer _fb_msaa_copy; // only used in msaa rendering
+        frame_buffer _fb_main;
         window_state_t _state;
 
     public:
@@ -49,9 +47,7 @@ namespace triengine::gui
             return ImVec2{ 800.0f, 600.0f };
         }
 
-        bool is_framebuffer_valid() const;
-
-        vec2_i32 get_framebuffer_size() const;
+        const frame_buffer& get_framebuffer() const noexcept;
 
         void bind_framebuffer();
 

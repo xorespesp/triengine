@@ -118,6 +118,7 @@ namespace triengine
     class shader_program final
     {
     private:
+        using this_type = shader_program;
         static constexpr GLuint kInvalidProgramID{ 0u };
 
     private:
@@ -128,7 +129,7 @@ namespace triengine
     public:
         shader_program() = default;
         ~shader_program() {
-            if (this->is_created()) {
+            if (this->is_valid()) {
                 this->destroy();
             }
         }
@@ -141,7 +142,7 @@ namespace triengine
         shader_program& operator=(shader_program&& rhs) noexcept
         {
             if (this != &rhs) {
-                if (this->is_created()) {
+                if (this->is_valid()) {
                     this->destroy();
                 }
                 std::swap(_program_id, rhs._program_id);
@@ -159,33 +160,28 @@ namespace triengine
             return _program_id;
         }
 
-        bool is_created() const noexcept {
+        bool is_valid() const noexcept {
             return _program_id != kInvalidProgramID;
         }
 
-        void create() {
-            TRIENGINE_ASSERT(!this->is_created());
-            _program_id = ::glCreateProgram(); // NOTE: glCreateProgram() returns 0 if an error occurs creating the program object.
-            if (!_program_id) {
-                TRIENGINE_PANIC("Failed to create shader program");
-            }
-        }
-
-        void attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources) {
+        this_type& attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources) {
             this->_attach_shader(shader_object{ shader_object_type::vertex, shader_sources });
+            return *this;
         }
 
-        void attach_fragment_shader(std::initializer_list<const GLchar*> shader_sources) {
+        this_type& attach_fragment_shader(std::initializer_list<const GLchar*> shader_sources) {
             this->_attach_shader(shader_object{ shader_object_type::fragment, shader_sources });
+            return *this;
         }
         
-        void attach_geometry_shader(std::initializer_list<const GLchar*> shader_sources) {
+        this_type& attach_geometry_shader(std::initializer_list<const GLchar*> shader_sources) {
             this->_attach_shader(shader_object{ shader_object_type::geometry, shader_sources });
+            return *this;
         }
 
         void link()
         {
-            TRIENGINE_ASSERT(this->is_created());
+            TRIENGINE_ASSERT(this->is_valid());
 
             ::glLinkProgram(_program_id);
 
@@ -212,13 +208,13 @@ namespace triengine
 
         void use()
         {
-            TRIENGINE_ASSERT(this->is_created());
+            TRIENGINE_ASSERT(this->is_valid());
             ::glUseProgram(_program_id);
         }
 
         void destroy() noexcept
         {
-            if (this->is_created())
+            if (this->is_valid())
             {
                 // Unbind if this program is currently in use
                 GLint curr_prog_id{};
@@ -244,7 +240,7 @@ namespace triengine
         // Get uniform location (cached)
         inline GLint get_uniform(const std::string& var_name) const
         {
-            TRIENGINE_ASSERT(this->is_created());
+            TRIENGINE_ASSERT(this->is_valid());
 
             // use cache if possible
             const auto it = _uniforms_cache.find(var_name);
@@ -305,7 +301,13 @@ namespace triengine
     private:
 
         void _attach_shader(shader_object&& new_shader) {
-            TRIENGINE_ASSERT(this->is_created());
+            if (!this->is_valid()) {
+                // NOTE: glCreateProgram() returns 0 if an error occurs creating the program object.
+                _program_id = ::glCreateProgram();
+                if (!_program_id) {
+                    TRIENGINE_PANIC("Failed to create shader program");
+                }
+            }
             GLCall(::glAttachShader(_program_id, new_shader.id()));
             _attached_shaders.emplace_back(std::move(new_shader));
         }

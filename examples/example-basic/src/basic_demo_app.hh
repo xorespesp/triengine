@@ -34,6 +34,7 @@ namespace gui
         std::shared_ptr<triengine::gui::render_stats_window> _render_stats_window;
 
         std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh;
+        std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh2;
 
     }; // class
 

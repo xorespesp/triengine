@@ -9,15 +9,24 @@ namespace triengine::shader
 
     // Object Normal Visualization Vertex Shader
     static const char* const kObjectNormalVisVertexShader = R"(
+		////////////////////////////////////////////
+		// shader inputs
         // NOTE: The vertex memory layout must be compatible with the layouts of other(pcd, triangle mesh, ...) shaders.
-        layout (location = 0) in vec3 vi_vertPos; // object-space vertex position
-        layout (location = 1) in vec3 vi_vertNormal; // object-space vertex normal
+		////////////////////////////////////////////
+        layout (location = 0) in vec3 vsi_vertPos; // object-space vertex position
+        layout (location = 1) in vec3 vsi_vertNormal; // object-space vertex normal
 
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
         out VS_OUT {
             vec3 vertex_color;
             vec4 normal_end_position_clip;
-        } vs_out;
+        } vso;
 
+		////////////////////////////////////////////
+		// shader uniforms
+		////////////////////////////////////////////
         uniform mat4 u_model; // model matrix
         uniform mat4 u_view_proj; // view-projection matrix; `u_proj * u_view`
         uniform mat3 u_nm; // normal matrix; `mat3(transpose(inverse(u_model)))`
@@ -27,19 +36,19 @@ namespace triengine::shader
         void main()
         {
             // Transform vertex position to world space
-            const vec4 vertex_position_world = u_model * vec4(vi_vertPos, 1.0);
+            const vec4 vertex_position_world = u_model * vec4(vsi_vertPos, 1.0);
             
             // Transform and normalize the normal to world space
-            const vec3 normal_world = normalize(u_nm * vi_vertNormal);
+            const vec3 normal_world = normalize(u_nm * vsi_vertNormal);
 
             // Calculate the end position of the normal in world space
             const vec4 normal_end_world = vertex_position_world + vec4(normal_world * kNormalMagnitude, 0.0);
 
             // Calculate normal color
-            vs_out.vertex_color = (normal_world * 0.5) + 0.5;
+            vso.vertex_color = (normal_world * 0.5) + 0.5;
 
             // Transform the normal end position to clip space
-            vs_out.normal_end_position_clip = u_view_proj * normal_end_world;
+            vso.normal_end_position_clip = u_view_proj * normal_end_world;
 
             // Transform vertex position to clip space
             // and set gl_Position for the vertex shader pipeline
@@ -52,14 +61,20 @@ namespace triengine::shader
         layout (triangles) in;
         layout (line_strip, max_vertices = 6) out;
 
+		////////////////////////////////////////////
+		// shader inputs
+		////////////////////////////////////////////
         in VS_OUT {
             vec3 vertex_color;
             vec4 normal_end_position_clip;
-        } gs_in[];
+        } gsi[];
 
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
         out GS_OUT {
             vec3 vertex_color;
-        } gs_out;
+        } gso;
 
         const float kNormalMagnitude = 0.03; // Unit: [m]
         const float kMaxRenderDist = 5.0; // Unit: [m]
@@ -71,12 +86,12 @@ namespace triengine::shader
             const float squared_distance = dot(vertex_position_clip, vertex_position_clip); // use dot istead of length to prevent sqrt
             if (squared_distance < kMaxRenderDist * kMaxRenderDist)
             {
-                gs_out.vertex_color = gs_in[index].vertex_color;
+                gso.vertex_color = gsi[index].vertex_color;
 
                 gl_Position = vertex_position_clip;
                 EmitVertex();
 
-                gl_Position = gs_in[index].normal_end_position_clip;
+                gl_Position = gsi[index].normal_end_position_clip;
                 EmitVertex();
 
                 EndPrimitive();
@@ -93,15 +108,21 @@ namespace triengine::shader
 
     // Object Normal Visualization Fragment Shader
     static const char* const kObjectNormalVisFragmentShader = R"(
-        out vec4 FragColor;
-
+		////////////////////////////////////////////
+		// shader inputs
+		////////////////////////////////////////////
         in GS_OUT {
             vec3 vertex_color;
-        } fs_in;
+        } fsi;
+
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
+        out vec4 fso_fragColor;
 
         void main()
         {
-            FragColor = vec4(fs_in.vertex_color, 1.0); // RGBA
+            fso_fragColor = vec4(fsi.vertex_color, 1.0); // RGBA
         }
     )";
 

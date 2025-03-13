@@ -19,8 +19,7 @@ namespace triengine::visualization
 
     void offscreen_renderer::create_renderer(
         const int32_t window_width,
-        const int32_t window_height,
-        const bool multisample)
+        const int32_t window_height)
     {
         if (_flag_initialized) {
             TRIENGINE_PANIC("already created");
@@ -35,7 +34,6 @@ namespace triengine::visualization
         );
 
         ::glfwGetWindowSize(_glctx.get_glfw_window(), &_curr_window_width, &_curr_window_height);
-        _fb_sample_count = (multisample) ? 8 : 1;
 
         _scn_renderer.create(&_glctx);
 
@@ -93,7 +91,7 @@ namespace triengine::visualization
         {
             scene& scn = *_curr_scn;
             scn.get_camera()->set_view_port(view_port{ 0, 0, scn_size.x(),  scn_size.y() });
-            _scn_renderer.render_scene(scn);
+            _scn_renderer.render(_fb_main, scn);
 
             //frame_image.prepare(W, H, image_format_type::bgr);
             //GLCall(::glReadPixels(
@@ -106,18 +104,7 @@ namespace triengine::visualization
         }
         this->_end_frame();
 
-        const GLuint frame_image_texure_id = 
-            [this]() -> GLuint {
-                const bool msaa_enabled = _fb_sample_count > 1;
-                if (msaa_enabled) {
-                    _fb_main.blit_to(_fb_msaa_copy, true, false, false);
-                    return _fb_msaa_copy.color_attachment()->buffer_id;
-                } else {
-                    return _fb_main.color_attachment()->buffer_id;
-                }
-            }();
-
-        GLCall(::glBindTexture(GL_TEXTURE_2D, frame_image_texure_id));
+        GLCall(::glBindTexture(GL_TEXTURE_2D, _fb_main.color_attachment()->buffer_id));
         frame_image.prepare(scn_size.x(), scn_size.y(), image_format_type::bgra);
         GLCall(::glGetTexImage(
             GL_TEXTURE_2D,     /* GLenum target */
@@ -142,12 +129,11 @@ namespace triengine::visualization
             if (!_fb_main.is_valid())
             {
                 _fb_main = frame_buffer::create_color_depth_stencil_buffer(
-                    { GL_RGBA16F },
+                    GL_RGBA16F,
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,
                     _curr_window_width,
-                    _curr_window_height,
-                    _fb_sample_count
+                    _curr_window_height
                 );
             }
             else
@@ -156,28 +142,7 @@ namespace triengine::visualization
                 // as there is an internal reallocation-skip optimization implemented.
                 _fb_main.reallocate(
                     width_pixels,
-                    height_pixels,
-                    _fb_sample_count
-                );
-            }
-
-            if (!_fb_msaa_copy.is_valid())
-            {
-                _fb_msaa_copy = frame_buffer::create_color_only_buffer(
-                    { GL_RGBA16F },
-                    _curr_window_width,
-                    _curr_window_height,
-                    1
-                );
-            }
-            else
-            {
-                // It is okay to call reallocate every frame, 
-                // as there is an internal reallocation-skip optimization implemented.
-                _fb_msaa_copy.reallocate(
-                    width_pixels,
-                    height_pixels,
-                    1
+                    height_pixels
                 );
             }
 

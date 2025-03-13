@@ -108,6 +108,30 @@ namespace gui
             _obj_texcolor_mesh = new_obj;
         }
 
+        if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
+            triengine::io::load_obj_file(
+                triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
+                //triengine_resource_dir / "objects/car_engine/car_engine.obj",
+                *new_obj
+            ))
+        {
+            //new_obj->compute_vertex_normals();
+            new_obj->set_model(
+                triengine::math::scale(new_obj->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
+            );
+            new_obj->get_texture_shading_material()->alpha = 0.5f;
+            new_obj->apply_model_in_place();
+
+            Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+            R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
+                * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
+                * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+            new_obj->rotate(R, true);
+            new_obj->translate(triengine::vec3_f32(0.0f, -0.6f, 0.0f), true);
+            _scene->add_object(new_obj);
+            _obj_texcolor_mesh2 = new_obj;
+        }
+
         {
             auto obj_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
 

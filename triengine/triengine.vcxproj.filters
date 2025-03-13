@@ -156,6 +156,9 @@
     <ClCompile Include="src\shader.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\shader\wboit_composite_shaders.h">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -243,7 +246,7 @@
     <ClInclude Include="src\texture.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\shader\lighting_shaders.h">
+    <ClInclude Include="src\shader\light_source_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\shader\lineset_shaders.h">
@@ -403,6 +406,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\math\glm_utils.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shader\screen_quad_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shader\overlay_composite_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

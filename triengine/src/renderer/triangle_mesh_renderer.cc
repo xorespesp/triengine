@@ -14,7 +14,7 @@ namespace triengine::renderer
         _show_object_normals = enable;
     }
 
-    void triangle_mesh_renderer::create(GLFWwindow* window)
+    void triangle_mesh_renderer::create_impl(GLFWwindow* window)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -26,30 +26,31 @@ namespace triengine::renderer
         //
 
         // Create shader program
-        _shader_vertmode.create();
-        _shader_vertmode.attach_vertex_shader({ shader::glslShaderVersion, shader::kTriangleMeshVertModeVertexShader });
-        _shader_vertmode.attach_fragment_shader({ shader::glslShaderVersion, shader::kTriangleMeshVertModeFragmentShader });
-        _shader_vertmode.link();
-        
-        _shader_texmode.create();
-        _shader_texmode.attach_vertex_shader({ shader::glslShaderVersion, shader::kTriangleMeshTexModeVertexShader });
-        _shader_texmode.attach_fragment_shader({ shader::glslShaderVersion, shader::kTriangleMeshTexModeFragmentShader });
-        _shader_texmode.link();
-        
-        _shader_normal_view.create();
-        _shader_normal_view.attach_vertex_shader({ shader::glslShaderVersion, shader::kObjectNormalVisVertexShader });
-        _shader_normal_view.attach_geometry_shader({ shader::glslShaderVersion, shader::kObjectNormalVisGeometryShader });
-        _shader_normal_view.attach_fragment_shader({ shader::glslShaderVersion, shader::kObjectNormalVisFragmentShader });
-        _shader_normal_view.link();
+        _vertmode_solid_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kVertShadedTriangleMeshVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kVertShadedSolidTriangleMeshFragmentShader })
+            .link();
 
-        // Get shader index
-        _uloc_vertmode_model = _shader_vertmode.get_uniform("u_model");
-        _uloc_vertmode_view = _shader_vertmode.get_uniform("u_view");
-        _uloc_vertmode_proj = _shader_vertmode.get_uniform("u_proj");
+        _vertmode_transparent_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kVertShadedTriangleMeshVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kVertShadedTransparentTriangleMeshFragmentShader })
+            .link();
+
+        _texmode_solid_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kTexShadedTriangleMeshVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kTexShadedSolidTriangleMeshFragmentShader })
+            .link();
+
+        _texmode_transparent_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kTexShadedTriangleMeshVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kTexShadedTransparentTriangleMeshFragmentShader })
+            .link();
         
-        _uloc_texmode_model = _shader_texmode.get_uniform("u_model");
-        _uloc_texmode_view = _shader_texmode.get_uniform("u_view");
-        _uloc_texmode_proj = _shader_texmode.get_uniform("u_proj");
+        _normal_vis_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kObjectNormalVisVertexShader })
+            .attach_geometry_shader({ shader::glslShaderVersion, shader::kObjectNormalVisGeometryShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kObjectNormalVisFragmentShader })
+            .link();
 
         //
         // NOTE: Since the vertex memory layout differs depending on the shading(coloring) mode, 
@@ -149,7 +150,7 @@ namespace triengine::renderer
         GLCall(::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
     }
 
-    void triangle_mesh_renderer::destroy()
+    void triangle_mesh_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -163,48 +164,72 @@ namespace triengine::renderer
             GLCall(::glDeleteBuffers(1, &_vbo_texcoords));
             GLCall(::glDeleteBuffers(1, &_ibo));
 
-            _shader_vertmode.destroy();
-            _shader_texmode.destroy();
-            _shader_normal_view.destroy();
+            _vertmode_solid_shader.destroy();
+            _vertmode_transparent_shader.destroy();
+            _texmode_solid_shader.destroy();
+            _texmode_transparent_shader.destroy();
+            _normal_vis_shader.destroy();
         }
     }
 
-    void triangle_mesh_renderer::render(
+    void triangle_mesh_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+        const pred_callback_type predicate,
+        void* const predicate_userdata)
     {
         if (render_obj_list.empty()) {
             return;
         }
 
         // Enable depth testing
-        GLCall(::glEnable(GL_DEPTH_TEST));
+        //GLCall(::glEnable(GL_DEPTH_TEST));
 
-        this->_render_vertex_shading_objects(render_ctx, render_obj_list);
-        this->_render_texture_shading_objects(render_ctx, render_obj_list);
+        this->_render_vertex_shading_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
+        this->_render_texture_shading_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
 
         if (_show_object_normals) { // for debugging
-            this->_render_objects_normals(render_ctx, render_obj_list);
+            this->_render_objects_normals(render_ctx, render_obj_list, predicate, predicate_userdata);
         }
     }
 
     void triangle_mesh_renderer::_render_vertex_shading_objects(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects)
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
-        _shader_vertmode.use();
+        auto& draw_shader =
+            (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering)
+            ? _vertmode_transparent_shader
+            : _vertmode_solid_shader;
 
-        // Update view, projection matrices
-        GLCall(::glUniformMatrix4fv(_uloc_vertmode_view, 1, GL_FALSE, render_ctx.view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_vertmode_proj, 1, GL_FALSE, render_ctx.projection.data()));
+        draw_shader.use();
+
+        // Update view/projection matrices in shader
+        draw_shader.set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
         // Update light options in shader
-        render_ctx.light_opts->apply_to_shader(_shader_vertmode);
+        render_ctx.light_opts->apply_to_shader(draw_shader);
 
         for (const auto& object : render_objects)
         {
             if (!object->is_visible() || object->get_shading_mode() != geometry::triangle_mesh_object::shading_mode::vertex) {
                 continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
+                continue;
+            }
+
+            switch (render_ctx.curr_render_pass) {
+            case render_pass_type::wboit_solid_rendering:
+                if (!object->is_opaque()) { continue; }
+                break;
+            case render_pass_type::wboit_transparent_rendering:
+                if (object->is_opaque()) { continue; }
+                break;
             }
 
             const auto& vertex_positions = object->vertex_positions;
@@ -220,16 +245,21 @@ namespace triengine::renderer
 
             // Update model(transform) matrix
             const mat4_f32& model = object->get_model();
-            GLCall(::glUniformMatrix4fv(_uloc_vertmode_model, 1, GL_FALSE, model.data()));
+            draw_shader.set_uniform_mat4("u_model", model);
 
             // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-            _shader_vertmode.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
+            draw_shader.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update material
-            _shader_vertmode.set_uniform_float("u_material.ambient", material->ambient);
-            _shader_vertmode.set_uniform_float("u_material.diffuse", material->diffuse);
-            _shader_vertmode.set_uniform_float("u_material.specular", material->specular);
-            _shader_vertmode.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
+            draw_shader.set_uniform_float("u_material.ambient", material->ambient);
+            draw_shader.set_uniform_float("u_material.diffuse", material->diffuse);
+            draw_shader.set_uniform_float("u_material.specular", material->specular);
+            draw_shader.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
+
+            // Update alpha material (WBOIT)
+            if (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering) {
+                draw_shader.set_uniform_float("u_material.alpha", material->alpha);
+            }
 
             // Update VAO
             // ********************************************************************************
@@ -289,21 +319,41 @@ namespace triengine::renderer
 
     void triangle_mesh_renderer::_render_texture_shading_objects(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects)
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
-        _shader_texmode.use();
+        auto& draw_shader = 
+            (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering)
+            ? _texmode_transparent_shader
+            : _texmode_solid_shader;
+
+        draw_shader.use();
         
-        // Update view, projection matrices
-        GLCall(::glUniformMatrix4fv(_uloc_texmode_view, 1, GL_FALSE, render_ctx.view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_texmode_proj, 1, GL_FALSE, render_ctx.projection.data()));
+        // Update view, projection matrices in shader
+        draw_shader.set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
         // Update light options in shader
-        render_ctx.light_opts->apply_to_shader(_shader_texmode);
+        render_ctx.light_opts->apply_to_shader(draw_shader);
 
         for (const auto& object : render_objects)
         {
             if (!object->is_visible() || object->get_shading_mode() != geometry::triangle_mesh_object::shading_mode::texture) {
                 continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
+                continue;
+            }
+
+            switch (render_ctx.curr_render_pass) {
+            case render_pass_type::wboit_solid_rendering:
+                if (!object->is_opaque()) { continue; }
+                break;
+            case render_pass_type::wboit_transparent_rendering:
+                if (object->is_opaque()) { continue; }
+                break;
             }
 
             const auto& vertex_positions = object->vertex_positions;
@@ -317,25 +367,30 @@ namespace triengine::renderer
             TRIENGINE_ASSERT(!triangle_indices.empty());
             TRIENGINE_ASSERT(material != nullptr && material->is_valid());
 
-            // Update model(transform) matrix
+            // Update model(transform) matrix in shader
             const mat4_f32& model = object->get_model();
-            GLCall(::glUniformMatrix4fv(_uloc_texmode_model, 1, GL_FALSE, model.data()));
+            draw_shader.set_uniform_mat4("u_model", model);
 
             // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-            _shader_texmode.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
+            draw_shader.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
 
             // Update material shininess
-            _shader_texmode.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
+            draw_shader.set_uniform_float("u_material.shininess", static_cast<float>(material->shininess));
 
             // Update material diffuse map
-            _shader_texmode.set_uniform_int("u_material.diffuse", 0);
+            draw_shader.set_uniform_int("u_material.diffuse", 0);
             ::glActiveTexture(GL_TEXTURE0);
             ::glBindTexture(GL_TEXTURE_2D, material->diffuse_map.id());
             
             // Update material specular map
-            _shader_texmode.set_uniform_int("u_material.specular", 1);
+            draw_shader.set_uniform_int("u_material.specular", 1);
             ::glActiveTexture(GL_TEXTURE1);
             ::glBindTexture(GL_TEXTURE_2D, material->specular_map.id());
+
+            // Update alpha material (WBOIT)
+            if (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering) {
+                draw_shader.set_uniform_float("u_material.alpha", material->alpha);
+            }
 
             // Update VAO
             // ********************************************************************************
@@ -395,16 +450,23 @@ namespace triengine::renderer
 
     void triangle_mesh_renderer::_render_objects_normals(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects)
+        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
-        _shader_normal_view.use();
+        auto& draw_shader = _normal_vis_shader;
+        draw_shader.use();
 
         // Update view, projection matrices
-        _shader_normal_view.set_uniform_mat4("u_view_proj", render_ctx.projection * render_ctx.view);
+        draw_shader.set_uniform_mat4("u_view_proj", render_ctx.projection * render_ctx.view);
 
         for (const auto& object : render_objects)
         {
             if (!object->is_visible()) {
+                continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
                 continue;
             }
 
@@ -417,10 +479,10 @@ namespace triengine::renderer
 
             // Update model(transform) matrix
             const mat4_f32& model = object->get_model();
-            _shader_normal_view.set_uniform_mat4("u_model", model);
+            draw_shader.set_uniform_mat4("u_model", model);
 
             // Update normal matrix; `mat3(transpose(inverse(u_model)))`
-            _shader_normal_view.set_uniform_mat3("u_nm", model.inverse().transpose().topLeftCorner<3, 3>());
+            draw_shader.set_uniform_mat3("u_nm", model.inverse().transpose().topLeftCorner<3, 3>());
 
 
             // Update VAO

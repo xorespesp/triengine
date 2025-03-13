@@ -8,7 +8,7 @@ namespace triengine::renderer
     lineset_renderer::lineset_renderer()
     { }
 
-    void lineset_renderer::create(GLFWwindow* window)
+    void lineset_renderer::create_impl(GLFWwindow* window)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -20,15 +20,10 @@ namespace triengine::renderer
         //
 
         // Create shader program
-        _shader.create();
-        _shader.attach_vertex_shader({ shader::glslShaderVersion, shader::kLinesetVertexShader });
-        _shader.attach_fragment_shader({ shader::glslShaderVersion, shader::kLinesetFragmentShader });
-        _shader.link();
-
-        // Get shader index
-        _uloc_model = _shader.get_uniform("u_model");
-        _uloc_view = _shader.get_uniform("u_view");
-        _uloc_proj = _shader.get_uniform("u_proj");
+        _shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kLinesetVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kLinesetFragmentShader })
+            .link();
 
         // ********************** Generate Vertex Array Object (VAO) **********************
         // Create & Bind VAO
@@ -58,7 +53,7 @@ namespace triengine::renderer
         // ********************************************************************************
     }
 
-    void lineset_renderer::destroy()
+    void lineset_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -72,31 +67,42 @@ namespace triengine::renderer
         }
     }
 
-    void lineset_renderer::render(
+    void lineset_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
+        if (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering) {
+            return;
+        }
+
         if (render_obj_list.empty()) {
             return;
         }
 
+        auto& draw_shader = _shader;
+        draw_shader.use();
+
         // Enable depth testing
-        GLCall(::glEnable(GL_DEPTH_TEST));
+        //GLCall(::glEnable(GL_DEPTH_TEST));
 
         // Enable smooth line
         //GLCall(::glEnable(GL_LINE_SMOOTH));
 
         GLCall(::glLineWidth(1.0f));
 
-        _shader.use();
-
         // Update view/projective matrices in shader
-        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, render_ctx.view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_proj, 1, GL_FALSE, render_ctx.projection.data()));
+        draw_shader.set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
         for (const auto& object : render_obj_list)
         {
             if (!object->is_visible()) {
+                continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
                 continue;
             }
 
@@ -106,8 +112,8 @@ namespace triengine::renderer
 
             TRIENGINE_ASSERT(line_points.size() == line_colors.size());
 
-            // update model(transform) matrix
-            GLCall(::glUniformMatrix4fv(_uloc_model, 1, GL_FALSE, object->get_model().data()));
+            // update model(transform) matrix in shader
+            draw_shader.set_uniform_mat4("u_model", object->get_model());
 
             // Update VAO
             // ********************************************************************************

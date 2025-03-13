@@ -5,37 +5,52 @@ namespace triengine::shader
 {
     // Lineset Object Vertex Shader
     static const char* const kLinesetVertexShader = R"(
-        layout(location = 0) in vec3 vi_vertPos; // object-space vertex position
-        layout(location = 1) in vec3 vi_vertColor; // vertex color
+		////////////////////////////////////////////
+		// shader inputs
+		////////////////////////////////////////////
+        layout(location = 0) in vec3 vsi_vertPos; // object-space vertex position
+        layout(location = 1) in vec3 vsi_vertColor; // vertex color
         
-        out VertOut
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
+        out VS_OUT
         {
             vec3 fragColor; // fragment color.
-        } vo;
+        } vso;
 
+		////////////////////////////////////////////
+		// shader uniforms
+		////////////////////////////////////////////
         uniform mat4 u_model; // model matrix
         uniform mat4 u_view; // view matrix
         uniform mat4 u_proj; // projection matrix
 
         void main()
         {
-            gl_Position = u_proj * u_view * u_model * vec4(vi_vertPos, 1.0);
-            vo.fragColor = vi_vertColor;
+            gl_Position = u_proj * u_view * u_model * vec4(vsi_vertPos, 1.0);
+            vso.fragColor = vsi_vertColor;
         }
     )";
     
     // Lineset Object Fragment Shader
     static const char* const kLinesetFragmentShader = R"(
-        in VertOut
+		////////////////////////////////////////////
+		// shader inputs
+		////////////////////////////////////////////
+        in VS_OUT
         {
             vec3 fragColor; // fragment color
-        } fi;
+        } fsi;
 
-        out vec4 fo_fragColor;
+		////////////////////////////////////////////
+		// shader outputs
+		////////////////////////////////////////////
+        out vec4 fso_fragColor;
 
         void main()
         {
-            fo_fragColor = vec4(fi.fragColor, 1.0/* alpha */);
+            fso_fragColor = vec4(fsi.fragColor, 1.0/* alpha */);
         }
     )";
 

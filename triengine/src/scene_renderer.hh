@@ -12,6 +12,9 @@
 #include "renderer/pcd_renderer.hh"
 #include "renderer/skeleton_renderer.hh"
 
+#include "shader/wboit_composite_shaders.h"
+#include "shader/screen_quad_shaders.h"
+
 #include <memory>
 
 namespace triengine
@@ -24,7 +27,10 @@ namespace triengine
         void create(gl_context* glctx);
         void destroy();
 
-        void render_scene(scene& target_scn);
+        void render(
+            const frame_buffer& target_fb,
+            scene& target_scn
+        );
 
     private:
         // Sub-renderers
@@ -35,7 +41,17 @@ namespace triengine
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;
 
-        std::shared_ptr<geometry::light_source_object> _point_light_source_object;
+        frame_buffer _wboit_fb;
+        frame_buffer _overlay_fb;
+
+        shader_program _wboit_composite_shader;
+        shader_program _overlay_composite_shader;
+        shader_program _screen_quad_shader;
+        
+        GLuint _vao_screen_quad{};
+        GLuint _vbo_screen_quad{};
+        
+        std::list<std::shared_ptr<geometry::light_source_object>> _light_source_objects;
 
     }; // class
 

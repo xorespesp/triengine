@@ -7,14 +7,16 @@
 namespace triengine::renderer
 {
     class pcd_renderer
-        : public object_renderer_base<geometry::pcd_object>
+        : public object_renderer_base<pcd_renderer, geometry::pcd_object>
     {
     private:
         // Render options
         std::optional<float> _point_size;
 
         // OpenGL shaders
-        shader_program _shader;
+        shader_program 
+            _solid_shader, 
+            _transparent_shader;
 
         // OpenGL objects
         GLuint _vao{}; // vertex array object
@@ -23,23 +25,21 @@ namespace triengine::renderer
             _vbo_normals{}, 
             _vbo_colors{};
 
-        // OpenGL shader uniform locations
-        GLint _uloc_model{}; // model matrix
-        GLint _uloc_view{}; // view matrix
-        GLint _uloc_proj{}; // projection matrix
-
     public:
         pcd_renderer();
         virtual ~pcd_renderer();
 
         void set_pcd_point_size(float point_size);
 
-        void create(GLFWwindow* window) override;
-        void destroy() override;
-        void render(
+        // CRTP methods
+        void create_impl(GLFWwindow* window);
+        void destroy_impl();
+        void render_impl(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list
-        ) override;
+            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+            pred_callback_type predicate,
+            void* predicate_userdata);
+
     };
 
 } // namespace

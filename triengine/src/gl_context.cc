@@ -121,7 +121,8 @@ namespace triengine
         const bool visible,
         const int32_t width,
         const int32_t height,
-        const bool fullscreen)
+        const bool fullscreen,
+        const bool enable_vsync)
     {
         if (_flag_initialized) {
             TRIENGINE_PANIC("gl_context already created");
@@ -255,7 +256,7 @@ namespace triengine
         }
 
         // glfwSwapInterval(1) -> Enable vsync
-        ::glfwSwapInterval((visible) ? 1 : 0);
+        ::glfwSwapInterval((enable_vsync) ? 1 : 0);
 
         _flag_initialized = true;
         TRIENGINE_TRACE(

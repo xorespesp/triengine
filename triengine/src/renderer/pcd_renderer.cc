@@ -13,7 +13,7 @@ namespace triengine::renderer
         this->destroy();
     }
 
-    void pcd_renderer::create(GLFWwindow* window)
+    void pcd_renderer::create_impl(GLFWwindow* window)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -27,14 +27,15 @@ namespace triengine::renderer
         GLCall(::glEnable(GL_PROGRAM_POINT_SIZE));
 
         // Create shader program
-        _shader.create();
-        _shader.attach_vertex_shader({ shader::glslShaderVersion, shader::kPcdVertexShader });
-        _shader.attach_fragment_shader({ shader::glslShaderVersion, shader::kPcdFragmentShader });
-        _shader.link();
+        _solid_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kPcdVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kSolidPcdFragmentShader })
+            .link();
 
-        _uloc_model = _shader.get_uniform("u_model");
-        _uloc_view = _shader.get_uniform("u_view");
-        _uloc_proj = _shader.get_uniform("u_proj");
+        _transparent_shader
+            .attach_vertex_shader({ shader::glslShaderVersion, shader::kPcdVertexShader })
+            .attach_fragment_shader({ shader::glslShaderVersion, shader::kTransparentPcdFragmentShader })
+            .link();
 
         // ********************** Generate Vertex Array Object (VAO) **********************
         // Create & Bind VAO
@@ -65,7 +66,7 @@ namespace triengine::renderer
         // ********************************************************************************
     }
 
-    void pcd_renderer::destroy()
+    void pcd_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -76,7 +77,8 @@ namespace triengine::renderer
             GLCall(::glDeleteBuffers(1, &_vbo_normals));
             GLCall(::glDeleteBuffers(1, &_vbo_colors));
 
-            _shader.destroy();
+            _solid_shader.destroy();
+            _transparent_shader.destroy();
         }
     }
 
@@ -85,25 +87,32 @@ namespace triengine::renderer
         _point_size = point_size;
     }
 
-    void pcd_renderer::render(
+    void pcd_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list)
+        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
+        pred_callback_type const predicate,
+        void* const predicate_userdata)
     {
         if (render_obj_list.empty()) {
             return;
         }
 
         // Enable depth testing
-        GLCall(::glEnable(GL_DEPTH_TEST));
-        
-        _shader.use();
+        //GLCall(::glEnable(GL_DEPTH_TEST));
 
-        // Update model/view/projective matrices in shader
-        GLCall(::glUniformMatrix4fv(_uloc_view, 1, GL_FALSE, render_ctx.view.data()));
-        GLCall(::glUniformMatrix4fv(_uloc_proj, 1, GL_FALSE, render_ctx.projection.data()));
+        auto& draw_shader =
+            (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering)
+            ? _transparent_shader
+            : _solid_shader;
+
+        draw_shader.use();
+
+        // Update view/projective matrices in shader
+        draw_shader.set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
         // Update light options in shader
-        render_ctx.light_opts->apply_to_shader(_shader);
+        render_ctx.light_opts->apply_to_shader(draw_shader);
 
         // Update point size
         GLCall(::glPointSize(static_cast<GLfloat>(_point_size.value_or(1.0f/* default size */))));
@@ -114,9 +123,23 @@ namespace triengine::renderer
                 continue;
             }
 
+            if (predicate && !predicate(*object, predicate_userdata)) {
+                continue;
+            }
+
+            switch (render_ctx.curr_render_pass) {
+            case render_pass_type::wboit_solid_rendering:
+                if (!object->is_opaque()) { continue; }
+                break;
+            case render_pass_type::wboit_transparent_rendering:
+                if (object->is_opaque()) { continue; }
+                break;
+            }
+
             const auto& point_positions = object->points;
             const auto& point_normals = object->normals;
             const auto& point_colors = object->colors;
+            const auto& material = object->material;
 
             TRIENGINE_ASSERT(point_positions.size() == point_colors.size());
             TRIENGINE_ASSERT(point_normals.size() == point_positions.size() || point_normals.empty());
@@ -125,12 +148,23 @@ namespace triengine::renderer
                 continue;
             }
 
-            // Update model(transform) matrix
+            // Update model(transform) matrix in shader
             const mat4_f32& model = object->get_model();
-            GLCall(::glUniformMatrix4fv(_uloc_model, 1, GL_FALSE, model.data()));
+            draw_shader.set_uniform_mat4("u_model", model);
 
             // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-            _shader.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
+            draw_shader.set_uniform_mat3("u_nmv", (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
+
+            // Update material
+            draw_shader.set_uniform_float("u_material.ambient", material.ambient);
+            draw_shader.set_uniform_float("u_material.diffuse", material.diffuse);
+            draw_shader.set_uniform_float("u_material.specular", material.specular);
+            draw_shader.set_uniform_float("u_material.shininess", static_cast<float>(material.shininess));
+
+            // Update alpha material (WBOIT)
+            if (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering) {
+                draw_shader.set_uniform_float("u_material.alpha", material.alpha);
+            }
 
             // Update VAO
             // ********************************************************************************

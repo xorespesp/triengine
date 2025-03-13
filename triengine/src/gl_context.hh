@@ -29,7 +29,8 @@ namespace triengine
             bool visible = true,
             int32_t width = -1,
             int32_t height = -1,
-            bool fullscreen = false
+            bool fullscreen = false,
+            bool enable_vsync = false
         );
 
         void destroy();

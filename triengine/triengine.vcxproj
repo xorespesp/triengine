@@ -63,6 +63,7 @@
     <ClCompile Include="src\scene.cc" />
     <ClCompile Include="src\scene_renderer.cc" />
     <ClCompile Include="src\shader.cc" />
+    <ClCompile Include="src\shader\wboit_composite_shaders.h" />
     <ClCompile Include="src\texture.cc" />
     <ClCompile Include="src\visualization\offscreen_renderer.cc" />
     <ClCompile Include="src\visualization\visualizer.cc" />
@@ -144,10 +145,12 @@
     <ClInclude Include="src\scene_renderer.hh" />
     <ClInclude Include="src\shader.hh" />
     <ClInclude Include="src\shader\infinite_grid_shaders.h" />
-    <ClInclude Include="src\shader\lighting_shaders.h" />
+    <ClInclude Include="src\shader\light_source_shaders.h" />
     <ClInclude Include="src\shader\lineset_shaders.h" />
     <ClInclude Include="src\shader\normal_vis_shaders.h" />
+    <ClInclude Include="src\shader\overlay_composite_shaders.h" />
     <ClInclude Include="src\shader\pcd_shaders.h" />
+    <ClInclude Include="src\shader\screen_quad_shaders.h" />
     <ClInclude Include="src\shader\shader_version.h" />
     <ClInclude Include="src\shader\triangle_mesh_shaders.h" />
     <ClInclude Include="src\texture.hh" />
