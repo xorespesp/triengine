@@ -8,3 +8,12 @@ It uses `Eigen` for its internal math operations, making it convenient for proje
 - Triangle mesh rendering
 - Lighting system
 - Order-Independent Transparency
+
+### TODO List
+- Anti Aliasing (SMAA, TAA, ...)
+- Skybox
+- Object-Picking(+Outlining) / imguigazmo
+- PBR 
+- Advanced Lighting (Disney Diffuse, Cook-Torrance BRDF, ...)
+- Camera Interface
+- Various file type loading
