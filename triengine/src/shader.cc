@@ -3,8 +3,12 @@
 #include "misc/debug_utils.hh"
 #include "misc/gl_utils.hh"
 
+#include <fstream>
+#include <sstream>
+
 namespace triengine
 {
+    // compile from source string
     shader_program::shader_object::shader_object(
         shader_object_type shader_type,
         std::initializer_list<const GLchar*> shader_sources)
@@ -34,11 +38,55 @@ namespace triengine
         }
     }
 
+    // compile from source file
     shader_program::shader_object::shader_object(
         shader_object_type shader_type,
-        const GLchar* shader_source)
-        : shader_object(shader_type, { shader_source })
+        const std::filesystem::path& shader_file_path)
+        : _type{ shader_type }
     {
+        std::string shader_file_content;
+
+        try
+        {
+            std::ifstream f;
+            f.exceptions(std::ifstream::failbit | std::ifstream::badbit); // ensure ifstream objects can throw exceptions
+            f.open(shader_file_path);
+            std::stringstream ss;
+            ss << f.rdbuf();
+            shader_file_content = ss.str();
+            f.close();
+        }
+        catch (const std::ifstream::failure& e)
+        {
+            TRIENGINE_TRACE("failed to read shader file: %s (file path: %s)"
+                , e.what()
+                , shader_file_path.string().c_str()
+            );
+        }
+
+        // NOTE: `glCreateShader()` returns 0 if an error occurs creating the shader object.
+        _shader_id = ::glCreateShader(static_cast<std::underlying_type_t<shader_object_type>>(shader_type));
+        if (!_shader_id) {
+            TRIENGINE_PANIC("Failed to create shader object");
+        }
+
+        const std::initializer_list<const GLchar*> shader_sources = { shader_file_content.c_str() };
+        ::glShaderSource(_shader_id, static_cast<GLsizei>(shader_sources.size()), shader_sources.begin(), nullptr);
+        ::glCompileShader(_shader_id);
+
+        // validate shader
+        GLint gl_success = GL_FALSE;
+        ::glGetShaderiv(_shader_id, GL_COMPILE_STATUS, &gl_success);
+        if (!gl_success) {
+            GLint info_log_len{};
+            ::glGetShaderiv(_shader_id, GL_INFO_LOG_LENGTH, &info_log_len);
+
+            std::string info_log;
+            info_log.resize(info_log_len);
+            ::glGetShaderInfoLog(_shader_id, info_log_len, &info_log_len, info_log.data());
+
+            TRIENGINE_PANIC("Failed to compile shader object: %s", info_log.c_str());
+        }
     }
 
     shader_program::shader_object::~shader_object() {
@@ -118,18 +166,39 @@ namespace triengine
         return _program_id != kInvalidProgramID;
     }
 
-    shader_program::this_type& shader_program::attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources) {
+    shader_program::this_type& shader_program::attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources)
+    {
         this->_attach_shader(shader_object{ shader_object_type::vertex, shader_sources });
         return *this;
     }
 
-    shader_program::this_type& shader_program::attach_fragment_shader(std::initializer_list<const GLchar*> shader_sources) {
+    shader_program::this_type& shader_program::attach_vertex_shader(const std::filesystem::path& shader_file_path)
+    {
+        this->_attach_shader(shader_object{ shader_object_type::vertex, shader_file_path });
+        return *this;
+    }
+
+    shader_program::this_type& shader_program::attach_fragment_shader(std::initializer_list<const GLchar*> shader_sources)
+    {
         this->_attach_shader(shader_object{ shader_object_type::fragment, shader_sources });
         return *this;
     }
 
-    shader_program::this_type& shader_program::attach_geometry_shader(std::initializer_list<const GLchar*> shader_sources) {
+    shader_program::this_type& shader_program::attach_fragment_shader(const std::filesystem::path& shader_file_path)
+    {
+        this->_attach_shader(shader_object{ shader_object_type::fragment, shader_file_path });
+        return *this;
+    }
+
+    shader_program::this_type& shader_program::attach_geometry_shader(std::initializer_list<const GLchar*> shader_sources)
+    {
         this->_attach_shader(shader_object{ shader_object_type::geometry, shader_sources });
+        return *this;
+    }
+
+    shader_program::this_type& shader_program::attach_geometry_shader(const std::filesystem::path& shader_file_path)
+    {
+        this->_attach_shader(shader_object{ shader_object_type::geometry, shader_file_path });
         return *this;
     }
 

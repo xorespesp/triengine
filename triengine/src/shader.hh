@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <filesystem>
 #include <vector>
-#include <array>
 #include <string>
 
 namespace triengine
@@ -40,7 +39,7 @@ namespace triengine
 
             shader_object(
                 shader_object_type shader_type,
-                const GLchar* shader_source
+                const std::filesystem::path& shader_file_path
             );
 
             ~shader_object();
@@ -75,8 +74,13 @@ namespace triengine
         bool is_valid() const noexcept;
 
         this_type& attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources);
+        this_type& attach_vertex_shader(const std::filesystem::path& shader_file_path);
+
         this_type& attach_fragment_shader(std::initializer_list<const GLchar*> shader_sources);
+        this_type& attach_fragment_shader(const std::filesystem::path& shader_file_path);
+
         this_type& attach_geometry_shader(std::initializer_list<const GLchar*> shader_sources);
+        this_type& attach_geometry_shader(const std::filesystem::path& shader_file_path);
 
         void link();
         void use();
