@@ -17,6 +17,7 @@ namespace triengine
         {
             switch (num_channels) {
             case 1:  return image_format_type::greyscale;
+            case 2:  return image_format_type::rg;
             case 3:  return image_format_type::rgb;
             case 4:  return image_format_type::rgba;
             default: return image_format_type::invalid;
@@ -34,6 +35,10 @@ namespace triengine
                 // For older OpenGL, consider using GL_RED or GL_LUMINANCE.
                 texture_internal_format = GL_R8;
                 texture_format = GL_RED;
+                return true;
+            case image_format_type::rg:
+                texture_internal_format = GL_RG8;
+                texture_format = GL_RG;
                 return true;
             case image_format_type::rgb:
                 // Using GL_RGB8 as a recommended 8-bit internal format.

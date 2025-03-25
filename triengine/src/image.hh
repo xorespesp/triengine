@@ -6,13 +6,15 @@
 
 namespace triengine
 {
-    // Ref: 
+    // Ref:
+    // https://docs.gl/gl4/glTexImage2D (Table 1, Table 2)
     // https://stackoverflow.com/a/4745945
     // https://stackoverflow.com/a/34497547
     enum class image_format_type : GLenum
     {
         invalid = 0,
         greyscale = GL_RED, // 1 channel (Ref: https://stackoverflow.com/a/69113182)
+        rg = GL_RG, // 2 channel
         rgb = GL_RGB, // 3 channel
         bgr = GL_BGR, // 3 channel (NOTE: not a internal format, just a format)
         rgba = GL_RGBA, // 4 channel
@@ -76,6 +78,8 @@ namespace triengine
                     switch (format) {
                     case image_format_type::greyscale:
                         return 1u;
+                    case image_format_type::rg:
+                        return 2u;
                     case image_format_type::rgb:
                     case image_format_type::bgr:
                         return 3u;

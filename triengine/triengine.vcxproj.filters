@@ -159,6 +159,9 @@
     <ClCompile Include="src\shader\wboit_composite_shaders.h">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\shader_preprocessor.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -412,6 +415,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\shader\overlay_composite_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shader_preprocessor.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
