@@ -1,13 +1,13 @@
 #pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
 	//
 	// Overlay Rendering Composite Shader (for skeleton_renderer)
 	//
 
-	static const char* const kOverlayCompositeVertexShader = R"(
+	static const char* const kOverlayCompositeVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -17,9 +17,9 @@ namespace triengine::shader
 		{
 			gl_Position = vec4(vsi_vertPos, 1.0f);
 		}
-    )";
+    )glsl";
 
-	static const char* const kOverlayCompositeFragmentShader = R"(
+	static const char* const kOverlayCompositeFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader outputs
 		////////////////////////////////////////////
@@ -41,6 +41,6 @@ namespace triengine::shader
 			// blend pixels
 			fso_fragColor = srcFragment;
 		}
-    )";
+    )glsl";
 
 } // namespace

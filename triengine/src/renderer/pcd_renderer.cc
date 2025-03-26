@@ -1,6 +1,6 @@
 #include "pcd_renderer.hh"
 
-#include "../shader/pcd_shaders.h"
+#include "../shaders/pcd_shaders.h"
 #include "../misc/debug_utils.hh"
 
 namespace triengine::renderer
@@ -13,12 +13,12 @@ namespace triengine::renderer
         this->destroy();
     }
 
-    void pcd_renderer::create_impl(GLFWwindow* window)
+    void pcd_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(window);
+        ::glfwMakeContextCurrent(glctx.get_glfw_window());
 
         //
         // Context Settings
@@ -28,13 +28,13 @@ namespace triengine::renderer
 
         // Create shader program
         _solid_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kPcdVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kSolidPcdFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kPcdVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kSolidPcdFragmentShader).c_str() })
             .link();
 
         _transparent_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kPcdVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kTransparentPcdFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kPcdVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTransparentPcdFragmentShader).c_str() })
             .link();
 
         // ********************** Generate Vertex Array Object (VAO) **********************

@@ -2,7 +2,8 @@
 #include "misc/string_utils.hh"
 #include "misc/debug_utils.hh"
 #include "misc/gl_utils.hh"
-#include "shader/overlay_composite_shaders.h"
+#include "shaders/includes/phong_lighting_shaders.h"
+#include "shaders/overlay_composite_shaders.h"
 
 namespace triengine
 {
@@ -34,26 +35,29 @@ namespace triengine
         GLCall(::glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
         GLCall(::glClearDepth(1.0f));
 
-        _infgrid_renderer.create(glctx->get_glfw_window());
-        _light_source_renderer.create(glctx->get_glfw_window());
-        _mesh_renderer.create(glctx->get_glfw_window());
-        _lineset_renderer.create(glctx->get_glfw_window());
-        _pcd_renderer.create(glctx->get_glfw_window());
-        _skeleton_renderer.create(glctx->get_glfw_window());
+        _shader_prep = std::make_unique<shader_preprocessor>();
+        _shader_prep->register_system_include_from_memory("phong_lighting", shaders::includes::kPhongLightingShaders);
+
+        _infgrid_renderer.create(*glctx, *_shader_prep);
+        _light_source_renderer.create(*glctx, *_shader_prep);
+        _mesh_renderer.create(*glctx, *_shader_prep);
+        _lineset_renderer.create(*glctx, *_shader_prep);
+        _pcd_renderer.create(*glctx, *_shader_prep);
+        _skeleton_renderer.create(*glctx, *_shader_prep);
 
         _wboit_composite_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kWBOITCompositeVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kWBOITCompositeFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kWBOITCompositeVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kWBOITCompositeFragmentShader).c_str() })
             .link();
 
         _screen_quad_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kScreenQuadVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kScreenQuadFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kScreenQuadVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kScreenQuadFragmentShader).c_str() })
             .link();
 
         _overlay_composite_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kOverlayCompositeVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kOverlayCompositeFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kOverlayCompositeVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kOverlayCompositeFragmentShader).c_str() })
             .link();
 
         // Create screen-quad VAO

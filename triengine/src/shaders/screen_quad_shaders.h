@@ -2,13 +2,13 @@
 #pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
 	//
 	// Screen-Quad Shader (Used in WBOIT)
 	//
 
-	static const char* const kScreenQuadVertexShader = R"(
+	static const char* const kScreenQuadVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -28,9 +28,9 @@ namespace triengine::shader
 
 			gl_Position = vec4(vsi_vertPos, 1.0f);
 		}
-    )";
+    )glsl";
 
-	static const char* const kScreenQuadFragmentShader = R"(
+	static const char* const kScreenQuadFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -54,6 +54,6 @@ namespace triengine::shader
 				texture(u_screenTexture, fsi.texCoord).rgba;
 				//vec4(texture(u_screenTexture, fsi.texCoord).rgb, 1.0f);
 		}
-    )";
+    )glsl";
 
 } // namespace

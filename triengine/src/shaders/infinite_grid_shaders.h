@@ -1,10 +1,10 @@
 ﻿#pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
     // Infinite Grid Vertex Shader
-    static const char* const kInfiniteGridVertexShader = R"(
+    static const char* const kInfiniteGridVertexShader = R"glsl(
         const vec3 g_vertexPositions[4] = vec3[4](
 	        vec3(-1.0, 0.0, -1.0), // [0]: bottom left
 	        vec3( 1.0, 0.0, -1.0), // [1]: bottom right
@@ -49,10 +49,10 @@ namespace triengine::shader
             vso.eyePos = u_eyePos;
             vso.gridSize = u_gridSize;
         }
-    )";
+    )glsl";
 
     // Infinite Grid Fragment Shader
-    static const char* const kInfiniteGridFragmentShader = R"(
+    static const char* const kInfiniteGridFragmentShader = R"glsl(
         #define WBOIT_ENABLED 1
 
 		////////////////////////////////////////////
@@ -212,6 +212,6 @@ namespace triengine::shader
         #endif // ^^^ !WBOIT_ENABLED ^^^
 
         }
-    )";
+    )glsl";
 
 } // namespace

@@ -1,19 +1,19 @@
 #include "lineset_renderer.hh"
 
 #include "../misc/debug_utils.hh"
-#include "../shader/lineset_shaders.h"
+#include "../shaders/lineset_shaders.h"
 
 namespace triengine::renderer
 {
     lineset_renderer::lineset_renderer()
     { }
 
-    void lineset_renderer::create_impl(GLFWwindow* window)
+    void lineset_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(window);
+        ::glfwMakeContextCurrent(glctx.get_glfw_window());
 
         //
         // Context Settings
@@ -21,8 +21,8 @@ namespace triengine::renderer
 
         // Create shader program
         _shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kLinesetVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kLinesetFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLinesetVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLinesetFragmentShader).c_str() })
             .link();
 
         // ********************** Generate Vertex Array Object (VAO) **********************

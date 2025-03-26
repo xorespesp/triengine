@@ -16,12 +16,12 @@ namespace triengine::renderer
         _flag_show_joint_axis = show;
     }
 
-    void skeleton_renderer::create_impl(GLFWwindow* window)
+    void skeleton_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        _mesh_renderer.create(window);
+        _mesh_renderer.create(glctx, shader_prep);
     }
 
     void skeleton_renderer::destroy_impl()

@@ -1,8 +1,8 @@
 #include "triangle_mesh_renderer.hh"
 
 #include "../misc/debug_utils.hh"
-#include "../shader/triangle_mesh_shaders.h"
-#include "../shader/normal_vis_shaders.h"
+#include "../shaders/triangle_mesh_shaders.h"
+#include "../shaders/normal_vis_shaders.h"
 
 namespace triengine::renderer
 {
@@ -14,12 +14,12 @@ namespace triengine::renderer
         _show_object_normals = enable;
     }
 
-    void triangle_mesh_renderer::create_impl(GLFWwindow* window)
+    void triangle_mesh_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(window);
+        ::glfwMakeContextCurrent(glctx.get_glfw_window());
 
         //
         // Context Settings
@@ -27,29 +27,29 @@ namespace triengine::renderer
 
         // Create shader program
         _vertmode_solid_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kVertShadedTriangleMeshVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kVertShadedSolidTriangleMeshFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedTriangleMeshVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedSolidTriangleMeshFragmentShader).c_str() })
             .link();
 
         _vertmode_transparent_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kVertShadedTriangleMeshVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kVertShadedTransparentTriangleMeshFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedTriangleMeshVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedTransparentTriangleMeshFragmentShader).c_str() })
             .link();
 
         _texmode_solid_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kTexShadedTriangleMeshVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kTexShadedSolidTriangleMeshFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedTriangleMeshVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedSolidTriangleMeshFragmentShader).c_str() })
             .link();
 
         _texmode_transparent_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kTexShadedTriangleMeshVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kTexShadedTransparentTriangleMeshFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedTriangleMeshVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedTransparentTriangleMeshFragmentShader).c_str() })
             .link();
         
         _normal_vis_shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kObjectNormalVisVertexShader })
-            .attach_geometry_shader({ shader::glslShaderVersion, shader::kObjectNormalVisGeometryShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kObjectNormalVisFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kObjectNormalVisVertexShader).c_str() })
+            .attach_geometry_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kObjectNormalVisGeometryShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kObjectNormalVisFragmentShader).c_str() })
             .link();
 
         //

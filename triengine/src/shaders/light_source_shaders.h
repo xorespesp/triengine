@@ -1,10 +1,10 @@
 #pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
     // Lighting Source Object Vertex Shader
-    static const char* const kLightSourceVertexShader = R"(
+    static const char* const kLightSourceVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -21,10 +21,10 @@ namespace triengine::shader
         {
             gl_Position = u_proj * u_view * u_model * vec4(vsi_vertPos, 1.0);
         }
-    )";
+    )glsl";
 
     // Lighting Source Object Fragment Shader
-    static const char* const kLightSourceFragmentShader = R"(
+    static const char* const kLightSourceFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader outputs
 		////////////////////////////////////////////
@@ -39,6 +39,6 @@ namespace triengine::shader
         {
             fso_fragColor = vec4(u_color, 1.0/* alpha */);
         }
-    )";
+    )glsl";
 
 } // namespace

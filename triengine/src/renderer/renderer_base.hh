@@ -1,10 +1,12 @@
 #pragma once
 #include "../common.h"
-#include "../misc/gl_utils.hh"
+#include "../gl_context.hh"
+#include "../camera.hh"
 #include "../shader.hh"
+#include "../shader_preprocessor.hh"
 #include "../texture.hh"
 #include "../lighting_options.hh"
-#include "../camera.hh"
+#include "../misc/gl_utils.hh"
 
 #include <list>
 
@@ -48,8 +50,8 @@ namespace triengine::renderer
             return _creation_flag;
         }
 
-        void create(GLFWwindow* window) {
-            static_cast<_Derived*>(this)->create_impl(window);
+        void create(gl_context& glctx, const shader_preprocessor& shader_prep) {
+            static_cast<_Derived*>(this)->create_impl(glctx, shader_prep);
         }
 
         void destroy() {
@@ -88,8 +90,8 @@ namespace triengine::renderer
             return _creation_flag;
         }
 
-        void create(GLFWwindow* window) {
-            static_cast<_Derived*>(this)->create_impl(window);
+        void create(gl_context& glctx, const shader_preprocessor& shader_prep) {
+            static_cast<_Derived*>(this)->create_impl(glctx, shader_prep);
         }
 
         void destroy() {

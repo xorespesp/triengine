@@ -23,7 +23,7 @@ namespace triengine::renderer
         void show_joint_axis(bool show);
 
         // CRTP methods
-        void create_impl(GLFWwindow* window);
+        void create_impl(gl_context& glctx, const shader_preprocessor& shader_prep);
         void destroy_impl();
         void render_impl(
             const render_context& render_ctx,

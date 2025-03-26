@@ -225,48 +225,22 @@ namespace triengine
         } // namespace
     } // namespace
 
-    /**
-     * Enable or disable debug comments in the processed output
-     *
-     * @param enable Whether to enable debug comments
-     */
     void shader_preprocessor::set_debug_comments(bool enable) {
         _opts.generate_debug_comments = enable;
     }
 
-    /**
-     * Set the maximum include depth to prevent stack overflow
-     *
-     * @param max_depth Maximum include depth allowed
-     */
     void shader_preprocessor::set_max_include_depth(uint32_t max_depth) {
         _opts.max_include_depth = max_depth;
     }
 
-    /**
-     * Set whether to allow empty include files
-     *
-     * @param allow Whether to allow empty include files
-     */
     void shader_preprocessor::set_allow_empty_includes(bool allow) {
         _opts.allow_empty_includes = allow;
     }
 
-    /**
-     * Set whether to allow including the same file multiple times
-     *
-     * @param allow Whether to allow multiple inclusion of the same file
-     */
     void shader_preprocessor::set_allow_multiple_inclusion(bool allow) {
         _opts.allow_multiple_inclusion = allow;
     }
 
-    /**
-     * Sets the default search directory for includes
-     *
-     * @param dir_path The directory path to use for resolving includes from memory shaders
-     * @throws std::runtime_error if the path is ill-formed
-     */
     void shader_preprocessor::set_default_search_directory(const std::filesystem::path& dir_path) {
         _opts.default_search_dir = detail::resolve_path(dir_path);
         TRIENGINE_TRACE("Default search directory set to: \"%s\""
@@ -274,13 +248,6 @@ namespace triengine
         );
     }
 
-    /**
-     * Registers a system include from disk.
-     *
-     * @param include_name The name of the pre-registered system include (e.g., preregistered.glsl).
-     * @param file_path The path of the pre-registered system include file.
-     * @throws std::runtime_error if the file cannot be opened
-     */
     void shader_preprocessor::register_system_include(
         std::string_view include_name,
         const std::filesystem::path& file_path)
@@ -308,13 +275,6 @@ namespace triengine
         );
     }
 
-    /**
-     * Registers a system include from memory.
-     *
-     * @param include_name The name of the pre-registered system include (e.g., preregistered.glsl).
-     * @param file_content The content of the pre-registered system include file.
-     * @throws std::runtime_error if include_name is empty
-     */
     void shader_preprocessor::register_system_include_from_memory(
         std::string_view include_name,
         std::string file_content)
@@ -345,17 +305,9 @@ namespace triengine
         );
     }
 
-    /**
-     * Preprocesses shader code from disk and handles #include preprocessor directives.
-     *
-     * @param shader_file_path The path to the shader file to be loaded.
-     * @param throw_on_error Whether to throw exceptions on error (default: true)
-     * @return A preprocessed shader file content.
-     * @throws std::runtime_error if throw_on_error is true and the file cannot be opened
-     */
     std::string shader_preprocessor::process(
         const std::filesystem::path& shader_file_path,
-        const bool throw_on_error)
+        const bool throw_on_error) const
     {
         try
         {
@@ -385,18 +337,10 @@ namespace triengine
         return "";
     }
 
-    /**
-     * Preprocesses shader code directly from memory and handles #include preprocessor directives.
-     *
-     * @param shader_source The shader source code in memory
-     * @param shader_name A virtual shader name to identify this shader (for include tracking)
-     * @param throw_on_error Whether to throw exceptions on error (default: false)
-     * @return A preprocessed shader content
-     */
     std::string shader_preprocessor::process_from_memory(
         std::string_view shader_source,
         std::string_view shader_name,
-        bool throw_on_error)
+        bool throw_on_error) const
     {
         try
         {
@@ -431,7 +375,7 @@ namespace triengine
         const std::filesystem::path& curr_shader_file_path,
         std::unordered_set<std::filesystem::path, path_hasher_t>& curr_included_files/* in-out */,
         std::stack<include_context_t>& include_stack/* in-out */,
-        const uint32_t curr_depth)
+        const uint32_t curr_depth) const
     {
         // Check for include depth overflow
         if (curr_depth > _opts.max_include_depth)

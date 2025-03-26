@@ -1,19 +1,19 @@
 #include "light_source_renderer.hh"
 
 #include "../misc/debug_utils.hh"
-#include "../shader/light_source_shaders.h"
+#include "../shaders/light_source_shaders.h"
 
 namespace triengine::renderer
 {
     light_source_renderer::light_source_renderer()
     {}
 
-    void light_source_renderer::create_impl(GLFWwindow* window)
+    void light_source_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(window);
+        ::glfwMakeContextCurrent(glctx.get_glfw_window());
 
         //
         // Context Settings
@@ -21,8 +21,8 @@ namespace triengine::renderer
 
         // Create shader program
         _shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kLightSourceVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kLightSourceFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLightSourceVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLightSourceFragmentShader).c_str() })
             .link();
 
         // ********************** Generate Vertex Array Object (VAO) **********************

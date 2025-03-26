@@ -1,10 +1,10 @@
 #pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
     // Lineset Object Vertex Shader
-    static const char* const kLinesetVertexShader = R"(
+    static const char* const kLinesetVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -31,10 +31,10 @@ namespace triengine::shader
             gl_Position = u_proj * u_view * u_model * vec4(vsi_vertPos, 1.0);
             vso.fragColor = vsi_vertColor;
         }
-    )";
+    )glsl";
     
     // Lineset Object Fragment Shader
-    static const char* const kLinesetFragmentShader = R"(
+    static const char* const kLinesetFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -52,6 +52,6 @@ namespace triengine::shader
         {
             fso_fragColor = vec4(fsi.fragColor, 1.0/* alpha */);
         }
-    )";
+    )glsl";
 
 } // namespace

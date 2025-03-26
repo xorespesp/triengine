@@ -2,8 +2,10 @@
 #include "common.h"
 
 #include "gl_context.hh"
-#include "scene.hh"
 #include "frame_buffer.hh"
+#include "scene.hh"
+#include "shader.hh"
+#include "shader_preprocessor.hh"
 
 #include "renderer/infinite_grid_renderer.hh"
 #include "renderer/light_source_renderer.hh"
@@ -12,8 +14,8 @@
 #include "renderer/pcd_renderer.hh"
 #include "renderer/skeleton_renderer.hh"
 
-#include "shader/wboit_composite_shaders.h"
-#include "shader/screen_quad_shaders.h"
+#include "shaders/wboit_composite_shaders.h"
+#include "shaders/screen_quad_shaders.h"
 
 #include <memory>
 
@@ -33,7 +35,8 @@ namespace triengine
         );
 
     private:
-        // Sub-renderers
+        std::unique_ptr<shader_preprocessor> _shader_prep;
+
         renderer::infinite_grid_renderer _infgrid_renderer;
         renderer::light_source_renderer _light_source_renderer;
         renderer::triangle_mesh_renderer _mesh_renderer;

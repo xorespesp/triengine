@@ -1,14 +1,14 @@
 #pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
     // LearnOpenGL/src/4.advanced_opengl/9.3.geometry_shader_normals/9.3.normal_visualization.vs
     // LearnOpenGL/src/4.advanced_opengl/9.3.geometry_shader_normals/9.3.normal_visualization.gs
     // LearnOpenGL/src/4.advanced_opengl/9.3.geometry_shader_normals/9.3.normal_visualization.fs
 
     // Object Normal Visualization Vertex Shader
-    static const char* const kObjectNormalVisVertexShader = R"(
+    static const char* const kObjectNormalVisVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
         // NOTE: The vertex memory layout must be compatible with the layouts of other(pcd, triangle mesh, ...) shaders.
@@ -54,10 +54,10 @@ namespace triengine::shader
             // and set gl_Position for the vertex shader pipeline
             gl_Position = u_view_proj * vertex_position_world;
         }
-    )";
+    )glsl";
 
     // Object Normal Visualization Geometry Shader
-    static const char* const kObjectNormalVisGeometryShader = R"(
+    static const char* const kObjectNormalVisGeometryShader = R"glsl(
         layout (triangles) in;
         layout (line_strip, max_vertices = 6) out;
 
@@ -104,10 +104,10 @@ namespace triengine::shader
             GenerateLine(1); // second vertex normal
             GenerateLine(2); // third vertex normal
         }
-    )";
+    )glsl";
 
     // Object Normal Visualization Fragment Shader
-    static const char* const kObjectNormalVisFragmentShader = R"(
+    static const char* const kObjectNormalVisFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -124,6 +124,6 @@ namespace triengine::shader
         {
             fso_fragColor = vec4(fsi.vertex_color, 1.0); // RGBA
         }
-    )";
+    )glsl";
 
 } // namespace

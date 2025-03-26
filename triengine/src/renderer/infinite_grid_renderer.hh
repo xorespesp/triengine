@@ -24,7 +24,7 @@ namespace triengine::renderer
         void set_options(const infinite_grid_options& options) { _options = options; }
 
         // CRTP methods
-        void create_impl(GLFWwindow* window);
+        void create_impl(gl_context& glctx, const shader_preprocessor& shader_prep);
         void destroy_impl();
         void render_impl(const render_context& render_ctx);
 

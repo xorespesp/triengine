@@ -1,7 +1,7 @@
 #include "gui_manager.hh"
 #include "../misc/debug_utils.hh"
 #include "../visualization/visualizer.hh"
-#include "../shader/shader_version.h"
+#include "../shaders/shader_version.h"
 #include "../extern/fonts/Fonts.h"
 
 #include <GLFW/glfw3.h>
@@ -71,7 +71,7 @@ namespace triengine::gui
             TRIENGINE_PANIC("ImGui_ImplGlfw_InitForOpenGL failed");
         }
 
-        if (!::ImGui_ImplOpenGL3_Init(shader::glslShaderVersion)) {
+        if (!::ImGui_ImplOpenGL3_Init(shaders::glslShaderVersion)) {
             TRIENGINE_PANIC("ImGui_ImplOpenGL3_Init failed");
         }
 

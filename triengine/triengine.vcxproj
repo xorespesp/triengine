@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -63,7 +63,6 @@
     <ClCompile Include="src\scene.cc" />
     <ClCompile Include="src\scene_renderer.cc" />
     <ClCompile Include="src\shader.cc" />
-    <ClCompile Include="src\shader\wboit_composite_shaders.h" />
     <ClCompile Include="src\shader_preprocessor.cc" />
     <ClCompile Include="src\texture.cc" />
     <ClCompile Include="src\visualization\offscreen_renderer.cc" />
@@ -145,15 +144,17 @@
     <ClInclude Include="src\render_target.hh" />
     <ClInclude Include="src\scene_renderer.hh" />
     <ClInclude Include="src\shader.hh" />
-    <ClInclude Include="src\shader\infinite_grid_shaders.h" />
-    <ClInclude Include="src\shader\light_source_shaders.h" />
-    <ClInclude Include="src\shader\lineset_shaders.h" />
-    <ClInclude Include="src\shader\normal_vis_shaders.h" />
-    <ClInclude Include="src\shader\overlay_composite_shaders.h" />
-    <ClInclude Include="src\shader\pcd_shaders.h" />
-    <ClInclude Include="src\shader\screen_quad_shaders.h" />
-    <ClInclude Include="src\shader\shader_version.h" />
-    <ClInclude Include="src\shader\triangle_mesh_shaders.h" />
+    <ClInclude Include="src\shaders\includes\phong_lighting_shaders.h" />
+    <ClInclude Include="src\shaders\infinite_grid_shaders.h" />
+    <ClInclude Include="src\shaders\light_source_shaders.h" />
+    <ClInclude Include="src\shaders\lineset_shaders.h" />
+    <ClInclude Include="src\shaders\normal_vis_shaders.h" />
+    <ClInclude Include="src\shaders\overlay_composite_shaders.h" />
+    <ClInclude Include="src\shaders\pcd_shaders.h" />
+    <ClInclude Include="src\shaders\screen_quad_shaders.h" />
+    <ClInclude Include="src\shaders\shader_version.h" />
+    <ClInclude Include="src\shaders\triangle_mesh_shaders.h" />
+    <ClInclude Include="src\shaders\wboit_composite_shaders.h" />
     <ClInclude Include="src\shader_preprocessor.hh" />
     <ClInclude Include="src\texture.hh" />
     <ClInclude Include="src\visualization\offscreen_renderer.hh" />

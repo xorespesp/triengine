@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "shader.hh"
+#include "misc/gl_utils.hh"
 
 namespace triengine
 {

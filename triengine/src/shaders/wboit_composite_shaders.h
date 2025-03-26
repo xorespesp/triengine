@@ -1,13 +1,13 @@
 #pragma once
 #include "shader_version.h"
 
-namespace triengine::shader
+namespace triengine::shaders
 {
 	//
     // Weighted Blended Order-Independent Transparency (WBOIT) Composite Shader
 	//
 
-    static const char* const kWBOITCompositeVertexShader = R"(
+    static const char* const kWBOITCompositeVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -17,9 +17,9 @@ namespace triengine::shader
 		{
 			gl_Position = vec4(vsi_vertPos, 1.0f);
 		}
-    )";
+    )glsl";
 
-    static const char* const kWBOITCompositeFragmentShader = R"(
+    static const char* const kWBOITCompositeFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader outputs
 		////////////////////////////////////////////
@@ -69,6 +69,6 @@ namespace triengine::shader
 			// blend pixels
 			fso_fragColor = vec4(average_color, 1.0f - revealage);
 		}
-    )";
+    )glsl";
 
 } // namespace

@@ -38,7 +38,7 @@ namespace triengine::renderer
         void enable_object_normal_rendering(bool enable);
 
         // CRTP methods
-        void create_impl(GLFWwindow* window);
+        void create_impl(gl_context& glctx, const shader_preprocessor& shader_prep);
         void destroy_impl();
         void render_impl(
             const render_context& render_ctx,

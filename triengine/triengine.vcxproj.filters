@@ -156,9 +156,6 @@
     <ClCompile Include="src\shader.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\shader\wboit_composite_shaders.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\shader_preprocessor.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -249,25 +246,10 @@
     <ClInclude Include="src\texture.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\shader\light_source_shaders.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shader\lineset_shaders.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shader\pcd_shaders.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shader\shader_version.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\extern\stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\lighting_options.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shader\triangle_mesh_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\geometry\geometry_object_basect_base.hh">
@@ -304,9 +286,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\io\file_obj_loader.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shader\normal_vis_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\io\file_bvh_loader.hh">
@@ -375,9 +354,6 @@
     <ClInclude Include="src\gui\windows\scene_ctrl_window.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\shader\infinite_grid_shaders.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\renderer\infinite_grid_renderer.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -411,13 +387,40 @@
     <ClInclude Include="src\math\glm_utils.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\shader\screen_quad_shaders.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\shader\overlay_composite_shaders.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\shader_preprocessor.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\includes\phong_lighting_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\infinite_grid_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\light_source_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\lineset_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\normal_vis_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\overlay_composite_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\pcd_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\screen_quad_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\shader_version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\triangle_mesh_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\wboit_composite_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

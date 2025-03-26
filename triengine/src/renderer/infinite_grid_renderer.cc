@@ -1,19 +1,19 @@
 #include "infinite_grid_renderer.hh"
 
 #include "../misc/debug_utils.hh"
-#include "../shader/infinite_grid_shaders.h"
+#include "../shaders/infinite_grid_shaders.h"
 
 namespace triengine::renderer
 {
     infinite_grid_renderer::infinite_grid_renderer()
     { }
 
-    void infinite_grid_renderer::create_impl(GLFWwindow* window)
+    void infinite_grid_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(window);
+        ::glfwMakeContextCurrent(glctx.get_glfw_window());
 
         //
         // Context Settings
@@ -21,8 +21,8 @@ namespace triengine::renderer
 
         // Create shader program
         _shader
-            .attach_vertex_shader({ shader::glslShaderVersion, shader::kInfiniteGridVertexShader })
-            .attach_fragment_shader({ shader::glslShaderVersion, shader::kInfiniteGridFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kInfiniteGridVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kInfiniteGridFragmentShader).c_str() })
             .link();
 
         // Create empty VAO (for avoid INVALID_OPERATION draw-call error)

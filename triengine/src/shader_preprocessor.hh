@@ -42,6 +42,11 @@ namespace triengine
             bool allow_empty_includes{ false }; // Allow empty include files
             bool allow_multiple_inclusion{ false }; // Allow including the same file multiple times
             uint32_t max_include_depth{ 32 }; // Maximum include depth to prevent stack overflow
+
+            // https://www.khronos.org/opengl/wiki/Core_Language_(GLSL)#Version
+            //uint16_t glsl_version{ 430 };
+            //std::string glsl_version_profile_name{ "core" }; // "core" / "compatibility"
+
             std::filesystem::path default_search_dir{ std::filesystem::current_path() }; // Default search directory for includes
         };
 
@@ -119,7 +124,7 @@ namespace triengine
         std::string process(
             const std::filesystem::path& shader_file_path,
             bool throw_on_error = true
-        );
+        ) const;
 
         /**
          * Preprocesses shader code directly from memory and handles #include preprocessor directives.
@@ -133,7 +138,7 @@ namespace triengine
             std::string_view shader_source,
             std::string_view shader_name = "memory_shader",
             bool throw_on_error = true
-        );
+        ) const;
 
     private:
 
@@ -154,7 +159,7 @@ namespace triengine
             std::unordered_set<std::filesystem::path, path_hasher_t>& curr_included_files/* in-out */,
             std::stack<include_context_t>& include_stack/* in-out */,
             uint32_t curr_depth = 0
-        );
+        ) const;
 
     private:
         process_options_t _opts;
