@@ -46,11 +46,20 @@ namespace triengine
 
         frame_buffer _wboit_fb;
         frame_buffer _overlay_fb;
+        frame_buffer _smaa_fb;
 
         shader_program _wboit_composite_shader;
         shader_program _overlay_composite_shader;
         shader_program _screen_quad_shader;
-        
+
+        // SMAA pass shaders
+        shader_program _smaa_edge_detect_shader;
+        shader_program _smaa_blend_weight_shader;
+        shader_program _smaa_neighbor_blend_shader;
+
+        // needed for the 'SMAABlendingWeightCalculation' pass.
+        texture_2d _smaa_area_tex, _smaa_search_tex;
+
         GLuint _vao_screen_quad{};
         GLuint _vbo_screen_quad{};
         

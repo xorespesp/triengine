@@ -1,9 +1,8 @@
 #pragma once
-#include "../shader_version.h"
 
 namespace triengine::shaders::includes
 {
-    static const char* const kPhongLightingShaders = R"glsl(
+    static const char* const kPhongLightingShader = R"glsl(
         vec3 calcPhongLightInViewSpace(
             in vec3 eyeDirInView/* eye direction in view space */,
             in vec3 fragNormalInView/* fragment normal in view space */,
@@ -33,14 +32,14 @@ namespace triengine::shaders::includes
             //
             
             const float diff = 
-#if defined(USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING)
+        #if defined(USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING)
                 // NOTE: To handle the case where the light source is behind a point 
                 //       in the opposite direction of the point's normal vector, we use `abs()` instead of `max()`.
                 abs(dot(N, L));
-#else  // ^^^ USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^ / vvv !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING vvv
+        #else  // ^^^ USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^ / vvv !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING vvv
                 // Standard Lambertian diffuse
                 max(dot(N, L), 0.0);
-#endif // ^^^ !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^
+        #endif // ^^^ !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^
             const vec3 diffuse = diffuseColor * diff * lightColor;
             
             //
@@ -86,14 +85,14 @@ namespace triengine::shaders::includes
             //
 
             const float diff = 
-#if defined(USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING)
+        #if defined(USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING)
                 // NOTE: To handle the case where the light source is behind a point 
                 //       in the opposite direction of the point's normal vector, we use `abs()` instead of `max()`.
                 abs(dot(N, L));
-#else  // ^^^ USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^ / vvv !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING vvv
+        #else  // ^^^ USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^ / vvv !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING vvv
                 // Standard Lambertian diffuse
                 max(dot(N, L), 0.0);
-#endif // ^^^ !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^
+        #endif // ^^^ !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^
             const vec3 diffuse = diffuseColor * diff * lightColor;
             
             //

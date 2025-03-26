@@ -250,6 +250,50 @@ namespace triengine
         }
 
         /**
+         * @brief Creates a new FBO with one or more color attachments + a stencil attachment.
+         * @param internal_color_formats  List of internal color formats (e.g., { GL_RGBA8, GL_RGBA16F, ... }).
+         * @param internal_stencil_format   Internal format for the stencil buffer (e.g., `GL_STENCIL_INDEX8`).
+         * @param width          Framebuffer width in pixels.
+         * @param height         Framebuffer height in pixels.
+         * @param samples        MSAA sample count (>1 for MSAA).
+         * @param color_tex_params  Texture parameters (wrap/filter) for color attachments.
+         * @param use_renderbuffer_for_color  If true, color attachment is a renderbuffer, else a texture.
+         * @param use_renderbuffer_for_stencil  If true, stencil attachment is a renderbuffer, else a texture.
+         */
+        static frame_buffer create_color_stencil_only_buffer(
+            std::initializer_list<GLenum> internal_color_formats,
+            GLenum internal_stencil_format,
+            int32_t width_pixels,
+            int32_t height_pixels,
+            int32_t sample_count = 1,
+            const frame_buffer_texture_params_t& color_tex_params = {},
+            bool use_renderbuffer_for_color = false,
+            bool use_renderbuffer_for_stencil = true
+        );
+
+        static frame_buffer create_color_stencil_only_buffer(
+            GLenum internal_color_format,
+            GLenum internal_stencil_format,
+            int32_t width_pixels,
+            int32_t height_pixels,
+            int32_t sample_count = 1,
+            const frame_buffer_texture_params_t& color_tex_params = {},
+            bool use_renderbuffer_for_color = false,
+            bool use_renderbuffer_for_stencil = true
+        ) {
+            return create_color_stencil_only_buffer(
+                { internal_color_format },
+                internal_stencil_format,
+                width_pixels,
+                height_pixels,
+                sample_count,
+                color_tex_params,
+                use_renderbuffer_for_color,
+                use_renderbuffer_for_stencil
+            );
+        }
+
+        /**
          * @brief Creates a framebuffer with single color / multiple color(MRT) + depth + stencil attachments.
          * @param internal_color_formats  List of internal color format(s) (e.g. { `GL_RGBA8`, `GL_RGBA16F`, ... }).
          * @param internal_depth_format   Internal format for depth (e.g., `GL_DEPTH_COMPONENT24`).

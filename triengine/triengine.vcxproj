@@ -86,6 +86,8 @@
     <ClInclude Include="include\triengine\shader\triangle_mesh_shaders.h" />
     <ClInclude Include="include\triengine\texture.hh" />
     <ClInclude Include="include\triengine\visualizer_window.hh" />
+    <ClInclude Include="src\extern\smaa_area_texture.h" />
+    <ClInclude Include="src\extern\smaa_search_texture.h" />
     <ClInclude Include="src\gl_context.hh" />
     <ClInclude Include="src\image.hh" />
     <ClInclude Include="src\infinite_grid_options.hh" />
@@ -145,14 +147,16 @@
     <ClInclude Include="src\scene_renderer.hh" />
     <ClInclude Include="src\shader.hh" />
     <ClInclude Include="src\shaders\includes\phong_lighting_shaders.h" />
+    <ClInclude Include="src\shaders\includes\smaa_shaders.h" />
     <ClInclude Include="src\shaders\infinite_grid_shaders.h" />
     <ClInclude Include="src\shaders\light_source_shaders.h" />
     <ClInclude Include="src\shaders\lineset_shaders.h" />
     <ClInclude Include="src\shaders\normal_vis_shaders.h" />
-    <ClInclude Include="src\shaders\overlay_composite_shaders.h" />
+    <ClInclude Include="src\shaders\overlay_pass_shaders.h" />
     <ClInclude Include="src\shaders\pcd_shaders.h" />
     <ClInclude Include="src\shaders\screen_quad_shaders.h" />
     <ClInclude Include="src\shaders\shader_version.h" />
+    <ClInclude Include="src\shaders\smaa_pass_shaders.h" />
     <ClInclude Include="src\shaders\triangle_mesh_shaders.h" />
     <ClInclude Include="src\shaders\wboit_composite_shaders.h" />
     <ClInclude Include="src\shader_preprocessor.hh" />

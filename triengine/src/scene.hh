@@ -26,6 +26,8 @@ namespace triengine
         bool show_object_normals{ false };
         bool show_origin_axis{ true };
         bool show_origin_xz_grid{ false };
+        bool enable_anti_aliasing{ true };
+
         infinite_grid_options infgrid_opts;
         lighting_options light_opts;
         color4_f32 bg_color{ 0.05f, 0.05f, 0.05f, 1.0f };

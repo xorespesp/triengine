@@ -435,6 +435,48 @@ namespace triengine
         return new_fb;
     }
 
+    frame_buffer frame_buffer::create_color_stencil_only_buffer(
+        const std::initializer_list<GLenum> internal_color_formats,
+        const GLenum internal_stencil_format,
+        const int32_t width_pixels,
+        const int32_t height_pixels,
+        const int32_t sample_count,
+        const frame_buffer_texture_params_t& color_tex_params,
+        const bool use_renderbuffer_for_color,
+        const bool use_renderbuffer_for_stencil)
+    {
+        if (!internal_color_formats.size()) {
+            throw std::runtime_error("empty internal color formats");
+        }
+
+        frame_buffer new_fb;
+        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+
+        // Single / Multiple(MRT) color attachment(s)
+        new_fb._color_attachments.reserve(internal_color_formats.size());
+        for (auto cfmt : internal_color_formats) {
+            attachment_info_t ci;
+            ci.type = attachment_type::color;
+            ci.internal_format = cfmt;
+            ci.is_render_buffer = use_renderbuffer_for_color;
+            ci.tex_params = color_tex_params;
+            new_fb._color_attachments.push_back(std::move(ci));
+        }
+
+        // Stencil attachment
+        {
+            attachment_info_t si;
+            si.type = attachment_type::stencil;
+            si.internal_format = internal_stencil_format;
+            si.is_render_buffer = use_renderbuffer_for_stencil;
+            new_fb._stencil_attachment = std::move(si);
+        }
+
+        // Allocate & attach
+        new_fb.reallocate(width_pixels, height_pixels, sample_count);
+        return new_fb;
+    }
+
     frame_buffer frame_buffer::create_color_depth_stencil_buffer(
         const std::initializer_list<GLenum> internal_color_formats,
         const GLenum internal_depth_format,

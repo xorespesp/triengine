@@ -4,10 +4,10 @@
 namespace triengine::shaders
 {
 	//
-	// Overlay Rendering Composite Shader (for skeleton_renderer)
+	// Overlay Rendering Composite Pass Shaders (for skeleton_renderer)
 	//
 
-	static const char* const kOverlayCompositeVertexShader = R"glsl(
+	static const char* const kOverlayCompositePassVertexShader = R"glsl(
 		////////////////////////////////////////////
 		// shader inputs
 		////////////////////////////////////////////
@@ -19,7 +19,7 @@ namespace triengine::shaders
 		}
     )glsl";
 
-	static const char* const kOverlayCompositeFragmentShader = R"glsl(
+	static const char* const kOverlayCompositePassFragmentShader = R"glsl(
 		////////////////////////////////////////////
 		// shader outputs
 		////////////////////////////////////////////

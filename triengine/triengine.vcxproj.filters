@@ -405,7 +405,7 @@
     <ClInclude Include="src\shaders\normal_vis_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\shaders\overlay_composite_shaders.h">
+    <ClInclude Include="src\shaders\overlay_pass_shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\shaders\pcd_shaders.h">
@@ -421,6 +421,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\shaders\wboit_composite_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\smaa_pass_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\shaders\includes\smaa_shaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\extern\smaa_area_texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\extern\smaa_search_texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
