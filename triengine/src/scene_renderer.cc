@@ -528,8 +528,8 @@ namespace triengine
                 {
                     GLCall(::glDrawBuffer(GL_COLOR_ATTACHMENT2/* neighbor color buffer */));
 
-                    // NOTE: In this pass, there is no need to call `glClear` since the entire buffer is refreshed every time. 
-                    //       Therefore, we skip `glClear` to improve performance.
+                    // NOTE: In this pass, there is no need to clear color buffer since the entire color buffer is refreshed every time.
+                    //       Therefore, we skip `glClear(GL_COLOR_BUFFER_BIT)` to improve performance.
                     //GLCall(::glClear(GL_COLOR_BUFFER_BIT));
 
                     GLCall(::glDisable(GL_STENCIL_TEST));
@@ -562,7 +562,10 @@ namespace triengine
                 // bind frame buffers
                 GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, target_fb.fbo_id()));
                 GLCall(::glDrawBuffer(GL_COLOR_ATTACHMENT0/* main color buffer */));
-                GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+
+                // NOTE: In this pass, there is no need to clear color buffer since the entire color buffer is refreshed every time.
+                //       Therefore, we skip `glClear(GL_COLOR_BUFFER_BIT)` to improve performance.
+                GLCall(::glClear(/*GL_COLOR_BUFFER_BIT | */GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
                 // use screen shader
                 _screen_quad_shader.use();

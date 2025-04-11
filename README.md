@@ -8,9 +8,10 @@ It uses `Eigen` for its internal math operations, making it convenient for proje
 - Triangle mesh rendering
 - Lighting system
 - Order-Independent Transparency
+- SMAA
 
 ### TODO List
-- Anti Aliasing (SMAA, TAA, ...)
+- SMAA T2x (Temporal variant of SMAA)
 - Skybox
 - Object-Picking(+Outlining) / imguigazmo
 - PBR 
