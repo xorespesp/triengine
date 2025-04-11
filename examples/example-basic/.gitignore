@@ -1,5 +1,3 @@
-/installed
-
 /vcpkg_installed/*
 !/vcpkg_installed/.gitkeep
 
