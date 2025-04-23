@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <utils/logger.hh>
 #include <utils/path_utils.hh>
 

@@ -41,7 +41,7 @@
      try
      {
          run_demo(
-             curr_image_dir_path / "../../../triengine-installed/x64-Release/resources"
+             curr_image_dir_path / "../resources"
          );
 
          retval = 0;

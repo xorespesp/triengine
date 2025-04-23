@@ -1,0 +1,29 @@
+# [<CommitType>] <Title>
+# [ Title: Start with a capital letter | Max 50 characters | Be specific | No period at end ]
+# e.g) [feat] Add user login functionality via REST API
+
+# <Body> (Recomended)
+# - Explain what and why, not how (each line ≤ 72 chars)
+# - e.g) - Implemented password hashing using bcrypt
+#      - Added input validation for username and password
+#      - Removed deprecated API usage to align with new standard
+
+# <Footer> (Optional)
+# - Add related issue numbers or references
+# - e.g) Close #42
+#        Ref: https://docs.example.com/auth
+
+# --- Commit Type Definitions ---
+# feat:     Add a new feature (ex. Add search bar to header)
+# fix:      Fix a bug (ex. Fix crash on login when password is empty)
+# refactor: Restructure code without changing behavior (cleanup, readability, etc.)
+# perf:     Improve performance (ex. Improve loop performance in parser)
+# test:     Add or update tests (unit tests, integration tests, etc.)
+# build:    Change the build system (ex. Update Makefile for new build step)
+# ci:       Change CI/CD configuration (ex. Add GitHub Actions workflow)
+# docs:     Add or update documentation (ex. Update README with install steps)
+# style:    Change code style (ex. Fix indentation, remove unused includes)
+# chore:    Miscellaneous chores (ex. Update third-party libraries)
+# revert:   Revert a previous commit
+# move:     Move or rename files
+# remove:   Remove code or files

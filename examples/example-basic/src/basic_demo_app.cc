@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <array>
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 #include <triengine/math/math3d.hh>
 #include <triengine/io/file_obj_loader.hh>

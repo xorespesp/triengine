@@ -1,0 +1,63 @@
+# 이 스크립트는 'cmake --install' 과정 중에 configure_file을 통해 생성되어 실행된다.
+# `@VAR@` 형식의 변수는 configure 단계에서 치환되고, `${VAR}` 형식의 변수는 스크립트 실행 시 평가된다.
+# @EXTERNAL_TARGET_PATH@ : 빌드할 타겟 예제 프로젝트 경로
+# @EXTERNAL_TARGET_CMAKE_GENERATOR@ : 빌드에 사용할 CMake 제네레이터
+# @EXTERNAL_TARGET_CMAKE_BUILD_TYPE@ : 빌드 타입
+
+# get_filename_component 를 사용하여 경로의 파일명(NAME)을 'EXTERNAL_TARGET_NAME' 변수에 추출해서 저장
+get_filename_component(EXTERNAL_TARGET_NAME "@EXTERNAL_TARGET_PATH@" NAME)
+
+# 예제 프로젝트 소스 및 빌드 디렉토리 경로 설정
+# CMAKE_BINARY_DIR 은 이 스크립트가 install(SCRIPT ...)로 호출될 때의 메인 프로젝트의 소스/빌드 디렉토리를 가리킨다.
+set(EXTERNAL_TARGET_SOURCE_DIR "@EXTERNAL_TARGET_PATH@")
+set(EXTERNAL_TARGET_BUILD_DIR "${CMAKE_BINARY_DIR}/${EXTERNAL_TARGET_NAME}-build")
+
+message(STATUS "--- Building external target '${EXTERNAL_TARGET_NAME}' ---")
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "EXTERNAL_TARGET_SOURCE_DIR: ${EXTERNAL_TARGET_SOURCE_DIR}")
+message(STATUS "EXTERNAL_TARGET_BUILD_DIR: ${EXTERNAL_TARGET_BUILD_DIR}")
+message(STATUS "EXTERNAL_TARGET_CMAKE_GENERATOR: @EXTERNAL_TARGET_CMAKE_GENERATOR@")
+message(STATUS "EXTERNAL_TARGET_CMAKE_BUILD_TYPE: @EXTERNAL_TARGET_CMAKE_BUILD_TYPE@")
+
+# 빌드 디렉토리 생성 (없을 경우)
+file(MAKE_DIRECTORY ${EXTERNAL_TARGET_BUILD_DIR})
+
+message(STATUS "Configuring external target '${EXTERNAL_TARGET_NAME}'")
+
+# CMake configure 명령 실행
+execute_process(
+    COMMAND ${CMAKE_COMMAND} # 현재 사용 중인 CMake 실행 파일
+        -S ${EXTERNAL_TARGET_SOURCE_DIR}
+        -B ${EXTERNAL_TARGET_BUILD_DIR}
+        -G @EXTERNAL_TARGET_CMAKE_GENERATOR@
+        -D CMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX} # 설치된 @PROJECT_NAME@ 경로 전달
+        -D CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} # 예제 자체의 설치 경로 (메인과 동일하게 설정)
+        -D CMAKE_BUILD_TYPE=@EXTERNAL_TARGET_CMAKE_BUILD_TYPE@ # 메인 빌드와 동일한 빌드 타입 사용
+        # 필요하다면 추가 CMake 변수 전달 (-DVAR=VALUE)
+    WORKING_DIRECTORY ${EXTERNAL_TARGET_BUILD_DIR} # 작업 디렉토리 지정
+    RESULT_VARIABLE configure_result
+    OUTPUT_VARIABLE configure_output
+    ERROR_VARIABLE configure_output
+)
+
+if(NOT configure_result EQUAL 0)
+    message(FATAL_ERROR "Failed to configure external target '${EXTERNAL_TARGET_NAME}':\n${configure_output}")
+else()
+    message(STATUS "Configure successful for external target '${EXTERNAL_TARGET_NAME}'.")
+    message(STATUS "Building external target '${EXTERNAL_TARGET_NAME}'...")
+
+    # CMake build 명령 실행
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} --build ${EXTERNAL_TARGET_BUILD_DIR} --config @EXTERNAL_TARGET_CMAKE_BUILD_TYPE@
+        WORKING_DIRECTORY ${EXTERNAL_TARGET_BUILD_DIR}
+        RESULT_VARIABLE build_result
+        OUTPUT_VARIABLE build_output
+        ERROR_VARIABLE build_output
+    )
+
+    if(NOT build_result EQUAL 0)
+        message(FATAL_ERROR "Failed to build external target '${EXTERNAL_TARGET_NAME}':\n${build_output}")
+    else()
+        message(STATUS "Successfully built external target '${EXTERNAL_TARGET_NAME}'")
+    endif()
+endif()
