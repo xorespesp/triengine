@@ -4,14 +4,15 @@ set(LIBRARY_HEADERS_DIR "src/${LIBRARY_NAME}")
 ############################################################
 # library sources
 set(LIBRARY_SOURCES
-    "${LIBRARY_SOURCES_DIR}/gl_context.cc"
-    "${LIBRARY_SOURCES_DIR}/frame_buffer.cc"
     "${LIBRARY_SOURCES_DIR}/camera.cc"
     "${LIBRARY_SOURCES_DIR}/texture.cc"
     "${LIBRARY_SOURCES_DIR}/shader.cc"
-    "${LIBRARY_SOURCES_DIR}/shader_preprocessor.cc"
+    "${LIBRARY_SOURCES_DIR}/frame_buffer.cc"
     "${LIBRARY_SOURCES_DIR}/scene.cc"
-    "${LIBRARY_SOURCES_DIR}/scene_renderer.cc"
+
+    "${LIBRARY_SOURCES_DIR}/core/gl_context.cc"
+    "${LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
+    "${LIBRARY_SOURCES_DIR}/core/shader_preprocessor.cc"
 
     "${LIBRARY_SOURCES_DIR}/geometry/light_source_object.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
@@ -54,18 +55,19 @@ set(LIBRARY_SOURCES
 set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/common.h"
     "${LIBRARY_HEADERS_DIR}/basic_types.hh"
-    "${LIBRARY_HEADERS_DIR}/gl_context.hh"
-    "${LIBRARY_HEADERS_DIR}/frame_buffer.hh"
     "${LIBRARY_HEADERS_DIR}/camera.hh"
     "${LIBRARY_HEADERS_DIR}/image.hh"
     "${LIBRARY_HEADERS_DIR}/texture.hh"
     "${LIBRARY_HEADERS_DIR}/shader.hh"
-    "${LIBRARY_HEADERS_DIR}/shader_preprocessor.hh"
-    "${LIBRARY_HEADERS_DIR}/infinite_grid_options.hh"
-    "${LIBRARY_HEADERS_DIR}/lighting_options.hh"
-    "${LIBRARY_HEADERS_DIR}/render_target.hh"
+    "${LIBRARY_HEADERS_DIR}/frame_buffer.hh"
     "${LIBRARY_HEADERS_DIR}/scene.hh"
-    "${LIBRARY_HEADERS_DIR}/scene_renderer.hh"
+    "${LIBRARY_HEADERS_DIR}/lighting_options.hh"
+    "${LIBRARY_HEADERS_DIR}/infinite_grid_options.hh"
+
+    "${LIBRARY_HEADERS_DIR}/core/gl_context.hh"
+    "${LIBRARY_HEADERS_DIR}/core/shader_preprocessor.hh"
+    "${LIBRARY_HEADERS_DIR}/core/scene_renderer.hh"
+    "${LIBRARY_HEADERS_DIR}/core/render_target.hh"
 
     "${LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.hh"
     "${LIBRARY_HEADERS_DIR}/geometry/light_source_object.hh"

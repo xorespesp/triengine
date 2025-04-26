@@ -8,7 +8,7 @@ namespace triengine::renderer
     infinite_grid_renderer::infinite_grid_renderer()
     { }
 
-    void infinite_grid_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
+    void infinite_grid_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);

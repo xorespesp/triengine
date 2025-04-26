@@ -4,7 +4,7 @@
 #include <optional>
 #include <fstream>
 
-namespace triengine
+namespace triengine::core
 {
     namespace {
         namespace detail

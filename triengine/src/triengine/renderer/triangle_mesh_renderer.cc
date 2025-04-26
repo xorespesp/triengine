@@ -14,7 +14,7 @@ namespace triengine::renderer
         _show_object_normals = enable;
     }
 
-    void triangle_mesh_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
+    void triangle_mesh_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);

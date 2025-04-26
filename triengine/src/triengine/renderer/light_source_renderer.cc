@@ -8,7 +8,7 @@ namespace triengine::renderer
     light_source_renderer::light_source_renderer()
     {}
 
-    void light_source_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
+    void light_source_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);

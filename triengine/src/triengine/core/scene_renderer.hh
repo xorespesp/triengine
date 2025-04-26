@@ -1,11 +1,12 @@
 ﻿#pragma once
 #include <triengine/common.h>
 
-#include <triengine/gl_context.hh>
 #include <triengine/frame_buffer.hh>
 #include <triengine/scene.hh>
 #include <triengine/shader.hh>
-#include <triengine/shader_preprocessor.hh>
+
+#include <triengine/core/gl_context.hh>
+#include <triengine/core/shader_preprocessor.hh>
 
 #include <triengine/renderer/infinite_grid_renderer.hh>
 #include <triengine/renderer/light_source_renderer.hh>
@@ -19,7 +20,7 @@
 
 #include <memory>
 
-namespace triengine
+namespace triengine::core
 {
     class scene_renderer
     {

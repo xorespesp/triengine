@@ -3,7 +3,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-namespace triengine
+namespace triengine::core
 {
     class render_target {
     public:

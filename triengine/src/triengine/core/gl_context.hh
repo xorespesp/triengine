@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-namespace triengine
+namespace triengine::core
 {
     /**
      * gl_context 클래스는 실제 OpenGL 컨텍스트와 GLFW 윈도우 생명주기, GLFW/GLAD/디버그 콜백 등의 공통 초기화를 담당한다.

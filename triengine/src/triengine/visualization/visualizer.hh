@@ -1,8 +1,8 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/gl_context.hh>
-#include <triengine/scene_renderer.hh>
 #include <triengine/gui/gui_manager.hh>
+#include <triengine/core/gl_context.hh>
+#include <triengine/core/scene_renderer.hh>
 
 #include <functional>
 
@@ -25,8 +25,8 @@ namespace triengine::visualization
         visualizer(const visualizer&) = delete;
         visualizer& operator=(const visualizer&) = delete;
 
-        const gl_context* get_gl_context() const noexcept { return &_glctx; }
-        gl_context* get_gl_context() noexcept { return &_glctx; }
+        const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
+        core::gl_context* get_gl_context() noexcept { return &_glctx; }
 
         float get_dpi_scale_x() const { return _curr_dpi_scale_x; }
         float get_dpi_scale_y() const { return _curr_dpi_scale_x; }
@@ -149,14 +149,14 @@ namespace triengine::visualization
         mouse_scroll_callback _cb_mouse_scroll;
         dpi_change_callback _cb_dpi_change;
         
-        gl_context _glctx;
+        core::gl_context _glctx;
         int32_t _curr_window_width{};
         int32_t _curr_window_height{};
         float _curr_dpi_scale_x{ 1.0f };
         float _curr_dpi_scale_y{ 1.0f };
         vec2_f32 _last_clicked_cursor_viewport_pos{};
 
-        scene_renderer _scn_renderer;
+        core::scene_renderer _scn_renderer;
         std::unordered_map<uint32_t/* scene id */, std::shared_ptr<scene>> _scn_map;
         std::shared_ptr<scene> _curr_scn;
 

@@ -1,18 +1,20 @@
 ﻿#include "scene_renderer.hh"
+
 #include <triengine/misc/string_utils.hh>
 #include <triengine/misc/debug_utils.hh>
 #include <triengine/misc/gl_utils.hh>
+
 #include <triengine/extern/smaa_area_texture.h>
 #include <triengine/extern/smaa_search_texture.h>
+
 #include <triengine/shaders/includes/phong_lighting_shaders.h>
 #include <triengine/shaders/includes/smaa_shaders.h>
 #include <triengine/shaders/smaa_pass_shaders.h>
 #include <triengine/shaders/overlay_pass_shaders.h>
 
-namespace triengine
+namespace triengine::core
 {
-    namespace
-    {
+    namespace {
         struct quad_vertex_t {
             vec3_f32 position; // vertex position
             vec2_f32 uv; // texture coordinate (uv coordinate)

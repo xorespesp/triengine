@@ -8,7 +8,7 @@ namespace triengine::renderer
     lineset_renderer::lineset_renderer()
     { }
 
-    void lineset_renderer::create_impl(gl_context& glctx, const shader_preprocessor& shader_prep)
+    void lineset_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);

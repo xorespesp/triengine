@@ -8,7 +8,7 @@
 
 #include <triengine/misc/string_utils.hh>
 
-namespace triengine
+namespace triengine::core
 {
     /**
      * A simple GLSL #include directive preprocessor.

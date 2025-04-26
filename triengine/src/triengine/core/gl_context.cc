@@ -4,53 +4,50 @@
 
 #include <iostream>
 
-namespace triengine
+namespace triengine::core
 {
     namespace {
-        namespace detail
-        {
-            // singleton class
-            class global_glfw_environment final {
-            private:
-                global_glfw_environment()
-                {
-                    if (!::glfwInit()) {
-                        std::cout << "\nglfwInit() failed" << std::endl;
-                        ::exit(EXIT_FAILURE);
-                    }
-
-                    ::glfwSetErrorCallback(
-                        +[](const int err_code, const char* const err_desc) -> void {
-                            const auto msg = misc::string::c_format(""
-                                "GLFW Error(%d) : %s"
-                                , err_code
-                                , err_desc
-                            );
-                            std::cout << '\n' << msg << std::endl;
-                        });
+        // singleton class
+        class global_glfw_environment final {
+        private:
+            global_glfw_environment()
+            {
+                if (!::glfwInit()) {
+                    std::cout << "\nglfwInit() failed" << std::endl;
+                    ::exit(EXIT_FAILURE);
                 }
 
-            public:
-                ~global_glfw_environment()
-                {
-                    ::glfwTerminate();
-                }
+                ::glfwSetErrorCallback(
+                    +[](const int err_code, const char* const err_desc) -> void {
+                        const auto msg = misc::string::c_format(""
+                            "GLFW Error(%d) : %s"
+                            , err_code
+                            , err_desc
+                        );
+                        std::cout << '\n' << msg << std::endl;
+                    });
+            }
 
-                global_glfw_environment(const global_glfw_environment&) = delete;
-                global_glfw_environment& operator=(const global_glfw_environment&) = delete;
+        public:
+            ~global_glfw_environment()
+            {
+                ::glfwTerminate();
+            }
 
-            public:
-                // This function initializes the GLFW library for the rendering. 
-                // You have to run this function before creating the visualizer object.
-                // NOTE: This function must be called from the main thread.
-                static void initialize() {
-                    static global_glfw_environment inst_{};
-                }
+            global_glfw_environment(const global_glfw_environment&) = delete;
+            global_glfw_environment& operator=(const global_glfw_environment&) = delete;
 
-            }; // class
+        public:
+            // This function initializes the GLFW library for the rendering. 
+            // You have to run this function before creating the visualizer object.
+            // NOTE: This function must be called from the main thread.
+            static void initialize() {
+                static global_glfw_environment inst_{};
+            }
 
-        } // namespace
-    }
+        }; // class
+
+    } // namespace
 
     // Basic Ref: https://learnopengl.com/In-Practice/Debugging
     static void APIENTRY _gl_debug_output_callback(
@@ -129,7 +126,7 @@ namespace triengine
         }
 
         // NOTE: Should be called in main thread
-        detail::global_glfw_environment::initialize();
+        global_glfw_environment::initialize();
 
         ::glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         ::glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);

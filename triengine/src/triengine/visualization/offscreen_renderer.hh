@@ -1,8 +1,8 @@
 ﻿#pragma once
 #include <triengine/common.h>
-#include <triengine/gl_context.hh>
-#include <triengine/scene_renderer.hh>
 #include <triengine/image.hh>
+#include <triengine/core/gl_context.hh>
+#include <triengine/core/scene_renderer.hh>
 
 #include <functional>
 #include <unordered_map>
@@ -19,8 +19,8 @@ namespace triengine::visualization
         offscreen_renderer(const offscreen_renderer&) = delete;
         offscreen_renderer& operator=(const offscreen_renderer&) = delete;
 
-        const gl_context* get_gl_context() const noexcept { return &_glctx; }
-        gl_context* get_gl_context() noexcept { return &_glctx; }
+        const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
+        core::gl_context* get_gl_context() noexcept { return &_glctx; }
 
         void create_renderer(
             int32_t width,
@@ -48,11 +48,11 @@ namespace triengine::visualization
         bool _flag_initialized{ false };
         bool _flag_invalidate_fbo{ true };
 
-        gl_context _glctx;
+        core::gl_context _glctx;
         int32_t _curr_window_width{};
         int32_t _curr_window_height{};
 
-        scene_renderer _scn_renderer;
+        core::scene_renderer _scn_renderer;
         std::unordered_map<uint32_t/* scene id */, std::shared_ptr<scene>> _scn_map;
         std::shared_ptr<scene> _curr_scn;
 
