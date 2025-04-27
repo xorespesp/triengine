@@ -19,7 +19,7 @@ namespace triengine::geometry
     public:
         static std::string create_unique_name() {
             static std::atomic_uint32_t cnt_ = 0;
-            return misc::string::c_format("object #%lu", cnt_++);
+            return utility::string::c_format("object #%lu", cnt_++);
         }
 
     public:

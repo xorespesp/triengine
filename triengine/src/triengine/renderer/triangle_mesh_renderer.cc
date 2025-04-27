@@ -1,6 +1,6 @@
 #include "triangle_mesh_renderer.hh"
 
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/shaders/triangle_mesh_shaders.h>
 #include <triengine/shaders/normal_vis_shaders.h>
 

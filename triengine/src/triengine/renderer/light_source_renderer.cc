@@ -1,6 +1,6 @@
 #include "light_source_renderer.hh"
 
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/shaders/light_source_shaders.h>
 
 namespace triengine::renderer

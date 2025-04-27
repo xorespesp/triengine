@@ -1,7 +1,7 @@
 #include "light_source_object.hh"
 #include <triengine/math/constants.hh>
-#include <triengine/misc/debug_utils.hh>
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 
 namespace triengine::geometry
 {

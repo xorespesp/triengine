@@ -1,7 +1,7 @@
 #include "visualizer.hh"
-#include <triengine/misc/string_utils.hh>
-#include <triengine/misc/debug_utils.hh>
-#include <triengine/misc/gl_utils.hh>
+#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/debug_utils.hh>
+#include <triengine/utility/gl_utils.hh>
 
 #include <iostream>
 #include <memory>
@@ -268,7 +268,7 @@ namespace triengine::visualization
         [[maybe_unused]] const int action,
         [[maybe_unused]] const int mods)
     {
-        const vec2_f32 curr_cursor_screen_pos = misc::get_cursor_device_screen_pos(window);
+        const vec2_f32 curr_cursor_screen_pos = utility::get_cursor_device_screen_pos(window);
         const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -349,7 +349,7 @@ namespace triengine::visualization
         [[maybe_unused]] const double scroll_xoffset,
         [[maybe_unused]] const double scroll_yoffset)
     {
-        const vec2_f32 curr_cursor_screen_pos = misc::get_cursor_device_screen_pos(window);
+        const vec2_f32 curr_cursor_screen_pos = utility::get_cursor_device_screen_pos(window);
         const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.

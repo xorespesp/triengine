@@ -1,5 +1,5 @@
 #include "shader_preprocessor.hh"
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <optional>
 #include <fstream>
@@ -405,7 +405,7 @@ namespace triengine::core
         prep_result.reserve(curr_shader_file_content.size() * 2); // To avoid reallocation as much as possible
 
         if (_opts.generate_debug_comments) {
-            prep_result += misc::string::c_format("/***** [%lu] BEGIN FILE: \"%s\" *****/\n"
+            prep_result += utility::string::c_format("/***** [%lu] BEGIN FILE: \"%s\" *****/\n"
                 , curr_depth
                 , curr_shader_file_path.generic_string().c_str()
             );
@@ -519,7 +519,7 @@ namespace triengine::core
         // of the same file in different branches unless specifically allowed
 
         if (_opts.generate_debug_comments) {
-            prep_result += misc::string::c_format("/***** [%lu] END FILE: \"%s\" *****/\n"
+            prep_result += utility::string::c_format("/***** [%lu] END FILE: \"%s\" *****/\n"
                 , curr_depth
                 , curr_shader_file_path.generic_string().c_str()
             );

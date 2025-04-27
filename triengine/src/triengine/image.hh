@@ -1,6 +1,6 @@
 #pragma once
 #include <glad/glad.h>
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <vector>
 

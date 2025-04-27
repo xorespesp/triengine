@@ -2,7 +2,7 @@
 #include <triengine/common.h>
 #include <triengine/math/constants.hh>
 #include <triengine/math/math3d.hh>
-#include <triengine/misc/string_utils.hh>
+#include <triengine/utility/string_utils.hh>
 
 namespace triengine
 {
@@ -116,7 +116,7 @@ namespace triengine
 
         std::string dump() const
         {
-            return misc::string::c_format(""
+            return utility::string::c_format(""
                 "lookat_center: [%f, %f, %f]\n"
                 "camera_front: [%f, %f, %f]\n"
                 "camera_right: [%f, %f, %f]\n"

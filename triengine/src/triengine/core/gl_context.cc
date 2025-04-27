@@ -1,6 +1,6 @@
 ﻿#include "gl_context.hh"
-#include <triengine/misc/debug_utils.hh>
-#include <triengine/misc/gl_utils.hh>
+#include <triengine/utility/debug_utils.hh>
+#include <triengine/utility/gl_utils.hh>
 
 #include <iostream>
 
@@ -19,7 +19,7 @@ namespace triengine::core
 
                 ::glfwSetErrorCallback(
                     +[](const int err_code, const char* const err_desc) -> void {
-                        const auto msg = misc::string::c_format(""
+                        const auto msg = utility::string::c_format(""
                             "GLFW Error(%d) : %s"
                             , err_code
                             , err_desc
@@ -64,7 +64,7 @@ namespace triengine::core
             return;
         }
 
-        const std::string msg = misc::string::c_format(""
+        const std::string msg = utility::string::c_format(""
             "\n------------------------------------------------------------"
             "\nOpenGL Debug message (%lu) : %.*s"
             "\nOpenGL Debug Source: %s"

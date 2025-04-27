@@ -38,8 +38,8 @@ set(LIBRARY_SOURCES
     "${LIBRARY_SOURCES_DIR}/visualization/visualizer.cc"
     "${LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer.cc"
 
-    "${LIBRARY_SOURCES_DIR}/misc/debug_utils.cc"
-    "${LIBRARY_SOURCES_DIR}/misc/gl_utils.cc"
+    "${LIBRARY_SOURCES_DIR}/utility/debug_utils.cc"
+    "${LIBRARY_SOURCES_DIR}/utility/gl_utils.cc"
 
     "${LIBRARY_SOURCES_DIR}/extern/fonts/FontAwesome5.cc"
     "${LIBRARY_SOURCES_DIR}/extern/fonts/FontAwesome5Brands.cc"
@@ -98,9 +98,9 @@ set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/math/glm_utils.hh"
     "${LIBRARY_HEADERS_DIR}/math/math3d.hh"
 
-    "${LIBRARY_HEADERS_DIR}/misc/debug_utils.hh"
-    "${LIBRARY_HEADERS_DIR}/misc/gl_utils.hh"
-    "${LIBRARY_HEADERS_DIR}/misc/string_utils.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/string_utils.hh"
 
     "${LIBRARY_HEADERS_DIR}/shaders/infinite_grid_shaders.h"
     "${LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"

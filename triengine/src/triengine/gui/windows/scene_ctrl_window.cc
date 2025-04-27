@@ -1,5 +1,5 @@
 #include "scene_ctrl_window.hh"
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/visualization/visualizer.hh>
 
 #include <unordered_map>

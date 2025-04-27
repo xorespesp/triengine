@@ -6,7 +6,7 @@
 #include <string>
 #include <stack>
 
-#include <triengine/misc/string_utils.hh>
+#include <triengine/utility/string_utils.hh>
 
 namespace triengine::core
 {
@@ -32,7 +32,7 @@ namespace triengine::core
             uint32_t line_number;
 
             std::string to_string() const {
-                return misc::string::c_format("\"%s\" line %lu", file_path.generic_string().c_str(), line_number);
+                return utility::string::c_format("\"%s\" line %lu", file_path.generic_string().c_str(), line_number);
             }
         };
 

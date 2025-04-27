@@ -5,7 +5,7 @@
 #include <string_view>
 #include <algorithm>
 
-namespace triengine::misc::string
+namespace triengine::utility::string
 {
     template <typename... Args>
     static inline std::string c_format(

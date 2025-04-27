@@ -1,24 +1,24 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/misc/string_utils.hh>
+#include <triengine/utility/string_utils.hh>
 
-#define _TRIENGINE_CURRENT_SOURCE_LOC() ::triengine::misc::debug::source_loc{ __FILE__, __LINE__, __func__ }
+#define _TRIENGINE_CURRENT_SOURCE_LOC() ::triengine::utility::debug::source_loc{ __FILE__, __LINE__, __func__ }
 
-#define _TRIENGINE_PANIC0(X)      ::triengine::misc::debug::panic_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X)
-#define _TRIENGINE_PANIC1(X, ...) ::triengine::misc::debug::panicf_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X, __VA_ARGS__)
+#define _TRIENGINE_PANIC0(X)      ::triengine::utility::debug::panic_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X)
+#define _TRIENGINE_PANIC1(X, ...) ::triengine::utility::debug::panicf_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X, __VA_ARGS__)
 #define TRIENGINE_PANIC(...) _TRIENGINE_PP_CONCAT(_TRIENGINE_PANIC, _TRIENGINE_PP_HAS_COMMA(__VA_ARGS__))(__VA_ARGS__)
 
 #if defined(TRIENGINE_DEBUG_MODE)
-#  define _TRIENGINE_TRACE0(X)      ::triengine::misc::debug::trace_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X)
-#  define _TRIENGINE_TRACE1(X, ...) ::triengine::misc::debug::tracef_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X, __VA_ARGS__)
+#  define _TRIENGINE_TRACE0(X)      ::triengine::utility::debug::trace_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X)
+#  define _TRIENGINE_TRACE1(X, ...) ::triengine::utility::debug::tracef_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), X, __VA_ARGS__)
 #  define TRIENGINE_TRACE(...) _TRIENGINE_PP_CONCAT(_TRIENGINE_TRACE, _TRIENGINE_PP_HAS_COMMA(__VA_ARGS__))(__VA_ARGS__)
-#  define TRIENGINE_ASSERT(X) ::triengine::misc::debug::assert_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), #X, X)
+#  define TRIENGINE_ASSERT(X) ::triengine::utility::debug::assert_impl(_TRIENGINE_CURRENT_SOURCE_LOC(), #X, X)
 #else  // ^^^ TRIENGINE_DEBUG_MODE ^^^ / vvv !TRIENGINE_DEBUG_MODE vvv
 #  define TRIENGINE_TRACE(X)
 #  define TRIENGINE_ASSERT(X)
 #endif // ^^^ !TRIENGINE_DEBUG_MODE ^^^
 
-namespace triengine::misc::debug
+namespace triengine::utility::debug
 {
     // `std::source_location`(since C++20) like object
     struct source_loc
@@ -53,7 +53,7 @@ namespace triengine::misc::debug
         const char* const c_fmt,
         _Args&&... args)
     {
-        panic_impl(src_loc, misc::string::c_format(c_fmt, std::forward<_Args>(args)...));
+        panic_impl(src_loc, utility::string::c_format(c_fmt, std::forward<_Args>(args)...));
     }
 
     template <typename... _Args>
@@ -62,7 +62,7 @@ namespace triengine::misc::debug
         const std::string& c_fmt,
         _Args&&... args)
     {
-        panic_impl(src_loc, misc::string::c_format(c_fmt, std::forward<_Args>(args)...));
+        panic_impl(src_loc, utility::string::c_format(c_fmt, std::forward<_Args>(args)...));
     }
 
     void trace_impl(
@@ -76,7 +76,7 @@ namespace triengine::misc::debug
         const char* const c_fmt,
         _Args&&... args)
     {
-        trace_impl(src_loc, misc::string::c_format(c_fmt, std::forward<_Args>(args)...));
+        trace_impl(src_loc, utility::string::c_format(c_fmt, std::forward<_Args>(args)...));
     }
 
     template <typename... _Args>
@@ -85,7 +85,7 @@ namespace triengine::misc::debug
         const std::string& c_fmt,
         _Args&&... args)
     {
-        trace_impl(src_loc, misc::string::c_format(c_fmt, std::forward<_Args>(args)...));
+        trace_impl(src_loc, utility::string::c_format(c_fmt, std::forward<_Args>(args)...));
     }
 
     void assert_impl(

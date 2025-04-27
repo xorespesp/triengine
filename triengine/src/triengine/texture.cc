@@ -1,6 +1,6 @@
 #include <triengine/texture.hh>
-#include <triengine/misc/debug_utils.hh>
-#include <triengine/misc/gl_utils.hh>
+#include <triengine/utility/debug_utils.hh>
+#include <triengine/utility/gl_utils.hh>
 #include <triengine/extern/stb_image.h>
 
 #include <optional>
@@ -231,7 +231,7 @@ namespace triengine
 
     std::string texture_2d::dump() const
     {
-        return misc::string::c_format(""
+        return utility::string::c_format(""
             "texture id: 0x%X\n"
             "image format: %d\n"
             "image size: %dx%d\n"

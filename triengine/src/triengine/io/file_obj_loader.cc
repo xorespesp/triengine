@@ -1,5 +1,5 @@
 ﻿#include "file_obj_loader.hh"
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/extern/tiny_obj_loader.h>
 
 #include <algorithm>

@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <triengine/common.h>
 #include <triengine/shader.hh>
-#include <triengine/misc/gl_utils.hh>
+#include <triengine/utility/gl_utils.hh>
 
 namespace triengine
 {

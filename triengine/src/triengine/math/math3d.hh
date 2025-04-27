@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <triengine/common.h>
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <type_traits>
 #include <algorithm>

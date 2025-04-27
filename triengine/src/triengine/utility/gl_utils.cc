@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
-bool triengine::misc::GLCheckError_impl(const debug::source_loc& src_loc)
+bool triengine::utility::GLCheckError_impl(const debug::source_loc& src_loc)
 {
     std::string err_msg;
 
@@ -23,7 +23,7 @@ bool triengine::misc::GLCheckError_impl(const debug::source_loc& src_loc)
 
     if (!err_msg.empty()) {
         const auto src_filename = src_loc.filename();
-        const auto msg = misc::string::c_format(""
+        const auto msg = utility::string::c_format(""
             "OpenGL error at <%.*s:#L%d(%.*s)> :%s"
             , static_cast<int>(src_filename.size())
             , src_filename.data()

@@ -1,6 +1,6 @@
 #include "infinite_grid_renderer.hh"
 
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/shaders/infinite_grid_shaders.h>
 
 namespace triengine::renderer

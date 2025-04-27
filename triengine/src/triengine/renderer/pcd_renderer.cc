@@ -1,7 +1,7 @@
 #include "pcd_renderer.hh"
 
 #include <triengine/shaders/pcd_shaders.h>
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 
 namespace triengine::renderer
 {

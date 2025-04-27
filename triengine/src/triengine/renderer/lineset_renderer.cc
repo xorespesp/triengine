@@ -1,6 +1,6 @@
 #include "lineset_renderer.hh"
 
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/shaders/lineset_shaders.h>
 
 namespace triengine::renderer

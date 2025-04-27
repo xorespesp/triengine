@@ -4,7 +4,7 @@
 #include <triengine/shader.hh>
 #include <triengine/texture.hh>
 #include <triengine/lighting_options.hh>
-#include <triengine/misc/gl_utils.hh>
+#include <triengine/utility/gl_utils.hh>
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/shader_preprocessor.hh>
 

@@ -6,7 +6,7 @@
 #  include <Windows.h>
 #endif // ^^^ _TRIENGINE_PLATFORM_WIN32 ^^^
 
-namespace triengine::misc::debug
+namespace triengine::utility::debug
 {
     namespace {
         namespace detail
@@ -69,7 +69,7 @@ namespace triengine::misc::debug
         const std::string_view msg_sv)
     {
         const auto src_filename = src_loc.filename();
-        const auto msg = misc::string::c_format(""
+        const auto msg = utility::string::c_format(""
             "Panic occurred at <%.*s:#L%d(%.*s)> : %.*s"
             , static_cast<int>(src_filename.size())
             , src_filename.data()
@@ -89,7 +89,7 @@ namespace triengine::misc::debug
         const std::string_view msg_sv)
     {
         const auto src_filename = src_loc.filename();
-        const auto msg = misc::string::c_format(""
+        const auto msg = utility::string::c_format(""
             "[%.*s:#L%d(%.*s)] : %.*s"
             , static_cast<int>(src_filename.size())
             , src_filename.data()
@@ -111,7 +111,7 @@ namespace triengine::misc::debug
         if (!cond_expr_res) {
 #if defined (_TRIENGINE_PLATFORM_WIN32)
             const auto src_filename = src_loc.filename();
-            const auto msg = misc::string::c_format(""
+            const auto msg = utility::string::c_format(""
                 "Runtime assertion failed!\n\n"
                 "File: %.*s\n"
                 "Line: %d\n"

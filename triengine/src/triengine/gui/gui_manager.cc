@@ -1,5 +1,5 @@
 #include "gui_manager.hh"
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/visualization/visualizer.hh>
 #include <triengine/shaders/shader_version.h>
 #include <triengine/extern/fonts/Fonts.h>

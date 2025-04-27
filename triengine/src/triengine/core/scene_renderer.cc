@@ -1,8 +1,8 @@
 ﻿#include "scene_renderer.hh"
 
-#include <triengine/misc/string_utils.hh>
-#include <triengine/misc/debug_utils.hh>
-#include <triengine/misc/gl_utils.hh>
+#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/debug_utils.hh>
+#include <triengine/utility/gl_utils.hh>
 
 #include <triengine/extern/smaa_area_texture.h>
 #include <triengine/extern/smaa_search_texture.h>

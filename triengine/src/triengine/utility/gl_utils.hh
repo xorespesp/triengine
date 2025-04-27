@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <triengine/common.h>
-#include <triengine/misc/debug_utils.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -8,7 +8,7 @@
 // Refs:
 // https://gamesmith.tistory.com/147
 // https://gamesmith.tistory.com/144
-#define GLCheckError() ::triengine::misc::GLCheckError_impl(_TRIENGINE_CURRENT_SOURCE_LOC()) 
+#define GLCheckError() ::triengine::utility::GLCheckError_impl(_TRIENGINE_CURRENT_SOURCE_LOC()) 
 #define GLClearError() while (::glGetError() != GL_NO_ERROR);
 
 #if defined(TRIENGINE_DEBUG_MODE)
@@ -20,7 +20,7 @@
 #  define GLCall(STMT) STMT // Call without error check
 #endif // ^^^ !TRIENGINE_DEBUG_MODE ^^^
 
-namespace triengine::misc
+namespace triengine::utility
 {
     bool GLCheckError_impl(
         const debug::source_loc& src_loc

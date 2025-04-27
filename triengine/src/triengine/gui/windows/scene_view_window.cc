@@ -1,5 +1,5 @@
 #include "scene_view_window.hh"
-#include <triengine/misc/string_utils.hh>
+#include <triengine/utility/string_utils.hh>
 #include <triengine/visualization/visualizer.hh>
 
 namespace triengine::gui
@@ -183,7 +183,7 @@ namespace triengine::gui
     // Ref: `ShowExampleAppSimpleOverlay(bool* p_open)`
     void scene_view_window::_render_overlay_ui(const window_render_context& render_ctx)
     {
-        thread_local misc::string::format_string_builder<1024> sb_;
+        thread_local utility::string::format_string_builder<1024> sb_;
 
         static int location = 0;
 
