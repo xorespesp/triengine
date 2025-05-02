@@ -13,11 +13,12 @@ namespace triengine
     public:
         using scalar_type = _Scalar;
         using this_type = color3_;
+        static constexpr size_t SizeAtCompileTime = 3;
 
         static_assert(std::is_floating_point_v<scalar_type>, "!!");
 
     public:
-        std::array<scalar_type, 3> rgb{};
+        std::array<scalar_type, SizeAtCompileTime> rgb{};
 
     public:
         static inline this_type all(scalar_type scalar) {
@@ -32,6 +33,8 @@ namespace triengine
         color3_() = default;
         color3_(scalar_type r_, scalar_type g_, scalar_type b_) : rgb{ r_, g_, b_ } {}
         explicit color3_(const Eigen::Vector3<scalar_type>& v) : rgb{ v[0], v[1], v[2] } {}
+
+        size_t size() const noexcept { return rgb.size(); }
 
         const scalar_type* data() const noexcept { return rgb.data(); }
         scalar_type* data() noexcept { return rgb.data(); }
@@ -62,11 +65,12 @@ namespace triengine
     public:
         using scalar_type = _Scalar;
         using this_type = color4_;
+        static constexpr size_t SizeAtCompileTime = 4;
 
         static_assert(std::is_floating_point_v<scalar_type>, "!!");
 
     public:
-        std::array<scalar_type, 4> rgba{};
+        std::array<scalar_type, SizeAtCompileTime> rgba{};
 
     public:
         static inline this_type all(scalar_type scalar) {
@@ -81,6 +85,8 @@ namespace triengine
         color4_() = default;
         color4_(scalar_type r_, scalar_type g_, scalar_type b_, scalar_type a_) : rgba{ r_, g_, b_, a_ } {}
         explicit color4_(const Eigen::Vector4<scalar_type>& v) : rgba{ v[0], v[1], v[2], v[3] } {}
+
+        size_t size() const noexcept { return rgba.size(); }
 
         const scalar_type* data() const noexcept { return rgba.data(); }
         scalar_type* data() noexcept { return rgba.data(); }

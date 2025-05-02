@@ -13,21 +13,14 @@ namespace triengine::renderer
         // Render options
         std::optional<float> _point_size;
 
-        // OpenGL shaders
+        // OpenGL resources
+        core::gl_context* _glctx{ nullptr };
         shader_program 
             _solid_shader, 
             _transparent_shader;
 
-        // OpenGL objects
-        GLuint _vao{}; // vertex array object
-        GLuint // vertex buffer objects
-            _vbo_positions{}, 
-            _vbo_normals{}, 
-            _vbo_colors{};
-
     public:
         pcd_renderer();
-        virtual ~pcd_renderer();
 
         void set_pcd_point_size(float point_size);
 

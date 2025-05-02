@@ -67,7 +67,7 @@ namespace gui
                     * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
                 new_obj->rotate(R, true);
                 new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
-                _scene->add_object(new_obj);
+                _scene->add_geometry(new_obj);
                 _obj_texcolor_mesh = new_obj;
             }
 

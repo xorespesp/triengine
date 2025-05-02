@@ -6,11 +6,6 @@ namespace triengine::renderer
     skeleton_renderer::skeleton_renderer()
     { }
 
-    skeleton_renderer::~skeleton_renderer()
-    {
-        this->destroy();
-    }
-
     void skeleton_renderer::show_joint_axis(bool show)
     {
         _flag_show_joint_axis = show;
@@ -46,8 +41,8 @@ namespace triengine::renderer
                 continue;
             }
 
-            _mesh_renderer.render(render_ctx, object->joint_objects);
-            _mesh_renderer.render(render_ctx, object->bone_objects);
+            _mesh_renderer.render(render_ctx, object->get_joint_objects());
+            _mesh_renderer.render(render_ctx, object->get_bone_objects());
         }
     }
 

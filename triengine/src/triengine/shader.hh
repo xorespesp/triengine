@@ -1,5 +1,6 @@
 #pragma once
 #include <triengine/common.h>
+#include <triengine/utility/noncopyable.hh>
 #include <glad/glad.h>
 
 #include <initializer_list>
@@ -18,12 +19,15 @@ namespace triengine
     };
 
     class shader_program final
+        : utility::noncopyable
     {
     private:
         using this_type = shader_program;
         static constexpr GLuint kInvalidProgramID{ 0u };
 
-        class shader_object final {
+        class shader_object final
+            : utility::noncopyable
+        {
         private:
             static constexpr GLuint kInvalidShaderID{ 0u };
 
@@ -44,9 +48,6 @@ namespace triengine
 
             ~shader_object();
 
-            shader_object(const shader_object&) = delete;
-            shader_object& operator=(const shader_object&) = delete;
-
             shader_object(shader_object&& rhs) noexcept;
             shader_object& operator=(shader_object&& rhs) noexcept;
 
@@ -64,8 +65,6 @@ namespace triengine
     public:
         shader_program();
         ~shader_program();
-        shader_program(const shader_program&) = delete;
-        shader_program& operator=(const shader_program&) = delete;
         shader_program(shader_program&& rhs) noexcept;
         shader_program& operator=(shader_program&& rhs) noexcept;
 

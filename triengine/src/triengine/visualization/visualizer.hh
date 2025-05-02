@@ -3,12 +3,14 @@
 #include <triengine/gui/gui_manager.hh>
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/scene_renderer.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <functional>
 
 namespace triengine::visualization
 {
     class visualizer
+        : utility::noncopyable
     {
     public:
         using close_callback = std::function<void(visualizer& vis, bool& handled)>;
@@ -21,9 +23,6 @@ namespace triengine::visualization
     public:
         visualizer();
         virtual ~visualizer() = default;
-
-        visualizer(const visualizer&) = delete;
-        visualizer& operator=(const visualizer&) = delete;
 
         const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
         core::gl_context* get_gl_context() noexcept { return &_glctx; }
@@ -75,7 +74,7 @@ namespace triengine::visualization
         std::shared_ptr<const scene> get_current_scene() const { return _curr_scn; }
         std::shared_ptr<scene> get_current_scene() { return _curr_scn; }
 
-        bool add_scene(std::shared_ptr<scene> scn = std::make_shared<triengine::scene>());
+        std::shared_ptr<scene> add_scene();
         void remove_scene(std::shared_ptr<scene> scn);
         void change_scene(std::shared_ptr<scene> scn);
 
@@ -162,10 +161,7 @@ namespace triengine::visualization
 
         std::unique_ptr<gui::gui_manager> _gui_mgr;
         std::shared_ptr<gui::scene_view_window> _scene_window;
-
-        std::shared_ptr<geometry::light_source_object> _point_light_source_object;
-        std::shared_ptr<geometry::triangle_mesh_object> _origin_axis_frame_object;
-
+        
     }; // class
 
 } // namespace

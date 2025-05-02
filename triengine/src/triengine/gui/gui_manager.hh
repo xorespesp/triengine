@@ -4,6 +4,7 @@
 #include <triengine/gui/windows/render_stats_window.hh>
 #include <triengine/gui/windows/scene_view_window.hh>
 #include <triengine/gui/windows/scene_ctrl_window.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <memory>
 #include <string>
@@ -17,13 +18,11 @@ namespace triengine::visualization {
 namespace triengine::gui
 {
     class gui_manager final
+        : utility::noncopyable
     {
     public:
         gui_manager();
         ~gui_manager();
-
-        gui_manager(const gui_manager&) = delete;
-        gui_manager& operator=(const gui_manager&) = delete;
 
         bool is_initialized() const noexcept;
 

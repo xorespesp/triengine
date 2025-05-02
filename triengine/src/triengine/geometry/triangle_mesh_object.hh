@@ -41,8 +41,8 @@ namespace triengine::geometry
         /// NOTE: Only used in texture-shading mode
         struct texture_shading_material
         {
-            texture_2d diffuse_map; /// diffuse-map texture
-            texture_2d specular_map; /// specular-map texture
+            texture_2d diffuse_map; /// diffuse-map texture. (TODO: replace texture_2d -> pure image object)
+            texture_2d specular_map; /// specular-map texture (TODO: replace texture_2d -> pure image object)
             uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
             float alpha{ 1.0f }; /// object transparency (WBOIT); [0.0...1.0]
 

@@ -5,6 +5,7 @@
 #include <triengine/texture.hh>
 #include <triengine/lighting_options.hh>
 #include <triengine/utility/gl_utils.hh>
+#include <triengine/utility/noncopyable.hh>
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/shader_preprocessor.hh>
 
@@ -30,6 +31,7 @@ namespace triengine::renderer
 
     template <typename _Derived>
     class renderer_base
+        : utility::noncopyable
     {
     private:
         bool _creation_flag{ false };
@@ -41,10 +43,11 @@ namespace triengine::renderer
 
     public:
         renderer_base() = default;
-        virtual ~renderer_base() = default;
-
-        renderer_base(const renderer_base&) = delete;
-        renderer_base& operator= (const renderer_base&) = delete;
+        virtual ~renderer_base() {
+            if (this->is_created()) {
+                this->destroy();
+            }
+        }
 
         bool is_created() const noexcept {
             return _creation_flag;
@@ -66,6 +69,7 @@ namespace triengine::renderer
 
     template <typename _Derived, typename _RenderObject>
     class object_renderer_base
+        : utility::noncopyable
     {
     public:
         using render_object_type = _RenderObject;
@@ -81,10 +85,11 @@ namespace triengine::renderer
 
     public:
         object_renderer_base() = default;
-        virtual ~object_renderer_base() = default;
-
-        object_renderer_base(const object_renderer_base&) = delete;
-        object_renderer_base& operator= (const object_renderer_base&) = delete;
+        virtual ~object_renderer_base() {
+            if (this->is_created()) {
+                this->destroy();
+            }
+        }
 
         bool is_created() const noexcept {
             return _creation_flag;

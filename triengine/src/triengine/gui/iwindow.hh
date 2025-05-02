@@ -1,4 +1,6 @@
 #pragma once
+#include <triengine/utility/noncopyable.hh>
+
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -16,6 +18,7 @@ namespace triengine::gui
     };
 
     class iwindow
+        : utility::noncopyable
     {
     private:
         bool _flag_show_window = true;
@@ -25,8 +28,6 @@ namespace triengine::gui
         iwindow() = default;
         virtual ~iwindow() = default;
 
-        iwindow(const iwindow&) = delete;
-        iwindow& operator=(const iwindow&) = delete;
         iwindow(const iwindow&&) = delete;
         iwindow& operator=(const iwindow&&) = delete;
 

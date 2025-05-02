@@ -3,6 +3,7 @@
 #include <triengine/image.hh>
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/scene_renderer.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <functional>
 #include <unordered_map>
@@ -11,13 +12,11 @@
 namespace triengine::visualization
 {
     class offscreen_renderer
+        : utility::noncopyable
     {
     public:
         offscreen_renderer();
         virtual ~offscreen_renderer() = default;
-
-        offscreen_renderer(const offscreen_renderer&) = delete;
-        offscreen_renderer& operator=(const offscreen_renderer&) = delete;
 
         const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
         core::gl_context* get_gl_context() noexcept { return &_glctx; }
@@ -32,7 +31,7 @@ namespace triengine::visualization
         std::shared_ptr<const scene> get_current_scene() const { return _curr_scn; }
         std::shared_ptr<scene> get_current_scene() { return _curr_scn; }
 
-        bool add_scene(std::shared_ptr<scene> scn = std::make_shared<triengine::scene>());
+        std::shared_ptr<scene> add_scene();
         void remove_scene(std::shared_ptr<scene> scn);
         void change_scene(std::shared_ptr<scene> scn);
 

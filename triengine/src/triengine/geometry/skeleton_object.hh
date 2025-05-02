@@ -7,6 +7,11 @@
 
 namespace triengine::geometry
 {
+    // NOTE: 
+    // In the current implementation, the vertex data of the internal `triangle_mesh_object`s
+    // inside the `skeleton_object` must NOT be modified after initialization.
+    // (The `gpu_resource_manager` does not automatically track these changes.)
+
     class skeleton_object
         : public geometry_object_base
     {
@@ -14,15 +19,23 @@ namespace triengine::geometry
             kDefaultBoneRadiusRatio{ 0.09f },
             kDefaultJointRadius{ 0.0175f };
 
-    public:
+    private:
         std::list<std::shared_ptr<geometry::triangle_mesh_object>>
-            joint_objects,
-            bone_objects;
+            _joint_objects,
+            _bone_objects;
 
     public:
         skeleton_object()
             : geometry_object_base{ geometry_object_type::skeleton }
         {}
+
+        const auto& get_joint_objects() const noexcept {
+            return _joint_objects;
+        }
+        
+        const auto& get_bone_objects() const noexcept {
+            return _bone_objects;
+        }
 
         void translate(
             const vec3_f32& t,

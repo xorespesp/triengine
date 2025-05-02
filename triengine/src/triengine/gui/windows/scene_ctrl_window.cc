@@ -17,7 +17,7 @@ namespace triengine::gui
     {
         if (_vis)
         {
-            auto& scn_config = _vis->get_current_scene()->render_config;
+            auto& scn_config = *_vis->get_current_scene()->get_render_config();
 
             if (ImGui::CollapsingHeader("Render Options", ImGuiTreeNodeFlags_DefaultOpen))
             {

@@ -1,6 +1,7 @@
 ﻿#include "gl_context.hh"
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <iostream>
 
@@ -8,7 +9,9 @@ namespace triengine::core
 {
     namespace {
         // singleton class
-        class global_glfw_environment final {
+        class global_glfw_environment final
+            : utility::noncopyable
+        {
         private:
             global_glfw_environment()
             {
@@ -33,9 +36,6 @@ namespace triengine::core
             {
                 ::glfwTerminate();
             }
-
-            global_glfw_environment(const global_glfw_environment&) = delete;
-            global_glfw_environment& operator=(const global_glfw_environment&) = delete;
 
         public:
             // This function initializes the GLFW library for the rendering. 
@@ -254,6 +254,8 @@ namespace triengine::core
 
         // glfwSwapInterval(1) -> Enable vsync
         ::glfwSwapInterval((enable_vsync) ? 1 : 0);
+
+        _gpu_res_mgr = std::make_shared<gpu_resource_manager>();
 
         _flag_initialized = true;
         TRIENGINE_TRACE(

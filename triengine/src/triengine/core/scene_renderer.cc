@@ -34,6 +34,8 @@ namespace triengine::core
 
     void scene_renderer::create(gl_context* glctx)
     {
+        _glctx = glctx;
+
         // Context Settings
         GLCall(::glEnable(GL_DEPTH_TEST));
         //GLCall(::glEnable(GL_MULTISAMPLE));
@@ -144,12 +146,6 @@ namespace triengine::core
                 false
             );
         }
-
-        constexpr size_t kMaxPointLights = 1;
-        for (size_t i = 0; i < kMaxPointLights; ++i) {
-            _light_source_objects.push_back(geometry::light_source_object::create(0.1f));
-            _light_source_objects.back()->set_visible(false);
-        }
     }
 
     void scene_renderer::destroy()
@@ -170,55 +166,49 @@ namespace triengine::core
 
         if (_vao_screen_quad) { ::glDeleteVertexArrays(1, &_vao_screen_quad); }
         if (_vbo_screen_quad) { ::glDeleteBuffers(1, &_vbo_screen_quad); }
+        _glctx = nullptr;
     }
 
     void scene_renderer::render(
         const frame_buffer& target_fb,
         scene& scn)
     {
+        _glctx->get_gpu_resource_manager()->process_pending_requests();
+        
+        scene_render_config& scn_render_config = *scn.get_render_config();
         const camera& scn_camera = *scn.get_camera();
         const view_port viewport = scn_camera.get_view_port();
 
         {
-            if (scn.render_config.light_opts.dir_light.follow_camera) {
-                scn.render_config.light_opts.dir_light.direction = scn_camera.get_direction();
+            if (scn_render_config.light_opts.dir_light.follow_camera) {
+                scn_render_config.light_opts.dir_light.direction = scn_camera.get_direction();
             }
 
-            {
-                auto& light_source_obj = *_light_source_objects.back();
-                light_source_obj.set_visible(
-                    scn.render_config.light_opts.point_light.enabled &&
-                    scn.render_config.light_opts.point_light.show_light_source
-                );
-                light_source_obj.translate(scn.render_config.light_opts.point_light.position);
-                light_source_obj.color = scn.render_config.light_opts.point_light.color;
-            }
-
-            if (scn.render_config.pcd_point_size) { _pcd_renderer.set_pcd_point_size(scn.render_config.pcd_point_size.value()); }
-            _mesh_renderer.enable_object_normal_rendering(scn.render_config.show_object_normals);
-            _skeleton_renderer.show_joint_axis(scn.render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
-            _infgrid_renderer.set_options(scn.render_config.infgrid_opts);
+            if (scn_render_config.pcd_point_size) { _pcd_renderer.set_pcd_point_size(scn_render_config.pcd_point_size.value()); }
+            _mesh_renderer.enable_object_normal_rendering(scn_render_config.show_object_normals);
+            _skeleton_renderer.show_joint_axis(scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
+            _infgrid_renderer.set_options(scn_render_config.infgrid_opts);
         }
 
         renderer::render_context render_ctx; {
             scn_camera.get_view_projection(render_ctx.view, render_ctx.projection);
-            render_ctx.light_opts = &scn.render_config.light_opts;
+            render_ctx.light_opts = &scn_render_config.light_opts;
             render_ctx.camera = &scn_camera;
         }
 
         // set viewport (global state)
         GLCall(::glViewport(viewport.x, viewport.y, viewport.width, viewport.height));
 
-        if (!scn.render_config.show_wireframe)
+        if (!scn_render_config.show_wireframe)
         {
             // set polygon mode (global state)
             GLCall(::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 
             // NOTE: currently, overlay render pass is only for the skeleton_renderer.
             const bool overlay_render_pass_required =
-                !scn.skeleton_objects.empty() &&
-                (scn.render_config.skeleton_mode == scene_render_config::skeleton_render_mode::skeleton_overlay ||
-                 scn.render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
+                !scn.get_skeleton_geometries().empty() &&
+                (scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::skeleton_overlay ||
+                 scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
 
             // ---------------------------------------------------------------------------------
             // WBOIT pass
@@ -273,22 +263,22 @@ namespace triengine::core
                 GLCall(::glDepthMask(GL_TRUE)); // enable depth buffer writes so glClear won't ignore clearing the depth buffer
                 GLCall(::glDisable(GL_BLEND));
                 GLCall(::glClearColor(
-                    scn.render_config.bg_color.r(), 
-                    scn.render_config.bg_color.g(), 
-                    scn.render_config.bg_color.b(),
-                    scn.render_config.bg_color.a())
+                    scn_render_config.bg_color.r(), 
+                    scn_render_config.bg_color.g(), 
+                    scn_render_config.bg_color.b(),
+                    scn_render_config.bg_color.a())
                 );
 
                 // clear frame buffers
                 GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
                 // render solid(opaque) objects
-                _lineset_renderer.render(render_ctx, scn.lineset_objects);
-                _pcd_renderer.render(render_ctx, scn.pcd_objects);
-                _light_source_renderer.render(render_ctx, _light_source_objects);
-                _mesh_renderer.render(render_ctx, scn.mesh_objects);
+                _lineset_renderer.render(render_ctx, scn.get_lineset_geometries());
+                _pcd_renderer.render(render_ctx, scn.get_pcd_geometries());
+                _light_source_renderer.render(render_ctx);
+                _mesh_renderer.render(render_ctx, scn.get_mesh_geometries());
                 if (!overlay_render_pass_required) {
-                    _skeleton_renderer.render(render_ctx, scn.skeleton_objects);
+                    _skeleton_renderer.render(render_ctx, scn.get_skeleton_geometries());
                 }
             }
 
@@ -322,15 +312,15 @@ namespace triengine::core
                 GLCall(::glClearBufferfv(GL_COLOR, 1/* index of the draw buffer; [1]: reveal color buffer */, reveal_fill_vec.data()));
 
                 // render transparent objects
-                _pcd_renderer.render(render_ctx, scn.pcd_objects);
+                _pcd_renderer.render(render_ctx, scn.get_pcd_geometries());
 
                 _mesh_renderer.enable_object_normal_rendering(false); // override setting
                 _mesh_renderer.render(
                     render_ctx,
-                    scn.mesh_objects
+                    scn.get_mesh_geometries()
                 );
 
-                if (scn.render_config.show_origin_xz_grid) {
+                if (scn_render_config.show_origin_xz_grid) {
                     // NOTE: The infinite grid renderer must be rendered last to allow for alpha-blending.
                     //       (except the skeleton renderer, which sometimes causes the depth buffer to be reset).
                     _infgrid_renderer.render(render_ctx);
@@ -404,7 +394,7 @@ namespace triengine::core
                 GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
                 // render skeletons to overlay color buffer
-                _skeleton_renderer.render(render_ctx, scn.skeleton_objects);
+                _skeleton_renderer.render(render_ctx, scn.get_skeleton_geometries());
 
                 // bind WBOIT framebuffer back
                 GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, _wboit_fb.fbo_id()));
@@ -451,7 +441,7 @@ namespace triengine::core
                 * smaa_blend_color_attach = _smaa_fb.color_attachment(1),
                 * smaa_neighbor_color_attach = _smaa_fb.color_attachment(2);
 
-            if (scn.render_config.enable_anti_aliasing)
+            if (scn_render_config.enable_anti_aliasing)
             {
                 const vec4_f32 smaa_rt_metrics{
                     1.0f / static_cast<float>(_smaa_fb.width_pixels()),
@@ -574,7 +564,7 @@ namespace triengine::core
 
                 GLCall(::glActiveTexture(GL_TEXTURE0));
                 GLCall(::glBindTexture(GL_TEXTURE_2D, 
-                    (scn.render_config.enable_anti_aliasing)
+                    (scn_render_config.enable_anti_aliasing)
                     ? smaa_neighbor_color_attach->buffer_id
                     : wboit_opaque_color_attach->buffer_id
                 ));
@@ -597,10 +587,10 @@ namespace triengine::core
             GLCall(::glDepthMask(GL_TRUE)); // enable depth buffer writes so glClear won't ignore clearing the depth buffer
             GLCall(::glDisable(GL_BLEND));
             GLCall(::glClearColor(
-                scn.render_config.bg_color.r(), 
-                scn.render_config.bg_color.g(), 
-                scn.render_config.bg_color.b(), 
-                scn.render_config.bg_color.a())
+                scn_render_config.bg_color.r(), 
+                scn_render_config.bg_color.g(), 
+                scn_render_config.bg_color.b(), 
+                scn_render_config.bg_color.a())
             );
 
             GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, target_fb.fbo_id()));
@@ -609,11 +599,11 @@ namespace triengine::core
             // clear frame buffers
             GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)); 
 
-            _lineset_renderer.render(render_ctx, scn.lineset_objects);
-            _pcd_renderer.render(render_ctx, scn.pcd_objects);
-            _light_source_renderer.render(render_ctx, _light_source_objects);
-            _mesh_renderer.render(render_ctx, scn.mesh_objects);
-            _skeleton_renderer.render(render_ctx, scn.skeleton_objects);
+            _lineset_renderer.render(render_ctx, scn.get_lineset_geometries());
+            _pcd_renderer.render(render_ctx, scn.get_pcd_geometries());
+            _light_source_renderer.render(render_ctx);
+            _mesh_renderer.render(render_ctx, scn.get_mesh_geometries());
+            _skeleton_renderer.render(render_ctx, scn.get_skeleton_geometries());
         }
     }
 

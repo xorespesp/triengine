@@ -12,12 +12,11 @@ namespace triengine::renderer
         // Render options
         bool _flag_show_joint_axis{ false };
 
-        // Render shape object
+        // Internal renderer
         triangle_mesh_renderer _mesh_renderer;
 
     public:
         skeleton_renderer();
-        virtual ~skeleton_renderer();
 
         void show_joint_axis(bool show);
 

@@ -1,16 +1,16 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/math/math3d.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <string>
 
 namespace triengine::geometry
 {
     enum class geometry_object_type {
-        light_source,
-        lineset,
-        pointcloud,
         triangle_mesh,
+        pointcloud,
+        lineset,
         skeleton,
     };
 
@@ -41,18 +41,17 @@ namespace triengine::geometry
 
     class geometry_object_base
         : public object_base
+        , utility::noncopyable
     {
     private:
         const geometry_object_type _type;
         bool _flag_visible = true;
+        mutable bool _flag_dirty = true; // upload to gpu
         mat4_f32 _model = mat4_f32::Identity();
 
     public:
         geometry_object_base(geometry_object_type type) : _type{ type } {}
         virtual ~geometry_object_base() = default;
-
-        geometry_object_base(const geometry_object_base&) = delete;
-        geometry_object_base& operator= (const geometry_object_base&) = delete;
 
         geometry_object_type get_type() const noexcept {
             return _type;
@@ -64,6 +63,18 @@ namespace triengine::geometry
 
         void set_visible(bool visible) noexcept {
             _flag_visible = visible;
+        }
+
+        bool is_dirty() const noexcept {
+            return _flag_dirty;
+        }
+
+        void mark_dirty() const noexcept {
+            _flag_dirty = true;
+        }
+
+        void clear_dirty() const noexcept {
+            _flag_dirty = false;
         }
 
         const mat4_f32& get_model() const noexcept {

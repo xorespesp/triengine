@@ -3,74 +3,72 @@
 
 namespace triengine::geometry
 {
-    namespace {
-        namespace detail
+    namespace
+    {
+        inline void _compute_rotation_between_vectors(
+            mat4_f32& rotation/* out */,
+            const vec3_f32& v0,
+            const vec3_f32& v1)
         {
-            inline void compute_rotation_between_vectors(
-                mat4_f32& rotation/* out */,
-                const vec3_f32& v0,
-                const vec3_f32& v1)
-            {
-                vec3_f32
-                    u0 = v0.normalized(),
-                    u1 = v1.normalized(),
-                    v = u0.cross(u1);
+            vec3_f32
+                u0 = v0.normalized(),
+                u1 = v1.normalized(),
+                v = u0.cross(u1);
 
-                const float
-                    sinTheta = v.norm(); // get vector length
+            const float
+                sinTheta = v.norm(); // get vector length
 
-                if (sinTheta < 0.00001f) {
-                    rotation = mat4_f32::Identity();
-                    return;
-                }
-
-                const float
-                    cosTheta = u0.dot(u1),
-                    scale = 1.0f / (1.0f + cosTheta);
-
-                // Ref: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
-                mat4_f32 vx;
-                vx <<
-                    0.0f, -v.z(), v.y(), 0.0f,
-                    v.z(), 0.0f, -v.x(), 0.0f,
-                    -v.y(), v.x(), 0.0f, 0.0f,
-                    0.0f, 0.0f, 0.0f, 1.0f;
-
-                const mat4_f32 vx2 = vx * vx;
-                const mat4_f32 vx2Scaled = vx2 * scale;
-
-                rotation = mat4_f32::Identity() + vx + vx2Scaled;
-                rotation(3, 3) = 1.0f;
+            if (sinTheta < 0.00001f) {
+                rotation = mat4_f32::Identity();
+                return;
             }
 
-            inline void compute_cylinder_parameters(
-                mat4_f32& cylinder_model/* out */,
-                float& cylinder_height/* out */,
-                const vec3_f32& start,
-                const vec3_f32& end)
-            {
-                const vec3_f32 centralAxis = start - end;
-                cylinder_height = centralAxis.norm(); // get vector length
+            const float
+                cosTheta = u0.dot(u1),
+                scale = 1.0f / (1.0f + cosTheta);
 
-                const vec3_f32 centerPosition = (start + end) * 0.5f;
+            // Ref: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+            mat4_f32 vx;
+            vx <<
+                0.0f, -v.z(), v.y(), 0.0f,
+                v.z(), 0.0f, -v.x(), 0.0f,
+                -v.y(), v.x(), 0.0f, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f;
 
-                // Create translation matrix
-                // Note: https://stackoverflow.com/questions/59222806/how-does-glm-handle-translation
-                mat4_f32 translation{ mat4_f32::Identity() };
-                translation.block<3, 1>(0, 3) = centerPosition;
+            const mat4_f32 vx2 = vx * vx;
+            const mat4_f32 vx2Scaled = vx2 * scale;
 
-                mat4_f32 rotation;
-                const vec3_f32 zAxis(0.0f, 0.0f, 1.0f);
-                compute_rotation_between_vectors(
-                    rotation,
-                    zAxis,
-                    centralAxis
-                );
+            rotation = mat4_f32::Identity() + vx + vx2Scaled;
+            rotation(3, 3) = 1.0f;
+        }
 
-                cylinder_model = translation * rotation;
-            }
+        inline void _compute_cylinder_parameters(
+            mat4_f32& cylinder_model/* out */,
+            float& cylinder_height/* out */,
+            const vec3_f32& start,
+            const vec3_f32& end)
+        {
+            const vec3_f32 centralAxis = start - end;
+            cylinder_height = centralAxis.norm(); // get vector length
 
-        } // namespace
+            const vec3_f32 centerPosition = (start + end) * 0.5f;
+
+            // Create translation matrix
+            // Note: https://stackoverflow.com/questions/59222806/how-does-glm-handle-translation
+            mat4_f32 translation{ mat4_f32::Identity() };
+            translation.block<3, 1>(0, 3) = centerPosition;
+
+            mat4_f32 rotation;
+            const vec3_f32 zAxis(0.0f, 0.0f, 1.0f);
+            _compute_rotation_between_vectors(
+                rotation,
+                zAxis,
+                centralAxis
+            );
+
+            cylinder_model = translation * rotation;
+        }
+
     } // namespace
 
     void skeleton_object::translate(
@@ -115,7 +113,7 @@ namespace triengine::geometry
         mesh->rotate(joint_rot);
         mesh->transform(this->get_model(), true);
         mesh->paint_uniform_color(joint_color);
-        joint_objects.emplace_back(mesh);
+        _joint_objects.emplace_back(mesh);
     }
 
     void skeleton_object::add_bone(
@@ -125,7 +123,7 @@ namespace triengine::geometry
     {
         mat4_f32 cylinder_model;
         float cylinder_height;
-        detail::compute_cylinder_parameters(
+        _compute_cylinder_parameters(
             cylinder_model,
             cylinder_height,
             from_joint_pos,
@@ -138,22 +136,22 @@ namespace triengine::geometry
         mesh->transform(cylinder_model);
         mesh->transform(this->get_model(), true);
         mesh->paint_uniform_color(bone_color);
-        bone_objects.emplace_back(mesh);
+        _bone_objects.emplace_back(mesh);
     }
 
     void skeleton_object::clear()
     {
-        joint_objects.clear();
-        bone_objects.clear();
+        _joint_objects.clear();
+        _bone_objects.clear();
     }
 
     void skeleton_object::_update_objects_model()
     {
         const auto& model = this->get_model();
-        for (auto& obj : joint_objects) {
+        for (auto& obj : _joint_objects) {
             obj->transform(model, true);
         }
-        for (auto& obj : bone_objects) {
+        for (auto& obj : _bone_objects) {
             obj->transform(model, true);
         }
     }

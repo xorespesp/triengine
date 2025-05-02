@@ -7,6 +7,7 @@
 #include <triengine/geometry/pcd_object.hh>
 #include <triengine/geometry/triangle_mesh_object.hh>
 #include <triengine/geometry/skeleton_object.hh>
+#include <triengine/core/gpu_resource_manager.hh>
 
 #include <optional>
 #include <memory>
@@ -42,14 +43,15 @@ namespace triengine
     {
     private:
         const uint32_t _id{ _create_unique_id() };
+        std::weak_ptr<core::gpu_resource_manager> _gpu_rsrc_mgr;
+        scene_render_config _render_config;
         camera _main_camera; // TODO: multi camera?
+        std::list<std::shared_ptr<geometry::lineset_object>> _lineset_objects;
+        std::list<std::shared_ptr<geometry::pcd_object>> _pcd_objects;
+        std::list<std::shared_ptr<geometry::triangle_mesh_object>> _mesh_objects;
+        std::list<std::shared_ptr<geometry::skeleton_object>> _skeleton_objects;
 
     public:
-        scene_render_config render_config;
-        std::list<std::shared_ptr<geometry::lineset_object>> lineset_objects;
-        std::list<std::shared_ptr<geometry::pcd_object>> pcd_objects;
-        std::list<std::shared_ptr<geometry::triangle_mesh_object>> mesh_objects;
-        std::list<std::shared_ptr<geometry::skeleton_object>> skeleton_objects;
 
     private:
         static uint32_t _create_unique_id() {
@@ -59,53 +61,38 @@ namespace triengine
         }
 
     public:
-        scene() = default;
+        scene(std::shared_ptr<core::gpu_resource_manager> gpu_rsrc_mgr)
+            : _gpu_rsrc_mgr{ gpu_rsrc_mgr }
+        {}
         
         uint32_t id() const noexcept { return _id; }
+
+        const scene_render_config* get_render_config() const noexcept { return &_render_config; }
+        scene_render_config* get_render_config() noexcept { return &_render_config; }
 
         const camera* get_camera() const noexcept { return &_main_camera; }
         camera* get_camera() noexcept { return &_main_camera; }
 
-        void add_object(std::shared_ptr<geometry::geometry_object_base> object) {
-            switch (object->get_type()) {
-            case geometry::geometry_object_type::lineset:
-                lineset_objects.push_back(std::static_pointer_cast<geometry::lineset_object>(object));
-                break;
-            case geometry::geometry_object_type::pointcloud:
-                pcd_objects.push_back(std::static_pointer_cast<geometry::pcd_object>(object));
-                break;
-            case geometry::geometry_object_type::triangle_mesh:
-                mesh_objects.push_back(std::static_pointer_cast<geometry::triangle_mesh_object>(object));
-                break;
-            case geometry::geometry_object_type::skeleton:
-                skeleton_objects.push_back(std::static_pointer_cast<geometry::skeleton_object>(object));
-                break;
-            }
-        }
+        const auto& get_lineset_geometries() const noexcept { return _lineset_objects; }
+        auto& get_lineset_geometries() noexcept { return _lineset_objects; }
 
-        void remove_object(std::shared_ptr<geometry::geometry_object_base> object) {
-            switch (object->get_type()) {
-            case geometry::geometry_object_type::lineset:
-                lineset_objects.remove(std::static_pointer_cast<geometry::lineset_object>(object));
-                break;
-            case geometry::geometry_object_type::pointcloud:
-                pcd_objects.remove(std::static_pointer_cast<geometry::pcd_object>(object));
-                break;
-            case geometry::geometry_object_type::triangle_mesh:
-                mesh_objects.remove(std::static_pointer_cast<geometry::triangle_mesh_object>(object));
-                break;
-            case geometry::geometry_object_type::skeleton:
-                skeleton_objects.remove(std::static_pointer_cast<geometry::skeleton_object>(object));
-                break;
-            }
-        }
+        const auto& get_pcd_geometries() const noexcept { return _pcd_objects; }
+        auto& get_pcd_geometries() noexcept { return _pcd_objects; }
 
-        void clear_objects() {
-            lineset_objects.clear();
-            pcd_objects.clear();
-            mesh_objects.clear();
-            skeleton_objects.clear();
-        }
+        const auto& get_mesh_geometries() const noexcept { return _mesh_objects; }
+        auto& get_mesh_geometries() noexcept { return _mesh_objects; }
+
+        const auto& get_skeleton_geometries() const noexcept { return _skeleton_objects; }
+        auto& get_skeleton_geometries() noexcept { return _skeleton_objects; }
+
+        /*
+        texture_handle_t register_texture(...);
+        texture_handle_t unregister_texture(...);
+        */
+
+        void add_geometry(std::shared_ptr<geometry::geometry_object_base> object_base); 
+        void remove_geometry(std::shared_ptr<geometry::geometry_object_base> object_base);
+        void clear_geometries();
 
     }; // class
 

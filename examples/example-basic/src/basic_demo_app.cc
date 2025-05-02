@@ -30,9 +30,9 @@ namespace gui
         );
 
         _scene = _vis->get_current_scene();
-        _scene->render_config.pcd_point_size = 2.5f;
-        _scene->render_config.show_origin_xz_grid = true;
-        _scene->render_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+        _scene->get_render_config()->pcd_point_size = 2.5f;
+        _scene->get_render_config()->show_origin_xz_grid = true;
+        _scene->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
         _scene->get_camera()->set_mirror_mode(false);
 
         _vis->set_key_callback(
@@ -53,22 +53,22 @@ namespace gui
                         _vis->enable_main_menu(!_vis->is_main_menu_enabled());
                         break;
                     case GLFW_KEY_A:
-                        _scene->render_config.light_opts.point_light.position.x() -= 0.05f; // left
+                        _scene->get_render_config()->light_opts.point_light.position.x() -= 0.05f; // left
                         break;
                     case GLFW_KEY_D:
-                        _scene->render_config.light_opts.point_light.position.x() += 0.05f; // right
+                        _scene->get_render_config()->light_opts.point_light.position.x() += 0.05f; // right
                         break;
                     case GLFW_KEY_W:
-                        _scene->render_config.light_opts.point_light.position.z() += 0.05f; // forward
+                        _scene->get_render_config()->light_opts.point_light.position.z() += 0.05f; // forward
                         break;
                     case GLFW_KEY_S:
-                        _scene->render_config.light_opts.point_light.position.z() -= 0.05f; // backward
+                        _scene->get_render_config()->light_opts.point_light.position.z() -= 0.05f; // backward
                         break;
                     case GLFW_KEY_UP:
-                        _scene->render_config.light_opts.point_light.position.y() -= 0.05f; // up
+                        _scene->get_render_config()->light_opts.point_light.position.y() -= 0.05f; // up
                         break;
                     case GLFW_KEY_DOWN:
-                        _scene->render_config.light_opts.point_light.position.y() += 0.05f; // down
+                        _scene->get_render_config()->light_opts.point_light.position.y() += 0.05f; // down
                         break;
                     }
                 }
@@ -104,7 +104,7 @@ namespace gui
                 * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
             new_obj->rotate(R, true);
             new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
-            _scene->add_object(new_obj);
+            _scene->add_geometry(new_obj);
             _obj_texcolor_mesh = new_obj;
         }
 
@@ -128,7 +128,7 @@ namespace gui
                 * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
             new_obj->rotate(R, true);
             new_obj->translate(triengine::vec3_f32(0.0f, -0.6f, 0.0f), true);
-            _scene->add_object(new_obj);
+            _scene->add_geometry(new_obj);
             _obj_texcolor_mesh2 = new_obj;
         }
 
@@ -138,7 +138,7 @@ namespace gui
             //obj_axis_frame->paint_uniform_color(_get_next_color());
             //obj_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
 
-            _scene->add_object(obj_axis_frame);
+            _scene->add_geometry(obj_axis_frame);
         }
     }
 

@@ -8,14 +8,12 @@ namespace triengine::renderer
         : public renderer_base<infinite_grid_renderer>
     {
     private:
-        // OpenGL shaders
-        shader_program _shader;
-
-        // OpenGL objects
-        GLuint _vao{}; // vertex array object
-
-        // Render Options
+        // Render options
         infinite_grid_options _options;
+
+        // OpenGL resources
+        shader_program _shader;
+        GLuint _vao{};
 
     public:
         infinite_grid_renderer();

@@ -99,19 +99,6 @@ namespace triengine::visualization
             _scene_window = _gui_mgr->get_scene_window();
         }
 
-        // Special Geometries
-        {
-            auto& scn = *_curr_scn;
-
-            _point_light_source_object = geometry::light_source_object::create(0.075f);
-            _point_light_source_object->set_visible(scn.render_config.light_opts.point_light.enabled);
-            _point_light_source_object->translate(scn.render_config.light_opts.point_light.position);
-            _point_light_source_object->color = scn.render_config.light_opts.point_light.color;
-
-            _origin_axis_frame_object = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
-            _origin_axis_frame_object->set_visible(scn.render_config.show_origin_axis);
-        }
-
         _flag_initialized = true;
     }
 
@@ -143,11 +130,12 @@ namespace triengine::visualization
         }
     }
 
-    bool visualizer::add_scene(std::shared_ptr<scene> new_scn)
+    std::shared_ptr<scene> visualizer::add_scene()
     {
+        auto new_scn = std::make_shared<scene>(_glctx.get_gpu_resource_manager());
         if (_scn_map.empty()) { _curr_scn = new_scn; }
         const auto [it, success] = _scn_map.insert({ new_scn->id(), new_scn });
-        return success;
+        return new_scn;
     }
 
     void visualizer::remove_scene(std::shared_ptr<scene> scn)

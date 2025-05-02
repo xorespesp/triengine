@@ -1,6 +1,7 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/texture.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <optional>
 
@@ -20,6 +21,7 @@ namespace triengine
      *        Main usage: post-processing, weighted-blended OIT, physics based BLOOM, shadow map, PBR, deferred shading, etc...
      */
     class frame_buffer
+        : utility::noncopyable
     {
     public:
         static constexpr GLuint kInvalidBufferID{ 0u };
@@ -40,11 +42,11 @@ namespace triengine
             frame_buffer_texture_params_t tex_params{}; // used only if `is_render_buffer == false`  
 
             // make move-only
-            attachment_info_t() = default;  
-            attachment_info_t(attachment_info_t&&) = default;  
-            attachment_info_t& operator=(attachment_info_t&&) = default;  
-            attachment_info_t(const attachment_info_t&) = delete;  
-            attachment_info_t& operator=(const attachment_info_t&) = delete;  
+            attachment_info_t() = default;
+            attachment_info_t(attachment_info_t&&) = default;
+            attachment_info_t& operator=(attachment_info_t&&) = default;
+            attachment_info_t(const attachment_info_t&) = delete;
+            attachment_info_t& operator=(const attachment_info_t&) = delete;
         };
 
     private:
@@ -64,8 +66,6 @@ namespace triengine
 
         frame_buffer(frame_buffer&& rhs) noexcept;
         frame_buffer& operator=(frame_buffer&& rhs) noexcept;
-        frame_buffer(const frame_buffer&) = delete;
-        frame_buffer& operator=(const frame_buffer&) = delete;
 
         GLuint fbo_id() const noexcept;
 

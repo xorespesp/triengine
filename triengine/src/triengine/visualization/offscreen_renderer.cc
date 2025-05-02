@@ -55,11 +55,12 @@ namespace triengine::visualization
         }
     }
 
-    bool offscreen_renderer::add_scene(std::shared_ptr<scene> scn)
+    std::shared_ptr<scene> offscreen_renderer::add_scene()
     {
-        if (_scn_map.empty()) { _curr_scn = scn; }
-        const auto [it, success] = _scn_map.insert({ scn->id(), scn });
-        return success;
+        auto new_scn = std::make_shared<scene>(_glctx.get_gpu_resource_manager());
+        if (_scn_map.empty()) { _curr_scn = new_scn; }
+        const auto [it, success] = _scn_map.insert({ new_scn->id(), new_scn });
+        return new_scn;
     }
     
     void offscreen_renderer::remove_scene(std::shared_ptr<scene> scn)

@@ -8,28 +8,17 @@ namespace triengine::renderer
         : public object_renderer_base<triangle_mesh_renderer, geometry::triangle_mesh_object>
     {
     private:
-        // OpenGL shaders
+        // Render options
+        bool _show_object_normals{ false };
+
+        // OpenGL resources
+        core::gl_context* _glctx{ nullptr };
         shader_program 
             _vertmode_solid_shader,
             _vertmode_transparent_shader,
             _texmode_solid_shader,
             _texmode_transparent_shader,
             _normal_vis_shader;
-
-        // OpenGL objects
-        GLuint // vertex array object
-            _vao_vertmode{}, // Coloring by linear-interpolation from vertices, requires vertex colors (as rgb)
-            _vao_texmode{}; // Coloring by texture, requires texture uv coordinates (color information)
-
-        GLuint // vertex buffer objects
-            _vbo_positions{},
-            _vbo_normals{},
-            _vbo_colors{},
-            _vbo_texcoords{}; // texture uv coordinates
-
-        GLuint _ibo{}; // index buffer object
-
-        bool _show_object_normals{ false };
 
     public:
         triangle_mesh_renderer();

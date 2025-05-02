@@ -13,8 +13,9 @@ set(LIBRARY_SOURCES
     "${LIBRARY_SOURCES_DIR}/core/gl_context.cc"
     "${LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
     "${LIBRARY_SOURCES_DIR}/core/shader_preprocessor.cc"
+    "${LIBRARY_SOURCES_DIR}/core/gpu_resource_manager.cc"
+    "${LIBRARY_SOURCES_DIR}/core/gpu_resources_impl.cc"
 
-    "${LIBRARY_SOURCES_DIR}/geometry/light_source_object.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/pcd_object.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/skeleton_object.cc"
@@ -68,9 +69,9 @@ set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/core/shader_preprocessor.hh"
     "${LIBRARY_HEADERS_DIR}/core/scene_renderer.hh"
     "${LIBRARY_HEADERS_DIR}/core/render_target.hh"
+    "${LIBRARY_HEADERS_DIR}/core/gpu_resource_manager.hh"
 
     "${LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.hh"
-    "${LIBRARY_HEADERS_DIR}/geometry/light_source_object.hh"
     "${LIBRARY_HEADERS_DIR}/geometry/lineset_object.hh"
     "${LIBRARY_HEADERS_DIR}/geometry/pcd_object.hh"
     "${LIBRARY_HEADERS_DIR}/geometry/skeleton_object.hh"
@@ -101,6 +102,8 @@ set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/string_utils.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/noncopyable.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/singleton.hh"
 
     "${LIBRARY_HEADERS_DIR}/shaders/infinite_grid_shaders.h"
     "${LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"

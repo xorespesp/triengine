@@ -1,6 +1,7 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/image.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <glad/glad.h>
 
@@ -21,6 +22,7 @@ namespace triengine
     };
 
     class texture_2d
+        : utility::noncopyable
     {
     private:
         static constexpr GLuint kInvalidTextureID{ 0u };
@@ -71,8 +73,6 @@ namespace triengine
         ~texture_2d();
         texture_2d(texture_2d&& rhs) noexcept;
         texture_2d& operator=(texture_2d&& rhs) noexcept;
-        texture_2d(const texture_2d&) = delete;
-        texture_2d& operator=(const texture_2d&) = delete;
 
         GLuint id() const noexcept { return _texture_id; }
         image_format_type image_format() const noexcept { return _image_format; }

@@ -36,6 +36,7 @@ namespace triengine::core
         );
 
     private:
+        gl_context* _glctx{ nullptr };
         std::unique_ptr<shader_preprocessor> _shader_prep;
 
         renderer::infinite_grid_renderer _infgrid_renderer;
@@ -63,8 +64,6 @@ namespace triengine::core
 
         GLuint _vao_screen_quad{};
         GLuint _vbo_screen_quad{};
-        
-        std::list<std::shared_ptr<geometry::light_source_object>> _light_source_objects;
 
     }; // class
 
