@@ -6,7 +6,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace triengine
+namespace triengine::core
 {
     // compile from source string
     shader_program::shader_object::shader_object(

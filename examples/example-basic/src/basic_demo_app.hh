@@ -1,7 +1,6 @@
 #pragma once
 #include <utils/logger.hh>
 #include <triengine/visualization/visualizer.hh>
-#include <triengine/frame_buffer.hh>
 
 #include <memory>
 #include <array>

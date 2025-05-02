@@ -13,7 +13,7 @@ namespace triengine::renderer
 
         // OpenGL resources
         core::gl_context* _glctx{ nullptr };
-        shader_program 
+        core::shader_program 
             _vertmode_solid_shader,
             _vertmode_transparent_shader,
             _texmode_solid_shader,

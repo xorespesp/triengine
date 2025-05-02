@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <triengine/common.h>
-#include <triengine/shader.hh>
+#include <triengine/core/shader.hh>
 #include <triengine/utility/gl_utils.hh>
 
 namespace triengine
@@ -10,7 +10,7 @@ namespace triengine
         vec3_f32 grid_color{ 0.8f, 0.8f, 0.8f };
         float grid_cell_size{ 0.05f };
 
-        void apply_to_shader(shader_program& shader) const
+        void apply_to_shader(core::shader_program& shader) const
         {
 #if defined (TRIENGINE_DEBUG_MODE)
             {

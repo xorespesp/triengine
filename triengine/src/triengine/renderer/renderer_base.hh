@@ -1,12 +1,12 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/camera.hh>
-#include <triengine/shader.hh>
 #include <triengine/texture.hh>
 #include <triengine/lighting_options.hh>
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/noncopyable.hh>
 #include <triengine/core/gl_context.hh>
+#include <triengine/core/shader.hh>
 #include <triengine/core/shader_preprocessor.hh>
 
 #include <list>

@@ -55,7 +55,7 @@ namespace triengine::visualization
         std::unordered_map<uint32_t/* scene id */, std::shared_ptr<scene>> _scn_map;
         std::shared_ptr<scene> _curr_scn;
 
-        frame_buffer _fb_main;
+        core::frame_buffer _fb_main;
 
     }; // class
 

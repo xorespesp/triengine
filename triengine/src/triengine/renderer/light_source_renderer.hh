@@ -8,7 +8,7 @@ namespace triengine::renderer
     {
     private:
         // OpenGL resources
-        shader_program _point_light_source_shader;
+        core::shader_program _point_light_source_shader;
         GLuint _vao{};
         GLuint _vbo{};
         GLuint _ibo{};

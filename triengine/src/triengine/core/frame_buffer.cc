@@ -2,7 +2,7 @@
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/debug_utils.hh>
 
-namespace triengine
+namespace triengine::core
 {
     frame_buffer::~frame_buffer()
     {

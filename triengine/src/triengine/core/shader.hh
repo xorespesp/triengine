@@ -9,7 +9,7 @@
 #include <vector>
 #include <string>
 
-namespace triengine
+namespace triengine::core
 {
     enum class shader_object_type : GLenum
     {

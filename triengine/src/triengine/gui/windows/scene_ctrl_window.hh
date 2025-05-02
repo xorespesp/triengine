@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/gui/iwindow.hh>
-#include <triengine/frame_buffer.hh>
+#include <triengine/core/frame_buffer.hh>
 
 namespace triengine::visualization {
     class visualizer; // forward declaration

@@ -12,7 +12,7 @@ namespace triengine::renderer
         infinite_grid_options _options;
 
         // OpenGL resources
-        shader_program _shader;
+        core::shader_program _shader;
         GLuint _vao{};
 
     public:

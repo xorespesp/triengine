@@ -15,7 +15,7 @@ namespace triengine::renderer
 
         // OpenGL resources
         core::gl_context* _glctx{ nullptr };
-        shader_program 
+        core::shader_program 
             _solid_shader, 
             _transparent_shader;
 

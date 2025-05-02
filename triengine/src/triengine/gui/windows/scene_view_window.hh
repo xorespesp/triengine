@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/gui/iwindow.hh>
-#include <triengine/frame_buffer.hh>
+#include <triengine/core/frame_buffer.hh>
 
 #include <optional>
 #include <array>
@@ -31,7 +31,7 @@ namespace triengine::gui
 
     private:
         visualization::visualizer* _vis{ nullptr };
-        frame_buffer _fb_main;
+        core::frame_buffer _fb_main;
         window_state_t _state;
 
     public:
@@ -47,7 +47,7 @@ namespace triengine::gui
             return ImVec2{ 800.0f, 600.0f };
         }
 
-        const frame_buffer& get_framebuffer() const noexcept;
+        const core::frame_buffer& get_framebuffer() const noexcept;
 
         void bind_framebuffer();
 

@@ -10,7 +10,7 @@ namespace triengine::renderer
     private:
         // OpenGL resources
         core::gl_context* _glctx{ nullptr };
-        shader_program _shader;
+        core::shader_program _shader;
 
     public:
         lineset_renderer();

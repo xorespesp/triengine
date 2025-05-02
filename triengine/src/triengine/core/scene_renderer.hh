@@ -1,11 +1,11 @@
 ﻿#pragma once
 #include <triengine/common.h>
 
-#include <triengine/frame_buffer.hh>
 #include <triengine/scene.hh>
-#include <triengine/shader.hh>
 
 #include <triengine/core/gl_context.hh>
+#include <triengine/core/frame_buffer.hh>
+#include <triengine/core/shader.hh>
 #include <triengine/core/shader_preprocessor.hh>
 
 #include <triengine/renderer/infinite_grid_renderer.hh>

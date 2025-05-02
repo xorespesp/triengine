@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/shader.hh>
+#include <triengine/core/shader.hh>
 #include <triengine/utility/gl_utils.hh>
 
 namespace triengine
@@ -43,7 +43,7 @@ namespace triengine
         lighting_options() = default;
         ~lighting_options() = default;
 
-        void apply_to_shader(shader_program& shader) const
+        void apply_to_shader(core::shader_program& shader) const
         {
 #if defined (TRIENGINE_DEBUG_MODE)
             {

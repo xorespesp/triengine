@@ -13,7 +13,7 @@ namespace triengine::gui
         _state.flag_invalidate_fbo = true;
     }
 
-    const frame_buffer& scene_view_window::get_framebuffer() const noexcept
+    const core::frame_buffer& scene_view_window::get_framebuffer() const noexcept
     {
         return _fb_main;
     }
@@ -29,7 +29,7 @@ namespace triengine::gui
 
             if (!_fb_main.is_valid())
             {
-                _fb_main = frame_buffer::create_color_depth_stencil_buffer(
+                _fb_main = core::frame_buffer::create_color_depth_stencil_buffer(
                     GL_RGBA16F,
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,

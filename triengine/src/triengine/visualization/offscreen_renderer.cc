@@ -129,7 +129,7 @@ namespace triengine::visualization
 
             if (!_fb_main.is_valid())
             {
-                _fb_main = frame_buffer::create_color_depth_stencil_buffer(
+                _fb_main = core::frame_buffer::create_color_depth_stencil_buffer(
                     GL_RGBA16F,
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,

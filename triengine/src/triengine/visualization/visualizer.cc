@@ -160,7 +160,7 @@ namespace triengine::visualization
         // Render Scene
         _scene_window->bind_framebuffer();
 
-        const frame_buffer& curr_fb = _scene_window->get_framebuffer();
+        const core::frame_buffer& curr_fb = _scene_window->get_framebuffer();
 
         scene& scn = *_curr_scn;
         scn.get_camera()->set_view_port(view_port{ 0, 0, curr_fb.width_pixels(), curr_fb.height_pixels() });

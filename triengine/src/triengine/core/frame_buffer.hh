@@ -5,7 +5,7 @@
 
 #include <optional>
 
-namespace triengine
+namespace triengine::core
 {
     struct frame_buffer_texture_params_t
         : public texture_params_t
