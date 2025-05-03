@@ -35,6 +35,7 @@ set(LIBRARY_SOURCES
 
     "${LIBRARY_SOURCES_DIR}/io/file_bvh_loader.cc"
     "${LIBRARY_SOURCES_DIR}/io/file_obj_loader.cc"
+    "${LIBRARY_SOURCES_DIR}/io/file_ply_loader.cc"
 
     "${LIBRARY_SOURCES_DIR}/visualization/visualizer.cc"
     "${LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer.cc"
@@ -94,16 +95,21 @@ set(LIBRARY_HEADERS_PUBLIC
 
     "${LIBRARY_HEADERS_DIR}/io/file_bvh_loader.hh"
     "${LIBRARY_HEADERS_DIR}/io/file_obj_loader.hh"
+    "${LIBRARY_HEADERS_DIR}/io/file_ply_loader.hh"
+    "${LIBRARY_HEADERS_DIR}/io/pointcloud_load_options.hh"
 
     "${LIBRARY_HEADERS_DIR}/math/constants.hh"
     "${LIBRARY_HEADERS_DIR}/math/glm_utils.hh"
     "${LIBRARY_HEADERS_DIR}/math/math3d.hh"
 
+    "${LIBRARY_HEADERS_DIR}/utility/bit_cast.hh"
     "${LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/string_utils.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/noncopyable.hh"
     "${LIBRARY_HEADERS_DIR}/utility/singleton.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/progress_reporter.hh"
 
     "${LIBRARY_HEADERS_DIR}/shaders/infinite_grid_shaders.h"
     "${LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"
@@ -191,6 +197,19 @@ list(APPEND LIBRARY_HEADERS_PUBLIC
 )
 ############################################################
 
+############################################################
+# RPly sources
+list(APPEND LIBRARY_SOURCES
+    "${LIBRARY_SOURCES_DIR}/extern/rply/rply.c"
+)
+
+# RPly headers
+list(APPEND LIBRARY_HEADERS_PUBLIC
+    "${LIBRARY_SOURCES_DIR}/extern/rply/rply.h"
+    "${LIBRARY_SOURCES_DIR}/extern/rply/rplyfile.h"
+)
+############################################################
+
 # Library Target Definition
 add_library(${LIBRARY_NAME} STATIC
     ${LIBRARY_SOURCES}
@@ -225,10 +244,12 @@ target_include_directories(${LIBRARY_NAME}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${LIBRARY_NAME}/extern>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${LIBRARY_NAME}/extern/glad> # for `#include <KHR/khrplatform.h>`
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${LIBRARY_NAME}/extern/imgui> # for `#include "imgui.h"` (implot use this)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${LIBRARY_NAME}/extern/rply> # for `#include "rply.h"`, `#include "rplyfile.h`
         # $<INSTALL_INTERFACE:...>: Path relative to CMAKE_INSTALL_INCLUDEDIR used by consumers after installation
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}/extern>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}/extern/glad>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}/extern/imgui>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}/extern/glad> # for `#include <KHR/khrplatform.h>`
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}/extern/imgui> # for `#include "imgui.h"` (implot use this)
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}/extern/rply> # for `#include "rply.h"`, `#include "rplyfile.h`
     PRIVATE
         # Path needed for compiling this library's own sources.
         ${CMAKE_CURRENT_SOURCE_DIR}/src

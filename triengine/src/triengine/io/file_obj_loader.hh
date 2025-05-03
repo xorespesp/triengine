@@ -4,7 +4,7 @@
 
 namespace triengine::io
 {
-    bool load_obj_file(
+    bool load_triangle_mesh_from_obj(
         const std::filesystem::path& file_path,
         geometry::triangle_mesh_object& mesh/* out */
     );

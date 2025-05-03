@@ -31,13 +31,13 @@ namespace gui
             _renderer->create_renderer(1280, 720);
 
             _scene = _renderer->get_current_scene();
-            _scene->render_config.bg_color = triengine::color4_f32::all(0.0f);
-            _scene->render_config.bg_color.a() = 0.0f;
-            _scene->render_config.pcd_point_size = 2.5f;
-            _scene->render_config.show_origin_xz_grid = false;
-            _scene->render_config.infgrid_opts.grid_color = triengine::vec3_f32{ 1.0f, 0.0f, 0.0f };
-            _scene->render_config.light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
-            _scene->render_config.light_opts.dir_light.diffuseIntensity = 0.8f;
+            _scene->get_render_config()->bg_color = triengine::color4_f32::all(0.0f);
+            _scene->get_render_config()->bg_color.a() = 0.0f;
+            _scene->get_render_config()->pcd_point_size = 2.5f;
+            _scene->get_render_config()->show_origin_xz_grid = false;
+            _scene->get_render_config()->infgrid_opts.grid_color = triengine::vec3_f32{ 1.0f, 0.0f, 0.0f };
+            _scene->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+            _scene->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.8f;
 
             auto& scn_camera = *_scene->get_camera();
             scn_camera.set_mirror_mode(false);
@@ -48,7 +48,7 @@ namespace gui
             scn_camera.set_position(triengine::vec3_f32{ -1.240f, -0.847f, 1.113f });
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
-                triengine::io::load_obj_file(
+                triengine::io::load_triangle_mesh_from_obj(
                     triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
                     //triengine_resource_dir / "objects/car_engine/car_engine.obj",
                     *new_obj

@@ -85,7 +85,7 @@ namespace gui
         _vis->add_gui_window(_log_window);
 
         if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
-            triengine::io::load_obj_file(
+            triengine::io::load_triangle_mesh_from_obj(
                 triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
                 //triengine_resource_dir / "objects/car_engine/car_engine.obj",
                 *new_obj
@@ -109,7 +109,7 @@ namespace gui
         }
 
         if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
-            triengine::io::load_obj_file(
+            triengine::io::load_triangle_mesh_from_obj(
                 triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
                 //triengine_resource_dir / "objects/car_engine/car_engine.obj",
                 *new_obj

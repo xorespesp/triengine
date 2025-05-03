@@ -1,8 +1,10 @@
 #pragma once
 #include <type_traits>
 #include <cstring>
+#include <memory>
+#include <cstddef>
 
-namespace utils
+namespace triengine::utility
 {
     template <class _Dst, class _Src>
     static inline auto bit_cast(_Src src) noexcept

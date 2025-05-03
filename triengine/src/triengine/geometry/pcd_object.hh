@@ -6,9 +6,6 @@
 
 namespace triengine::geometry
 {
-    // Refs: 
-    // https://github.com/isl-org/Open3D/blob/db00e339c1645440dea6951c2971ffa759934112/cpp/open3d/geometry/PointCloud.h
-
     class pcd_object
         : public geometry_object_base
     {
@@ -43,16 +40,26 @@ namespace triengine::geometry
             return std::fabs(1.0f - std::clamp(material.alpha, 0.0f, 1.0f)) < std::numeric_limits<float>::epsilon();
         }
 
-        void paint_uniform_color(const color3_f32& color) {
-            colors.clear();
-            colors.resize(points.size(), color);
+        /// Returns `true` if the point cloud contains point normals.
+        bool has_normals() const noexcept {
+            return !points.empty() && points.size() == normals.size();
         }
 
-        void clear() {
-            points.clear();
-            normals.clear();
-            colors.clear();
+        /// Returns `true` if the point cloud contains point colors.
+        bool has_colors() const noexcept {
+            return !points.empty() && points.size() == colors.size();
         }
+
+        void clear();
+
+        void paint_uniform_color(const color3_f32& color);
+
+        pcd_object& remove_duplicated_points();
+
+        pcd_object& remove_non_finite_points(
+            bool remove_nan_points = true,
+            bool remove_inf_points = true
+        );
 
     public:
         static std::shared_ptr<pcd_object> create() {
