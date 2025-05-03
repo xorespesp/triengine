@@ -10,8 +10,9 @@
 namespace triengine::core
 {
     /**
-     * gl_context 클래스는 실제 OpenGL 컨텍스트와 GLFW 윈도우 생명주기, GLFW/GLAD/디버그 콜백 등의 공통 초기화를 담당한다.
-     * 오프스크린 렌더링 시에는 visible=false로 창을 숨긴 채 생성할 수 있다.
+     * The `gl_context` class is responsible for managing the lifecycle of the actual OpenGL context and the GLFW window,
+     * as well as handling common initialization tasks such as GLFW/GLAD setup and debug callbacks.
+     * For offscreen rendering, the window can be created hidden by setting `visible=false`.
      */
     class gl_context
         : utility::noncopyable
