@@ -16,6 +16,7 @@ set(LIBRARY_SOURCES
     "${LIBRARY_SOURCES_DIR}/core/gpu_resources_impl.cc"
     "${LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
 
+    "${LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/pcd_object.cc"
     "${LIBRARY_SOURCES_DIR}/geometry/skeleton_object.cc"

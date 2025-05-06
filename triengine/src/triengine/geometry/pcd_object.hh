@@ -31,10 +31,24 @@ namespace triengine::geometry
         std::vector<color3_f32> colors; /// normalized RGB
         material_t material;
 
+    private:
+        std::shared_ptr<geometry_object_base> clone_impl() const override {
+            auto cloned = std::make_shared<pcd_object>();
+            cloned->points = this->points;
+            cloned->normals = this->normals;
+            cloned->colors = this->colors;
+            cloned->material = this->material;
+            return cloned;
+        }
+
     public:
         pcd_object()
             : geometry_object_base{ geometry_object_type::pointcloud }
         {}
+
+        std::shared_ptr<pcd_object> clone() const {
+            return std::static_pointer_cast<pcd_object>(this->clone_impl());
+        }
 
         bool is_opaque() const noexcept {
             return std::fabs(1.0f - std::clamp(material.alpha, 0.0f, 1.0f)) < std::numeric_limits<float>::epsilon();
@@ -53,6 +67,22 @@ namespace triengine::geometry
         void clear();
 
         void paint_uniform_color(const color3_f32& color);
+
+        void apply_model_in_place() override {
+            TRIENGINE_PANIC("not implemented");
+        }
+
+        vec3_f32 get_min_bound() const override {
+            return this->compute_min_bound(points);
+        }
+
+        vec3_f32 get_max_bound() const override {
+            return this->compute_max_bound(points);
+        }
+        
+        vec3_f32 get_center() const override {
+            return this->compute_center(points);
+        }
 
         pcd_object& remove_duplicated_points();
 

@@ -28,12 +28,18 @@ namespace triengine::visualization
 
         void destroy_renderer();
 
-        std::shared_ptr<const scene> get_current_scene() const { return _curr_scn; }
-        std::shared_ptr<scene> get_current_scene() { return _curr_scn; }
-
         std::shared_ptr<scene> add_scene();
-        void remove_scene(std::shared_ptr<scene> scn);
-        void change_scene(std::shared_ptr<scene> scn);
+        void remove_scene(scene_id_t scn_id);
+        
+        void switch_scene(scene_id_t scn_id);
+        void switch_to_previous_scene();
+        void switch_to_next_scene();
+
+        std::shared_ptr<const scene> find_scene(scene_id_t scn_id) const;
+        std::shared_ptr<scene> find_scene(scene_id_t scn_id);
+
+        std::shared_ptr<const scene> get_current_scene() const;
+        std::shared_ptr<scene> get_current_scene();
 
         void render(
             image& frame_image/* out */
@@ -52,8 +58,13 @@ namespace triengine::visualization
         int32_t _curr_window_height{};
 
         core::scene_renderer _scn_renderer;
-        std::unordered_map<uint32_t/* scene id */, std::shared_ptr<scene>> _scn_map;
-        std::shared_ptr<scene> _curr_scn;
+        
+        std::list<std::shared_ptr<scene>> _scn_list;
+        std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
+        std::unordered_map<
+            scene_id_t, 
+            std::list<std::shared_ptr<scene>>::iterator
+        > _scn_id_map;
 
         core::frame_buffer _fb_main;
 

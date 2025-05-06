@@ -126,7 +126,11 @@ namespace triengine::io
             return false;
         }
 
-        TRIENGINE_TRACE("Read {} pointcloud vertices.", pcd.points.size());
+        TRIENGINE_TRACE("Read %lu points, %lu colors, %lu normals."
+            , pcd.points.size()
+            , pcd.colors.size()
+            , pcd.normals.size()
+        );
 
         if (opts.remove_nan_points || opts.remove_inf_points) {
             pcd.remove_non_finite_points(

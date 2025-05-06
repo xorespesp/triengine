@@ -7,10 +7,10 @@ namespace triengine::core
 {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    triangle_mesh_gpu_resource::triangle_mesh_gpu_resource(uint32_t id)
-        : core::geometry_gpu_resource_base<triangle_mesh_gpu_resource>{ id }
+    triangle_mesh_gpu_rsrc::triangle_mesh_gpu_rsrc(uint32_t id)
+        : core::geometry_gpu_rsrc_base<triangle_mesh_gpu_rsrc>{ id }
     {
-        TRIENGINE_TRACE("CREATE triangle_mesh_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("CREATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
 
         GLCall(::glCreateVertexArrays(1, &vao));
         GLCall(::glCreateBuffers(1, &vbo));
@@ -29,9 +29,9 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    triangle_mesh_gpu_resource::~triangle_mesh_gpu_resource()
+    triangle_mesh_gpu_rsrc::~triangle_mesh_gpu_rsrc()
     {
-        TRIENGINE_TRACE("DESTROY triangle_mesh_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("DESTROY triangle_mesh_gpu_rsrc(#%X)", this->get_id());
 
         if (ibo) {
             ::glDeleteBuffers(1, &ibo);
@@ -49,7 +49,7 @@ namespace triengine::core
         }
     }
 
-    bool triangle_mesh_gpu_resource::is_valid_impl() const
+    bool triangle_mesh_gpu_rsrc::is_valid_impl() const
     { 
         return 
             vao != 0 && 
@@ -57,26 +57,26 @@ namespace triengine::core
             ibo != 0;
     }
 
-    void triangle_mesh_gpu_resource::update_impl(const std::shared_ptr<geometry::geometry_object_base>& object_base)
+    void triangle_mesh_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        TRIENGINE_TRACE("UPDATE triangle_mesh_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("UPDATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
 
-        TRIENGINE_ASSERT(object_base != nullptr);
-        TRIENGINE_ASSERT(object_base->get_type() == geometry::geometry_object_type::triangle_mesh);
+        TRIENGINE_ASSERT(geometry_object != nullptr);
+        TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::triangle_mesh);
 
-        auto object = std::static_pointer_cast<geometry::triangle_mesh_object>(object_base);
+        auto mesh_object = std::static_pointer_cast<geometry::triangle_mesh_object>(geometry_object);
 
         /**
          * glNamedBufferStorage -> Cannot be resized. Calling it again with the same ID but a different size will result in an error.
          * glNamedBufferData    -> Can be resized. Calling it again with the same ID but a different size will result in a reallocation.
          */
-        switch (object->get_shading_mode()) {
+        switch (mesh_object->get_shading_mode()) {
         case geometry::triangle_mesh_object::shading_mode::vertex:
         {
-            const auto& positions = object->vertex_positions;
-            const auto& normals = object->vertex_normals;
-            const auto& colors = object->vertex_colors;
-            const auto& triangle_indices = object->triangle_indices;
+            const auto& positions = mesh_object->vertex_positions;
+            const auto& normals = mesh_object->vertex_normals;
+            const auto& colors = mesh_object->vertex_colors;
+            const auto& triangle_indices = mesh_object->triangle_indices;
 
             using position_value_type = std::decay_t<decltype(positions)>::value_type;
             using normal_value_type = std::decay_t<decltype(normals)>::value_type;
@@ -133,10 +133,10 @@ namespace triengine::core
         }
         case geometry::triangle_mesh_object::shading_mode::texture:
         {
-            const auto& positions = object->vertex_positions;
-            const auto& normals = object->vertex_normals;
-            const auto& texcoords = object->vertex_uvs;
-            const auto& triangle_indices = object->triangle_indices;
+            const auto& positions = mesh_object->vertex_positions;
+            const auto& normals = mesh_object->vertex_normals;
+            const auto& texcoords = mesh_object->vertex_uvs;
+            const auto& triangle_indices = mesh_object->triangle_indices;
 
             using position_value_type = std::decay_t<decltype(positions)>::value_type;
             using normal_value_type = std::decay_t<decltype(normals)>::value_type;
@@ -196,10 +196,10 @@ namespace triengine::core
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    pcd_gpu_resource::pcd_gpu_resource(uint32_t id)
-        : core::geometry_gpu_resource_base<pcd_gpu_resource>{ id }
+    pcd_gpu_rsrc::pcd_gpu_rsrc(uint32_t id)
+        : core::geometry_gpu_rsrc_base<pcd_gpu_rsrc>{ id }
     {
-        TRIENGINE_TRACE("CREATE pcd_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("CREATE pcd_gpu_rsrc(#%X)", this->get_id());
 
         GLCall(::glCreateVertexArrays(1, &vao));
         GLCall(::glCreateBuffers(1, &vbo));
@@ -215,9 +215,9 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    pcd_gpu_resource::~pcd_gpu_resource()
+    pcd_gpu_rsrc::~pcd_gpu_rsrc()
     {
-        TRIENGINE_TRACE("DESTROY pcd_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("DESTROY pcd_gpu_rsrc(#%X)", this->get_id());
 
         if (vbo) {
             ::glDeleteBuffers(1, &vbo);
@@ -230,25 +230,25 @@ namespace triengine::core
         }
     }
     
-    bool pcd_gpu_resource::is_valid_impl() const
+    bool pcd_gpu_rsrc::is_valid_impl() const
     {
         return 
             vao != 0 && 
             vbo != 0;
     }
 
-    void pcd_gpu_resource::update_impl(const std::shared_ptr<geometry::geometry_object_base>& object_base)
+    void pcd_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        TRIENGINE_TRACE("UPDATE pcd_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("UPDATE pcd_gpu_rsrc(#%X)", this->get_id());
 
-        TRIENGINE_ASSERT(object_base != nullptr);
-        TRIENGINE_ASSERT(object_base->get_type() == geometry::geometry_object_type::pointcloud);
+        TRIENGINE_ASSERT(geometry_object != nullptr);
+        TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::pointcloud);
 
-        auto object = std::static_pointer_cast<geometry::pcd_object>(object_base);
+        auto pcd_object = std::static_pointer_cast<geometry::pcd_object>(geometry_object);
 
-        const auto& positions = object->points;
-        const auto& normals = object->normals;
-        const auto& colors = object->colors;
+        const auto& positions = pcd_object->points;
+        const auto& normals = pcd_object->normals;
+        const auto& colors = pcd_object->colors;
 
         using position_value_type = std::decay_t<decltype(positions)>::value_type;
         using normal_value_type = std::decay_t<decltype(normals)>::value_type;
@@ -298,10 +298,10 @@ namespace triengine::core
     
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    lineset_gpu_resource::lineset_gpu_resource(uint32_t id)
-        : core::geometry_gpu_resource_base<lineset_gpu_resource>{ id }
+    lineset_gpu_rsrc::lineset_gpu_rsrc(uint32_t id)
+        : core::geometry_gpu_rsrc_base<lineset_gpu_rsrc>{ id }
     {
-        TRIENGINE_TRACE("CREATE lineset_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("CREATE lineset_gpu_rsrc(#%X)", this->get_id());
         
         GLCall(::glCreateVertexArrays(1, &vao));
         GLCall(::glCreateBuffers(1, &vbo));
@@ -318,9 +318,9 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    lineset_gpu_resource::~lineset_gpu_resource()
+    lineset_gpu_rsrc::~lineset_gpu_rsrc()
     {
-        TRIENGINE_TRACE("DESTROY lineset_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("DESTROY lineset_gpu_rsrc(#%X)", this->get_id());
         
         if (ibo) {
             ::glDeleteBuffers(1, &ibo);
@@ -338,7 +338,7 @@ namespace triengine::core
         }
     }
     
-    bool lineset_gpu_resource::is_valid_impl() const
+    bool lineset_gpu_rsrc::is_valid_impl() const
     {
         return 
             vao != 0 && 
@@ -346,18 +346,18 @@ namespace triengine::core
             ibo != 0;
     }
 
-    void lineset_gpu_resource::update_impl(const std::shared_ptr<geometry::geometry_object_base>& object_base)
+    void lineset_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        TRIENGINE_TRACE("UPDATE lineset_gpu_resource(#%X)", this->get_id());
+        TRIENGINE_TRACE("UPDATE lineset_gpu_rsrc(#%X)", this->get_id());
         
-        TRIENGINE_ASSERT(object_base != nullptr);
-        TRIENGINE_ASSERT(object_base->get_type() == geometry::geometry_object_type::lineset);
+        TRIENGINE_ASSERT(geometry_object != nullptr);
+        TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::lineset);
 
-        auto object = std::static_pointer_cast<geometry::lineset_object>(object_base);
+        auto lineset_object = std::static_pointer_cast<geometry::lineset_object>(geometry_object);
 
-        const auto& positions = object->line_points;
-        const auto& colors = object->line_colors;
-        const auto& line_indices = object->line_indices;
+        const auto& positions = lineset_object->line_points;
+        const auto& colors = lineset_object->line_colors;
+        const auto& line_indices = lineset_object->line_indices;
 
         using position_value_type = std::decay_t<decltype(positions)>::value_type;
         using color_value_type = std::decay_t<decltype(colors)>::value_type;

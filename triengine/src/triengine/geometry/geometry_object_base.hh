@@ -5,56 +5,55 @@
 
 #include <string>
 
+// Refs:
+// https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/Geometry.h
+// https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/Geometry3D.h
+
 namespace triengine::geometry
 {
+    using geometry_object_id_t = uint64_t; // unique id
+
     enum class geometry_object_type {
         triangle_mesh,
         pointcloud,
         lineset,
         skeleton,
     };
-
-    class object_base
-    {
-    public:
-        static std::string create_unique_name() {
-            static std::atomic_uint32_t cnt_ = 0;
-            return utility::string::c_format("object #%lu", cnt_++);
-        }
-
-    public:
-        object_base() : _name{ create_unique_name() } {}
-        object_base(std::string name) : _name{ std::move(name) } {}
-
-        const std::string& get_name() const { return _name; }
-        void set_name(std::string name) { 
-            _name = std::move(name);
-        }
-
-    private:
-        std::string _name;
-    };
-
-    // Refs:
-    // https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/Geometry.h
-    // https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/Geometry3D.h
-
+    
     class geometry_object_base
-        : public object_base
-        , utility::noncopyable
     {
     private:
+        const geometry_object_id_t _id;
         const geometry_object_type _type;
-        bool _flag_visible = true;
-        mutable bool _flag_dirty = true; // upload to gpu
+        
+        std::string _name;
         mat4_f32 _model = mat4_f32::Identity();
 
+        bool _flag_visible = true;
+        mutable bool _flag_dirty = true; // upload to gpu?
+
     public:
-        geometry_object_base(geometry_object_type type) : _type{ type } {}
+        explicit geometry_object_base(geometry_object_type type);
         virtual ~geometry_object_base() = default;
+
+        geometry_object_id_t get_id() const noexcept {
+            return _id;
+        }
 
         geometry_object_type get_type() const noexcept {
             return _type;
+        }
+        
+        bool has_name() const noexcept {
+            return !_name.empty();
+        }
+        
+        const std::string& get_name() const {
+            return _name;
+        }
+
+        void set_name(std::string name) {
+            _name = std::move(name);
         }
 
         bool is_visible() const noexcept {
@@ -83,11 +82,6 @@ namespace triengine::geometry
 
         void set_model(const mat4_f32& model) {
             _model = model;
-        }
-
-        /// NOTE: Derived classes are responsible for implementing it.
-        virtual void apply_model_in_place() {
-            TRIENGINE_PANIC("not implemented");
         }
 
         virtual void translate(
@@ -138,6 +132,60 @@ namespace triengine::geometry
             } else {
                 _model = T;
             }
+        }
+
+        /// NOTE: Derived classes are responsible for implementing it.
+        virtual void apply_model_in_place() {
+            TRIENGINE_PANIC("not implemented");
+        }
+
+        /// Returns min bounds for geometry coordinates.
+        /// NOTE: Derived classes are responsible for implementing it.
+        virtual vec3_f32 get_min_bound() const {
+            TRIENGINE_PANIC("not implemented");
+            return vec3_f32::Zero();
+        }
+
+        /// Returns max bounds for geometry coordinates.
+        /// NOTE: Derived classes are responsible for implementing it.
+        virtual vec3_f32 get_max_bound() const {
+            TRIENGINE_PANIC("not implemented");
+            return vec3_f32::Zero();
+        }
+        
+        /// Returns the center of the geometry coordinates.
+        /// NOTE: Derived classes are responsible for implementing it.
+        virtual vec3_f32 get_center() const {
+            TRIENGINE_PANIC("not implemented");
+            return vec3_f32::Zero();
+        }
+
+    protected:
+        /// Compute min bound of a list points.
+        vec3_f32 compute_min_bound(
+                const std::vector<vec3_f32>& points) const;
+        
+        /// Compute max bound of a list points.
+        vec3_f32 compute_max_bound(
+                const std::vector<vec3_f32>& points) const;
+        
+        /// Computer center of a list of points.
+        vec3_f32 compute_center(
+                const std::vector<vec3_f32>& points) const;
+
+    protected:
+        // NOTE: 
+        // - C.67, C.130
+        // - https://stackoverflow.com/q/43586090
+
+        geometry_object_base(const geometry_object_base&) = delete;
+        geometry_object_base& operator=(const geometry_object_base&) = delete;
+        geometry_object_base(geometry_object_base&&) = delete;
+        geometry_object_base& operator=(geometry_object_base&&) = delete;
+
+        virtual std::shared_ptr<geometry_object_base> clone_impl() const {
+            TRIENGINE_PANIC("Not implemented");
+            return nullptr;
         }
 
     }; // class

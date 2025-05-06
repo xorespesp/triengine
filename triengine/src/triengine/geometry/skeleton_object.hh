@@ -24,10 +24,20 @@ namespace triengine::geometry
             _joint_objects,
             _bone_objects;
 
+    private:
+        std::shared_ptr<geometry_object_base> clone_impl() const override {
+            TRIENGINE_PANIC("Not implemented");
+            return nullptr;
+        }
+
     public:
         skeleton_object()
             : geometry_object_base{ geometry_object_type::skeleton }
         {}
+
+        std::shared_ptr<skeleton_object> clone() const {
+            return std::static_pointer_cast<skeleton_object>(this->clone_impl());
+        }
 
         const auto& get_joint_objects() const noexcept {
             return _joint_objects;
@@ -56,6 +66,25 @@ namespace triengine::geometry
             const mat4_f32& T,
             bool relative = false
         ) override;
+
+        void apply_model_in_place() override {
+            TRIENGINE_PANIC("not implemented");
+        }
+
+        vec3_f32 get_min_bound() const override {
+            TRIENGINE_PANIC("not implemented");
+            return vec3_f32::Zero();
+        }
+
+        vec3_f32 get_max_bound() const override {
+            TRIENGINE_PANIC("not implemented");
+            return vec3_f32::Zero();
+        }
+        
+        vec3_f32 get_center() const override {
+            TRIENGINE_PANIC("not implemented");
+            return vec3_f32::Zero();
+        }
 
         void add_joint(
             const vec3_f32& joint_pos,

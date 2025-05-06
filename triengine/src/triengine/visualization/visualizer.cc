@@ -85,9 +85,6 @@ namespace triengine::visualization
 
         _scn_renderer.create(&_glctx);
 
-        // Create main scene
-        this->add_scene();
-
         // Initialize GUI system
         {
             _gui_mgr = std::make_unique<gui::gui_manager>();
@@ -133,41 +130,113 @@ namespace triengine::visualization
     std::shared_ptr<scene> visualizer::add_scene()
     {
         auto new_scn = std::make_shared<scene>(_glctx.get_gpu_resource_manager());
-        if (_scn_map.empty()) { _curr_scn = new_scn; }
-        const auto [it, success] = _scn_map.insert({ new_scn->id(), new_scn });
+        if (_scn_id_map.count(new_scn->get_id())) {
+            TRIENGINE_PANIC("Failed to add scene (id #%X already exists)", new_scn->get_id());
+        }
+
+        const bool is_first{ _scn_list.empty() };
+
+        _scn_list.push_back(new_scn);
+        _scn_id_map[new_scn->get_id()] = std::prev(_scn_list.end());
+
+        if (is_first) {
+            _curr_scn_it = std::prev(_scn_list.end());
+        }
+
         return new_scn;
     }
-
-    void visualizer::remove_scene(std::shared_ptr<scene> scn)
+    
+    void visualizer::remove_scene(scene_id_t scn_id)
     {
-        if (scn) {
-            auto it = _scn_map.find(scn->id());
-            if (it != _scn_map.end()) {
-                _scn_map.erase(it);
-                if (_curr_scn->id() == scn->id()) {
-                    _curr_scn = _scn_map.empty() ? nullptr : _scn_map.begin()->second;
-                }
+        auto map_it = _scn_id_map.find(scn_id);
+        if (map_it != _scn_id_map.end()) {
+            _scn_list.erase(map_it->second);
+            _scn_id_map.erase(map_it);
+            if ((*_curr_scn_it)->get_id() == scn_id) {
+                _curr_scn_it = _scn_id_map.empty() 
+                    ? _scn_list.end() 
+                    : _scn_list.begin();
             }
+        } else {
+            TRIENGINE_TRACE("Failed to remove scene #%X (not found)", scn_id);
         }
     }
 
-    void visualizer::change_scene(std::shared_ptr<scene> scn) {
-        _curr_scn = scn;
+    void visualizer::switch_scene(scene_id_t scn_id)
+    {
+        auto map_it = _scn_id_map.find(scn_id);
+        if (map_it == _scn_id_map.end()) {
+            TRIENGINE_PANIC("Failed to change scene (invalid scene id #%X)", scn_id);
+        }
+        _curr_scn_it = map_it->second;
+    }
+
+    void visualizer::switch_to_previous_scene()
+    {
+        if (_curr_scn_it != _scn_list.end()) {
+            _curr_scn_it = std::prev((_curr_scn_it != _scn_list.begin())
+                ? _curr_scn_it
+                : _scn_list.end()
+            );
+        }
+    }
+
+    void visualizer::switch_to_next_scene()
+    {
+        if (_curr_scn_it != _scn_list.end()) {
+            const auto next_it = std::next(_curr_scn_it);
+            _curr_scn_it = (next_it != _scn_list.end())
+                ? next_it
+                : _scn_list.begin();
+        }
+    }
+
+    std::shared_ptr<const scene> visualizer::find_scene(scene_id_t scn_id) const
+    {
+        auto map_it = _scn_id_map.find(scn_id);
+        return (map_it != _scn_id_map.end())
+            ? *(map_it->second)
+            : nullptr;
+    }
+
+    std::shared_ptr<scene> visualizer::find_scene(scene_id_t scn_id)
+    {
+        auto map_it = _scn_id_map.find(scn_id);
+        return (map_it != _scn_id_map.end())
+            ? *(map_it->second)
+            : nullptr;
+    }
+
+    std::shared_ptr<const scene> visualizer::get_current_scene() const
+    {
+        return (_curr_scn_it != _scn_list.end())
+            ? *_curr_scn_it
+            : nullptr;
+    }
+
+    std::shared_ptr<scene> visualizer::get_current_scene()
+    {
+        return (_curr_scn_it != _scn_list.end())
+            ? *_curr_scn_it
+            : nullptr;
     }
 
     void visualizer::render()
     {
+        if (_curr_scn_it == _scn_list.end()) {
+            TRIENGINE_PANIC("No scenes added");
+            return;
+        }
+
         // Render Scene
         _scene_window->bind_framebuffer();
 
-        const core::frame_buffer& curr_fb = _scene_window->get_framebuffer();
-
-        scene& scn = *_curr_scn;
-        scn.get_camera()->set_view_port(view_port{ 0, 0, curr_fb.width_pixels(), curr_fb.height_pixels() });
-
+        const core::frame_buffer& target_fb = _scene_window->get_framebuffer();
+        scene& target_scn = *(_curr_scn_it->get());
+        target_scn.get_camera()->set_view_port(view_port{ 0, 0, target_fb.width_pixels(), target_fb.height_pixels() });
         _scn_renderer.render(
-            curr_fb,
-            scn
+            target_fb,
+            target_scn
         );
 
         _scene_window->unbind_framebuffer();
@@ -245,7 +314,7 @@ namespace triengine::visualization
 
         switch (key) {
         case GLFW_KEY_HOME:
-            _curr_scn->get_camera()->reset();
+            this->get_current_scene()->get_camera()->reset();
             break;
         }
     }
@@ -307,28 +376,27 @@ namespace triengine::visualization
 
         if (cursor_test_succeeded)
         {
-            camera& scn_camera = *_curr_scn->get_camera();
-
-            const vec2_f32 curr_cursor_viewport_pos = 
-                _scene_window->try_convert_screen_pos_2_viewport_pos(curr_cursor_screen_pos).value();
-
             const bool
                 flag_l_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_LEFT),
                 flag_r_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_RIGHT),
                 flag_m_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_MIDDLE);
 
-            if (!flag_l_mouse_pressed && !flag_r_mouse_pressed && !flag_m_mouse_pressed) {
-                return; // ignore
-            }
+            if (flag_l_mouse_pressed || flag_r_mouse_pressed || flag_m_mouse_pressed)
+            {
+                const vec2_f32 curr_cursor_viewport_pos =
+                    _scene_window->try_convert_screen_pos_2_viewport_pos(curr_cursor_screen_pos).value();
 
-            if (flag_l_mouse_pressed) {
-                scn_camera.process_mouse_move_for_rotation(curr_cursor_viewport_pos - _last_clicked_cursor_viewport_pos);
-            }
-            else if (flag_m_mouse_pressed) {
-                scn_camera.process_mouse_move_for_translation(_last_clicked_cursor_viewport_pos, curr_cursor_viewport_pos);
-            }
+                camera* const scn_camera = this->get_current_scene()->get_camera();
 
-            _last_clicked_cursor_viewport_pos = curr_cursor_viewport_pos;
+                if (flag_l_mouse_pressed) {
+                    scn_camera->process_mouse_move_for_rotation(curr_cursor_viewport_pos - _last_clicked_cursor_viewport_pos);
+                }
+                else if (flag_m_mouse_pressed) {
+                    scn_camera->process_mouse_move_for_translation(_last_clicked_cursor_viewport_pos, curr_cursor_viewport_pos);
+                }
+
+                _last_clicked_cursor_viewport_pos = curr_cursor_viewport_pos;
+            }
         }
     }
 
@@ -356,13 +424,13 @@ namespace triengine::visualization
 
         if (cursor_test_succeeded)
         {
-            camera& scn_camera = *_curr_scn->get_camera();
+            camera* const scn_camera = this->get_current_scene()->get_camera();
 
             const bool ctrl_pressed = ::glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
             if (!ctrl_pressed) {
-                scn_camera.process_mouse_scroll_for_zoom(static_cast<float>(scroll_yoffset));
+                scn_camera->process_mouse_scroll_for_zoom(static_cast<float>(scroll_yoffset));
             } else {
-                scn_camera.process_mouse_scroll_for_perspective(static_cast<float>(scroll_yoffset));
+                scn_camera->process_mouse_scroll_for_perspective(static_cast<float>(scroll_yoffset));
             }
         }
     }

@@ -8,10 +8,10 @@
  void run_demo(
      const std::filesystem::path& triengine_resource_dir)
  {
-     gui::basic_demo_app app;
+     gui::basic_demo_app app{ triengine_resource_dir };
 
      LOG_INFO("Creating app..");
-     app.create(triengine_resource_dir);
+     app.create();
 
      LOG_INFO("Running app..");
      app.run();

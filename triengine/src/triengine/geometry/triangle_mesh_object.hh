@@ -78,6 +78,12 @@ namespace triengine::geometry
 
         std::vector<vec3_i32> triangle_indices; /// List of triangles denoted by the index of points forming the triangle (num_triangles)
 
+    private:
+        std::shared_ptr<geometry_object_base> clone_impl() const override {
+            TRIENGINE_PANIC("Not implemented");
+            return nullptr;
+        }
+
     public:
         triangle_mesh_object()
             : geometry_object_base{ geometry_object_type::triangle_mesh }
@@ -89,6 +95,10 @@ namespace triengine::geometry
             : geometry_object_base{ geometry_object_type::triangle_mesh }
         {
             this->set_shading_mode(mode);
+        }
+
+        std::shared_ptr<triangle_mesh_object> clone() const {
+            return std::static_pointer_cast<triangle_mesh_object>(this->clone_impl());
         }
 
         shading_mode get_shading_mode() const noexcept {
@@ -182,6 +192,18 @@ namespace triengine::geometry
             }
 
             this->set_model(mat4_f32::Identity());
+        }
+
+        vec3_f32 get_min_bound() const override {
+            return this->compute_min_bound(vertex_positions);
+        }
+
+        vec3_f32 get_max_bound() const override {
+            return this->compute_max_bound(vertex_positions);
+        }
+        
+        vec3_f32 get_center() const override {
+            return this->compute_center(vertex_positions);
         }
 
         bool is_opaque() const noexcept {

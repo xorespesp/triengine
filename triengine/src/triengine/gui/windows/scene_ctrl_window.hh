@@ -19,7 +19,7 @@ namespace triengine::gui
         virtual ~scene_control_window() = default;
 
         const char* get_window_name() const override {
-            return "Scene Control";
+            return "Scene Render Control";
         }
 
         ImVec2 get_initial_window_size() const override {

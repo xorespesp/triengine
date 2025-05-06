@@ -58,41 +58,114 @@ namespace triengine::visualization
     std::shared_ptr<scene> offscreen_renderer::add_scene()
     {
         auto new_scn = std::make_shared<scene>(_glctx.get_gpu_resource_manager());
-        if (_scn_map.empty()) { _curr_scn = new_scn; }
-        const auto [it, success] = _scn_map.insert({ new_scn->id(), new_scn });
+        if (_scn_id_map.count(new_scn->get_id())) {
+            TRIENGINE_PANIC("Failed to add scene (id #%X already exists)", new_scn->get_id());
+        }
+
+        const bool is_first{ _scn_list.empty() };
+
+        _scn_list.push_back(new_scn);
+        _scn_id_map[new_scn->get_id()] = std::prev(_scn_list.end());
+
+        if (is_first) {
+            _curr_scn_it = std::prev(_scn_list.end());
+        }
+
         return new_scn;
     }
     
-    void offscreen_renderer::remove_scene(std::shared_ptr<scene> scn)
+    void offscreen_renderer::remove_scene(scene_id_t scn_id)
     {
-        if (scn) {
-            auto it = _scn_map.find(scn->id());
-            if (it != _scn_map.end()) {
-                _scn_map.erase(it);
-                if (_curr_scn->id() == scn->id()) {
-                    _curr_scn = _scn_map.empty() ? nullptr : _scn_map.begin()->second;
-                }
+        auto map_it = _scn_id_map.find(scn_id);
+        if (map_it != _scn_id_map.end()) {
+            _scn_list.erase(map_it->second);
+            _scn_id_map.erase(map_it);
+            if ((*_curr_scn_it)->get_id() == scn_id) {
+                _curr_scn_it = _scn_id_map.empty() 
+                    ? _scn_list.end() 
+                    : _scn_list.begin();
             }
+        } else {
+            TRIENGINE_TRACE("Failed to remove scene #%X (not found)", scn_id);
         }
     }
 
-    void offscreen_renderer::change_scene(std::shared_ptr<scene> scn) {
-        _curr_scn = scn;
+    void offscreen_renderer::switch_scene(scene_id_t scn_id)
+    {
+        auto map_it = _scn_id_map.find(scn_id);
+        if (map_it == _scn_id_map.end()) {
+            TRIENGINE_PANIC("Failed to change scene (invalid scene id #%X)", scn_id);
+        }
+        _curr_scn_it = map_it->second;
+    }
+
+    void offscreen_renderer::switch_to_previous_scene()
+    {
+        if (_curr_scn_it != _scn_list.end()) {
+            _curr_scn_it = std::prev((_curr_scn_it != _scn_list.begin())
+                ? _curr_scn_it
+                : _scn_list.end()
+            );
+        }
+    }
+
+    void offscreen_renderer::switch_to_next_scene()
+    {
+        if (_curr_scn_it != _scn_list.end()) {
+            const auto next_it = std::next(_curr_scn_it);
+            _curr_scn_it = (next_it != _scn_list.end())
+                ? next_it
+                : _scn_list.begin();
+        }
+    }
+
+    std::shared_ptr<const scene> offscreen_renderer::find_scene(scene_id_t scn_id) const
+    {
+        auto map_it = _scn_id_map.find(scn_id);
+        return (map_it != _scn_id_map.end())
+            ? *(map_it->second)
+            : nullptr;
+    }
+
+    std::shared_ptr<scene> offscreen_renderer::find_scene(scene_id_t scn_id)
+    {
+        auto map_it = _scn_id_map.find(scn_id);
+        return (map_it != _scn_id_map.end())
+            ? *(map_it->second)
+            : nullptr;
+    }
+
+    std::shared_ptr<const scene> offscreen_renderer::get_current_scene() const
+    {
+        return (_curr_scn_it != _scn_list.end())
+            ? *_curr_scn_it
+            : nullptr;
+    }
+
+    std::shared_ptr<scene> offscreen_renderer::get_current_scene()
+    {
+        return (_curr_scn_it != _scn_list.end())
+            ? *_curr_scn_it
+            : nullptr;
     }
 
     void offscreen_renderer::render(
         image& frame_image)
     {
+        if (_curr_scn_it == _scn_list.end()) {
+            TRIENGINE_PANIC("No scenes added");
+            return;
+        }
+
         ::glfwSwapBuffers(_glctx.get_glfw_window());
 
-        const vec2_i32 scn_size{ _curr_window_width, _curr_window_height };
+        const vec2_i32 frame_size{ _curr_window_width, _curr_window_height };
 
         this->_begin_frame();
-        if (_curr_scn)
         {
-            scene& scn = *_curr_scn;
-            scn.get_camera()->set_view_port(view_port{ 0, 0, scn_size.x(),  scn_size.y() });
-            _scn_renderer.render(_fb_main, scn);
+            scene& target_scn = *(_curr_scn_it->get());
+            target_scn.get_camera()->set_view_port(view_port{ 0, 0, frame_size.x(),  frame_size.y() });
+            _scn_renderer.render(_fb_main, target_scn);
 
             //frame_image.prepare(W, H, image_format_type::bgr);
             //GLCall(::glReadPixels(
@@ -106,7 +179,7 @@ namespace triengine::visualization
         this->_end_frame();
 
         GLCall(::glBindTexture(GL_TEXTURE_2D, _fb_main.color_attachment()->buffer_id));
-        frame_image.prepare(scn_size.x(), scn_size.y(), image_format_type::bgra);
+        frame_image.prepare(frame_size.x(), frame_size.y(), image_format_type::bgra);
         GLCall(::glGetTexImage(
             GL_TEXTURE_2D,     /* GLenum target */
             0,                 /* GLint level */

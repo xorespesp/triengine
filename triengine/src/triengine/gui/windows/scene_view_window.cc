@@ -226,19 +226,26 @@ namespace triengine::gui
                     return std::nullopt;
                 }();
 
+            const uint32_t& curr_scn_id = _vis->get_current_scene()->get_id();
+            const std::string& curr_scn_name = _vis->get_current_scene()->get_name();
+            
             const camera* const curr_camera = _vis->get_current_scene()->get_camera();
             const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
             const vec3_f32 eye_pos = curr_camera->get_position();
+            const vec3_f32 eye_dir = curr_camera->get_direction();
 
             sb_.clear();
             sb_.appendf(
-                "Frame Size: %dx%d"
+                "Scene: %s (#%X)"
+                "\nFrame Size: %dx%d"
+                , curr_scn_name.c_str()
+                , curr_scn_id
                 , _fb_main.width_pixels(), _fb_main.height_pixels()
             );
 
             sb_.appendf(
-                "\nCamera ID: #%X"
                 "\nEye Position: [%f, %f, %f]"
+                "\nEye Direction: [%f, %f, %f]"
                 "\nEye Center: [%f, %f, %f]"
                 "\nFront: [%f, %f, %f]"
                 "\nRight: [%f, %f, %f]"
@@ -248,8 +255,8 @@ namespace triengine::gui
                 "\nZoom: %f"
                 "\nFovy: %.1fdeg"
                 "\nPerspective Scale: %f"
-                , curr_camera
                 , eye_pos.x(), eye_pos.y(), eye_pos.z()
+                , eye_dir.x(), eye_dir.y(), eye_dir.z()
                 , curr_camera_params->lookat_center.x(), curr_camera_params->lookat_center.y(), curr_camera_params->lookat_center.z()
                 , curr_camera_params->camera_front.x(), curr_camera_params->camera_front.y(), curr_camera_params->camera_front.z()
                 , curr_camera_params->camera_right.x(), curr_camera_params->camera_right.y(), curr_camera_params->camera_right.z()

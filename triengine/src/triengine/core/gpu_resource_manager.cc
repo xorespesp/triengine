@@ -9,9 +9,9 @@ namespace triengine::core
 {
     namespace
     {
-        uint32_t _create_gpu_resource_id() {
-            static std::atomic_uint32_t cnt_ = 0;
-            return cnt_++; // TODO: overflow check
+        uint64_t _create_unique_gpu_resource_id() {
+            static std::atomic_uint64_t cnt_ = 0;
+            return cnt_++; // TODO: overflow check?
         }
 
     } // namespace
@@ -20,8 +20,9 @@ namespace triengine::core
         std::shared_ptr<geometry::geometry_object_base> object) 
     {
         command_data cmd;
-        cmd.type = command_type::create_geometry_resource;
-        cmd.object_wptr = object;
+        cmd.cmd_type = command_type::create_geometry_resource;
+        cmd.obj_type = object->get_type();
+        cmd.obj_id = object->get_id();
 
         std::scoped_lock lk{ _cmd_q_mtx };
         _cmd_q.emplace_back(std::move(cmd));
@@ -31,8 +32,9 @@ namespace triengine::core
         std::shared_ptr<geometry::geometry_object_base> object)
     {
         command_data cmd;
-        cmd.type = command_type::delete_geometry_resource;
-        cmd.object_wptr = object;
+        cmd.cmd_type = command_type::delete_geometry_resource;
+        cmd.obj_type = object->get_type();
+        cmd.obj_id = object->get_id();
         
         std::scoped_lock lk{ _cmd_q_mtx };
         _cmd_q.emplace_back(std::move(cmd));
@@ -49,48 +51,48 @@ namespace triengine::core
 
         for (const auto& cmd : cmd_q)
         {
-            if (cmd.type == command_type::create_geometry_resource)
+            if (cmd.cmd_type == command_type::create_geometry_resource)
             {
-                this->_create_geometry_resource(cmd.object_wptr);
+                this->_create_geometry_resource(cmd.obj_type, cmd.obj_id);
             }
-            else if (cmd.type == command_type::delete_geometry_resource)
+            else if (cmd.cmd_type == command_type::delete_geometry_resource)
             {
-                this->_destroy_geometry_resource(cmd.object_wptr);
+                this->_destroy_geometry_resource(cmd.obj_type, cmd.obj_id);
             }
         } // for
     }
 
     // NOTE: must be called in render thread
-    triangle_mesh_gpu_resource_ptr gpu_resource_manager::get_triangle_mesh_resource(
+    triangle_mesh_gpu_rsrc_ptr gpu_resource_manager::get_triangle_mesh_resource(
         const std::shared_ptr<geometry::triangle_mesh_object>& object) const
     {
-        auto it = _triangle_mesh_rsrc_map.find(object->get_name());
+        auto it = _triangle_mesh_rsrc_map.find(object->get_id());
         if (it == _triangle_mesh_rsrc_map.end()) {
-            TRIENGINE_TRACE("Failed to get gpu resource: %s", object->get_name().c_str());
+            TRIENGINE_TRACE("Failed to get triangle mesh gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
     }
 
     // NOTE: must be called in render thread
-    pcd_gpu_resource_ptr gpu_resource_manager::get_pcd_resource(
+    pcd_gpu_rsrc_ptr gpu_resource_manager::get_pcd_resource(
         const std::shared_ptr<geometry::pcd_object>& object) const
     {
-        auto it = _pcd_rsrc_map.find(object->get_name());
+        auto it = _pcd_rsrc_map.find(object->get_id());
         if (it == _pcd_rsrc_map.end()) {
-            TRIENGINE_TRACE("Failed to get gpu resource: %s", object->get_name().c_str());
+            TRIENGINE_TRACE("Failed to get pcd gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
     }
 
     // NOTE: must be called in render thread
-    lineset_gpu_resource_ptr gpu_resource_manager::get_lineset_resource(
+    lineset_gpu_rsrc_ptr gpu_resource_manager::get_lineset_resource(
         const std::shared_ptr<geometry::lineset_object>& object) const
     {
-        auto it = _lineset_rsrc_map.find(object->get_name());
+        auto it = _lineset_rsrc_map.find(object->get_id());
         if (it == _lineset_rsrc_map.end()) {
-            TRIENGINE_TRACE("Failed to get gpu resource: %s", object->get_name().c_str());
+            TRIENGINE_TRACE("Failed to get lineset gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
@@ -98,118 +100,116 @@ namespace triengine::core
 
     // NOTE: must be called in render thread
     void gpu_resource_manager::_create_geometry_resource(
-        std::weak_ptr<geometry::geometry_object_base> object_wptr)
+        const geometry::geometry_object_type obj_type,
+        const geometry::geometry_object_id_t obj_id)
     {
-        auto object = object_wptr.lock();
-        if (object)
-        {
-            switch (object->get_type()) {
-            case geometry::geometry_object_type::triangle_mesh: {
-                const auto new_gpu_rsrc = std::make_shared<triangle_mesh_gpu_resource>(_create_gpu_resource_id());
-                const auto [insert_it, success] = _triangle_mesh_rsrc_map.insert(
-                    { object->get_name(), new_gpu_rsrc }
+        switch (obj_type) {
+        case geometry::geometry_object_type::triangle_mesh: {
+            const auto new_gpu_rsrc = std::make_shared<triangle_mesh_gpu_rsrc>(_create_unique_gpu_resource_id());
+            const auto [insert_it, success] = _triangle_mesh_rsrc_map.insert(
+                { obj_id, new_gpu_rsrc }
+            );
+
+            if (success) {
+                TRIENGINE_TRACE("Created triangle_mesh_gpu_rsrc(#%llX) for geometry object #%llX"
+                    , new_gpu_rsrc->get_id()
+                    , obj_id
                 );
-
-                if (success) {
-                    TRIENGINE_TRACE("Created triangle_mesh_gpu_resource(#%X) for '%s'"
-                        , new_gpu_rsrc->get_id()
-                        , object->get_name().c_str()
-                    );
-                } else {
-                    TRIENGINE_TRACE("Failed to create triangle_mesh_gpu_resource for '%s'", object->get_name().c_str());
-                }
-
-                break;
+            } else {
+                TRIENGINE_TRACE("Failed to create triangle_mesh_gpu_rsrc for geometry object #%llX", obj_id);
             }
-            case geometry::geometry_object_type::pointcloud: {
-                const auto new_gpu_rsrc = std::make_shared<pcd_gpu_resource>(_create_gpu_resource_id());
-                const auto [insert_it, success] = _pcd_rsrc_map.insert(
-                    { object->get_name(), new_gpu_rsrc }
-                );
+
+            break;
+        }
+        case geometry::geometry_object_type::pointcloud: {
+            const auto new_gpu_rsrc = std::make_shared<pcd_gpu_rsrc>(_create_unique_gpu_resource_id());
+            const auto [insert_it, success] = _pcd_rsrc_map.insert(
+                { obj_id, new_gpu_rsrc }
+            );
     
-                if (success) {
-                    TRIENGINE_TRACE("Created pcd_gpu_resource(#%X) for '%s'"
-                        , new_gpu_rsrc->get_id()
-                        , object->get_name().c_str()
-                    );
-                } else {
-                    TRIENGINE_TRACE("Failed to create pcd_gpu_resource for '%s'", object->get_name().c_str());
-                }
-
-                break;
-            }
-            case geometry::geometry_object_type::lineset: {
-                const auto new_gpu_rsrc = std::make_shared<lineset_gpu_resource>(_create_gpu_resource_id());
-                const auto [insert_it, success] = _lineset_rsrc_map.insert(
-                    { object->get_name(), new_gpu_rsrc }
+            if (success) {
+                TRIENGINE_TRACE("Created pcd_gpu_rsrc(#%llX) for geometry object #%llX"
+                    , new_gpu_rsrc->get_id()
+                    , obj_id
                 );
-
-                if (success) {
-                    TRIENGINE_TRACE("Created lineset_gpu_resource(#%X) for '%s'"
-                        , new_gpu_rsrc->get_id()
-                        , object->get_name().c_str()
-                    );
-                } else {
-                    TRIENGINE_TRACE("Failed to create lineset_gpu_resource for '%s'", object->get_name().c_str());
-                }
-
-                break;
+            } else {
+                TRIENGINE_TRACE("Failed to create pcd_gpu_rsrc for geometry object #%llX", obj_id);
             }
-            default: {
-                TRIENGINE_PANIC("Failed to create geometry resource. unsupported geometry type %d"
-                    , static_cast<int>(object->get_type())
+
+            break;
+        }
+        case geometry::geometry_object_type::lineset: {
+            const auto new_gpu_rsrc = std::make_shared<lineset_gpu_rsrc>(_create_unique_gpu_resource_id());
+            const auto [insert_it, success] = _lineset_rsrc_map.insert(
+                { obj_id, new_gpu_rsrc }
+            );
+
+            if (success) {
+                TRIENGINE_TRACE("Created lineset_gpu_rsrc(#%llX) for geometry object #%llX"
+                    , new_gpu_rsrc->get_id()
+                    , obj_id
                 );
-                break;
+            } else {
+                TRIENGINE_TRACE("Failed to create lineset_gpu_rsrc for geometry object #%llX", obj_id);
             }
-            } // switch
+
+            break;
         }
-        else
-        {
-            // If the object has already been destroyed, CREATE requests are ignored.
-            // TODO: Just in case, use the DESTROY processing logic here
-            // ...
+        default: {
+            TRIENGINE_PANIC("Failed to create geometry resource. unsupported geometry type %d"
+                , static_cast<int>(obj_type)
+            );
+            break;
         }
+        } // switch
     }
 
     // NOTE: must be called in render thread
     void gpu_resource_manager::_destroy_geometry_resource(
-        std::weak_ptr<geometry::geometry_object_base> object_wptr)
+        const geometry::geometry_object_type obj_type,
+        const geometry::geometry_object_id_t obj_id)
     {
-        auto object = object_wptr.lock();
-        if (object)
-        {
-            switch (object->get_type()) {
-            case geometry::geometry_object_type::triangle_mesh: {
-                if (const auto it = _triangle_mesh_rsrc_map.find(object->get_name());
-                    it != _triangle_mesh_rsrc_map.end()) {
-                    _triangle_mesh_rsrc_map.erase(it);
-                }    
-                break;
-            }
-            case geometry::geometry_object_type::pointcloud: {
-                if (const auto it = _pcd_rsrc_map.find(object->get_name());
-                    it != _pcd_rsrc_map.end()) {
-                    _pcd_rsrc_map.erase(it);
-                }
-                break;
-            }
-            case geometry::geometry_object_type::lineset: {
-                if (const auto it = _lineset_rsrc_map.find(object->get_name());
-                    it != _lineset_rsrc_map.end()) {
-                    _lineset_rsrc_map.erase(it);
-                }
-                break;
-            }
-            default: {
-                TRIENGINE_PANIC("Failed to destroy geometry resource. unsupported geometry type %d"
-                    , static_cast<int>(object->get_type())
+        switch (obj_type) {
+        case geometry::geometry_object_type::triangle_mesh: {
+            if (const auto it = _triangle_mesh_rsrc_map.find(obj_id);
+                it != _triangle_mesh_rsrc_map.end()) {
+                TRIENGINE_TRACE("Delete triangle_mesh_gpu_rsrc(#%llX) for geometry object #%llX"
+                    , it->second->get_id()
+                    , obj_id
                 );
-                break;
-            }
-            } // switch
-            
-            object->mark_dirty();
+                _triangle_mesh_rsrc_map.erase(it);
+            }    
+            break;
         }
+        case geometry::geometry_object_type::pointcloud: {
+            if (const auto it = _pcd_rsrc_map.find(obj_id);
+                it != _pcd_rsrc_map.end()) {
+                TRIENGINE_TRACE("Delete pcd_gpu_rsrc(#%llX) for geometry object #%llX"
+                    , it->second->get_id()
+                    , obj_id
+                );
+                _pcd_rsrc_map.erase(it);
+            }
+            break;
+        }
+        case geometry::geometry_object_type::lineset: {
+            if (const auto it = _lineset_rsrc_map.find(obj_id);
+                it != _lineset_rsrc_map.end()) {
+                TRIENGINE_TRACE("Delete lineset_gpu_rsrc(#%llX) for geometry object #%llX"
+                    , it->second->get_id()
+                    , obj_id
+                );
+                _lineset_rsrc_map.erase(it);
+            }
+            break;
+        }
+        default: {
+            TRIENGINE_PANIC("Failed to destroy geometry resource (unsupported geometry type %d)"
+                , static_cast<int>(obj_type)
+            );
+            break;
+        }
+        } // switch
     }
 
 } // namespace
