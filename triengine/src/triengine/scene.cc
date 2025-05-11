@@ -29,25 +29,25 @@ namespace triengine
         case geometry::geometry_object_type::lineset: {
             auto object = std::static_pointer_cast<geometry::lineset_object>(geometry_object);
             _lineset_geometries.push_back(std::static_pointer_cast<geometry::lineset_object>(object));
-            gpu_rsrc_mgr->request_create_geometry_resource(object);
+            gpu_rsrc_mgr->request_acquire_geometry_resource(object);
             break;
         }
         case geometry::geometry_object_type::pointcloud: {
             auto object = std::static_pointer_cast<geometry::pcd_object>(geometry_object);
             _pcd_geometries.push_back(object);
-            gpu_rsrc_mgr->request_create_geometry_resource(object);
+            gpu_rsrc_mgr->request_acquire_geometry_resource(object);
             break;
         }
         case geometry::geometry_object_type::triangle_mesh: {
             auto object = std::static_pointer_cast<geometry::triangle_mesh_object>(geometry_object);
             _mesh_geometries.push_back(object);
-            gpu_rsrc_mgr->request_create_geometry_resource(object);
+            gpu_rsrc_mgr->request_acquire_geometry_resource(object);
             break;
         }
         case geometry::geometry_object_type::skeleton: {
             auto object = std::static_pointer_cast<geometry::skeleton_object>(geometry_object);
             _skeleton_geometries.push_back(object);
-            //gpu_rsrc_mgr->request_create_geometry_resource(object);
+            //gpu_rsrc_mgr->request_acquire_geometry_resource(object);
             break;
         }
         }
@@ -66,28 +66,28 @@ namespace triengine
             auto object = std::static_pointer_cast<geometry::lineset_object>(geometry_object);
             object->mark_dirty();
             _lineset_geometries.remove(object);
-            gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            gpu_rsrc_mgr->request_release_geometry_resource(object);
             break;
         }
         case geometry::geometry_object_type::pointcloud: {
             auto object = std::static_pointer_cast<geometry::pcd_object>(geometry_object);
             object->mark_dirty();
             _pcd_geometries.remove(object);
-            gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            gpu_rsrc_mgr->request_release_geometry_resource(object);
             break;
         }
         case geometry::geometry_object_type::triangle_mesh: {
             auto object = std::static_pointer_cast<geometry::triangle_mesh_object>(geometry_object);
             object->mark_dirty();
             _mesh_geometries.remove(object);
-            gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            gpu_rsrc_mgr->request_release_geometry_resource(object);
             break;
         }
         case geometry::geometry_object_type::skeleton: {
             auto object = std::static_pointer_cast<geometry::skeleton_object>(geometry_object);
             object->mark_dirty();
             _skeleton_geometries.remove(object);
-            //gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            //gpu_rsrc_mgr->request_release_geometry_resource(object);
             break;
         }
         }
@@ -103,25 +103,25 @@ namespace triengine
 
         for (auto& object : _lineset_geometries) {
             object->mark_dirty();
-            gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            gpu_rsrc_mgr->request_release_geometry_resource(object);
         }
         _lineset_geometries.clear();
 
         for (auto& object : _pcd_geometries) {
             object->mark_dirty();
-            gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            gpu_rsrc_mgr->request_release_geometry_resource(object);
         }
         _pcd_geometries.clear();
         
         for (auto& object : _mesh_geometries) {
             object->mark_dirty();
-            gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+            gpu_rsrc_mgr->request_release_geometry_resource(object);
         }
         _mesh_geometries.clear();
         
         //for (auto& object : _skeleton_geometries) {
         //    object->mark_dirty();
-        //    gpu_rsrc_mgr->request_destroy_geometry_resource(object);
+        //    gpu_rsrc_mgr->request_release_geometry_resource(object);
         //}
         _skeleton_geometries.clear();
     }

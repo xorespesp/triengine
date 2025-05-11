@@ -3,12 +3,23 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
+#include <atomic>
+
 namespace triengine::core
 {
+    namespace
+    {
+        gpu_resource_id_t _create_unique_gpu_resource_id() {
+            static std::atomic<gpu_resource_id_t> cnt_ = 0;
+            return cnt_++; // TODO: overflow check?
+        }
+
+    } // namespace
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    triangle_mesh_gpu_rsrc::triangle_mesh_gpu_rsrc(uint32_t id)
-        : core::geometry_gpu_rsrc_base<triangle_mesh_gpu_rsrc>{ id }
+    triangle_mesh_gpu_rsrc::triangle_mesh_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<triangle_mesh_gpu_rsrc>{ _create_unique_gpu_resource_id() }
     {
         TRIENGINE_TRACE("CREATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
 
@@ -196,8 +207,8 @@ namespace triengine::core
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    pcd_gpu_rsrc::pcd_gpu_rsrc(uint32_t id)
-        : core::geometry_gpu_rsrc_base<pcd_gpu_rsrc>{ id }
+    pcd_gpu_rsrc::pcd_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<pcd_gpu_rsrc>{ _create_unique_gpu_resource_id() }
     {
         TRIENGINE_TRACE("CREATE pcd_gpu_rsrc(#%X)", this->get_id());
 
@@ -298,8 +309,8 @@ namespace triengine::core
     
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    lineset_gpu_rsrc::lineset_gpu_rsrc(uint32_t id)
-        : core::geometry_gpu_rsrc_base<lineset_gpu_rsrc>{ id }
+    lineset_gpu_rsrc::lineset_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<lineset_gpu_rsrc>{ _create_unique_gpu_resource_id() }
     {
         TRIENGINE_TRACE("CREATE lineset_gpu_rsrc(#%X)", this->get_id());
         
