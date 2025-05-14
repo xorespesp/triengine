@@ -1,6 +1,6 @@
 #include "geometry_object_base.hh"
 
-#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/string_format.hh>
 #include <algorithm>
 #include <numeric>
 #include <atomic>

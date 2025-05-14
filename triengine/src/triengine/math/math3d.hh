@@ -185,7 +185,7 @@ namespace triengine::math
 	{
 		static_assert(std::is_floating_point_v<_Ty>, "!!");
 		// Rotation applying order: `q_first` -> `q_second`
-		return Eigen::Quaternion<_Ty>{ q_second* q_first };
+		return Eigen::Quaternion<_Ty>{ q_second * q_first };
 	}
 
 	/**
@@ -230,6 +230,42 @@ namespace triengine::math
 		Eigen::Quaternion<_Scalar> q;
 		q.setFromTwoVectors(vec_a, vec_b);
 		return q;
+	}
+
+	/**
+	 * Create a quaternion from euler angles
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Quaternion<_Scalar> quat_from_euler(
+		const Eigen::Vector3<_Scalar>& euler_angles_rad,
+		const std::string_view euler_axis_order/* e.g: "XYZ", "ZYX", ... */)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		if (euler_axis_order.size() != 3) {
+			throw std::invalid_argument{ "Invalid euler axis order size" };
+		}
+
+		// Rotation order: first axis -> second axis -> third axis (intrinsic rotation)
+		// Q_total = Q_first_axis * Q_second_axis * Q_third_axis
+		Eigen::Quaternion<_Scalar> q_total = Eigen::Quaternion<_Scalar>::Identity();
+		for (size_t i = 0; i < euler_axis_order.size(); ++i) {
+			switch (euler_axis_order[i]) {
+			case 'X': case 'x':
+				q_total = q_total * Eigen::AngleAxis<_Scalar>(euler_angles_rad(i), Eigen::Vector3<_Scalar>::UnitX());
+				break;
+			case 'Y': case 'y':
+				q_total = q_total * Eigen::AngleAxis<_Scalar>(euler_angles_rad(i), Eigen::Vector3<_Scalar>::UnitY());
+				break;
+			case 'Z': case 'z':
+				q_total = q_total * Eigen::AngleAxis<_Scalar>(euler_angles_rad(i), Eigen::Vector3<_Scalar>::UnitZ());
+				break;
+			default:
+				throw std::invalid_argument{ "Invalid euler axis char" };
+			}
+		}
+
+		return q_total;
 	}
 
 	/**

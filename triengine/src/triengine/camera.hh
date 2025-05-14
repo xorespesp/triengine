@@ -2,7 +2,7 @@
 #include <triengine/common.h>
 #include <triengine/math/constants.hh>
 #include <triengine/math/math3d.hh>
-#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/string_format.hh>
 
 namespace triengine
 {

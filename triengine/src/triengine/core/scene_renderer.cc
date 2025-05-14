@@ -1,6 +1,6 @@
 ﻿#include "scene_renderer.hh"
 
-#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/string_format.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 

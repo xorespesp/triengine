@@ -15,8 +15,10 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Blinn-Phong lighting  
 - Order-independent transparency  
 - SMAA anti-aliasing  
-- OBJ file loading  
-- PLY file loading
+- OBJ file visualization  
+- PLY file visualization  
+- BVH file playback / inspection  
+- Resource pool optimization  
 
 ---
 
@@ -29,7 +31,6 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - [ ] Advanced lighting models (Disney Diffuse, Cook-Torrance BRDF, etc.)  
 - [ ] Camera interface improvements  
 - [ ] Support for various file formats  
-- [ ] Memory pool optimization  
 - [ ] Frustum culling  
 - [ ] Bounding Volume Hierarchy (BVH)  
 - [ ] ECS architecture (Entity-Component-System)

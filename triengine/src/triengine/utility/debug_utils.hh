@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/string_format.hh>
 
 #define _TRIENGINE_CURRENT_SOURCE_LOC() ::triengine::utility::debug::source_loc{ __FILE__, __LINE__, __func__ }
 

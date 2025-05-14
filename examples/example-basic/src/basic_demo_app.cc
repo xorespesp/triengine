@@ -4,6 +4,7 @@
 #include <triengine/math/math3d.hh>
 #include <triengine/io/file_obj_loader.hh>
 #include <triengine/io/file_ply_loader.hh>
+#include <triengine/io/file_bvh_loader.hh>
 
 #include <utils/logger.hh>
 #include <utils/bit_cast.hh>
@@ -379,6 +380,7 @@ namespace gui
         this->_add_main_scene();
         this->_add_engine_scene();
         this->_add_pointcloud_scene();
+        this->_add_bvh_scene();
     }
 
     void basic_demo_app::destroy()
@@ -581,7 +583,8 @@ namespace gui
                 }
             }
             
-            void render_gui(const triengine::gui::window_render_context& render_ctx) override
+            void render_gui(
+                [[maybe_unused]] const triengine::gui::window_render_context& render_ctx) override
             {
                 ImGui::Text("engine scene gui!");
             }
@@ -658,7 +661,8 @@ namespace gui
                 }
             }
             
-            void render_gui(const triengine::gui::window_render_context& render_ctx) override
+            void render_gui(
+                [[maybe_unused]] const triengine::gui::window_render_context& render_ctx) override
             {
                 {
                     auto gen_opts = _pcd_gen->get_options();
@@ -704,6 +708,210 @@ namespace gui
         
         _scene_ctrl_window->add_scene(
             std::make_shared<pointcloud_scene>(*_vis, _triengine_resource_dir)
+        );
+    }
+
+    void basic_demo_app::_add_bvh_scene()
+    {
+        using namespace triengine::geometry;
+        using namespace triengine::io;
+
+        class bvh_scene
+            : public scene_wrapper
+        {
+            struct ui_state_t
+            {
+                std::unique_ptr<triengine::io::bvh_file_t> bvh_data;
+                std::unordered_map<bvh_joint_id_t/* parent */, std::vector<bvh_joint_id_t>/* childs */> hierarchy_map_cache;
+
+                int current_frame_index{ 0 };
+                std::optional<bvh_joint_id_t> selected_joint_id;
+
+                ui_state_t() = default;
+            };
+
+            ui_state_t _state;
+
+        public:
+            bvh_scene(
+                triengine::visualization::visualizer& vis,
+                const std::filesystem::path& rsrc_dir_path)
+                : scene_wrapper(vis.add_scene())
+            {
+                auto scn = this->get_scene();
+                scn->set_name("bvh playback");
+
+                scn->get_render_config()->show_origin_xz_grid = false;
+                scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+
+                auto mesh_axis_frame = triangle_mesh_object::create_coordinate_frame(0.5f);
+                scn->add_geometry(mesh_axis_frame);
+
+                {
+                    _state.bvh_data = std::make_unique<triengine::io::bvh_file_t>();
+                    if (!triengine::io::load_skeleton_from_bvh(
+                        rsrc_dir_path / "bvh/xsens-sample-walk.bvh",
+                        *_state.bvh_data
+                    )) {
+                        TRIENGINE_PANIC("failed to load skeletons from bvh file");
+                    }
+                    
+                    // Build(rebuild) hierarchy cache
+                    _state.hierarchy_map_cache.clear();
+                    for (const auto [child_jid, parent_jid] : _state.bvh_data->joints_parent_map) {
+                        if (child_jid == parent_jid) { continue; }
+                        _state.hierarchy_map_cache[parent_jid].push_back(child_jid);
+                    }
+
+                    _state.selected_joint_id.reset();
+                    _state.current_frame_index = 0;
+                }
+            }
+
+            void update_animation() override
+            {
+
+            }
+
+            void render_gui(
+                [[maybe_unused]] const triengine::gui::window_render_context& render_ctx) override
+            {
+                if (!_state.bvh_data) {
+                    ImGui::Text("No bvh file loaded.");
+                    return;
+                }
+
+                const bvh_file_t& bvh_data = *_state.bvh_data;
+
+                ImGui::Text("Frame Time: %.4f seconds (%.1f FPS)"
+                    , bvh_data.frame_time
+                    , (bvh_data.frame_time > 0.0) ? 1.0 / bvh_data.frame_time : 0.0
+                );
+
+                ImGui::Separator();
+
+                if (bvh_data.frames.empty()) {
+                    ImGui::Text("No motion frames found.");
+                    _state.current_frame_index = 0;
+                    return;
+                }
+
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.7f);
+                ImGui::SliderInt("##FrameSlider"
+                    , &_state.current_frame_index
+                    , 0
+                    , static_cast<int>(bvh_data.frames.size()) - 1
+                    , "Frame: %d"
+                );
+                ImGui::PopItemWidth();
+                ImGui::SameLine();
+                ImGui::Text("/ %zu frames", bvh_data.frames.size());
+
+                ImGui::Spacing();
+
+                // Left panel
+                const float left_panel_width = std::max(200.0f * render_ctx.dpi_scale, ImGui::GetContentRegionAvail().x * 0.45f);
+                ImGui::BeginChild("JointHierarchyPanel", ImVec2(left_panel_width, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+                {
+                    ImGui::Text("Joint Hierarchy");
+                    ImGui::Separator();
+
+                    const float indent_spacing = 8.0f * render_ctx.dpi_scale;
+                    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, indent_spacing);
+                    this->_render_hierarchy_tree(_state.bvh_data->root_joint_id);
+                    ImGui::PopStyleVar();
+                }
+                ImGui::EndChild();
+
+                ImGui::SameLine();
+
+                // Right panel
+                ImGui::BeginChild("JointDetailsPanel", ImVec2(0, 0), true);
+                {
+                    ImGui::Text("Selected Joint Details");
+                    ImGui::Separator();
+
+                    if (!_state.selected_joint_id) {
+                        ImGui::Text("Select a joint from the hierarchy tree.");
+                        ImGui::EndChild();
+                        return;
+                    }
+
+                    TRIENGINE_ASSERT(_state.selected_joint_id.value() < bvh_data.joints.size());
+
+                    const bvh_joint_id_t sel_bvh_jid = _state.selected_joint_id.value();
+                    const bvh_joint_info_t& sel_bvh_jinfo = bvh_data.joints[sel_bvh_jid];
+                    const bvh_joint_data_t& sel_bvh_jdata = bvh_data.frames[_state.current_frame_index].skeleton.at(sel_bvh_jid);
+
+                    ImGui::Text("Joint Name: %s (#zu)", sel_bvh_jinfo.name.c_str(), sel_bvh_jid);
+                    ImGui::Text("Joint Length: %.6f", sel_bvh_jinfo.length);
+
+                    ImGui::Spacing();
+                    ImGui::Text("BVH Euler Angles (%s, deg):", sel_bvh_jinfo.bvh_euler_axis_order.c_str()); {
+                        ImGui::Indent();
+                        const auto& angles = sel_bvh_jdata.bvh_euler_angels;
+                        ImGui::Text("[%.6f, %.6f, %.6f]", angles.x(), angles.y(), angles.z());
+                        ImGui::Unindent();
+                    }
+
+                    ImGui::Spacing();
+                    ImGui::Text("World Position:"); {
+                        ImGui::Indent();
+                        const auto& pos = sel_bvh_jdata.world_position;
+                        ImGui::Text("[%.6f, %.6f, %.6f]", pos.x(), pos.y(), pos.z());
+                        ImGui::Unindent();
+                    }
+
+                    ImGui::Spacing();
+                    ImGui::Text("World Rotation:"); {
+                        ImGui::Indent();
+                        const auto& R = sel_bvh_jdata.world_rotation;
+                        ImGui::Text("[%.6f, %.6f, %.6f]", R(0, 0), R(0, 1), R(0, 2));
+                        ImGui::Text("[%.6f, %.6f, %.6f]", R(1, 0), R(1, 1), R(1, 2));
+                        ImGui::Text("[%.6f, %.6f, %.6f]", R(2, 0), R(2, 1), R(2, 2));
+                        ImGui::Unindent();
+                    }
+                }
+                ImGui::EndChild();
+            }
+
+        private:
+            void _render_hierarchy_tree(
+                const bvh_joint_id_t bvh_jid)
+            {
+                TRIENGINE_ASSERT(bvh_jid < _state.bvh_data->joints.size());
+
+                const bool has_children = _state.hierarchy_map_cache.count(bvh_jid) && _state.hierarchy_map_cache.at(bvh_jid).size() > 0;
+                const auto& bvh_jinfo = _state.bvh_data->joints[bvh_jid];
+
+                char node_label[256];
+                snprintf(node_label, sizeof(node_label), "%s (#%zu)", bvh_jinfo.name.c_str(), bvh_jid);
+
+                ImGuiTreeNodeFlags tree_node_flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+                if (_state.selected_joint_id == bvh_jid) { tree_node_flags |= ImGuiTreeNodeFlags_Selected; }
+                if (!has_children) { tree_node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; }
+
+                bool open_tree_node = ImGui::TreeNodeEx((void*)(intptr_t)bvh_jid, tree_node_flags, "%s", node_label);
+                if (!has_children) {
+                    open_tree_node = false; // If there are no children (Leaf), TreeNodeEx only displays the contents and does not open.
+                }
+
+                if (ImGui::IsItemClicked()) {
+                    _state.selected_joint_id = bvh_jid; // update selected jid
+                }
+
+                if (open_tree_node && has_children) {
+                    for (const bvh_joint_id_t child_bvh_jid : _state.hierarchy_map_cache.at(bvh_jid)) {
+                        this->_render_hierarchy_tree(child_bvh_jid);
+                    }
+                    ImGui::TreePop();
+                }
+            }
+
+        }; // class
+
+        _scene_ctrl_window->add_scene(
+            std::make_shared<bvh_scene>(*_vis, _triengine_resource_dir)
         );
     }
 

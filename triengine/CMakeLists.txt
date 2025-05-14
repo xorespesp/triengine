@@ -106,11 +106,12 @@ set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/utility/bit_cast.hh"
     "${LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
-    "${LIBRARY_HEADERS_DIR}/utility/string_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/noncopyable.hh"
     "${LIBRARY_HEADERS_DIR}/utility/singleton.hh"
     "${LIBRARY_HEADERS_DIR}/utility/progress_reporter.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/string_format.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"
 
     "${LIBRARY_HEADERS_DIR}/shaders/infinite_grid_shaders.h"
     "${LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"

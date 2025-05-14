@@ -1,5 +1,5 @@
 #include "scene_view_window.hh"
-#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/string_format.hh>
 #include <triengine/visualization/visualizer.hh>
 
 namespace triengine::gui

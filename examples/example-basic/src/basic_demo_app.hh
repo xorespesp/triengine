@@ -46,6 +46,7 @@ namespace gui
         void _add_main_scene();
         void _add_engine_scene();
         void _add_pointcloud_scene();
+        void _add_bvh_scene();
         
     private:
         const std::filesystem::path _triengine_resource_dir;

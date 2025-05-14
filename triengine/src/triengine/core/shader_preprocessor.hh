@@ -6,7 +6,7 @@
 #include <string>
 #include <stack>
 
-#include <triengine/utility/string_utils.hh>
+#include <triengine/utility/string_format.hh>
 
 namespace triengine::core
 {
