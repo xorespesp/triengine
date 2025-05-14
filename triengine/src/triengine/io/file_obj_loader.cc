@@ -11,7 +11,7 @@ namespace triengine::io
         const std::filesystem::path& file_path,
         geometry::triangle_mesh_object& mesh /* out */)
     {
-        TRIENGINE_TRACE("Load obj file: %s", file_path.string().c_str());
+        TRIENGINE_DEBUG("Load obj file: %s", file_path.string().c_str());
 
         const std::filesystem::path mtl_base_dir = file_path.parent_path().string(); // Path to material files
 
@@ -24,11 +24,11 @@ namespace triengine::io
         const bool succeeded = tinyobj_reader.ParseFromFile(file_path.string(), tinyobj_reader_config);
 
         if (!tinyobj_reader.Error().empty()) {
-            TRIENGINE_TRACE("Load obj error: %s", tinyobj_reader.Error().c_str());
+            TRIENGINE_ERROR("Load obj error: %s", tinyobj_reader.Error().c_str());
         }
 
         if (!tinyobj_reader.Warning().empty()) {
-            TRIENGINE_TRACE("Load obj warning: %s", tinyobj_reader.Warning().c_str());
+            TRIENGINE_WARN("Load obj warning: %s", tinyobj_reader.Warning().c_str());
         }
 
         if (!succeeded) {
@@ -145,7 +145,7 @@ namespace triengine::io
             {
                 const size_t num_face_vertices = static_cast<size_t>(tinyobj_shapes[s].mesh.num_face_vertices[f]);
                 if (num_face_vertices != 3) {
-                    TRIENGINE_TRACE("Unexpected face polygon type. (non-triangular face found, fv=%zu)", num_face_vertices);
+                    TRIENGINE_ERROR("Unexpected face polygon type. (non-triangular face found, fv=%zu)", num_face_vertices);
                     return false;
                 }
 
@@ -200,7 +200,7 @@ namespace triengine::io
             }
             else
             {
-                TRIENGINE_TRACE("Computing normals..");
+                TRIENGINE_DEBUG("Computing normals..");
                 mesh.compute_vertex_normals(true);
             }
 
@@ -225,7 +225,7 @@ namespace triengine::io
             {
                 const tinyobj::material_t& tinyobj_material = tinyobj_materials[i];
 
-                TRIENGINE_TRACE(
+                TRIENGINE_DEBUG(
                     "\ndiffuse_texname: %s"
                     "\nspecular_texname: %s"
                     , tinyobj_material.diffuse_texname.c_str()
@@ -252,11 +252,11 @@ namespace triengine::io
             }
         }
 
-        TRIENGINE_TRACE("loaded vertex_positions size: %lu", mesh.vertex_positions.size());
-        TRIENGINE_TRACE("loaded vertex_normals size: %lu", mesh.vertex_normals.size());
-        TRIENGINE_TRACE("loaded vertex_colors size: %lu", mesh.vertex_colors.size());
-        TRIENGINE_TRACE("loaded triangle_indices size: %lu", mesh.triangle_indices.size());
-        TRIENGINE_TRACE("loaded vertex_uvs size: %lu", mesh.vertex_uvs.size());
+        TRIENGINE_DEBUG("loaded vertex_positions size: %lu", mesh.vertex_positions.size());
+        TRIENGINE_DEBUG("loaded vertex_normals size: %lu", mesh.vertex_normals.size());
+        TRIENGINE_DEBUG("loaded vertex_colors size: %lu", mesh.vertex_colors.size());
+        TRIENGINE_DEBUG("loaded triangle_indices size: %lu", mesh.triangle_indices.size());
+        TRIENGINE_DEBUG("loaded vertex_uvs size: %lu", mesh.vertex_uvs.size());
         return true;
     }
 

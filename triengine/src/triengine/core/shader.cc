@@ -58,7 +58,7 @@ namespace triengine::core
         }
         catch (const std::ifstream::failure& e)
         {
-            TRIENGINE_TRACE("failed to read shader file: %s (file path: %s)"
+            TRIENGINE_ERROR("failed to read shader file: %s (file path: %s)"
                 , e.what()
                 , shader_file_path.string().c_str()
             );

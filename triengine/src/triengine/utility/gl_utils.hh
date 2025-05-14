@@ -23,7 +23,7 @@
 namespace triengine::utility
 {
     bool GLCheckError_impl(
-        const debug::source_loc& src_loc
+        const source_loc& src_loc
     );
 
     // NOTE: Device screen coordinates are relative to the upper-left corner of the window content area.

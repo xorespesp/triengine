@@ -42,6 +42,7 @@ set(LIBRARY_SOURCES
     "${LIBRARY_SOURCES_DIR}/visualization/visualizer.cc"
     "${LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer.cc"
 
+    "${LIBRARY_SOURCES_DIR}/utility/logger.cc"
     "${LIBRARY_SOURCES_DIR}/utility/debug_utils.cc"
     "${LIBRARY_SOURCES_DIR}/utility/gl_utils.cc"
 
@@ -107,6 +108,7 @@ set(LIBRARY_HEADERS_PUBLIC
 
     "${LIBRARY_HEADERS_DIR}/utility/bit_cast.hh"
     "${LIBRARY_HEADERS_DIR}/utility/spin_lock.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/logger.hh"
     "${LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"

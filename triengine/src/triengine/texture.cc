@@ -121,7 +121,7 @@ namespace triengine
         // If user wants mipmaps but min_filter is not a mipmap-based filter, adjust it automatically
         GLint adjusted_min_filter{ params.min_filter };
         if (generate_mipmap && (params.min_filter == GL_LINEAR || params.min_filter == GL_NEAREST)) {
-            TRIENGINE_TRACE("Warning: Override texture min filter options to GL_LINEAR_MIPMAP_LINEAR");
+            TRIENGINE_WARN("Override texture min filter options to GL_LINEAR_MIPMAP_LINEAR");
             adjusted_min_filter = GL_LINEAR_MIPMAP_LINEAR;
         }
 

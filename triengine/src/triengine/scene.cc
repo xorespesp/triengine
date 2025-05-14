@@ -21,8 +21,7 @@ namespace triengine
     {
         auto gpu_rsrc_mgr = _gpu_rsrc_mgr.lock();
         if (!gpu_rsrc_mgr) {
-            TRIENGINE_TRACE("failed to access gpu resource manager");
-            return;
+            TRIENGINE_PANIC("Failed to access gpu resource manager");
         }
 
         switch (geometry_object->get_type()) {
@@ -62,8 +61,7 @@ namespace triengine
     {
         auto gpu_rsrc_mgr = _gpu_rsrc_mgr.lock();
         if (!gpu_rsrc_mgr) {
-            TRIENGINE_TRACE("failed to access gpu resource manager");
-            return;
+            TRIENGINE_PANIC("Failed to access gpu resource manager");
         }
 
         switch (geometry_object->get_type()) {
@@ -107,8 +105,7 @@ namespace triengine
     {
         auto gpu_rsrc_mgr = _gpu_rsrc_mgr.lock();
         if (!gpu_rsrc_mgr) {
-            TRIENGINE_TRACE("failed to access gpu resource manager");
-            return;
+            TRIENGINE_PANIC("Failed to access gpu resource manager");
         }
 
         for (auto& object : _lineset_geometries) {

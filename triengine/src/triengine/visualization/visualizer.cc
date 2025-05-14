@@ -72,11 +72,11 @@ namespace triengine::visualization
             });
 
         ::glfwGetWindowContentScale(_glctx.get_glfw_window(), &_curr_dpi_scale_x, &_curr_dpi_scale_y);
-        TRIENGINE_TRACE("dpi scale: %f x %f", _curr_dpi_scale_x, _curr_dpi_scale_y);
+        TRIENGINE_DEBUG("dpi scale: %f x %f", _curr_dpi_scale_x, _curr_dpi_scale_y);
 
         ::glfwSetWindowContentScaleCallback(_glctx.get_glfw_window(),
             +[]([[maybe_unused]] GLFWwindow* window, float xscale, float yscale) {
-                TRIENGINE_TRACE("dpi scale changed: [%f, %f]", xscale, yscale);
+                TRIENGINE_DEBUG("dpi scale changed: [%f, %f]", xscale, yscale);
                 auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_content_scale_change_event(window, xscale, yscale);
             });
@@ -158,7 +158,7 @@ namespace triengine::visualization
                     : _scn_list.begin();
             }
         } else {
-            TRIENGINE_TRACE("Failed to remove scene #%X (not found)", scn_id);
+            TRIENGINE_WARN("Failed to remove scene #%X (not found)", scn_id);
         }
     }
 

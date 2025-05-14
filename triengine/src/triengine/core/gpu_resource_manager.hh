@@ -147,9 +147,9 @@ namespace triengine::core
                     const GLuint64 wait_max_timeout = static_cast<GLuint64>(std::chrono::duration_cast<std::chrono::nanoseconds>(5s).count());
                     const GLenum wait_res = ::glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, wait_max_timeout);
                     if (wait_res == GL_WAIT_FAILED) {
-                        TRIENGINE_TRACE("%s(): Failed to wait for fence %p", __func__, fence);
+                        TRIENGINE_WARN("%s(): Failed to wait for fence %p", __func__, fence);
                     } else if (wait_res == GL_TIMEOUT_EXPIRED) {
-                        TRIENGINE_TRACE(
+                        TRIENGINE_WARN(
                             "%s(): Timeout expired for fence %p: "
                             "Associated resource might not be properly released by GPU before context destruction."
                             , __func__
@@ -201,7 +201,7 @@ namespace triengine::core
                         _pending_objects.emplace_back(new_fence, std::move(rsrc_ptr));
                     } else {
                         // Failed to create fence object, so this resource cannot be safely tracked for reuse...
-                        TRIENGINE_TRACE("Failed to create fence object. resource cannot be reused..");
+                        TRIENGINE_ERROR("Failed to create fence object. resource cannot be reused..");
                     }
                 }
             }

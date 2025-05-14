@@ -61,7 +61,7 @@ namespace triengine::core
     {
         auto it = _triangle_mesh_rsrc_map.find(object->get_id());
         if (it == _triangle_mesh_rsrc_map.end()) {
-            TRIENGINE_TRACE("Failed to get triangle mesh gpu resource: %s", object->get_name().c_str());
+            TRIENGINE_ERROR("Failed to get triangle mesh gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
@@ -73,7 +73,7 @@ namespace triengine::core
     {
         auto it = _pcd_rsrc_map.find(object->get_id());
         if (it == _pcd_rsrc_map.end()) {
-            TRIENGINE_TRACE("Failed to get pcd gpu resource: %s", object->get_name().c_str());
+            TRIENGINE_ERROR("Failed to get pcd gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
@@ -85,7 +85,7 @@ namespace triengine::core
     {
         auto it = _lineset_rsrc_map.find(object->get_id());
         if (it == _lineset_rsrc_map.end()) {
-            TRIENGINE_TRACE("Failed to get lineset gpu resource: %s", object->get_name().c_str());
+            TRIENGINE_ERROR("Failed to get lineset gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
@@ -109,7 +109,7 @@ namespace triengine::core
                 //    , obj_id
                 //);
             } else {
-                TRIENGINE_TRACE("Failed to bind triangle_mesh_gpu_rsrc to geometry object #%llX", obj_id);
+                TRIENGINE_ERROR("Failed to bind triangle_mesh_gpu_rsrc to geometry object #%llX", obj_id);
             }
 
             break;
@@ -126,7 +126,7 @@ namespace triengine::core
                 //    , obj_id
                 //);
             } else {
-                TRIENGINE_TRACE("Failed to bind pcd_gpu_rsrc to geometry object #%llX", obj_id);
+                TRIENGINE_ERROR("Failed to bind pcd_gpu_rsrc to geometry object #%llX", obj_id);
             }
 
             break;
@@ -143,7 +143,7 @@ namespace triengine::core
                 //    , obj_id
                 //);
             } else {
-                TRIENGINE_TRACE("Failed to bind lineset_gpu_rsrc to geometry object #%llX", obj_id);
+                TRIENGINE_ERROR("Failed to bind lineset_gpu_rsrc to geometry object #%llX", obj_id);
             }
 
             break;

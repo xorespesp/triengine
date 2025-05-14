@@ -842,7 +842,7 @@ namespace triengine::io
             bvh_file_t load(const std::filesystem::path& bvh_file_path)
             {
                 const std::filesystem::path bvh_file_abs_path{ std::filesystem::canonical(bvh_file_path) };
-                TRIENGINE_TRACE("Load bvh file: %s", bvh_file_abs_path.string().c_str());
+                TRIENGINE_DEBUG("Load bvh file: %s", bvh_file_abs_path.string().c_str());
 
                 std::string bvh_file_content; {
                     std::ifstream f{ bvh_file_abs_path, std::ios::in };
@@ -1021,7 +1021,7 @@ namespace triengine::io
     {
         bvh_file_parser parser;
         bvh_file = parser.load(file_path);
-        TRIENGINE_TRACE("Load complete!");
+        TRIENGINE_DEBUG("Load complete!");
         return true;
     }
 

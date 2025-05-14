@@ -197,7 +197,7 @@ namespace triengine::core
                     &pad_right,
                     &pad_bottom
                 );
-                TRIENGINE_TRACE("frame size: %d,%d,%d,%d", pad_left, pad_top, pad_right, pad_bottom);
+                TRIENGINE_TRACE("non-client area size: %d,%d,%d,%d", pad_left, pad_top, pad_right, pad_bottom);
 
                 constexpr float // Default window size ratio relative to the full display screen
                     kDefaultWindowWidthRatio = 0.95f,

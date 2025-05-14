@@ -51,7 +51,7 @@ namespace triengine::geometry
         if (has_normals) { normals.resize(new_points_size); }
         if (has_colors) { colors.resize(new_points_size); }
     
-        TRIENGINE_TRACE("%lld points have been removed"
+        TRIENGINE_DEBUG("%lld points have been removed"
             , static_cast<int64_t>(old_points_size) - static_cast<int64_t>(new_points_size)
         );
     
@@ -63,7 +63,7 @@ namespace triengine::geometry
         const bool remove_inf_points)
     {
         if (!remove_nan_points && !remove_inf_points) {
-            TRIENGINE_TRACE("Skipping removal of non-finite points: both NaN and Inf filtering are disabled.");
+            TRIENGINE_WARN("Skipping removal of non-finite points: both NaN and Inf filtering are disabled.");
             return *this;
         }
 
@@ -95,7 +95,7 @@ namespace triengine::geometry
         if (has_normals) { normals.resize(new_points_size); }
         if (has_colors) { colors.resize(new_points_size); }
 
-        TRIENGINE_TRACE("%lld non-finite points have been removed."
+        TRIENGINE_DEBUG("%lld non-finite points have been removed."
             , static_cast<int64_t>(old_points_size) - static_cast<int64_t>(new_points_size)
         );
 

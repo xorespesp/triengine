@@ -86,7 +86,7 @@ namespace triengine::visualization
                     : _scn_list.begin();
             }
         } else {
-            TRIENGINE_TRACE("Failed to remove scene #%X (not found)", scn_id);
+            TRIENGINE_WARN("Failed to remove scene #%X (not found)", scn_id);
         }
     }
 

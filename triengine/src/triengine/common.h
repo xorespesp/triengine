@@ -205,6 +205,7 @@ __pragma(warning(disable:4819))
 __pragma(warning(pop))  // ^^^ Supress Eigen's internal warning C4127, C4819 ^^^
 
 #include <triengine/basic_types.hh>
+#include <triengine/global_options.hh>
 
 //////////////////////////////////////////////////////////////////////////////////////////
 

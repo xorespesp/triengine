@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
-bool triengine::utility::GLCheckError_impl(const debug::source_loc& src_loc)
+bool triengine::utility::GLCheckError_impl(const source_loc& src_loc)
 {
     std::string err_msg;
 

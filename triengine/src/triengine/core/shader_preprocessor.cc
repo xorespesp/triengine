@@ -243,7 +243,7 @@ namespace triengine::core
 
     void shader_preprocessor::set_default_search_directory(const std::filesystem::path& dir_path) {
         _opts.default_search_dir = detail::resolve_path(dir_path);
-        TRIENGINE_TRACE("Default search directory set to: \"%s\""
+        TRIENGINE_DEBUG("Default search directory set to: \"%s\""
             , _opts.default_search_dir.generic_string().c_str()
         );
     }
@@ -263,12 +263,12 @@ namespace triengine::core
             if (!_opts.allow_empty_includes) {
                 TRIENGINE_PANIC("Empty system include file: \"%s\"", resolved_file_path.generic_string().c_str());
             }
-            TRIENGINE_TRACE("Empty system include file: \"%s\"", resolved_file_path.generic_string().c_str());
+            TRIENGINE_WARN("Empty system include file: \"%s\"", resolved_file_path.generic_string().c_str());
         }
 
         _registered_system_includes[detail::make_virtual_path(std::string{ include_name })] = std::move(file_content);
 
-        TRIENGINE_TRACE("Registered system include file: \"%s\" -> \"%.*s\""
+        TRIENGINE_DEBUG("Registered system include file: \"%s\" -> \"%.*s\""
             , resolved_file_path.generic_string().c_str()
             , static_cast<int>(include_name.size())
             , include_name.data()
@@ -292,14 +292,14 @@ namespace triengine::core
                 );
             }
 
-            TRIENGINE_TRACE("Empty system include content for: \"%.*s\""
+            TRIENGINE_WARN("Empty system include content for: \"%.*s\""
                 , static_cast<int>(include_name.size())
                 , include_name.data()
             );
         }
 
         _registered_system_includes[detail::make_virtual_path(std::string{ include_name })] = std::move(file_content);
-        TRIENGINE_TRACE("Registered system include \"%.*s\" from memory"
+        TRIENGINE_DEBUG("Registered system include \"%.*s\" from memory"
             , static_cast<int>(include_name.size())
             , include_name.data()
         );
@@ -327,7 +327,7 @@ namespace triengine::core
                 throw;
             }
 
-            TRIENGINE_TRACE("%s(): Error processing shader file \"%s\": %s"
+            TRIENGINE_ERROR("%s(): Error processing shader file \"%s\": %s"
                 , __func__
                 , shader_file_path.generic_string().c_str()
                 , e.what()
@@ -359,7 +359,7 @@ namespace triengine::core
                 throw;
             }
 
-            TRIENGINE_TRACE("%s(): Error processing memory shader \"%.*s\": %s"
+            TRIENGINE_ERROR("%s(): Error processing memory shader \"%.*s\": %s"
                 , __func__
                 , static_cast<int>(shader_name.size())
                 , shader_name.data()
@@ -389,7 +389,7 @@ namespace triengine::core
         if (!_opts.allow_multiple_inclusion &&
             curr_included_files.find(curr_shader_file_path) != curr_included_files.end())
         {
-            TRIENGINE_TRACE("%s(): Include cycle detected. skipping already included file: \"%s\"\n%s"
+            TRIENGINE_WARN("%s(): Include cycle detected. skipping already included file: \"%s\"\n%s"
                 , __func__
                 , curr_shader_file_path.generic_string().c_str()
                 , detail::build_include_stack_trace(include_stack).c_str()
@@ -446,7 +446,7 @@ namespace triengine::core
 
                     // Avoid including self
                     if (curr_shader_file_path == resolved_include_path) {
-                        TRIENGINE_TRACE("%s(): %s -> tried to include itself", __func__, curr_ctx.to_string().c_str());
+                        TRIENGINE_WARN("%s(): %s -> tried to include itself", __func__, curr_ctx.to_string().c_str());
                         include_stack.pop();
                         continue;
                     }
@@ -466,7 +466,7 @@ namespace triengine::core
 
                     // Avoid including self
                     if (curr_shader_file_path == virtual_include_path) {
-                        TRIENGINE_TRACE("%s(): %s -> tried to include itself", __func__, curr_ctx.to_string().c_str());
+                        TRIENGINE_WARN("%s(): %s -> tried to include itself", __func__, curr_ctx.to_string().c_str());
                         include_stack.pop();
                         continue;
                     }

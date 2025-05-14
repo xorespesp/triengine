@@ -16,16 +16,41 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/callback_sink.h>
 
+// Concat two arguments.
+#define __PP_CONCAT(X, Y) X ## Y
+#define _PP_CONCAT(X, Y) __PP_CONCAT(X, Y)
 
-#define _CALL_LOGGER(LEVEL, ...) ::utils::logger::instance().log(::utils::logger::src_loc{ __FILE__, __LINE__, __FUNCTION__ }, LEVEL, __VA_ARGS__)
+// Expand argument.
+#define _PP_EXPAND(X) X
 
-#define LOG_TRACE(...)    _CALL_LOGGER(::utils::logger::level::trace, __VA_ARGS__)
-#define LOG_DEBUG(...)    _CALL_LOGGER(::utils::logger::level::debug, __VA_ARGS__)
-#define LOG_INFO(...)     _CALL_LOGGER(::utils::logger::level::info, __VA_ARGS__)
-#define LOG_WARN(...)     _CALL_LOGGER(::utils::logger::level::warn, __VA_ARGS__)
-#define LOG_ERROR(...)    _CALL_LOGGER(::utils::logger::level::err, __VA_ARGS__)
-#define LOG_CRITICAL(...) _CALL_LOGGER(::utils::logger::level::critical, __VA_ARGS__)
+// Returns the 100th argument.
+#define _PP_ARG100(_,\
+   _100,_99,_98,_97,_96,_95,_94,_93,_92,_91,_90,_89,_88,_87,_86,_85,_84,_83,_82,_81, \
+   _80,_79,_78,_77,_76,_75,_74,_73,_72,_71,_70,_69,_68,_67,_66,_65,_64,_63,_62,_61, \
+   _60,_59,_58,_57,_56,_55,_54,_53,_52,_51,_50,_49,_48,_47,_46,_45,_44,_43,_42,_41, \
+   _40,_39,_38,_37,_36,_35,_34,_33,_32,_31,_30,_29,_28,_27,_26,_25,_24,_23,_22,_21, \
+   _20,_19,_18,_17,_16,_15,_14,_13,_12,_11,_10,_9,_8,_7,_6,_5,_4,_3,_2,_1,...) _1
 
+// Returns whether __VA_ARGS__ has a comma (up to 100 arguments).
+// Note: MSVC does not expand __VA_ARGS__ like most other compilers, so an extra step(expansion) is necessary.
+// Ref: https://stackoverflow.com/a/66556553
+#define _PP_HAS_COMMA(...) _PP_EXPAND(_PP_ARG100(__VA_ARGS__, \
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1, \
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0))
+
+#define _CURRENT_SOURCE_LOC()        ::utils::logger::src_loc{ __FILE__, __LINE__, __func__ }
+#define _CALL_LOGGER0(LV, STR)       ::utils::logger::instance().print(_CURRENT_SOURCE_LOC(), LV, STR)
+#define _CALL_LOGGER1(LV, FSTR, ...) ::utils::logger::instance().printf(_CURRENT_SOURCE_LOC(), LV, FSTR, __VA_ARGS__)
+
+#define LOG_TRACE(...)    _PP_CONCAT(_CALL_LOGGER, _PP_HAS_COMMA(__VA_ARGS__))(::utils::logger::level::trace, __VA_ARGS__)
+#define LOG_DEBUG(...)    _PP_CONCAT(_CALL_LOGGER, _PP_HAS_COMMA(__VA_ARGS__))(::utils::logger::level::debug, __VA_ARGS__)
+#define LOG_INFO(...)     _PP_CONCAT(_CALL_LOGGER, _PP_HAS_COMMA(__VA_ARGS__))(::utils::logger::level::info, __VA_ARGS__)
+#define LOG_WARN(...)     _PP_CONCAT(_CALL_LOGGER, _PP_HAS_COMMA(__VA_ARGS__))(::utils::logger::level::warn, __VA_ARGS__)
+#define LOG_ERROR(...)    _PP_CONCAT(_CALL_LOGGER, _PP_HAS_COMMA(__VA_ARGS__))(::utils::logger::level::error, __VA_ARGS__)
+#define LOG_CRITICAL(...) _PP_CONCAT(_CALL_LOGGER, _PP_HAS_COMMA(__VA_ARGS__))(::utils::logger::level::critical, __VA_ARGS__)
 
 namespace utils
 {
@@ -37,7 +62,7 @@ namespace utils
             debug = SPDLOG_LEVEL_DEBUG,
             info = SPDLOG_LEVEL_INFO,
             warn = SPDLOG_LEVEL_WARN,
-            err = SPDLOG_LEVEL_ERROR,
+            error = SPDLOG_LEVEL_ERROR,
             critical = SPDLOG_LEVEL_CRITICAL,
         };
 
@@ -119,8 +144,8 @@ namespace utils
 
     private:
         utils::spin_lock _init_lock;
-        std::atomic_bool _init_flag = false;
-        std::shared_ptr<spdlog::logger> _logger_obj;
+        std::atomic_bool _init_flag{ false };
+        std::shared_ptr<spdlog::logger> _logger_inst;
 
     private:
         logger() = default;
@@ -154,7 +179,7 @@ namespace utils
             if (opt._is_async_logger)
             {
                 spdlog::init_thread_pool(opt._asnyc_logger_q_size, opt._async_logger_thread_count);
-                _logger_obj = std::make_shared<spdlog::async_logger>(
+                _logger_inst = std::make_shared<spdlog::async_logger>(
                     opt._logger_name,
                     opt._logger_sinks.begin(),
                     opt._logger_sinks.end(),
@@ -164,15 +189,15 @@ namespace utils
             }
             else
             {
-                _logger_obj = std::make_shared<spdlog::logger>(
+                _logger_inst = std::make_shared<spdlog::logger>(
                     opt._logger_name,
                     opt._logger_sinks.begin(),
                     opt._logger_sinks.end()
                 );
             }
 
-            _logger_obj->set_level(static_cast<spdlog::level::level_enum>(opt._logger_level));
-            _logger_obj->flush_on(static_cast<spdlog::level::level_enum>(level::err));
+            _logger_inst->set_level(static_cast<spdlog::level::level_enum>(opt._logger_level));
+            _logger_inst->flush_on(static_cast<spdlog::level::level_enum>(level::warn));
 
             // periodically flush all *registered* loggers every 3 seconds:
             // warning: only use if all your loggers are thread-safe ("_mt" loggers)
@@ -195,68 +220,110 @@ namespace utils
             //     If you use async logging, please make sure to call spdlog::shutdown() before main() exit.
             //     http://stackoverflow.com/questions/10915233/stdthreadjoin-hangs-if-called-after-main-exits-when-using-vs2012
             spdlog::shutdown();
-            _logger_obj.reset(); // `std::shared_ptr` is thread-unsafe; MUST call `reset()` after spdlog shutdown
+            _logger_inst.reset(); // `std::shared_ptr` is thread-unsafe; MUST call `reset()` after spdlog shutdown
 
             _init_flag = false;
         }
 
         void set_level(const level lv)
         {
-            _logger_obj->set_level(static_cast<spdlog::level::level_enum>(lv));
+            _logger_inst->set_level(static_cast<spdlog::level::level_enum>(lv));
         }
 
-        void log(
-            const src_loc src,
+        void print(
             const level lv,
-            const std::string_view msg)
+            const std::string_view msg_sv)
         {
             if (!this->is_inited()) { return; }
 
-            _logger_obj->log(
+            _logger_inst->log(
+                static_cast<spdlog::level::level_enum>(lv),
+                msg_sv
+            );
+        }
+
+        void print(
+            const src_loc src,
+            const level lv,
+            const std::string_view msg_sv)
+        {
+            if (!this->is_inited()) { return; }
+
+            _logger_inst->log(
                 spdlog::source_loc{ src.filename, src.line, src.funcname },
                 static_cast<spdlog::level::level_enum>(lv),
-                msg.data()
+                msg_sv
             );
         }
 
         template <typename... _Args>
-        void log(
-            const src_loc src,
+        void printf(
             const level lv,
-            const std::string& fmt,
+            const std::string& c_fmt,
             _Args&&... args)
         {
             if (!this->is_inited()) { return; }
 
-            auto msg = utils::string::c_format(fmt, std::forward<_Args>(args)...);
-            _logger_obj->log(
-                spdlog::source_loc{ src.filename, src.line, src.funcname },
+            auto msg = utils::string::c_format(c_fmt, std::forward<_Args>(args)...);
+            _logger_inst->log(
                 static_cast<spdlog::level::level_enum>(lv),
-                msg.c_str()
+                msg
             );
         }
 
-        void log(
+        template <typename... _Args>
+        void printf(
             const src_loc src,
             const level lv,
-            const std::wstring_view wmsg)
+            const std::string& c_fmt,
+            _Args&&... args)
         {
             if (!this->is_inited()) { return; }
 
-            _logger_obj->log(
+            auto msg = utils::string::c_format(c_fmt, std::forward<_Args>(args)...);
+            _logger_inst->log(
+                spdlog::source_loc{ src.filename, src.line, src.funcname },
+                static_cast<spdlog::level::level_enum>(lv),
+                msg
+            );
+        }
+
+        void print(
+            const level lv,
+            const std::wstring_view wmsg_sv)
+        {
+            if (!this->is_inited()) { return; }
+
+            _logger_inst->log(
+                static_cast<spdlog::level::level_enum>(lv),
+#if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
+                wmsg_sv
+#else  // ^^^ SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^ / vvv !SPDLOG_WCHAR_TO_UTF8_SUPPORT vvv
+                utils::string::utf16_to_utf8(wmsg_sv)
+#endif // ^^^ !SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^
+            );
+        }
+
+        void print(
+            const src_loc src,
+            const level lv,
+            const std::wstring_view wmsg_sv)
+        {
+            if (!this->is_inited()) { return; }
+
+            _logger_inst->log(
                 spdlog::source_loc{ src.filename, src.line, src.funcname },
                 static_cast<spdlog::level::level_enum>(lv),
 #if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
-                wmsg
+                wmsg_sv
 #else  // ^^^ SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^ / vvv !SPDLOG_WCHAR_TO_UTF8_SUPPORT vvv
-                utils::string::utf16_to_utf8(wmsg).c_str()
+                utils::string::utf16_to_utf8(wmsg_sv)
 #endif // ^^^ !SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^
             );
         }
 
         template <typename... _Args>
-        void log(
-            const src_loc src,
+        void printf(
             const level lv,
             const std::wstring& wfmt,
             _Args&&... args)
@@ -264,44 +331,36 @@ namespace utils
             if (!this->is_inited()) { return; }
 
             auto wmsg = utils::string::c_wformat(wfmt, std::forward<_Args>(args)...);
-            _logger_obj->log(
-                spdlog::source_loc{ src.filename, src.line, src.funcname },
+            _logger_inst->log(
                 static_cast<spdlog::level::level_enum>(lv),
 #if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
-                wmsg.c_str()
+                wmsg
 #else  // ^^^ SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^ / vvv !SPDLOG_WCHAR_TO_UTF8_SUPPORT vvv
-                utils::string::utf16_to_utf8(wmsg).c_str()
+                utils::string::utf16_to_utf8(wmsg)
 #endif // ^^^ !SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^
             );
         }
 
-        void log_trace(std::string_view msg) { this->log(src_loc{}, level::trace, msg); }
-        void log_debug(std::string_view msg) { this->log(src_loc{}, level::debug, msg); }
-        void log_info(std::string_view msg) { this->log(src_loc{}, level::info, msg); }
-        void log_warn(std::string_view msg) { this->log(src_loc{}, level::warn, msg); }
-        void log_err(std::string_view msg) { this->log(src_loc{}, level::err, msg); }
-        void log_critical(std::string_view msg) { this->log(src_loc{}, level::critical, msg); }
+        template <typename... _Args>
+        void printf(
+            const src_loc src,
+            const level lv,
+            const std::wstring& c_wfmt,
+            _Args&&... args)
+        {
+            if (!this->is_inited()) { return; }
 
-        void log_trace(std::wstring_view wmsg) { this->log(src_loc{}, level::trace, wmsg); }
-        void log_debug(std::wstring_view wmsg) { this->log(src_loc{}, level::debug, wmsg); }
-        void log_info(std::wstring_view wmsg) { this->log(src_loc{}, level::info, wmsg); }
-        void log_warn(std::wstring_view wmsg) { this->log(src_loc{}, level::warn, wmsg); }
-        void log_err(std::wstring_view wmsg) { this->log(src_loc{}, level::err, wmsg); }
-        void log_critical(std::wstring_view wmsg) { this->log(src_loc{}, level::critical, wmsg); }
-
-        template <typename... _Args> void log_trace(const std::string& fmt, _Args&&... args) { this->log(src_loc{}, level::trace, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_debug(const std::string& fmt, _Args&&... args) { this->log(src_loc{}, level::debug, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_info(const std::string& fmt, _Args&&... args) { this->log(src_loc{}, level::info, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_warn(const std::string& fmt, _Args&&... args) { this->log(src_loc{}, level::warn, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_err(const std::string& fmt, _Args&&... args) { this->log(src_loc{}, level::err, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_critical(const std::string& fmt, _Args&&... args) { this->log(src_loc{}, level::critical, fmt, std::forward<_Args>(args)...); }
-
-        template <typename... _Args> void log_trace(const std::wstring& fmt, _Args&&... args) { this->log(src_loc{}, level::trace, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_debug(const std::wstring& fmt, _Args&&... args) { this->log(src_loc{}, level::debug, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_info(const std::wstring& fmt, _Args&&... args) { this->log(src_loc{}, level::info, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_warn(const std::wstring& fmt, _Args&&... args) { this->log(src_loc{}, level::warn, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_err(const std::wstring& fmt, _Args&&... args) { this->log(src_loc{}, level::err, fmt, std::forward<_Args>(args)...); }
-        template <typename... _Args> void log_critical(const std::wstring& fmt, _Args&&... args) { this->log(src_loc{}, level::critical, fmt, std::forward<_Args>(args)...); }
+            auto wmsg = utils::string::c_wformat(c_wfmt, std::forward<_Args>(args)...);
+            _logger_inst->log(
+                spdlog::source_loc{ src.filename, src.line, src.funcname },
+                static_cast<spdlog::level::level_enum>(lv),
+#if defined(SPDLOG_WCHAR_TO_UTF8_SUPPORT)
+                wmsg
+#else  // ^^^ SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^ / vvv !SPDLOG_WCHAR_TO_UTF8_SUPPORT vvv
+                utils::string::utf16_to_utf8(wmsg)
+#endif // ^^^ !SPDLOG_WCHAR_TO_UTF8_SUPPORT ^^^
+            );
+        }
 
     }; // class
 } // namespace

@@ -18,12 +18,12 @@ namespace triengine::io
         };
         
         if (!ply_file) {
-            TRIENGINE_TRACE("Failed to open file: %s", file_path.string().c_str());
+            TRIENGINE_ERROR("Failed to open file: %s", file_path.string().c_str());
             return false;
         }
 
         if (!::ply_read_header(ply_file.get())) {
-            TRIENGINE_TRACE("Failed to parse PLY header");
+            TRIENGINE_ERROR("Failed to parse PLY header");
             return false;
         }
 
@@ -108,7 +108,7 @@ namespace triengine::io
         ::ply_set_read_cb(ply_file.get(), "vertex", "blue", read_color_cb_, &rd_state, 2/*rd_index*/);
 
         if (rd_state.vertex_num <= 0) {
-            TRIENGINE_TRACE("Unexpected vertex number: %ld", rd_state.vertex_num);
+            TRIENGINE_ERROR("Unexpected vertex number: %ld", rd_state.vertex_num);
             return false;
         }
 
@@ -122,11 +122,11 @@ namespace triengine::io
         rd_state.reporter = &reporter;
 
         if (!::ply_read(ply_file.get())) {
-            TRIENGINE_TRACE("Failed to read file: %s", file_path.string().c_str());
+            TRIENGINE_ERROR("Failed to read file: %s", file_path.string().c_str());
             return false;
         }
 
-        TRIENGINE_TRACE("Read %lu points, %lu colors, %lu normals."
+        TRIENGINE_DEBUG("Read %lu points, %lu colors, %lu normals."
             , pcd.points.size()
             , pcd.colors.size()
             , pcd.normals.size()

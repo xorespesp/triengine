@@ -5,10 +5,8 @@
 #include <iostream>
 #include <conio.h>
  
- void run_demo(
-     const std::filesystem::path& triengine_resource_dir)
+ void run_demo()
  {
-     triengine::global_options::instance()->set_resource_directory(triengine_resource_dir);
      gui::basic_demo_app app;
 
      LOG_INFO("Creating app..");
@@ -41,9 +39,26 @@
 
      try
      {
-         run_demo(
-             curr_image_dir_path / "../resources"
-         );
+         triengine::global_options::instance()->set_resource_directory(curr_image_dir_path / "../resources");
+         triengine::global_options::instance()->get_logger().set_log_level(triengine::utility::log_level::trace);
+         triengine::global_options::instance()->get_logger().register_print_callback(
+             [](triengine::utility::log_level lv, std::string_view msg_sv)
+             {
+                 ::utils::logger::instance().print(
+                     [lv]() -> ::utils::logger::level {
+                         switch (lv) {
+                         case triengine::utility::log_level::trace: return ::utils::logger::level::trace;
+                         case triengine::utility::log_level::debug: return ::utils::logger::level::debug;
+                         case triengine::utility::log_level::info: return ::utils::logger::level::info;
+                         case triengine::utility::log_level::warn: return ::utils::logger::level::warn;
+                         case triengine::utility::log_level::error: return ::utils::logger::level::error;
+                         case triengine::utility::log_level::critical: return ::utils::logger::level::critical;
+                         default: return ::utils::logger::level::warn;
+                         }
+                     }(), msg_sv);
+             });
+
+         run_demo();
 
          retval = 0;
      }
