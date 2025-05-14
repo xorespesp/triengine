@@ -16,10 +16,10 @@ namespace triengine::utility
     Policy Types:
     1. Meyer's Singleton: Uses static local variables, thread-safe since C++11.
         - singleton_tag_default: Basic Meyer's Singleton.
-        - singleton_tag_default_prevent_construction: Meyer's Singleton + prevents direct construction of the derived class.
+        - singleton_tag_default_prohibit_direct_construct: Meyer's Singleton + prevents direct construction of the derived class.
     2. DCLP (Double-Checked Locking Pattern) Singleton: Explicit synchronization using std::atomic and mutexes.
         - singleton_tag_dclp: DCLP. Manual lifecycle management with construct() and destruct().
-        - singleton_tag_dclp_prevent_construction: DCLP + prevents direct construction of the derived class.
+        - singleton_tag_dclp_prohibit_direct_construct: DCLP + prevents direct construction of the derived class.
 
     Usage Example:
 
@@ -36,7 +36,7 @@ namespace triengine::utility
     };
 
     // 2. Meyer's Singleton (direct construction disallowed)
-    struct FooMeyerStrict : public singleton_trait<FooMeyerStrict, singleton_tag_meyer_prevent_construction>
+    struct FooMeyerStrict : public singleton_trait<FooMeyerStrict, singleton_tag_meyer_prohibit_direct_construct>
     {
         FooMeyerStrict(int id = 0) : _id{id} { std::cout << name() << "() CALLED" << std::endl; }
         ~FooMeyerStrict() { std::cout << "~" << name() << "() CALLED" << std::endl; }
@@ -47,7 +47,7 @@ namespace triengine::utility
     };
 
     // 3. DCLP Singleton (direct construction disallowed)
-    struct FooDclpStrict : public singleton_trait<FooDclpStrict, singleton_tag_dclp_prevent_construction>
+    struct FooDclpStrict : public singleton_trait<FooDclpStrict, singleton_tag_dclp_prohibit_direct_construct>
     {
         FooDclpStrict(int id) : _id{ id } { std::cout << name() << "() CALLED" << std::endl; }
         ~FooDclpStrict() { std::cout << "~" << name() << "() CALLED" << std::endl; }
@@ -79,9 +79,9 @@ namespace triengine::utility
 
     // Define singleton policy tags
     struct singleton_tag_meyer {}; // Meyer's Singleton, default policy
-    struct singleton_tag_meyer_prevent_construction {}; // Meyer's Singleton, prevents direct construction of derived class
+    struct singleton_tag_meyer_prohibit_direct_construct {}; // Meyer's Singleton, prevents direct construction of derived class
     struct singleton_tag_dclp {}; // DCLP Singleton, manual initialization/deinitialization
-    struct singleton_tag_dclp_prevent_construction {}; // DCLP Singleton, manual init/deinit & prevents direct construction of derived class
+    struct singleton_tag_dclp_prohibit_direct_construct {}; // DCLP Singleton, manual init/deinit & prevents direct construction of derived class
 
     // A basic Meyer's singleton
     // Ref: https://laristra.github.io/flecsi/src/developer-guide/patterns/meyers_singleton.html
@@ -109,7 +109,7 @@ namespace triengine::utility
     // Meyer's singleton, prevents direct stack/heap construction of the derived class
     // derived class must be default constructible.
     template <typename _Derived>
-    class singleton_trait<_Derived, singleton_tag_meyer_prevent_construction>
+    class singleton_trait<_Derived, singleton_tag_meyer_prohibit_direct_construct>
     {
     public:
         // Returns the instance. Constructs on first call.
@@ -209,7 +209,7 @@ namespace triengine::utility
     // Requires manual calls to construct() and destruct().
     // derived class must be constructible with arguments passed to initialize.
     template <typename _Derived>
-    class singleton_trait<_Derived, singleton_tag_dclp_prevent_construction>
+    class singleton_trait<_Derived, singleton_tag_dclp_prohibit_direct_construct>
     {
     public:
         // Initializes the singleton instance with the given arguments. (thread-safe)
