@@ -11,6 +11,7 @@
 #include <deque>
 #include <mutex>
 #include <string>
+#include <chrono>
 #include <optional>
 
 namespace triengine::core
@@ -142,7 +143,9 @@ namespace triengine::core
                     // GPU counterparts are deleted (implicitly by _Ty's destructor via shared_ptr).
                     // A long timeout is used as a safeguard, but ideally, all rendering should have
                     // ceased and flushed naturally before the pool destructor is called.
-                    GLenum wait_res = ::glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, 5000000000ULL); // wait max 5 sec
+                    using namespace std::chrono_literals;
+                    const GLuint64 wait_max_timeout = static_cast<GLuint64>(std::chrono::duration_cast<std::chrono::nanoseconds>(5s).count());
+                    const GLenum wait_res = ::glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, wait_max_timeout);
                     if (wait_res == GL_WAIT_FAILED) {
                         TRIENGINE_TRACE("%s(): Failed to wait for fence %p", __func__, fence);
                     } else if (wait_res == GL_TIMEOUT_EXPIRED) {
@@ -166,8 +169,7 @@ namespace triengine::core
             // makes recently released objects to be used more quickly.
             // However, if `allocate()` is called extremely frequently within a frame, 
             // and `collect_available_objects()` iterates a long list, this could add up.
-            // So we don't do this.
-            //this->collect_available_objects();
+            this->collect_available_objects();
             
             // Try reuse object from pool ...
             if (!_avail_objects_pool.empty()) {
@@ -242,7 +244,7 @@ namespace triengine::core
                     // The GPU has not yet finished commands up to this fence.
                     // Leave it in the pending queue to be checked again later.
 
-                    TRIENGINE_TRACE("COLLECT: GPU has not yet finished commands up to this fence. leave it..");
+                    //TRIENGINE_TRACE("COLLECT: GPU has not yet finished commands up to this fence. leave it..");
                     ++pend_it;
                 }
                 else //if (wait_res == GL_WAIT_FAILED)
@@ -251,10 +253,10 @@ namespace triengine::core
                     // It's safest to remove the problematic fence and its associated resource
                     // from the pending queue to prevent further errors or infinite loops.
 
-                    TRIENGINE_TRACE("COLLECT: Waiting for fence %p failed with %d. removing from pending list.."
-                        , fence
-                        , static_cast<int>(wait_res)
-                    );
+                    //TRIENGINE_TRACE("COLLECT: Waiting for fence %p failed with %d. removing from pending list.."
+                    //    , fence
+                    //    , static_cast<int>(wait_res)
+                    //);
 
                     if (fence) {
                         ::glDeleteSync(fence); // Attempt to delete the problematic fence object.
@@ -265,9 +267,9 @@ namespace triengine::core
 
             } // for
 
-            if (pending_count) {
-                TRIENGINE_TRACE("COLLECT: %zu/%zu GPU resource(s) have been recycled.", collect_count, pending_count);
-            }
+            //if (pending_count) {
+            //    TRIENGINE_TRACE("COLLECT: %zu/%zu GPU resource(s) have been recycled.", collect_count, pending_count);
+            //}
 
             return collect_count;
         }
@@ -277,7 +279,7 @@ namespace triengine::core
     class gpu_resource_manager
     {
     public:
-        static constexpr size_t kMaxPoolSize{ 64 };
+        static constexpr size_t kMaxPoolSize{ 256 };
 
     private:
         template <typename _Ty>

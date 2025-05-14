@@ -91,7 +91,13 @@ namespace triengine::geometry
             const quat_f32& joint_rot,
             const color3_f32& joint_color
         );
-        
+
+        void add_joint(
+            const vec3_f32& joint_pos,
+            const mat3_f32& joint_rot,
+            const color3_f32& joint_color
+        );
+
         void add_bone(
             const vec3_f32& from_joint_pos,
             const vec3_f32& to_joint_pos,

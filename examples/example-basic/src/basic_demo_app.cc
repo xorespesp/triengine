@@ -731,6 +731,7 @@ namespace gui
             };
 
             ui_state_t _state;
+            std::shared_ptr<skeleton_object> _skeleton;
 
         public:
             bvh_scene(
@@ -741,7 +742,7 @@ namespace gui
                 auto scn = this->get_scene();
                 scn->set_name("bvh playback");
 
-                scn->get_render_config()->show_origin_xz_grid = false;
+                scn->get_render_config()->show_origin_xz_grid = true;
                 scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
 
                 auto mesh_axis_frame = triangle_mesh_object::create_coordinate_frame(0.5f);
@@ -770,7 +771,11 @@ namespace gui
 
             void update_animation() override
             {
-
+                if (_skeleton) {
+                    this->get_scene()->remove_geometry(_skeleton);
+                }
+                _skeleton = this->_create_skeleton_object_from_bvh(*_state.bvh_data, _state.bvh_data->frames[_state.current_frame_index]);
+                this->get_scene()->add_geometry(_skeleton);
             }
 
             void render_gui(
@@ -906,6 +911,48 @@ namespace gui
                     }
                     ImGui::TreePop();
                 }
+            }
+
+            std::shared_ptr<skeleton_object> _create_skeleton_object_from_bvh(
+                const bvh_file_t& bvh_file,
+                const bvh_motion_frame_t& bvh_frame) const
+            {
+                constexpr double kScaleCM2M = 0.01;
+
+                auto new_skeleton = skeleton_object::create();
+
+                // Assign the correct color based on the body id
+                const auto
+                    hi_conf_color = triengine::color3_f32{ 1.0f, 1.0f, 0.0f },
+                    lo_conf_color = triengine::color3_f32{ 0.6f, 0.6f, 0.6f };
+
+                // Visualize joints
+                for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
+                {
+                    new_skeleton->add_joint(
+                        (bvh_jdata.world_position * kScaleCM2M).cast<float>(),
+                        bvh_jdata.world_rotation.cast<float>(),
+                        hi_conf_color
+                    );
+                }
+
+                // Visualize bones
+                for (const auto [child_jid, parent_jid] : bvh_file.joints_parent_map)
+                {
+                    if (child_jid == parent_jid) { continue; }
+
+                    const auto
+                        & child_jdata = bvh_frame.skeleton.at(child_jid), 
+                        & parent_jdata = bvh_frame.skeleton.at(parent_jid);
+
+                    new_skeleton->add_bone(
+                        (child_jdata.world_position * kScaleCM2M).cast<float>(),
+                        (parent_jdata.world_position * kScaleCM2M).cast<float>(),
+                        hi_conf_color
+                    );
+                }
+
+                return new_skeleton;
             }
 
         }; // class

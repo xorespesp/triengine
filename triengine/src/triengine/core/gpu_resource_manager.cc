@@ -104,10 +104,10 @@ namespace triengine::core
             );
 
             if (success) {
-                TRIENGINE_TRACE("triangle_mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
-                    , new_gpu_rsrc->get_id()
-                    , obj_id
-                );
+                //TRIENGINE_TRACE("triangle_mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //    , new_gpu_rsrc->get_id()
+                //    , obj_id
+                //);
             } else {
                 TRIENGINE_TRACE("Failed to bind triangle_mesh_gpu_rsrc to geometry object #%llX", obj_id);
             }
@@ -121,10 +121,10 @@ namespace triengine::core
             );
     
             if (success) {
-                TRIENGINE_TRACE("pcd_gpu_rsrc(#%llX) bound to geometry object #%llX"
-                    , new_gpu_rsrc->get_id()
-                    , obj_id
-                );
+                //TRIENGINE_TRACE("pcd_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //    , new_gpu_rsrc->get_id()
+                //    , obj_id
+                //);
             } else {
                 TRIENGINE_TRACE("Failed to bind pcd_gpu_rsrc to geometry object #%llX", obj_id);
             }
@@ -138,10 +138,10 @@ namespace triengine::core
             );
 
             if (success) {
-                TRIENGINE_TRACE("lineset_gpu_rsrc(#%llX) bound to geometry object #%llX"
-                    , new_gpu_rsrc->get_id()
-                    , obj_id
-                );
+                //TRIENGINE_TRACE("lineset_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //    , new_gpu_rsrc->get_id()
+                //    , obj_id
+                //);
             } else {
                 TRIENGINE_TRACE("Failed to bind lineset_gpu_rsrc to geometry object #%llX", obj_id);
             }
@@ -166,10 +166,10 @@ namespace triengine::core
         case geometry::geometry_object_type::triangle_mesh: {
             if (const auto it = _triangle_mesh_rsrc_map.find(obj_id);
                 it != _triangle_mesh_rsrc_map.end()) {
-                TRIENGINE_TRACE("Releasing triangle_mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
-                    , it->second->get_id()
-                    , obj_id
-                );
+                //TRIENGINE_TRACE("Releasing triangle_mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //    , it->second->get_id()
+                //    , obj_id
+                //);
                 _triangle_mesh_rsrc_pool_alloc.deallocate(it->second);
                 _triangle_mesh_rsrc_map.erase(it);
             }    
@@ -178,10 +178,10 @@ namespace triengine::core
         case geometry::geometry_object_type::pointcloud: {
             if (const auto it = _pcd_rsrc_map.find(obj_id);
                 it != _pcd_rsrc_map.end()) {
-                TRIENGINE_TRACE("Releasing pcd_gpu_rsrc(#%llX) bound to geometry object #%llX"
-                    , it->second->get_id()
-                    , obj_id
-                );
+                //TRIENGINE_TRACE("Releasing pcd_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //    , it->second->get_id()
+                //    , obj_id
+                //);
                 _pcd_rsrc_pool_alloc.deallocate(it->second);
                 _pcd_rsrc_map.erase(it);
             }
@@ -190,10 +190,10 @@ namespace triengine::core
         case geometry::geometry_object_type::lineset: {
             if (const auto it = _lineset_rsrc_map.find(obj_id);
                 it != _lineset_rsrc_map.end()) {
-                TRIENGINE_TRACE("Releasing lineset_gpu_rsrc(#%llX) bound to geometry object #%llX"
-                    , it->second->get_id()
-                    , obj_id
-                );
+                //TRIENGINE_TRACE("Releasing lineset_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //    , it->second->get_id()
+                //    , obj_id
+                //);
                 _lineset_rsrc_pool_alloc.deallocate(it->second);
                 _lineset_rsrc_map.erase(it);
             }

@@ -525,9 +525,9 @@ namespace triengine::core
             );
         }
 
-        if (curr_depth == 0) {
-            TRIENGINE_TRACE("prep_result:\n%s", prep_result.c_str());
-        }
+        //if (curr_depth == 0) {
+        //    TRIENGINE_TRACE("prep_result:\n%s", prep_result.c_str());
+        //}
 
         return prep_result;
     }

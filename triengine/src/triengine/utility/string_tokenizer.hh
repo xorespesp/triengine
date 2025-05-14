@@ -87,7 +87,6 @@ namespace triengine::string
 
     namespace tokenizer_methods
     {
-        // Ref: https://www.boost.org/doc/libs/1_58_0/libs/tokenizer/char_separator.htm
         template <
             class _CharT
         >

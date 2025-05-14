@@ -47,7 +47,12 @@ namespace triengine
         case geometry::geometry_object_type::skeleton: {
             auto object = std::static_pointer_cast<geometry::skeleton_object>(geometry_object);
             _skeleton_geometries.push_back(object);
-            //gpu_rsrc_mgr->request_acquire_geometry_resource(object);
+            for (const auto& joint_obj : object->get_joint_objects()) {
+                gpu_rsrc_mgr->request_acquire_geometry_resource(joint_obj);
+            }
+            for (const auto& bone_obj : object->get_bone_objects()) {
+                gpu_rsrc_mgr->request_acquire_geometry_resource(bone_obj);
+            }
             break;
         }
         }
@@ -87,7 +92,12 @@ namespace triengine
             auto object = std::static_pointer_cast<geometry::skeleton_object>(geometry_object);
             object->mark_dirty();
             _skeleton_geometries.remove(object);
-            //gpu_rsrc_mgr->request_release_geometry_resource(object);
+            for (const auto& joint_obj : object->get_joint_objects()) {
+                gpu_rsrc_mgr->request_release_geometry_resource(joint_obj);
+            }
+            for (const auto& bone_obj : object->get_bone_objects()) {
+                gpu_rsrc_mgr->request_release_geometry_resource(bone_obj);
+            }
             break;
         }
         }
@@ -119,10 +129,17 @@ namespace triengine
         }
         _mesh_geometries.clear();
         
-        //for (auto& object : _skeleton_geometries) {
-        //    object->mark_dirty();
-        //    gpu_rsrc_mgr->request_release_geometry_resource(object);
-        //}
+        for (auto& object : _skeleton_geometries) {
+            for (const auto& joint_obj : object->get_joint_objects()) {
+                joint_obj->mark_dirty();
+                gpu_rsrc_mgr->request_release_geometry_resource(joint_obj);
+            }
+            for (const auto& bone_obj : object->get_bone_objects()) {
+                bone_obj->mark_dirty();
+                gpu_rsrc_mgr->request_release_geometry_resource(bone_obj);
+            }
+            object->mark_dirty();
+        }
         _skeleton_geometries.clear();
     }
 

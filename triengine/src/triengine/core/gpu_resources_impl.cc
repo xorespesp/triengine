@@ -70,7 +70,7 @@ namespace triengine::core
 
     void triangle_mesh_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        TRIENGINE_TRACE("UPDATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
+        //TRIENGINE_TRACE("UPDATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
 
         TRIENGINE_ASSERT(geometry_object != nullptr);
         TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::triangle_mesh);
@@ -250,7 +250,7 @@ namespace triengine::core
 
     void pcd_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        TRIENGINE_TRACE("UPDATE pcd_gpu_rsrc(#%X)", this->get_id());
+        //TRIENGINE_TRACE("UPDATE pcd_gpu_rsrc(#%X)", this->get_id());
 
         TRIENGINE_ASSERT(geometry_object != nullptr);
         TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::pointcloud);
@@ -359,7 +359,7 @@ namespace triengine::core
 
     void lineset_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        TRIENGINE_TRACE("UPDATE lineset_gpu_rsrc(#%X)", this->get_id());
+        //TRIENGINE_TRACE("UPDATE lineset_gpu_rsrc(#%X)", this->get_id());
         
         TRIENGINE_ASSERT(geometry_object != nullptr);
         TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::lineset);

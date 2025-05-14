@@ -1,22 +1,30 @@
 ﻿#include "gl_context.hh"
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
-#include <triengine/utility/noncopyable.hh>
+#include <triengine/utility/singleton.hh>
 
 #include <iostream>
 
 namespace triengine::core
 {
-    namespace {
-        // singleton class
-        class global_glfw_environment final
-            : utility::noncopyable
-        {
-        private:
-            global_glfw_environment()
-            {
+    namespace 
+    {
+        // Manages the global lifecycle of the GLFW library.
+        // This class ensures that GLFW is initialized before its use (e.g., by a visualizer)
+        // and terminated gracefully when the application exits.
+        // It leverages the singleton pattern to guarantee a single point of initialization and termination.
+        //
+        // CRITICAL NOTE: GLFW functions, especially initialization and window creation,
+        //                typically need to be called from the main thread. Therefore, the first
+        //                access to this singleton (which triggers its constructor) must occur on the main thread.
+        class global_glfw_environment final : public utility::singleton_trait<global_glfw_environment> {
+        public:
+            // Constructor: Initializes the GLFW library and sets up an error callback.
+            // (Called automatically when the singleton instance is first accessed.)
+            global_glfw_environment() {
+                //std::cout << "glfwInit() START.." << std::endl;
                 if (!::glfwInit()) {
-                    std::cout << "\nglfwInit() failed" << std::endl;
+                    std::cerr << "\nglfwInit() failed" << std::endl;
                     ::exit(EXIT_FAILURE);
                 }
 
@@ -27,23 +35,23 @@ namespace triengine::core
                             , err_code
                             , err_desc
                         );
-                        std::cout << '\n' << msg << std::endl;
+                        std::cerr << '\n' << msg << std::endl;
                     });
             }
 
-        public:
-            ~global_glfw_environment()
-            {
+            // Destructor: Terminates the GLFW library.
+            // (Called automatically when the singleton instance is destroyed; typically at program exit.)
+            ~global_glfw_environment() {
+                //std::cout << "glfwTerminate() START.." << std::endl;
                 ::glfwTerminate();
             }
 
-        public:
-            // This function initializes the GLFW library for the rendering. 
-            // You have to run this function before creating the visualizer object.
-            // NOTE: This function must be called from the main thread.
-            static void initialize() {
-                static global_glfw_environment inst_{};
-            }
+            // Provides an explicit point to ensure GLFW initialization has occurred.
+            // The actual initialization happens in the constructor when this singleton
+            // is first instantiated (e.g., via the first call to `instance()` or this method).
+            // This method is primarily syntactic-sugar for making the initialization step
+            // explicit in the application's startup sequence. It performs no additional operations.
+            void initialize() {}
 
         }; // class
 
@@ -126,7 +134,7 @@ namespace triengine::core
         }
 
         // NOTE: Should be called in main thread
-        global_glfw_environment::initialize();
+        global_glfw_environment::instance()->initialize();
 
         ::glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         ::glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);

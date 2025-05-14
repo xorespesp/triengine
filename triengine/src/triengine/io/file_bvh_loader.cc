@@ -876,24 +876,6 @@ namespace triengine::io
 					joints_euler_axis_order_map
 				);
 
-				//for (size_t i = 0; i < _parser_ctx->num_frames(); ++i)
-				//{
-				//	std::string s;
-				//	for (const auto& joint : _parser_ctx->ordered_joint_nodes()) {
-				//		const auto& world_pos = joints_world_positions_map.at(joint)[i];
-				//		s += utility::string::c_format(
-				//			"%s: %f, %f, %f\n"
-				//			, joint->get_joint_name().c_str()
-				//			, world_pos.x()
-				//			, world_pos.y()
-				//			, world_pos.z()
-				//		);
-				//	}
-				//
-				//	TRIENGINE_TRACE("[%zu] joint world positions:\n%s", i, s.c_str());
-				//	getchar();
-				//}
-
 				bvh_file_t result;
 
 				// fill joints info
