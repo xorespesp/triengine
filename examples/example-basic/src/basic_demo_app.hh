@@ -1,4 +1,5 @@
 #pragma once
+#include <triengine/global_options.hh>
 #include <triengine/visualization/visualizer.hh>
 #include <triengine/utility/noncopyable.hh>
 
@@ -35,7 +36,7 @@ namespace gui
     class basic_demo_app
     {
     public:
-        basic_demo_app(const std::filesystem::path& triengine_resource_dir);
+        basic_demo_app();
         ~basic_demo_app();
 
         void create();
@@ -49,13 +50,10 @@ namespace gui
         void _add_bvh_scene();
         
     private:
-        const std::filesystem::path _triengine_resource_dir;
         std::unique_ptr<triengine::visualization::visualizer> _vis;
-
         std::shared_ptr<triengine::gui::log_window> _log_window;
         std::shared_ptr<triengine::gui::render_stats_window> _render_stats_window;
         std::shared_ptr<scene_control_window> _scene_ctrl_window;
-
         bool _flag_animation{ true };
     }; // class
 

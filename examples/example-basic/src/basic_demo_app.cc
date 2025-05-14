@@ -288,14 +288,8 @@ namespace gui
 
     }; // class
 
-    basic_demo_app::basic_demo_app(
-        const std::filesystem::path& triengine_resource_dir)
-        : _triengine_resource_dir{ triengine_resource_dir }
-    {
-        if (!std::filesystem::is_directory(_triengine_resource_dir)) {
-            TRIENGINE_PANIC("Invalid resource directory path");
-        }
-    }
+    basic_demo_app::basic_demo_app()
+    {}
 
     basic_demo_app::~basic_demo_app()
     {}
@@ -426,10 +420,10 @@ namespace gui
 
         public:
             main_scene(
-                triengine::visualization::visualizer& vis,
-                const std::filesystem::path& rsrc_dir_path)
+                triengine::visualization::visualizer& vis)
                 : scene_wrapper(vis.add_scene())
             {
+                const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
                 auto scn = this->get_scene();
                 scn->set_name("main");
 
@@ -514,7 +508,7 @@ namespace gui
         };
 
         _scene_ctrl_window->add_scene(
-            std::make_shared<main_scene>(*_vis, _triengine_resource_dir)
+            std::make_shared<main_scene>(*_vis)
         );
     }
 
@@ -529,10 +523,10 @@ namespace gui
 
         public:
             engine_scene(
-                triengine::visualization::visualizer& vis,
-                const std::filesystem::path& rsrc_dir_path)
+                triengine::visualization::visualizer& vis)
                 : scene_wrapper(vis.add_scene())
             {
+                const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
                 auto scn = this->get_scene();
                 scn->set_name("engine");
 
@@ -592,7 +586,7 @@ namespace gui
         }; // class
 
         _scene_ctrl_window->add_scene(
-            std::make_shared<engine_scene>(*_vis, _triengine_resource_dir)
+            std::make_shared<engine_scene>(*_vis)
         );
     }
 
@@ -609,10 +603,10 @@ namespace gui
 
         public:
             pointcloud_scene(
-                triengine::visualization::visualizer& vis,
-                const std::filesystem::path& rsrc_dir_path)
+                triengine::visualization::visualizer& vis)
                 : scene_wrapper(vis.add_scene())
             {
+                const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
                 auto scn = this->get_scene();
                 scn->set_name("pointcloud");
 
@@ -707,7 +701,7 @@ namespace gui
         }; // class
         
         _scene_ctrl_window->add_scene(
-            std::make_shared<pointcloud_scene>(*_vis, _triengine_resource_dir)
+            std::make_shared<pointcloud_scene>(*_vis)
         );
     }
 
@@ -735,10 +729,10 @@ namespace gui
 
         public:
             bvh_scene(
-                triengine::visualization::visualizer& vis,
-                const std::filesystem::path& rsrc_dir_path)
+                triengine::visualization::visualizer& vis)
                 : scene_wrapper(vis.add_scene())
             {
+                const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
                 auto scn = this->get_scene();
                 scn->set_name("bvh playback");
 
@@ -958,7 +952,7 @@ namespace gui
         }; // class
 
         _scene_ctrl_window->add_scene(
-            std::make_shared<bvh_scene>(*_vis, _triengine_resource_dir)
+            std::make_shared<bvh_scene>(*_vis)
         );
     }
 

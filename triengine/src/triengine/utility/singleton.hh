@@ -4,6 +4,8 @@
 #include <mutex>
 #include <atomic>
 #include <utility>
+#include <stdexcept>
+#include <string>
 
 namespace triengine::utility
 {
@@ -16,7 +18,7 @@ namespace triengine::utility
         - singleton_tag_default: Basic Meyer's Singleton.
         - singleton_tag_default_prevent_construction: Meyer's Singleton + prevents direct construction of the derived class.
     2. DCLP (Double-Checked Locking Pattern) Singleton: Explicit synchronization using std::atomic and mutexes.
-        - singleton_tag_dclp: DCLP. Manual lifecycle management with initialize() and deinitialize().
+        - singleton_tag_dclp: DCLP. Manual lifecycle management with construct() and destruct().
         - singleton_tag_dclp_prevent_construction: DCLP + prevents direct construction of the derived class.
 
     Usage Example:
@@ -55,7 +57,7 @@ namespace triengine::utility
         int _id;
     };
 
-    int main() {
+    int main() try {
         FooMeyer x{123}; // OK: FooMeyer can be directly constructed (if constructor is public)
                             // Or controlled with `friend class singleton_trait<FooMeyer>;` and private constructor.
         FooMeyer::instance()->print(); // Internally constructed with id 0 (default constructor)
@@ -64,11 +66,13 @@ namespace triengine::utility
         FooMeyerStrict::instance()->print(); // Internally constructed with id 0
 
         //FooDclpStrict z{123}; // ERROR: 'FooDclpStrict' is an abstract class. Cannot be directly constructed.
-        FooDclpStrict::initialize(456); // Initialize with parameters
+        FooDclpStrict::construct(456); // Initialize with parameters
         FooDclpStrict::instance()->print();
-        FooDclpStrict::deinitialize(); // Manual deinitialization
+        FooDclpStrict::destruct(); // Manual deinitialization
 
         // Meyer's singletons are automatically destroyed at program exit.
+    } catch (const std::exception& e) {
+        std::cerr << "Main Exception: " << e.what() << std::endl;
     }
     ```
     */
@@ -87,7 +91,7 @@ namespace triengine::utility
     {
     public:
         // Returns the instance. Constructs on first call.
-        static _Derived* instance() noexcept(std::is_nothrow_default_constructible<_Derived>::value)
+        [[nodiscard]] static _Derived* instance() noexcept(std::is_nothrow_default_constructible<_Derived>::value)
         {
             static _Derived instance_{};
             return &instance_;
@@ -109,7 +113,7 @@ namespace triengine::utility
     {
     public:
         // Returns the instance. Constructs on first call.
-        static _Derived* instance() noexcept(std::is_nothrow_default_constructible<_Derived>::value)
+        [[nodiscard]] static _Derived* instance() noexcept(std::is_nothrow_default_constructible<_Derived>::value)
         {
             // Define an internal type that inherits from _Derived to prevent direct construction of _Derived.
             struct DerivedProhibitDirectConstruct final : _Derived {
@@ -136,8 +140,10 @@ namespace triengine::utility
     };
 
     // DCLP(Double-Checked Locking Pattern) Singleton
-    // Ref: https://en.wikipedia.org/wiki/Double-checked_locking
-    // Requires manual calls to initialize() and deinitialize().
+    // Ref: https://www.youtube.com/watch?v=c1gO9aB9nbs&feature=youtu.be&t=18m40s
+    //      https://www.drdobbs.com/cpp/c-and-the-perils-of-double-checked-locki/184405726
+    //      https://www.drdobbs.com/cpp/c-and-the-perils-of-double-checked-locki/184405772
+    // Requires manual calls to construct() and destruct().
     // derived class must be constructible with arguments passed to initialize.
     template <typename _Derived>
     class singleton_trait<_Derived, singleton_tag_dclp>
@@ -145,7 +151,7 @@ namespace triengine::utility
     public:
         // Initializes the singleton instance with the given arguments. (thread-safe)
         template <typename... _Args>
-        static void initialize(_Args&&... args)
+        static void construct(_Args&&... args)
         {
             // First check (without lock)
             if (!_instance.load(std::memory_order_acquire)) {
@@ -158,7 +164,7 @@ namespace triengine::utility
         }
 
         // Deinitializes the singleton instance. (thread-safe)
-        static void deinitialize()
+        static void destruct()
         {
             // First check (without lock)
             if (_instance.load(std::memory_order_acquire)) {
@@ -172,9 +178,9 @@ namespace triengine::utility
             }
         }
 
-        // Returns the current instance pointer. (thread-safe)
-        // Note: May return nullptr if initialize() has not been called or after deinitialize()
-        static _Derived* instance()
+        // Returns the current instance. (thread-safe)
+        // NOTE: May return nullptr if construct() has not been called or after destruct()
+        [[nodiscard]] static _Derived* instance()
         {
             auto* instance_ptr = _instance.load(std::memory_order_acquire);
             // If instance_ptr is nullptr, and another thread might be initializing/deinitializing,
@@ -200,7 +206,7 @@ namespace triengine::utility
     };
 
     // DCLP Singleton, prevents direct stack/heap construction of the derived class
-    // Requires manual calls to initialize() and deinitialize().
+    // Requires manual calls to construct() and destruct().
     // derived class must be constructible with arguments passed to initialize.
     template <typename _Derived>
     class singleton_trait<_Derived, singleton_tag_dclp_prevent_construction>
@@ -208,7 +214,7 @@ namespace triengine::utility
     public:
         // Initializes the singleton instance with the given arguments. (thread-safe)
         template <typename... _Args>
-        static void initialize(_Args&&... args)
+        static void construct(_Args&&... args)
         {
             // Define an internal type that inherits from _Derived to prevent direct construction of _Derived.
             struct DerivedProhibitDirectConstruct final : _Derived {
@@ -227,7 +233,7 @@ namespace triengine::utility
         }
 
         // Deinitializes the singleton instance. (thread-safe)
-        static void deinitialize()
+        static void destruct()
         {
             // First check (without lock)
             if (_instance.load(std::memory_order_acquire)) {
@@ -241,9 +247,9 @@ namespace triengine::utility
             }
         }
 
-        // Returns the current instance pointer. (thread-safe)
-        // Note: May return nullptr if initialize() has not been called or after deinitialize()
-        static _Derived* instance()
+        // Returns the current instance. (thread-safe)
+        // NOTE: May return nullptr if construct() has not been called or after destruct()
+        [[nodiscard]] static _Derived* instance()
         {
             auto* instance_ptr = _instance.load(std::memory_order_acquire);
             // If instance_ptr is nullptr, and another thread might be initializing/deinitializing,

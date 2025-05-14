@@ -7,6 +7,7 @@ set(LIBRARY_SOURCES
     "${LIBRARY_SOURCES_DIR}/camera.cc"
     "${LIBRARY_SOURCES_DIR}/texture.cc"
     "${LIBRARY_SOURCES_DIR}/scene.cc"
+    "${LIBRARY_SOURCES_DIR}/global_options.cc"
 
     "${LIBRARY_SOURCES_DIR}/core/gl_context.cc"
     "${LIBRARY_SOURCES_DIR}/core/frame_buffer.cc"
@@ -64,6 +65,7 @@ set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/scene.hh"
     "${LIBRARY_HEADERS_DIR}/lighting_options.hh"
     "${LIBRARY_HEADERS_DIR}/infinite_grid_options.hh"
+    "${LIBRARY_HEADERS_DIR}/global_options.hh"
 
     "${LIBRARY_HEADERS_DIR}/core/gl_context.hh"
     "${LIBRARY_HEADERS_DIR}/core/frame_buffer.hh"
@@ -104,6 +106,7 @@ set(LIBRARY_HEADERS_PUBLIC
     "${LIBRARY_HEADERS_DIR}/math/math3d.hh"
 
     "${LIBRARY_HEADERS_DIR}/utility/bit_cast.hh"
+    "${LIBRARY_HEADERS_DIR}/utility/spin_lock.hh"
     "${LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
     "${LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
