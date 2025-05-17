@@ -68,7 +68,7 @@ namespace triengine::utility
     {
         const auto src_filename = src_loc.filename();
         const auto msg = utility::string::c_format(""
-            "Panic occurred at <%.*s:#L%d(%.*s)> : %.*s"
+            "Panic occurred at <%.*s:%d@%.*s> : %.*s"
             , static_cast<int>(src_filename.size())
             , src_filename.data()
             , src_loc.line

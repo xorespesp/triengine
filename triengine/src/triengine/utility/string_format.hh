@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdio>
+#include <utility>
 #include <string>
 #include <string_view>
 #include <algorithm>
@@ -12,18 +13,18 @@ namespace triengine::utility::string
         Args&&... args)
     {
         if (!c_fmt) {
-            throw std::runtime_error{ "invalid argument" };
+            throw std::invalid_argument{ "c-format string cannot be null" };
         }
 
         const int needed_sz = std::snprintf(nullptr, 0, c_fmt, std::forward<Args>(args)...);
         if (needed_sz < 0) {
-            throw std::runtime_error{ "formatting error" };
+            throw std::runtime_error{ "Failed to determine c-format string buffer size" };
         }
 
         std::string result(static_cast<size_t>(needed_sz + 1/* null terminator */), '\0');
         const int written_sz = std::snprintf(result.data(), result.size(), c_fmt, std::forward<Args>(args)...);
         if (written_sz < 0 || written_sz > needed_sz) {
-            throw std::runtime_error{ "formatting error" };
+            throw std::runtime_error{ "Failed to write c-format string to buffer" };
         }
         result.pop_back(); // trim null terminator
 
