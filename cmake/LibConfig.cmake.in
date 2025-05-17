@@ -1,4 +1,4 @@
-@PACKAGE_INIT@
+﻿@PACKAGE_INIT@
 
 ###########################################################
 # Use `find_dependency()`
@@ -9,8 +9,8 @@ find_dependency(glfw3 REQUIRED)
 find_dependency(Eigen3 REQUIRED)
 ###########################################################
 
-# find_package()는 이 파일을 include()하는 것과 같은 효과를 내기 때문에 CMAKE_CURRENT_LIST_DIR을 사용해야 한다.
-include(${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake)
+# `find_package()` has the same effect as `include()`-ing this file, so `CMAKE_CURRENT_LIST_DIR` must be used.
+include(${CMAKE_CURRENT_LIST_DIR}/@TRIENGINE_PROJECT_NAME@Targets.cmake)
 
-# 모든 의존성이 충족되었는지 확인
-check_required_components(@PROJECT_NAME@)
+# Verify that all required components (dependencies) are satisfied
+check_required_components(@TRIENGINE_PROJECT_NAME@)

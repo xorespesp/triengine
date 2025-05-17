@@ -1,95 +1,95 @@
 ﻿{
-    "version": 3,
-    "configurePresets": [
-        {
-            "name": "windows-base",
-            "hidden": true,
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "installDir": "${sourceDir}/out/install/${presetName}",
-            "cacheVariables": {
-                "CMAKE_C_COMPILER": "cl.exe",
-                "CMAKE_CXX_COMPILER": "cl.exe"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            }
-        },
-        {
-            "name": "win64-debug",
-            "hidden": true,
-            "inherits": "windows-base",
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
-            }
-        },
-        {
-            "name": "win64-release",
-            "hidden": true,
-            "inherits": "win64-debug",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            }
-        },
-        {
-            "name": "win64-debug-minimum",
-            "displayName": "W64-DBG (minimum)",
-            "inherits": "win64-debug",
-            "cacheVariables": {
-                "BUILD_EXAMPLES": "OFF",
-                "BUILD_EXTERNAL_EXAMPLES": "OFF"
-            }
-        },
-        {
-            "name": "win64-release-minimum",
-            "displayName": "W64-REL (minimum)",
-            "inherits": "win64-release",
-            "cacheVariables": {
-                "BUILD_EXAMPLES": "OFF",
-                "BUILD_EXTERNAL_EXAMPLES": "OFF"
-            }
-        },
-        {
-            "name": "win64-debug-examples",
-            "displayName": "W64-DBG (examples)",
-            "inherits": "win64-debug",
-            "cacheVariables": {
-                "BUILD_EXAMPLES": "ON",
-                "BUILD_EXTERNAL_EXAMPLES": "OFF"
-            }
-        },
-        {
-            "name": "win64-release-examples",
-            "displayName": "W64-REL (examples)",
-            "inherits": "win64-release",
-            "cacheVariables": {
-                "BUILD_EXAMPLES": "ON",
-                "BUILD_EXTERNAL_EXAMPLES": "OFF"
-            }
-        },
-        {
-            "name": "win64-debug-external-examples",
-            "displayName": "W64-DBG (external examples)",
-            "inherits": "win64-debug",
-            "cacheVariables": {
-                "BUILD_EXAMPLES": "OFF",
-                "BUILD_EXTERNAL_EXAMPLES": "ON"
-            }
-        },
-        {
-            "name": "win64-release-external-examples",
-            "displayName": "W64-REL (external examples)",
-            "inherits": "win64-release",
-            "cacheVariables": {
-                "BUILD_EXAMPLES": "OFF",
-                "BUILD_EXTERNAL_EXAMPLES": "ON"
-            }
-        }
-    ]
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "win64-debug",
+      "hidden": true,
+      "inherits": "windows-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "win64-release",
+      "hidden": true,
+      "inherits": "win64-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "win64-debug-minimum",
+      "displayName": "W64-DBG (minimum)",
+      "inherits": "win64-debug",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF",
+        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-release-minimum",
+      "displayName": "W64-REL (minimum)",
+      "inherits": "win64-release",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF",
+        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-debug-examples",
+      "displayName": "W64-DBG (examples)",
+      "inherits": "win64-debug",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "ON",
+        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-release-examples",
+      "displayName": "W64-REL (examples)",
+      "inherits": "win64-release",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "ON",
+        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-debug-external-examples",
+      "displayName": "W64-DBG (external examples)",
+      "inherits": "win64-debug",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF",
+        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "win64-release-external-examples",
+      "displayName": "W64-REL (external examples)",
+      "inherits": "win64-release",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF",
+        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "ON"
+      }
+    }
+  ]
 }

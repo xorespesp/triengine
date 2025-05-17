@@ -30,7 +30,7 @@ execute_process(
         -S ${EXTERNAL_TARGET_SOURCE_DIR}
         -B ${EXTERNAL_TARGET_BUILD_DIR}
         -G @EXTERNAL_TARGET_CMAKE_GENERATOR@
-        -D CMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX} # 설치된 @PROJECT_NAME@ 경로 전달
+        -D CMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX} # 설치된 @TRIENGINE_PROJECT_NAME@ 경로 전달
         -D CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} # 예제 자체의 설치 경로 (메인과 동일하게 설정)
         -D CMAKE_BUILD_TYPE=@EXTERNAL_TARGET_CMAKE_BUILD_TYPE@ # 메인 빌드와 동일한 빌드 타입 사용
         # 필요하다면 추가 CMake 변수 전달 (-DVAR=VALUE)
