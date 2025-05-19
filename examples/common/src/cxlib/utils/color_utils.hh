@@ -1,6 +1,6 @@
 ﻿#pragma once
-#include "exception.hh"
-#include "c_format.hh"
+#include <cxlib/cxlib_defs.h>
+#include <cxlib/utils/string_utils.hh>
 
 #include <type_traits>
 #include <thread>
@@ -8,19 +8,14 @@
 #include <random>
 #include <cmath>
 #include <string>
+#include <stdexcept>
 
-#include <Eigen/Dense>
-
+_CXLIB_NAMESPACE_BEGIN
 namespace utils
 {
     namespace {
-        namespace __intrnl
+        namespace detail
         {
-            [[noreturn]]
-            static void throw_invalid_argument(const char* const what) {
-                THROW_EXCEPTION("argument exception: %s", what);
-            }
-
             constexpr double fmap(
                 const double x,
                 const double in_min, const double in_max,
@@ -52,9 +47,12 @@ namespace utils
 
             private:
                 uint64_t gen_seed() const {
-                    const uint64_t
-                        time_since_epoch = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()),
-                        tid_hash = static_cast<uint64_t>(std::hash<std::thread::id>()(std::this_thread::get_id()));
+                    const auto time_since_epoch = static_cast<uint64_t>(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch()
+                        ).count());
+                    const auto tid_hash = static_cast<uint64_t>(
+                        std::hash<std::thread::id>()(std::this_thread::get_id()));
                     return (tid_hash ^ time_since_epoch);
                 }
             };
@@ -64,7 +62,7 @@ namespace utils
             template<class T> struct type_identity { using type = T; };
             template<class T> using type_identity_t = typename type_identity<T>::type;
 
-        } // namespace __intrnl
+        } // namespace detail
     } // namespace
 
     class rgb_color_t final
@@ -84,17 +82,17 @@ namespace utils
         }
 
         inline void set_r(double r_) {
-            if (!(0.0 <= r_ && r_ <= 1.0)) { __intrnl::throw_invalid_argument("invalid R value"); }
+            if (!(0.0 <= r_ && r_ <= 1.0)) { throw std::invalid_argument{ "invalid R value" }; }
             _r_val = r_;
         }
 
         inline void set_g(double g_) {
-            if (!(0.0 <= g_ && g_ <= 1.0)) { __intrnl::throw_invalid_argument("invalid G value"); }
+            if (!(0.0 <= g_ && g_ <= 1.0)) { throw std::invalid_argument{ "invalid G value" }; }
             _g_val = g_;
         }
 
         inline void set_b(double b_) {
-            if (!(0.0 <= b_ && b_ <= 1.0)) { __intrnl::throw_invalid_argument("invalid B value"); }
+            if (!(0.0 <= b_ && b_ <= 1.0)) { throw std::invalid_argument{ "invalid B value" }; }
             _b_val = b_;
         }
 
@@ -105,29 +103,24 @@ namespace utils
         template<typename _Ty>
         constexpr _Ty cast() const {
             // https://stackoverflow.com/a/5513109
-            return this->_cast_impl(__intrnl::type_identity<_Ty>{});
+            return this->_cast_impl(detail::type_identity<_Ty>{});
         }
 
     private:
-
-        inline std::string _cast_impl(__intrnl::type_identity<std::string>) const {
-            return utils::string::c_format("rgb(%3d,%3d,%3d)"
-                , static_cast<int>(__intrnl::fmap(_r_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
-                , static_cast<int>(__intrnl::fmap(_g_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
-                , static_cast<int>(__intrnl::fmap(_b_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
+        inline std::string _cast_impl(detail::type_identity<std::string>) const {
+            return _CXLIB utils::string::c_format("rgb(%3d,%3d,%3d)"
+                , static_cast<int>(detail::fmap(_r_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
+                , static_cast<int>(detail::fmap(_g_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
+                , static_cast<int>(detail::fmap(_b_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
             );
         }
 
-        inline ::Eigen::Vector3d _cast_impl(__intrnl::type_identity<Eigen::Vector3d>) const {
-            return ::Eigen::Vector3d{ _r_val, _g_val, _b_val };
-        }
-
 #if defined (_WINGDI_)
-        constexpr ::COLORREF _cast_impl(__intrnl::type_identity<::COLORREF>) const {
+        constexpr ::COLORREF _cast_impl(detail::type_identity<::COLORREF>) const {
             return RGB(
-                static_cast<uint8_t>(__intrnl::fmap(_r_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF))),
-                static_cast<uint8_t>(__intrnl::fmap(_g_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF))),
-                static_cast<uint8_t>(__intrnl::fmap(_b_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
+                static_cast<uint8_t>(detail::fmap(_r_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF))),
+                static_cast<uint8_t>(detail::fmap(_g_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF))),
+                static_cast<uint8_t>(detail::fmap(_b_val, 0.0, 1.0, static_cast<double>(0x00), static_cast<double>(0xFF)))
             );
         }
 #endif // ^^^ _WINGDI_ ^^^
@@ -151,17 +144,17 @@ namespace utils
         }
 
         inline void set_h(double h_) {
-            if (!(0.0 <= h_ && h_ <= 360.0)) { __intrnl::throw_invalid_argument("invalid H value"); }
+            if (!(0.0 <= h_ && h_ <= 360.0)) { throw std::invalid_argument{ "invalid H value" }; }
             _h_val = h_;
         }
 
         inline void set_s(double s_) {
-            if (!(0.0 <= s_ && s_ <= 1.0)) { __intrnl::throw_invalid_argument("invalid S value"); }
+            if (!(0.0 <= s_ && s_ <= 1.0)) { throw std::invalid_argument{ "invalid S value" }; }
             _s_val = s_;
         }
 
         inline void set_v(double v_) {
-            if (!(0.0 <= v_ && v_ <= 1.0)) { __intrnl::throw_invalid_argument("invalid V value"); }
+            if (!(0.0 <= v_ && v_ <= 1.0)) { throw std::invalid_argument{ "invalid V value" }; }
             _v_val = v_;
         }
 
@@ -172,21 +165,16 @@ namespace utils
         template<typename _Ty>
         constexpr _Ty cast() const {
             // https://stackoverflow.com/a/5513109
-            return this->_cast_impl(__intrnl::type_identity<_Ty>{});
+            return this->_cast_impl(detail::type_identity<_Ty>{});
         }
 
     private:
-
-        inline std::string _cast_impl(__intrnl::type_identity<std::string>) const {
-            return utils::string::c_format("hsv(%3d,%3d%%,%3d%%)"
+        inline std::string _cast_impl(detail::type_identity<std::string>) const {
+            return _CXLIB utils::string::c_format("hsv(%3d,%3d%%,%3d%%)"
                 , static_cast<int>(std::round(_h_val))
                 , static_cast<int>(std::round(_s_val * 100.0))
                 , static_cast<int>(std::round(_v_val * 100.0))
             );
-        }
-
-        inline ::Eigen::Vector3d _cast_impl(__intrnl::type_identity<Eigen::Vector3d>) const {
-            return ::Eigen::Vector3d{ _h_val, _s_val, _v_val };
         }
 
     }; // class
@@ -311,14 +299,14 @@ namespace utils
     class unique_color_generator final
     {
     private:
-        static constexpr double kGoldenRatioConjugate = 0.618033988749895;
+        static constexpr double kGoldenRatioConjugate{ 0.618033988749895 };
 
     private:
         hsv_color_t _next_hsv;
 
     public:
         unique_color_generator()
-            : _next_hsv{ __intrnl::random_engine{ 0.0, 360.0 }.get_value(), 0.45, 0.95 }
+            : _next_hsv{ detail::random_engine{ 0.0, 360.0 }.get_value(), 0.45, 0.95 }
         { }
 
         unique_color_generator(const rgb_color_t& initial_rgb)
@@ -331,9 +319,9 @@ namespace utils
 
         rgb_color_t get_next_color() {
             const auto color = hsv2rgb(_next_hsv);
-            double next_hue = __intrnl::fmap(_next_hsv.h(), 0.0, 360.0, 0.0, 1.0);
+            double next_hue = detail::fmap(_next_hsv.h(), 0.0, 360.0, 0.0, 1.0);
             next_hue = std::fmod(next_hue + kGoldenRatioConjugate, 1.0);
-            next_hue = __intrnl::fmap(next_hue, 0.0, 1.0, 0.0, 360.0);
+            next_hue = detail::fmap(next_hue, 0.0, 1.0, 0.0, 360.0);
             _next_hsv.set_h(next_hue);
             return color;
         }
@@ -341,3 +329,4 @@ namespace utils
     }; // class
 
 } // namespace
+_CXLIB_NAMESPACE_END

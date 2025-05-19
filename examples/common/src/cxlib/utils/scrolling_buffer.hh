@@ -1,6 +1,9 @@
 #pragma once
+#include <cxlib/cxlib_defs.h>
+
 #include <vector>
 
+_CXLIB_NAMESPACE_BEGIN
 namespace utils
 {
     // utility structure for realtime plot
@@ -44,3 +47,4 @@ namespace utils
     }; // class
 
 } // namespace
+_CXLIB_NAMESPACE_END

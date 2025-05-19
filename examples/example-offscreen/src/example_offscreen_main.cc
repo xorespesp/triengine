@@ -1,6 +1,6 @@
 #pragma once
-#include <utils/logger.hh>
-#include <utils/path_utils.hh>
+#include <cxlib/utils/logger.hh>
+#include <cxlib/utils/path_utils.hh>
 
 #include <triengine/visualization/offscreen_renderer.hh>
 #include <triengine/math/math3d.hh>
@@ -22,15 +22,14 @@ namespace gui
         offscreen_demo_app() = default;
         ~offscreen_demo_app() = default;
 
-        void create(
-            const std::filesystem::path& triengine_resource_dir)
+        void create()
         {
-            LOG_TRACE("%s() ENTER", __func__);
+            CXLIB_TRACE("{}() ENTER", __func__);
 
             _renderer = std::make_unique<triengine::visualization::offscreen_renderer>();
             _renderer->create_renderer(1280, 720);
 
-            _scene = _renderer->get_current_scene();
+            _scene = _renderer->add_scene();
             _scene->get_render_config()->bg_color = triengine::color4_f32::all(0.0f);
             _scene->get_render_config()->bg_color.a() = 0.0f;
             _scene->get_render_config()->pcd_point_size = 2.5f;
@@ -50,7 +49,6 @@ namespace gui
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_triangle_mesh_from_obj(
                     triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
-                    //triengine_resource_dir / "objects/car_engine/car_engine.obj",
                     *new_obj
                 ))
             {
@@ -75,17 +73,17 @@ namespace gui
 
         void destroy()
         {
-            LOG_TRACE("%s() ENTER", __func__);
+            CXLIB_TRACE("{}() ENTER", __func__);
 
             _renderer->destroy_renderer();
             _renderer.reset();
 
-            LOG_TRACE("%s() LEAVE", __func__);
+            CXLIB_TRACE("{}() LEAVE", __func__);
         }
 
         void run()
         {
-            LOG_TRACE("%s() ENTER", __func__);
+            CXLIB_TRACE("{}() ENTER", __func__);
 
             triengine::image render_frame;
             for(bool flag_stop{ false }; !flag_stop;)
@@ -135,7 +133,7 @@ namespace gui
             } // for
 
             cv::destroyAllWindows();
-            LOG_TRACE("%s() LEAVE", __func__);
+            CXLIB_TRACE("{}() LEAVE", __func__);
         }
 
     private:
@@ -147,65 +145,79 @@ namespace gui
 
 } // namespace
 
-void run_demo(
-    const std::filesystem::path& triengine_resource_dir)
+void run_demo()
 {
     gui::offscreen_demo_app app;
 
-    LOG_INFO("Creating app..");
-    app.create(triengine_resource_dir);
+    CXLIB_INFO("Creating app..");
+    app.create();
 
-    LOG_INFO("Running app..");
+    CXLIB_INFO("Running app..");
     app.run();
 
-    LOG_INFO("Destroying app..");
+    CXLIB_INFO("Destroying app..");
     app.destroy();
 }
 
 int main(int argc, char** argv)
 {
-    int retval = -1;
-
-    const std::filesystem::path curr_image_dir_path{ utils::get_current_module_image_path().parent_path() };
-    //::SetCurrentDirectoryW(curr_image_dir_path.c_str());
-    ::SetConsoleOutputCP(CP_UTF8); // https://github.com/gabime/spdlog/issues/762
-
-    utils::logger::instance().init(utils::logger::init_option()
+    _CXLIB utils::logger::instance().init(_CXLIB utils::logger::init_options()
         .set_logger_name("example-offscreen")
-        .set_logger_level(utils::logger::level::trace)
+        .set_logger_level(_CXLIB utils::logger::level::trace)
         .enable_stdout_logging()
         .enable_async_mode()
     );
 
-    LOG_TRACE("Build: " __DATE__ ", " __TIME__);
-    LOG_TRACE("----- %s() ENTER", __func__);
+    const std::filesystem::path curr_image_dir_path{ utils::get_current_module_image_path().parent_path() };
+
+    int retval{ -1 };
+
+    CXLIB_TRACE("Build: {}, {}", __DATE__, __TIME__);
+    CXLIB_TRACE("----- {}() ENTER", __func__);
 
     try
     {
-        run_demo(
-            curr_image_dir_path / "../../../triengine-installed/x64-Release/resources"
-        );
+        triengine::global_options::instance()->set_resource_directory(curr_image_dir_path / "../resources");
+        triengine::global_options::instance()->get_logger().set_log_level(triengine::utility::log_level::trace);
+        triengine::global_options::instance()->get_logger().register_print_callback(
+            [](triengine::utility::log_level lv, std::string_view msg_sv)
+            {
+                _CXLIB utils::logger::instance().log(
+                    [lv]() -> _CXLIB utils::logger::level {
+                        switch (lv) {
+                        case triengine::utility::log_level::trace: return _CXLIB utils::logger::level::trace;
+                        case triengine::utility::log_level::debug: return _CXLIB utils::logger::level::debug;
+                        case triengine::utility::log_level::info: return _CXLIB utils::logger::level::info;
+                        case triengine::utility::log_level::warn: return _CXLIB utils::logger::level::warn;
+                        case triengine::utility::log_level::error: return _CXLIB utils::logger::level::error;
+                        case triengine::utility::log_level::critical: return _CXLIB utils::logger::level::critical;
+                        default: return _CXLIB utils::logger::level::warn;
+                        }
+                    }(), msg_sv);
+            });
+
+        run_demo();
 
         retval = 0;
     }
     catch (const std::exception& e)
     {
-        LOG_ERROR("----- %s() EXCEPTION -> %s", __func__, e.what());
+        CXLIB_ERROR("----- {}() EXCEPTION -> {}", __func__, e.what());
     }
     catch (...)
     {
-        LOG_CRITICAL("----- %s() UNKNOWN EXCEPTION", __func__);
+        CXLIB_CRITICAL("----- {}() UNKNOWN EXCEPTION", __func__);
 #if defined(_DEBUG)
-        ::puts("\nPress any key to debug application ...");
-        static_cast<void>(::_getch());
+        ::puts("\nPress <ENTER> to debug application ...");
+        static_cast<void>(::getchar());
         std::exception_ptr eptr = std::current_exception();
         ::__debugbreak();
         std::rethrow_exception(eptr);
 #endif // ^^^ _DEBUG ^^^
     }
 
-    LOG_TRACE("----- %s() LEAVE", __func__);
+    CXLIB_TRACE("----- {}() LEAVE", __func__);
 
-    utils::logger::instance().deinit();
+    _CXLIB utils::logger::instance().deinit();
     return retval;
 }

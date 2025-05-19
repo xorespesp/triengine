@@ -1,7 +1,10 @@
 #pragma once
+#include <cxlib/cxlib_defs.h>
+
 #include <type_traits>
 #include <cstring>
 
+_CXLIB_NAMESPACE_BEGIN
 namespace utils
 {
     template <class _Dst, class _Src>
@@ -21,3 +24,4 @@ namespace utils
     }
 
 } // namespace
+_CXLIB_NAMESPACE_END

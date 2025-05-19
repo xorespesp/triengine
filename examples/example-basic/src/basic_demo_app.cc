@@ -6,9 +6,10 @@
 #include <triengine/io/file_ply_loader.hh>
 #include <triengine/io/file_bvh_loader.hh>
 
-#include <utils/logger.hh>
-#include <utils/bit_cast.hh>
-#include <utils/scrolling_buffer.hh>
+#include <cxlib/utils/logger.hh>
+#include <cxlib/utils/debug_panic.hh>
+#include <cxlib/utils/debug_assert.hh>
+#include <cxlib/utils/scrolling_buffer.hh>
 
 #include <magic_enum/magic_enum.hpp>
 
@@ -62,7 +63,7 @@ namespace gui
                 , _opts{ opts }
             {
                 if (!_pcd_original || _pcd_original->points.empty()) {
-                    TRIENGINE_PANIC("Cannot start with empty or null original pointcloud");
+                    CXLIB_PANIC("Cannot start with empty or null original pointcloud");
                     return;
                 }
 
@@ -296,7 +297,7 @@ namespace gui
 
     void basic_demo_app::create()
     {
-        LOG_TRACE("%s() ENTER", __func__);
+        CXLIB_TRACE("{}() ENTER", __func__);
 
         _vis = std::make_unique<triengine::visualization::visualizer>();
         _vis->create_window("Triengine Demo"
@@ -320,7 +321,7 @@ namespace gui
             {
                 if (action != GLFW_RELEASE)
                 {
-                    TRIENGINE_TRACE("key: %d", key);
+                    CXLIB_TRACE("key: {}", key);
 
                     switch (key) {
                     case GLFW_KEY_ESCAPE:
@@ -379,7 +380,7 @@ namespace gui
 
     void basic_demo_app::destroy()
     {
-        LOG_TRACE("%s() ENTER", __func__);
+        CXLIB_TRACE("{}() ENTER", __func__);
 
         _log_window.reset();
         _render_stats_window.reset();
@@ -387,14 +388,14 @@ namespace gui
         _vis->destroy_window();
         _vis.reset();
 
-        LOG_TRACE("%s() LEAVE", __func__);
+        CXLIB_TRACE("{}() LEAVE", __func__);
     }
 
     void basic_demo_app::run()
     {
-        LOG_TRACE("%s() ENTER", __func__);
+        CXLIB_TRACE("{}() ENTER", __func__);
 
-        LOG_INFO("polling start..");
+        CXLIB_DEBUG("polling start..");
         while (_vis->update_window())
         {
             // animate
@@ -405,7 +406,7 @@ namespace gui
             _vis->render();
         } // while
 
-        LOG_TRACE("%s() LEAVE", __func__);
+        CXLIB_TRACE("{}() LEAVE", __func__);
     }
 
     void basic_demo_app::_add_main_scene()
@@ -748,7 +749,7 @@ namespace gui
                         rsrc_dir_path / "bvh/xsens-sample-walk.bvh",
                         *_state.bvh_data
                     )) {
-                        TRIENGINE_PANIC("failed to load skeletons from bvh file");
+                        CXLIB_PANIC("failed to load skeletons from bvh file");
                     }
                     
                     // Build(rebuild) hierarchy cache
@@ -838,7 +839,7 @@ namespace gui
                             return;
                         }
 
-                        TRIENGINE_ASSERT(_state.selected_joint_id.value() < bvh_data.joints.size());
+                        CXLIB_ASSERT(_state.selected_joint_id.value() < bvh_data.joints.size());
 
                         const bvh_joint_id_t sel_bvh_jid = _state.selected_joint_id.value();
                         const bvh_joint_info_t& sel_bvh_jinfo = bvh_data.joints[sel_bvh_jid];
@@ -881,7 +882,7 @@ namespace gui
             void _render_hierarchy_tree(
                 const bvh_joint_id_t bvh_jid)
             {
-                TRIENGINE_ASSERT(bvh_jid < _state.bvh_data->joints.size());
+                CXLIB_ASSERT(bvh_jid < _state.bvh_data->joints.size());
 
                 const bool has_children = _state.hierarchy_map_cache.count(bvh_jid) && _state.hierarchy_map_cache.at(bvh_jid).size() > 0;
                 const auto& bvh_jinfo = _state.bvh_data->joints[bvh_jid];

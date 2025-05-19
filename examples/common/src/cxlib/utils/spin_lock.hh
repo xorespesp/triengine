@@ -1,7 +1,10 @@
 ﻿#pragma once
+#include <cxlib/cxlib_defs.h>
+
 #include <atomic>
 #include <mutex>
 
+_CXLIB_NAMESPACE_BEGIN
 namespace utils
 {
 	class spin_lock {
@@ -19,3 +22,4 @@ namespace utils
 	};
 
 } // namespace
+_CXLIB_NAMESPACE_END
