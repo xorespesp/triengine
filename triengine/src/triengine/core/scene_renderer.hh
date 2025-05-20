@@ -8,7 +8,7 @@
 #include <triengine/core/shader.hh>
 #include <triengine/core/shader_preprocessor.hh>
 
-#include <triengine/renderer/infinite_grid_renderer.hh>
+#include <triengine/renderer/infinite_plane_renderer.hh>
 #include <triengine/renderer/light_source_renderer.hh>
 #include <triengine/renderer/triangle_mesh_renderer.hh>
 #include <triengine/renderer/lineset_renderer.hh>
@@ -39,7 +39,7 @@ namespace triengine::core
         gl_context* _glctx{ nullptr };
         std::unique_ptr<shader_preprocessor> _shader_prep;
 
-        renderer::infinite_grid_renderer _infgrid_renderer;
+        renderer::infinite_plane_renderer _inf_plane_renderer;
         renderer::light_source_renderer _light_source_renderer;
         renderer::triangle_mesh_renderer _mesh_renderer;
         renderer::lineset_renderer _lineset_renderer;

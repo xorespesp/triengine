@@ -47,7 +47,7 @@ namespace triengine::core
         _shader_prep->register_system_include_from_memory("phong_lighting", shaders::includes::kPhongLightingShader);
         _shader_prep->register_system_include_from_memory("SMAA.hlsl", shaders::includes::kSMAAShaders);
 
-        _infgrid_renderer.create(*glctx, *_shader_prep);
+        _inf_plane_renderer.create(*glctx, *_shader_prep);
         _light_source_renderer.create(*glctx, *_shader_prep);
         _mesh_renderer.create(*glctx, *_shader_prep);
         _lineset_renderer.create(*glctx, *_shader_prep);
@@ -150,7 +150,7 @@ namespace triengine::core
 
     void scene_renderer::destroy()
     {
-        _infgrid_renderer.destroy();
+        _inf_plane_renderer.destroy();
         _light_source_renderer.destroy();
         _mesh_renderer.destroy();
         _lineset_renderer.destroy();
@@ -187,7 +187,7 @@ namespace triengine::core
             if (scn_render_config.pcd_point_size) { _pcd_renderer.set_pcd_point_size(scn_render_config.pcd_point_size.value()); }
             _mesh_renderer.enable_object_normal_rendering(scn_render_config.show_object_normals);
             _skeleton_renderer.show_joint_axis(scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
-            _infgrid_renderer.set_options(scn_render_config.infgrid_opts);
+            _inf_plane_renderer.set_options(scn_render_config.inf_plane_opts);
         }
 
         renderer::render_context render_ctx; {
@@ -321,9 +321,9 @@ namespace triengine::core
                 );
 
                 if (scn_render_config.show_origin_xz_grid) {
-                    // NOTE: The infinite grid renderer must be rendered last to allow for alpha-blending.
+                    // NOTE: The infinite plane renderer must be rendered last to allow for alpha-blending.
                     //       (except the skeleton renderer, which sometimes causes the depth buffer to be reset).
-                    _infgrid_renderer.render(render_ctx);
+                    _inf_plane_renderer.render(render_ctx);
                 }
             }
 

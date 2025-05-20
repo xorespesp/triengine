@@ -24,7 +24,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/triangle_mesh_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/triangle_mesh_object_factory.cc"
 
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/infinite_grid_renderer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/infinite_plane_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/light_source_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/lineset_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/pcd_renderer.cc"
@@ -65,7 +65,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/texture.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/scene.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/lighting_options.hh"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/infinite_grid_options.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/infinite_plane_options.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/global_options.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gl_context.hh"
@@ -82,7 +82,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/skeleton_object.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/triangle_mesh_object.hh"
 
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/infinite_grid_renderer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/infinite_plane_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/light_source_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/lineset_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/pcd_renderer.hh"
@@ -118,7 +118,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_format.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"
 
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/infinite_grid_shaders.h"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/infinite_plane_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/lineset_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/normal_vis_shaders.h"

@@ -27,13 +27,6 @@ namespace triengine::gui
                 ImGui::Checkbox("Show Wireframe", &scn_config.show_wireframe);
                 ImGui::ColorEdit4("BG Color", scn_config.bg_color.data());
 
-                if (ImGui::CollapsingHeader("Grid Render Options"))
-                {
-                    ImGui::Checkbox("Show Grid", &scn_config.show_origin_xz_grid);
-                    ImGui::ColorEdit3("Grid Color", scn_config.infgrid_opts.grid_color.data());
-                    ImGui::DragFloat("Grid Cell Size", &scn_config.infgrid_opts.grid_cell_size, 0.001f, 0.025f, FLT_MAX);
-                }
-
                 {
                     using enum_type = triengine::scene_render_config::skeleton_render_mode;
                     static const std::unordered_map<enum_type, std::string> item_names = {
@@ -61,12 +54,12 @@ namespace triengine::gui
                     }
                 }
 
-                if (ImGui::CollapsingHeader("Lighting Options"))
+                if (ImGui::CollapsingHeader("Lighting"))
                 {
                     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         auto& dir_light_opts = scn_config.light_opts.dir_light;
-                        ImGui::Checkbox("Enabled##DirLight", &dir_light_opts.enabled);
+                        ImGui::Checkbox("Enable##DirLight", &dir_light_opts.enabled);
                         ImGui::Checkbox("Use Blinn##DirLight", &dir_light_opts.use_blinn);
                         ImGui::Checkbox("Follow Camera##DirLight", &dir_light_opts.follow_camera);
                         ImGui::DragFloat3("Light Direction##DirLight",
@@ -77,25 +70,71 @@ namespace triengine::gui
                             dir_light_opts.follow_camera ? ImGuiSliderFlags_ReadOnly : ImGuiSliderFlags_None
                         );
                         ImGui::ColorEdit3("Light Color##DirLight", dir_light_opts.color.data());
-                        ImGui::SliderFloat("Ambient Intensity##DirLight", &dir_light_opts.ambientIntensity, 0.0f, 1.0f);
-                        ImGui::SliderFloat("Diffuse Intensity##DirLight", &dir_light_opts.diffuseIntensity, 0.0f, 1.0f);
-                        ImGui::SliderFloat("Specular Intensity##DirLight", &dir_light_opts.specularIntensity, 0.0f, 1.0f);
+                        ImGui::DragFloat("Ambient Intensity##DirLight", &dir_light_opts.ambientIntensity, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Diffuse Intensity##DirLight", &dir_light_opts.diffuseIntensity, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Specular Intensity##DirLight", &dir_light_opts.specularIntensity, 0.001f, 0.0f, 1.0f);
                     }
 
                     if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         auto& point_light_opts = scn_config.light_opts.point_light;
-                        ImGui::Checkbox("Enabled##PointLight", &point_light_opts.enabled);
+                        ImGui::Checkbox("Enable##PointLight", &point_light_opts.enabled);
                         ImGui::Checkbox("Use Blinn##PointLight", &point_light_opts.use_blinn);
                         ImGui::Checkbox("Show Light Source##PointLight", &point_light_opts.show_light_source);
                         ImGui::DragFloat3("Light Position##PointLight", point_light_opts.position.data(), 0.05f, -FLT_MAX / INT_MAX, FLT_MAX / INT_MAX);
                         ImGui::ColorEdit3("Light Color##PointLight", point_light_opts.color.data());
-                        ImGui::SliderFloat("Ambient Intensity##PointLight", &point_light_opts.ambientIntensity, 0.0f, 1.0f);
-                        ImGui::SliderFloat("Diffuse Intensity##PointLight", &point_light_opts.diffuseIntensity, 0.0f, 1.0f);
-                        ImGui::SliderFloat("Specular Intensity##PointLight", &point_light_opts.specularIntensity, 0.0f, 1.0f);
+                        ImGui::DragFloat("Ambient Intensity##PointLight", &point_light_opts.ambientIntensity, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Diffuse Intensity##PointLight", &point_light_opts.diffuseIntensity, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Specular Intensity##PointLight", &point_light_opts.specularIntensity, 0.001f, 0.0f, 1.0f);
                     }
-                }
-            }
+                } // Lighting Options
+
+                if (ImGui::CollapsingHeader("Infinite Plane"))
+                {
+                    ImGui::Checkbox("Enable##InfPlane", &scn_config.show_origin_xz_grid);
+
+                    static constexpr std::array<const char*, 3> kInfPlanePatternTypeNamesMap = {
+                        "Transparent Grid",
+                        "Box-Filtered Grid",
+                        "Box-Filtered Chess"
+                    };
+
+                    if (int combo_idx = static_cast<int>(scn_config.inf_plane_opts.plane_option.index());
+                        ImGui::Combo(
+                            "Plane Type",
+                            &combo_idx,
+                            kInfPlanePatternTypeNamesMap.data(),
+                            static_cast<int>(kInfPlanePatternTypeNamesMap.size())
+                        ))
+                    {
+                        switch (combo_idx) {
+                        case 0: scn_config.inf_plane_opts.plane_option = transparent_grid_plane_option_t{}; break;
+                        case 1: scn_config.inf_plane_opts.plane_option = box_filtered_grid_plane_option_t{}; break;
+                        case 2: scn_config.inf_plane_opts.plane_option = box_filtered_chess_plane_option_t{}; break;
+                        default: TRIENGINE_ASSERT(false); break;
+                        }
+                    }
+
+                    ImGui::DragFloat("Max View Distance##InfPlane", &scn_config.inf_plane_opts.max_view_distance, 0.1f, 20.0f, 100.0f);
+                    ImGui::DragFloat("Grid Cell Size##InfPlane", &scn_config.inf_plane_opts.grid_cell_size, 0.001f, 0.025f, FLT_MAX);
+
+                    std::visit([](auto& pattern_opt) {
+                        using T = std::decay_t<decltype(pattern_opt)>;
+                        if constexpr (std::is_same_v<T, transparent_grid_plane_option_t>) {
+                            ImGui::ColorEdit3("Grid Line Color##InfPlane", pattern_opt.grid_line_color.data());
+                        } else if constexpr (std::is_same_v<T, box_filtered_grid_plane_option_t>) {
+                            ImGui::ColorEdit3("Grid Line Color##InfPlane", pattern_opt.grid_line_color.data());
+                            ImGui::ColorEdit3("Grid Cell Color##InfPlane", pattern_opt.grid_cell_color.data());
+                        } else if constexpr (std::is_same_v<T, box_filtered_chess_plane_option_t>) {
+                            ImGui::ColorEdit3("Grid Cell Color1##InfPlane", pattern_opt.grid_cell_color1.data());
+                            ImGui::ColorEdit3("Grid Cell Color2##InfPlane", pattern_opt.grid_cell_color2.data());
+                        } else {
+                            TRIENGINE_ASSERT(false);
+                        }
+                    }, scn_config.inf_plane_opts.plane_option);
+                } // Infinite Grid Options
+
+            } // Render Options
 
         }
         else

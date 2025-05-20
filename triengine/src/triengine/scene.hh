@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <triengine/common.h>
 #include <triengine/camera.hh>
-#include <triengine/infinite_grid_options.hh>
+#include <triengine/infinite_plane_options.hh>
 #include <triengine/lighting_options.hh>
 #include <triengine/core/gpu_resource_manager.hh>
 #include <triengine/geometry/lineset_object.hh>
@@ -30,7 +30,7 @@ namespace triengine
         bool show_origin_xz_grid{ false };
         bool enable_anti_aliasing{ true };
 
-        infinite_grid_options infgrid_opts;
+        infinite_plane_options inf_plane_opts;
         lighting_options light_opts;
         color4_f32 bg_color{ 0.05f, 0.05f, 0.05f, 1.0f };
         std::optional<float> pcd_point_size;
