@@ -1,11 +1,146 @@
 ﻿#include "triangle_mesh_object.hh"
+
 #include <triengine/utility/debug_utils.hh>
+#include <triengine/utility/hash_utils.hh>
+#include <unordered_map>
 
 namespace triengine::geometry
 {
-    void triangle_mesh_object::normalize_vertex_normals()
+    triangle_mesh_object& triangle_mesh_object::remove_duplicated_vertices()
+    {
+        const bool has_vertex_normals = this->has_triangle_normals();
+        const bool has_vertex_colors = this->has_triangle_colors();
+        const bool has_vertex_uvs = this->has_triangle_uvs();
+
+        if (has_vertex_uvs) {
+            TRIENGINE_WARN(
+                "%s : The mesh #%llX contains triangle uvs that are not handled in this operation"
+                , __func__
+                , this->get_id()
+            );
+        }
+
+        const size_t old_vertices_size = vertex_positions.size();
+
+        std::unordered_map<
+            Eigen::Vector3f/*point*/,
+            size_t/*old index*/,
+            utility::hash_eigen<Eigen::Vector3f>
+        > point_2_old_idx_map;
+
+        std::vector<size_t> old_idx_2_new_idx_map; // index: old index, value: new index
+        old_idx_2_new_idx_map.resize(old_vertices_size, std::numeric_limits<size_t>::max()); 
+
+        size_t new_idx = 0;
+        for (size_t old_idx = 0; old_idx < old_vertices_size; ++old_idx)
+        {
+            const auto [
+                it, 
+                inserted
+            ] = point_2_old_idx_map.insert({ vertex_positions[old_idx], old_idx });
+
+            if (inserted)
+            {
+                vertex_positions[new_idx] = vertex_positions[old_idx];
+                if (has_vertex_normals) { vertex_normals[new_idx] = vertex_normals[old_idx]; }
+                if (has_vertex_colors) { vertex_colors[new_idx] = vertex_colors[old_idx]; }
+
+                old_idx_2_new_idx_map[old_idx] = new_idx;
+                ++new_idx;
+            }
+            else
+            {
+                old_idx_2_new_idx_map[old_idx] = old_idx_2_new_idx_map[it->second];
+            }
+        } // for
+
+        const size_t new_vertices_size = new_idx;
+
+        vertex_positions.resize(new_vertices_size);
+        if (has_vertex_normals) { vertex_normals.resize(new_vertices_size); }
+        if (has_vertex_colors) { vertex_colors.resize(new_vertices_size); }
+        if (new_vertices_size < old_vertices_size) {
+            for (auto& triangle_indice : triangle_indices) {
+                triangle_indice(0) = old_idx_2_new_idx_map[triangle_indice(0)];
+                triangle_indice(1) = old_idx_2_new_idx_map[triangle_indice(1)];
+                triangle_indice(2) = old_idx_2_new_idx_map[triangle_indice(2)];
+            }
+        }
+
+        TRIENGINE_DEBUG("%s() : %lld vertices have been removed"
+            , __func__
+            , static_cast<int64_t>(old_vertices_size) - static_cast<int64_t>(new_vertices_size)
+        );
+
+        return *this;
+    }
+
+    triangle_mesh_object& triangle_mesh_object::remove_unreferenced_vertices()
+    {
+        const bool has_vertex_normals = this->has_triangle_normals();
+        const bool has_vertex_colors = this->has_triangle_colors();
+        const bool has_vertex_uvs = this->has_triangle_uvs();
+
+        if (has_vertex_uvs) {
+            TRIENGINE_WARN(
+                "%s : The mesh #%llX contains triangle uvs that are not handled in this operation"
+                , __func__
+                , this->get_id()
+            );
+        }
+
+        const size_t old_vertices_size = vertex_positions.size();
+
+        std::vector<bool> vertices_ref_map; // index: vertex index, value: ref flag
+        vertices_ref_map.resize(old_vertices_size, false);
+        for (const auto& triangle_indice : triangle_indices) {
+            vertices_ref_map[triangle_indice(0)] = true;
+            vertices_ref_map[triangle_indice(1)] = true;
+            vertices_ref_map[triangle_indice(2)] = true;
+        }
+
+        std::vector<size_t> old_idx_2_new_idx_map; // index: old index, value: new index
+        old_idx_2_new_idx_map.resize(old_vertices_size, std::numeric_limits<size_t>::max());
+
+        size_t new_idx = 0;
+        for (size_t old_idx = 0; old_idx < old_vertices_size; ++old_idx)
+        {
+            const bool is_referenced = vertices_ref_map[old_idx];
+            if (is_referenced) {
+                vertex_positions[new_idx] = vertex_positions[old_idx];
+                if (has_vertex_normals) { vertex_normals[new_idx] = vertex_normals[old_idx]; }
+                if (has_vertex_colors) { vertex_colors[new_idx] = vertex_colors[old_idx]; }
+
+                old_idx_2_new_idx_map[old_idx] = new_idx;
+                ++new_idx;
+            }
+        }
+
+        const size_t new_vertices_size = new_idx;
+
+        vertex_positions.resize(new_vertices_size);
+        if (has_vertex_normals) { vertex_normals.resize(new_vertices_size); }
+        if (has_vertex_colors) { vertex_colors.resize(new_vertices_size); }
+        if (new_vertices_size < old_vertices_size) {
+            for (auto& triangle_indice : triangle_indices) {
+                triangle_indice(0) = old_idx_2_new_idx_map[triangle_indice(0)];
+                triangle_indice(1) = old_idx_2_new_idx_map[triangle_indice(1)];
+                triangle_indice(2) = old_idx_2_new_idx_map[triangle_indice(2)];
+            }
+        }
+
+        TRIENGINE_DEBUG("%s() : %lld vertices have been removed"
+            , __func__
+            , static_cast<int64_t>(old_vertices_size) - static_cast<int64_t>(new_vertices_size)
+        );
+
+        return *this;
+    }
+
+    triangle_mesh_object& triangle_mesh_object::normalize_vertex_normals()
     {
         using scalar_type = decltype(vertex_normals)::value_type::Scalar;
+        
         for (auto& vn : vertex_normals) {
             if (vn.norm()/* length */ > std::numeric_limits<scalar_type>::epsilon()) {
                 vn.normalize();
@@ -13,9 +148,11 @@ namespace triengine::geometry
                 vn = vec3_f32::UnitZ(); // 벡터 길이가 0일 경우, 임의의 normal(e.g: [0,0,1])로 설정
             }
         }
+
+        return *this;
     }
 
-    void triangle_mesh_object::compute_vertex_normals(const bool smooth_shading)
+    triangle_mesh_object& triangle_mesh_object::compute_vertex_normals(const bool smooth_shading)
     {
         /// TODO: improve this
 
@@ -68,6 +205,8 @@ namespace triengine::geometry
             // vertex normal 정규화
             this->normalize_vertex_normals();
         }
+
+        return *this;
     }
 
     triangle_mesh_object& triangle_mesh_object::operator+=(const triangle_mesh_object& rhs)

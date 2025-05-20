@@ -26,32 +26,37 @@ namespace triengine::geometry
         const bool has_colors = this->has_colors();
 
         const size_t old_points_size = points.size();
-        size_t new_points_size = 0;
 
         std::unordered_map<
             Eigen::Vector3f/*point*/, 
-            size_t/*index*/, 
+            size_t/*old index*/, 
             utility::hash_eigen<Eigen::Vector3f>
-        > point_to_old_index;
+        > point_2_old_idx_map;
 
-        for (size_t i = 0; i < old_points_size; ++i)
+        size_t new_idx = 0;
+        for (size_t old_idx = 0; old_idx < old_points_size; ++old_idx)
         {
-            if (const auto [_, success] = point_to_old_index.insert(
-                    { points[i], i }
-                ); success)
-            {
-                points[new_points_size] = points[i];
-                if (has_normals) { normals[new_points_size] = normals[i]; }
-                if (has_colors) { colors[new_points_size] = colors[i]; }
-                ++new_points_size;
+            const auto [
+                _, 
+                inserted
+            ] = point_2_old_idx_map.insert({ points[old_idx], old_idx });
+
+            if (inserted) {
+                points[new_idx] = points[old_idx];
+                if (has_normals) { normals[new_idx] = normals[old_idx]; }
+                if (has_colors) { colors[new_idx] = colors[old_idx]; }
+                ++new_idx;
             }
         }
+
+        const size_t new_points_size = new_idx;
         
         points.resize(new_points_size);
         if (has_normals) { normals.resize(new_points_size); }
         if (has_colors) { colors.resize(new_points_size); }
     
-        TRIENGINE_DEBUG("%lld points have been removed"
+        TRIENGINE_DEBUG("%s() : %lld points have been removed"
+            , __func__
             , static_cast<int64_t>(old_points_size) - static_cast<int64_t>(new_points_size)
         );
     
@@ -71,31 +76,33 @@ namespace triengine::geometry
         const bool has_colors = this->has_colors();
         
         const size_t old_points_size = points.size();
-        size_t new_points_size = 0;
 
-        for (size_t i = 0; i < old_points_size; ++i)
+        size_t new_idx = 0;
+        for (size_t old_idx = 0; old_idx < old_points_size; ++old_idx)
         {
             bool is_valid{ false };
             if (remove_nan_points && remove_inf_points) {
-                is_valid = points[i].array().isFinite().all();
+                is_valid = points[old_idx].array().isFinite().all();
             } else {
-                is_valid = 
-                    !(remove_nan_points && points[i].array().isNaN().any()) &&
-                    !(remove_inf_points && points[i].array().isInf().any());
+                is_valid = !(remove_nan_points && points[old_idx].array().isNaN().any()) && 
+                           !(remove_inf_points && points[old_idx].array().isInf().any());
             }
             if (is_valid) {
-                points[new_points_size] = points[i];
-                if (has_normals) { normals[new_points_size] = normals[i]; }
-                if (has_colors) { colors[new_points_size] = colors[i]; }
-                ++new_points_size;
+                points[new_idx] = points[old_idx];
+                if (has_normals) { normals[new_idx] = normals[old_idx]; }
+                if (has_colors) { colors[new_idx] = colors[old_idx]; }
+                ++new_idx;
             }
         }
-    
+
+        const size_t new_points_size = new_idx;
+
         points.resize(new_points_size);
         if (has_normals) { normals.resize(new_points_size); }
         if (has_colors) { colors.resize(new_points_size); }
 
-        TRIENGINE_DEBUG("%lld non-finite points have been removed."
+        TRIENGINE_DEBUG("%s() : %lld non-finite points have been removed."
+            , __func__
             , static_cast<int64_t>(old_points_size) - static_cast<int64_t>(new_points_size)
         );
 

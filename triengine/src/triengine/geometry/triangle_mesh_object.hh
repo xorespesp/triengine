@@ -150,6 +150,11 @@ namespace triengine::geometry
             return this->has_triangles() && vertex_normals.size() > 0;
         }
 
+        /// Returns `true` if the mesh contains triangle's vertex color
+        bool has_triangle_colors() const {
+            return this->has_triangles() && vertex_colors.size() > 0;
+        }
+
         /// Returns `true` if the mesh contains triangle's uv map
         bool has_triangle_uvs() const {
             return this->has_triangles() && vertex_uvs.size() > 0;
@@ -167,11 +172,18 @@ namespace triengine::geometry
         //    return !materials_.empty();
         //}
 
+        /// Removes duplicated vertieces.
+        triangle_mesh_object& remove_duplicated_vertices();
+
+        /// Removes vertices from the triangle mesh that are 
+        /// not referenced in any triangle of the mesh.
+        triangle_mesh_object& remove_unreferenced_vertices();
+
         /// Normalize vertex normals to length 1.
-        void normalize_vertex_normals();
+        triangle_mesh_object& normalize_vertex_normals();
 
         /// compute vertex normals. (usually called before rendering)
-        void compute_vertex_normals(bool smooth_shading = false);
+        triangle_mesh_object& compute_vertex_normals(bool smooth_shading = false);
 
         void paint_uniform_color(const color3_f32& color) {
             vertex_colors.clear();
