@@ -114,6 +114,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/noncopyable.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/singleton.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/scrolling_buffer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/progress_reporter.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_format.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"

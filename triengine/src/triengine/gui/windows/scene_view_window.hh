@@ -1,6 +1,7 @@
 #pragma once
 #include <triengine/gui/iwindow.hh>
 #include <triengine/core/frame_buffer.hh>
+#include <triengine/utility/scrolling_buffer.hh>
 
 #include <optional>
 #include <array>
@@ -14,17 +15,24 @@ namespace triengine::gui
     class scene_view_window
         : public gui::iwindow
     {
-    public:
+    private:
+        static constexpr float
+            kFPSPlotUpdateFreq{ 60.0f }, // Unit: [Hz]
+            kFPSPlotHistorySize{ 10.0f }; // Unit: [sec]
+
+    private:
         struct window_state_t {
             ImRect prev_content_region{};
             ImRect curr_content_region{};
-            bool flag_show_overlay{ true };
             bool flag_window_focused{ false };
             bool flag_invalidate_fbo{ false };
 
-            std::array<float, 100> values{};
-            int32_t values_offset = 0;
-            double refresh_time = 0.0;
+            // overlay options
+            bool flag_show_overlay{ true };
+            bool flag_show_overlay_debug_info{ false };
+            int overlay_location{ 0 };
+            utility::scrolling_buffer<vec2_f32> fps_plot_buffer{ static_cast<int32_t>(kFPSPlotUpdateFreq * kFPSPlotHistorySize) };
+            std::optional<double> fps_plot_next_update_time;
 
             window_state_t() = default;
         };

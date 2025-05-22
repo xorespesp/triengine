@@ -185,27 +185,25 @@ namespace triengine::gui
     {
         thread_local utility::string::format_string_builder<1024> sb_;
 
-        static int location = 0;
-
         ImGuiWindowFlags window_flags = 
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize | 
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
 
-        if (location >= 0)
+        if (_state.overlay_location >= 0)
         {
             constexpr float kPadSize = 15.0f;
             ImVec2 work_pos = _state.curr_content_region.Min;
             ImVec2 work_size = _state.curr_content_region.GetSize();
             ImVec2 window_pos, window_pos_pivot;
-            window_pos.x = (location & 1) ? (work_pos.x + work_size.x - kPadSize) : (work_pos.x + kPadSize);
-            window_pos.y = (location & 2) ? (work_pos.y + work_size.y - kPadSize) : (work_pos.y + kPadSize);
-            window_pos_pivot.x = (location & 1) ? 1.0f : 0.0f;
-            window_pos_pivot.y = (location & 2) ? 1.0f : 0.0f;
+            window_pos.x = (_state.overlay_location & 1) ? (work_pos.x + work_size.x - kPadSize) : (work_pos.x + kPadSize);
+            window_pos.y = (_state.overlay_location & 2) ? (work_pos.y + work_size.y - kPadSize) : (work_pos.y + kPadSize);
+            window_pos_pivot.x = (_state.overlay_location & 1) ? 1.0f : 0.0f;
+            window_pos_pivot.y = (_state.overlay_location & 2) ? 1.0f : 0.0f;
             ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
             ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID); // for multi-viewport environment
             window_flags |= ImGuiWindowFlags_NoMove;
         }
-        else if (location == -2)
+        else if (_state.overlay_location == -2)
         {
             // Center window
             ImGui::SetNextWindowPos(_state.curr_content_region.GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -214,7 +212,7 @@ namespace triengine::gui
 
         ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5, 5 });
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 5.0f * render_ctx.dpi_scale, 5.0f * render_ctx.dpi_scale });
         if (ImGui::Begin("##SceneWindowOverlay", &_state.flag_show_overlay, window_flags))
         {
             const auto scene_mouse_pos = 
@@ -229,114 +227,169 @@ namespace triengine::gui
             const uint32_t& curr_scn_id = _vis->get_current_scene()->get_id();
             const std::string& curr_scn_name = _vis->get_current_scene()->get_name();
             
-            const camera* const curr_camera = _vis->get_current_scene()->get_camera();
-            const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
-            const vec3_f32 eye_pos = curr_camera->get_position();
-            const vec3_f32 eye_dir = curr_camera->get_direction();
-
             sb_.clear();
             sb_.appendf(
                 "Scene: %s (#%X)"
+                "\nDPI Scaling: %.2fX"
                 "\nFrame Size: %dx%d"
                 , curr_scn_name.c_str()
                 , curr_scn_id
+                , render_ctx.dpi_scale
                 , _fb_main.width_pixels(), _fb_main.height_pixels()
             );
 
-            sb_.appendf(
-                "\nEye Position: [%f, %f, %f]"
-                "\nEye Direction: [%f, %f, %f]"
-                "\nEye Center: [%f, %f, %f]"
-                "\nFront: [%f, %f, %f]"
-                "\nRight: [%f, %f, %f]"
-                "\nUp: [%f, %f, %f]"
-                "\nYaw: %f"
-                "\nPitch: %f"
-                "\nZoom: %f"
-                "\nFovy: %.1fdeg"
-                "\nPerspective Scale: %f"
-                , eye_pos.x(), eye_pos.y(), eye_pos.z()
-                , eye_dir.x(), eye_dir.y(), eye_dir.z()
-                , curr_camera_params->lookat_center.x(), curr_camera_params->lookat_center.y(), curr_camera_params->lookat_center.z()
-                , curr_camera_params->camera_front.x(), curr_camera_params->camera_front.y(), curr_camera_params->camera_front.z()
-                , curr_camera_params->camera_right.x(), curr_camera_params->camera_right.y(), curr_camera_params->camera_right.z()
-                , curr_camera_params->camera_up.x(), curr_camera_params->camera_up.y(), curr_camera_params->camera_up.z()
-                , curr_camera_params->yaw
-                , curr_camera_params->pitch
-                , curr_camera_params->zoom
-                , curr_camera->get_fovy()
-                , curr_camera->get_perspective_scale_factor()
-            );
-            
-            if (scene_mouse_pos) {
-                sb_.appendf("\nCursor Position: [%.1f, %.1f]", scene_mouse_pos->x(), scene_mouse_pos->y());
-            } else {
-                sb_.append("\nCursor Position: N/A");
-            }
-
+            if (_state.flag_show_overlay_debug_info)
             {
-                const float curr_fps = ImGui::GetIO().Framerate;
-                sb_.appendf("\nFrame Time: %.3fms (%.1f FPS)", 1000.0f / curr_fps, curr_fps);
+                const camera* const curr_camera = _vis->get_current_scene()->get_camera();
+                const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
+                const vec3_f32 eye_pos = curr_camera->get_position();
+                const vec3_f32 eye_dir = curr_camera->get_direction();
 
-                if (_state.refresh_time == 0.0) {
-                    _state.refresh_time = ImGui::GetTime();
-                }
-
-                // Create data at fixed 60 Hz rate for the demo
-                while (_state.refresh_time < ImGui::GetTime()) {
-                    _state.values[_state.values_offset] = curr_fps;
-                    _state.values_offset = (_state.values_offset + 1) % _state.values.size();
-
-                    //_phase += 0.10f * _state.values_offset;
-                    _state.refresh_time += 1.0f / 60.0f;
-                }
-            }
-
-            ImGui::TextColored(ImVec4(64, 64, 64, 255), "%s", sb_.c_str());
-
-            // Plots can display overlay texts
-            // (in this example, we will display an average value)
-            {
-                float avg = 0.0f;
-                for (size_t n = 0; n < _state.values.size(); n++) { avg += _state.values[n]; }
-                avg /= static_cast<float>(_state.values.size());
-
-                sb_.clear();
-                sb_.appendf("avg %f", avg);
-
-                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
-                ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
-                ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
-                ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0, 0, 0, 0));
-                ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
-                ImVec2 graphSize{ 128.0f, 64.0f };
-                graphSize.x *= render_ctx.dpi_scale;
-                graphSize.y *= render_ctx.dpi_scale;
-                ImGui::PlotLines("##plot-fps",
-                    _state.values.data(),
-                    static_cast<int>(_state.values.size()),
-                    _state.values_offset,
-                    sb_.c_str(),
-                    0.0f,
-                    120.0f,
-                    graphSize
+                sb_.appendf(
+                    "\nEye Position: [%f, %f, %f]"
+                    "\nEye Direction: [%f, %f, %f]"
+                    "\nEye Center: [%f, %f, %f]"
+                    "\nFront: [%f, %f, %f]"
+                    "\nRight: [%f, %f, %f]"
+                    "\nUp: [%f, %f, %f]"
+                    "\nYaw: %f"
+                    "\nPitch: %f"
+                    "\nZoom: %f"
+                    "\nFovy: %.1fdeg"
+                    "\nPerspective Scale: %f"
+                    , eye_pos.x(), eye_pos.y(), eye_pos.z()
+                    , eye_dir.x(), eye_dir.y(), eye_dir.z()
+                    , curr_camera_params->lookat_center.x(), curr_camera_params->lookat_center.y(), curr_camera_params->lookat_center.z()
+                    , curr_camera_params->camera_front.x(), curr_camera_params->camera_front.y(), curr_camera_params->camera_front.z()
+                    , curr_camera_params->camera_right.x(), curr_camera_params->camera_right.y(), curr_camera_params->camera_right.z()
+                    , curr_camera_params->camera_up.x(), curr_camera_params->camera_up.y(), curr_camera_params->camera_up.z()
+                    , curr_camera_params->yaw
+                    , curr_camera_params->pitch
+                    , curr_camera_params->zoom
+                    , curr_camera->get_fovy()
+                    , curr_camera->get_perspective_scale_factor()
                 );
-                ImGui::PopStyleColor(4);
-                ImGui::PopStyleVar();
+
+                if (scene_mouse_pos) {
+                    sb_.appendf("\nCursor Position: [%.1f, %.1f]", scene_mouse_pos->x(), scene_mouse_pos->y());
+                } else {
+                    sb_.append("\nCursor Position: N/A");
+                }
             }
+            
+            {
+                const float curr_dT = static_cast<float>(ImGui::GetTime());
+                const float curr_fps = ImGui::GetIO().Framerate;
+
+                sb_.appendf("\nFrame Time: %.3fms (%.1f FPS)", 1000.0f / curr_fps, curr_fps);
+                ImGui::TextColored(ImVec4(64, 64, 64, 255), "%s", sb_.c_str());
+
+                if (!_state.fps_plot_next_update_time) {
+                    _state.fps_plot_next_update_time = ImGui::GetTime();
+                }
+
+                // Create data at fixed `kFPSPlotUpdateFreq`-Hz rate for the demo
+                while (_state.fps_plot_next_update_time.value() < ImGui::GetTime()) {
+                    _state.fps_plot_buffer.emplace_value(curr_dT, curr_fps);
+                    _state.fps_plot_next_update_time.value() += 1.0f / kFPSPlotUpdateFreq;
+                }
+
+                double curr_fps_avg{ 0.0 };
+                for (const auto fps_val : _state.fps_plot_buffer.data) {
+                    curr_fps_avg += fps_val.y();
+                }
+                curr_fps_avg /= static_cast<double>(_state.fps_plot_buffer.data.size());
+
+                ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2{ 5.0f * render_ctx.dpi_scale, 5.0f * render_ctx.dpi_scale });
+                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.1f);
+                ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.0f);
+                ImPlot::PushStyleColor(ImPlotCol_FrameBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+                ImPlot::PushStyleColor(ImPlotCol_PlotBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+                ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4{ 1.0f, 1.0f, 1.0f, 0.5f });
+                ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f });
+
+                const ImVec2 plot_size{ 150.0f * render_ctx.dpi_scale, 40.0f * render_ctx.dpi_scale };
+                if (ImPlot::BeginPlot("##FPSPlot", plot_size, ImPlotFlags_NoFrame | ImPlotFlags_NoMouseText))
+                {
+                    ImPlot::SetupAxes("Time", "FPS", 
+                        ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_NoHighlight,
+                        ImPlotAxisFlags_NoDecorations
+                    );
+
+                    ImPlot::SetupAxisLimitsConstraints(ImAxis_Y1, 0.0, 1000.0);
+
+                    ImPlot::SetupAxisLimits(ImAxis_X1, curr_dT - kFPSPlotHistorySize, curr_dT, ImPlotCond_Always);
+                    ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, 800.0, ImPlotCond_Once);
+                    ImPlot::SetupAxisTicks(ImAxis_Y1, 0.0, 1000.0, 10, nullptr, false);
+
+                    ImPlot::PlotShaded("##FPSShadedPlot",
+                        &_state.fps_plot_buffer.data.begin()->x(),
+                        &_state.fps_plot_buffer.data.begin()->y(),
+                        static_cast<int>(_state.fps_plot_buffer.data.size()),
+                        0.0,
+                        ImPlotShadedFlags_None,
+                        _state.fps_plot_buffer.offset,
+                        sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
+                    );
+
+                    ImPlot::PlotLine("##FPSLinePlot",
+                        &_state.fps_plot_buffer.data.begin()->x(),
+                        &_state.fps_plot_buffer.data.begin()->y(),
+                        static_cast<int>(_state.fps_plot_buffer.data.size()),
+                        ImPlotShadedFlags_None,
+                        _state.fps_plot_buffer.offset,
+                        sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
+                    );
+
+                    if (ImDrawList* const draw_list{ ImPlot::GetPlotDrawList() };
+                        draw_list)
+                    {
+                        const ImPlotRect plot_limits{ ImPlot::GetPlotLimits() };
+                        const ImPlotPoint plot_center_point{ (plot_limits.X.Min + plot_limits.X.Max) * 0.5, (plot_limits.Y.Min + plot_limits.Y.Max) * 0.5 };
+                        const ImVec2 plot_center_pixels{ ImPlot::PlotToPixels(plot_center_point) };
+
+                        sb_.clear();
+                        sb_.appendf("avg %.2f", curr_fps_avg);
+
+                        const ImVec2 text_size{ ImGui::CalcTextSize(sb_.c_str()) };
+                        const ImVec2 text_start_pos{
+                            plot_center_pixels.x - text_size.x * 0.5f,
+                            plot_center_pixels.y - text_size.y * 0.5f
+                        };
+
+                        draw_list->AddText(text_start_pos, ImGui::GetColorU32(ImGuiCol_Text), sb_.c_str());
+                    }
+
+                    if (ImPlot::IsPlotHovered())
+                    {
+                        const ImPlotPoint mouse_pos{ ImPlot::GetPlotMousePos() };
+                        ImGui::BeginTooltip();
+                        ImGui::Text("dT: %.3f (sec)", mouse_pos.x);
+                        ImGui::Text("FPS: %.3f", mouse_pos.y);
+                        ImGui::EndTooltip();
+                    }
+
+                    ImPlot::EndPlot();
+                }
+
+                ImPlot::PopStyleColor(4);
+                ImPlot::PopStyleVar(3);
+            } // fps plot
 
             // right-click context menu
             if (ImGui::BeginPopupContextWindow())
             {
                 if (ImGui::BeginMenu("Layout")) {
-                    if (ImGui::MenuItem("Custom", NULL, location == -1)) { location = -1; }
-                    if (ImGui::MenuItem("Center", NULL, location == -2)) { location = -2; }
-                    if (ImGui::MenuItem("Top-left", NULL, location == 0)) { location = 0; }
-                    if (ImGui::MenuItem("Top-right", NULL, location == 1)) { location = 1; }
-                    if (ImGui::MenuItem("Bottom-left", NULL, location == 2)) { location = 2; }
-                    if (ImGui::MenuItem("Bottom-right", NULL, location == 3)) { location = 3; }
+                    if (ImGui::MenuItem("Custom##Layout", NULL, _state.overlay_location == -1)) { _state.overlay_location = -1; }
+                    if (ImGui::MenuItem("Center##Layout", NULL, _state.overlay_location == -2)) { _state.overlay_location = -2; }
+                    if (ImGui::MenuItem("Top-left##Layout", NULL, _state.overlay_location == 0)) { _state.overlay_location = 0; }
+                    if (ImGui::MenuItem("Top-right##Layout", NULL, _state.overlay_location == 1)) { _state.overlay_location = 1; }
+                    if (ImGui::MenuItem("Bottom-left##Layout", NULL, _state.overlay_location == 2)) { _state.overlay_location = 2; }
+                    if (ImGui::MenuItem("Bottom-right##Layout", NULL, _state.overlay_location == 3)) { _state.overlay_location = 3; }
                     ImGui::EndMenu();
                 }
+
+                ImGui::MenuItem("Debug Info", NULL, &_state.flag_show_overlay_debug_info);
 
                 //if (ImGui::MenuItem("Close")) { _state.flag_show_overlay = false; }
 
