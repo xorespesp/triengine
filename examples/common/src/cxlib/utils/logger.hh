@@ -270,7 +270,7 @@ namespace utils
             logger_ptr->log(
                 static_cast<spdlog::source_loc>(src_loc),
                 static_cast<spdlog::level::level_enum>(lv),
-                msg_sv
+                fmt::runtime(msg_sv)
             );
         }
 
@@ -294,7 +294,7 @@ namespace utils
             logger_ptr->log(
                 static_cast<spdlog::source_loc>(src_loc),
                 static_cast<spdlog::level::level_enum>(lv),
-                fmt_sv,
+                fmt::runtime(fmt_sv),
                 std::forward<_Args>(args)...
             );
         }
@@ -320,7 +320,7 @@ namespace utils
             logger_ptr->log(
                 static_cast<spdlog::source_loc>(src_loc),
                 static_cast<spdlog::level::level_enum>(lv),
-                wmsg_sv
+                fmt::runtime(wmsg_sv)
             );
         }
 
@@ -344,7 +344,7 @@ namespace utils
             logger_ptr->log(
                 static_cast<spdlog::source_loc>(src_loc),
                 static_cast<spdlog::level::level_enum>(lv),
-                wfmt_sv, 
+                fmt::runtime(wfmt_sv),
                 std::forward<_Args>(args)...
             );
         }
