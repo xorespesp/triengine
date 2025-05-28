@@ -24,6 +24,7 @@ namespace triengine
 
         bool _try_convert_image_format_to_texture_format(
             const image_format_type image_format,
+            const bool apply_gamma_correction,
             GLenum& texture_internal_format/* out */,
             GLenum& texture_format/* out */)
         {
@@ -41,12 +42,12 @@ namespace triengine
             case image_format_type::rgb:
                 // Using GL_RGB8 as a recommended 8-bit internal format.
                 // GL_RGB is the "classic" but for modern usage, GL_RGB8 is more explicit.
-                texture_internal_format = GL_RGB8;
+                texture_internal_format = apply_gamma_correction ? GL_SRGB8 : GL_RGB8;
                 texture_format = GL_RGB;
                 return true;
             case image_format_type::rgba:
                 // Using GL_RGBA8 as an 8-bit internal format.
-                texture_internal_format = GL_RGBA8; 
+                texture_internal_format = apply_gamma_correction ? GL_SRGB8_ALPHA8 : GL_RGBA8;
                 texture_format = GL_RGBA;
                 return true;
             default:
@@ -90,7 +91,8 @@ namespace triengine
 
     void texture_2d::create_from_memory(
         const uint8_t* const image_buffer,
-        const image_format_type image_format,
+        const image_format_type image_format, 
+        const bool gamma_correction,
         const int32_t width_pixels,
         const int32_t height_pixels,
         const texture_params_t& params,
@@ -107,6 +109,7 @@ namespace triengine
         GLenum internal_format{}, format{};
         if (!_try_convert_image_format_to_texture_format(
             image_format,
+            gamma_correction,
             internal_format,
             format))
         {
@@ -164,6 +167,7 @@ namespace triengine
 
     void texture_2d::create_from_file(
         const std::filesystem::path& path,
+        const bool gamma_correction,
         const texture_params_t& params,
         const bool generate_mipmap,
         const bool flip_image)
@@ -192,6 +196,7 @@ namespace triengine
         this->create_from_memory(
             image_data.get(),
             _try_map_image_format_from_num_channels(num_channels),
+            gamma_correction,
             width_pixels,
             height_pixels,
             params,
@@ -212,6 +217,7 @@ namespace triengine
         this->create_from_memory(
             pixel_buff.data(),
             image_format_type::rgb,
+            false,
             1,
             1,
             texture_params_t{},

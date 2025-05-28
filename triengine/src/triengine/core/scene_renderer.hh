@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <triengine/common.h>
 
 #include <triengine/scene.hh>
@@ -52,7 +52,7 @@ namespace triengine::core
 
         shader_program _wboit_composite_shader;
         shader_program _overlay_composite_shader;
-        shader_program _screen_quad_shader;
+        shader_program _screen_quad_shader, _hdr_screen_quad_shader;
 
         // SMAA pass shaders
         shader_program _smaa_edge_detect_shader;

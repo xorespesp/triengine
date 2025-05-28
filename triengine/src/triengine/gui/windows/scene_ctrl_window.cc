@@ -54,6 +54,12 @@ namespace triengine::gui
                     }
                 }
 
+                if (ImGui::CollapsingHeader("HDR"))
+                {
+                    ImGui::Checkbox("Enable##HDR", &scn_config.enable_hdr);
+                    ImGui::DragFloat("Exposure##HDR", &scn_config.hdr_exposure, 0.001f, 0.0f, 1.0f);
+                }
+
                 if (ImGui::CollapsingHeader("Lighting"))
                 {
                     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))

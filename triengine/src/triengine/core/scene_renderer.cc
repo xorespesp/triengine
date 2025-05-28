@@ -1,4 +1,4 @@
-﻿#include "scene_renderer.hh"
+#include "scene_renderer.hh"
 
 #include <triengine/utility/string_format.hh>
 #include <triengine/utility/debug_utils.hh>
@@ -64,6 +64,11 @@ namespace triengine::core
             .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kScreenQuadFragmentShader).c_str() })
             .link();
 
+        _hdr_screen_quad_shader
+            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kHDRScreenQuadVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kHDRScreenQuadFragmentShader).c_str() })
+            .link();
+
         _overlay_composite_shader
             .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kOverlayCompositePassVertexShader).c_str() })
             .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kOverlayCompositePassFragmentShader).c_str() })
@@ -120,6 +125,7 @@ namespace triengine::core
             _smaa_area_tex.create_from_memory(
                 areaTexBuffer.data(),
                 image_format_type::rg,
+                false,
                 AREATEX_WIDTH,
                 AREATEX_HEIGHT,
                 texparams,
@@ -140,6 +146,7 @@ namespace triengine::core
             _smaa_search_tex.create_from_memory(
                 searchTexBuffer.data(),
                 image_format_type::greyscale,
+                false,
                 SEARCHTEX_WIDTH,
                 SEARCHTEX_HEIGHT,
                 texparams,
@@ -159,6 +166,7 @@ namespace triengine::core
 
         _wboit_composite_shader.destroy();
         _screen_quad_shader.destroy();
+        _hdr_screen_quad_shader.destroy();
         _overlay_composite_shader.destroy();
         _smaa_edge_detect_shader.destroy();
         _smaa_blend_weight_shader.destroy();
@@ -559,8 +567,17 @@ namespace triengine::core
                 //       Therefore, we skip `glClear(GL_COLOR_BUFFER_BIT)` to improve performance.
                 GLCall(::glClear(/*GL_COLOR_BUFFER_BIT | */GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
-                // use screen shader
-                _screen_quad_shader.use();
+                if (scn_render_config.enable_hdr)
+                {
+                    // use HDR screen-quad shader
+                    _hdr_screen_quad_shader.use();
+                    _hdr_screen_quad_shader.set_uniform_float("u_exposure", scn_render_config.hdr_exposure);
+                }
+                else
+                {
+                    // use screen-quad shader
+                    _screen_quad_shader.use();
+                }
 
                 GLCall(::glActiveTexture(GL_TEXTURE0));
                 GLCall(::glBindTexture(GL_TEXTURE_2D, 

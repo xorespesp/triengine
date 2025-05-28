@@ -39,6 +39,7 @@ namespace triengine
         texture_2d(
             const uint8_t* image_buffer, 
             image_format_type image_format, 
+            bool apply_gamma_correction,
             int32_t width_pixels, int32_t height_pixels,
             const texture_params_t& params = {},
             bool generate_mipmap = true)
@@ -46,6 +47,7 @@ namespace triengine
             this->create_from_memory(
                 image_buffer, 
                 image_format, 
+                apply_gamma_correction,
                 width_pixels, height_pixels, 
                 params,
                 generate_mipmap
@@ -54,12 +56,14 @@ namespace triengine
 
         texture_2d(
             const std::filesystem::path& path,
+            bool apply_gamma_correction,
             const texture_params_t& params = {},
             bool generate_mipmap = true,
             bool flip_image = true)
         {
             this->create_from_file(
-                path, 
+                path,
+                apply_gamma_correction,
                 params,
                 generate_mipmap,
                 flip_image
@@ -86,6 +90,7 @@ namespace triengine
         void create_from_memory(
             const uint8_t* image_buffer,
             image_format_type image_format,
+            bool apply_gamma_correction,
             int32_t width_pixels,
             int32_t height_pixels,
             const texture_params_t& params = {},
@@ -95,6 +100,7 @@ namespace triengine
         // Create texture from file
         void create_from_file(
             const std::filesystem::path& path,
+            bool apply_gamma_correction,
             const texture_params_t& params = {},
             bool generate_mipmap = true,
             bool flip_image = true

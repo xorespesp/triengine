@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <triengine/common.h>
 #include <triengine/camera.hh>
 #include <triengine/infinite_plane_options.hh>
@@ -29,6 +29,10 @@ namespace triengine
         bool show_origin_axis{ true };
         bool show_origin_xz_grid{ false };
         bool enable_anti_aliasing{ true };
+
+        // HDR options
+        bool enable_hdr{ false };
+        float hdr_exposure{ 1.0f }; // tone-mapping exposure
 
         infinite_plane_options inf_plane_opts;
         lighting_options light_opts;

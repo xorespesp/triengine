@@ -440,6 +440,7 @@ namespace gui
                 _skull_mesh = std::make_shared<triangle_mesh_object>();
                 if (triengine::io::load_triangle_mesh_from_obj(
                         rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
+                    scn->get_render_config()->enable_hdr,
                         *_skull_mesh
                     ))
                 {
@@ -463,6 +464,7 @@ namespace gui
                 _skull_mesh2 = std::make_shared<triangle_mesh_object>();
                 if (triengine::io::load_triangle_mesh_from_obj(
                         rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
+                    scn->get_render_config()->enable_hdr,
                         *_skull_mesh2
                     ))
                 {
@@ -545,6 +547,7 @@ namespace gui
 
                 if (triengine::io::load_triangle_mesh_from_obj(
                         rsrc_dir_path / "objects/car_engine/car_engine.obj",
+                    scn->get_render_config()->enable_hdr,
                         *_engine_mesh
                     ))
                 {

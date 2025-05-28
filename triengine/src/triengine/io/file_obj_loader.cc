@@ -1,4 +1,4 @@
-﻿#include "file_obj_loader.hh"
+#include "file_obj_loader.hh"
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/extern/tiny_obj_loader.h>
 
@@ -9,6 +9,7 @@ namespace triengine::io
 {
     bool load_triangle_mesh_from_obj(
         const std::filesystem::path& file_path,
+        const bool apply_gamma_correction,
         geometry::triangle_mesh_object& mesh /* out */)
     {
         TRIENGINE_DEBUG("Load obj file: %s", file_path.string().c_str());
@@ -233,11 +234,11 @@ namespace triengine::io
                 );
 
                 if (!tinyobj_material.diffuse_texname.empty()) {
-                    curr_mesh_material->diffuse_map.create_from_file(mtl_base_dir / tinyobj_material.diffuse_texname);
+                    curr_mesh_material->diffuse_map.create_from_file(mtl_base_dir / tinyobj_material.diffuse_texname, apply_gamma_correction);
                 }
 
                 if (!tinyobj_material.specular_texname.empty()) {
-                    curr_mesh_material->specular_map.create_from_file(mtl_base_dir / tinyobj_material.specular_texname);
+                    curr_mesh_material->specular_map.create_from_file(mtl_base_dir / tinyobj_material.specular_texname, apply_gamma_correction);
                 }
             } // for
 
