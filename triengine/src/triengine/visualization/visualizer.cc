@@ -12,6 +12,16 @@ namespace triengine::visualization
     {
     }
 
+    vec2_i32 visualizer::get_window_size() const
+    {
+        return _glctx.get_window_size();
+    }
+
+    vec2_f32 visualizer::get_window_dpi_scale() const
+    {
+        return _glctx.get_window_dpi_scale();
+    }
+
     void visualizer::create_window(
         const std::string& window_name,
         const bool show_window,
@@ -71,17 +81,12 @@ namespace triengine::visualization
                 pThis->_handle_glfw_mouse_scroll_event(window, xoffset, yoffset);
             });
 
-        ::glfwGetWindowContentScale(_glctx.get_glfw_window(), &_curr_dpi_scale_x, &_curr_dpi_scale_y);
-        TRIENGINE_DEBUG("dpi scale: %f x %f", _curr_dpi_scale_x, _curr_dpi_scale_y);
-
         ::glfwSetWindowContentScaleCallback(_glctx.get_glfw_window(),
             +[]([[maybe_unused]] GLFWwindow* window, float xscale, float yscale) {
                 TRIENGINE_DEBUG("dpi scale changed: [%f, %f]", xscale, yscale);
                 auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
                 pThis->_handle_glfw_content_scale_change_event(window, xscale, yscale);
             });
-
-        ::glfwGetWindowSize(_glctx.get_glfw_window(), &_curr_window_width, &_curr_window_height);
 
         _scn_renderer.create(&_glctx);
 
@@ -90,7 +95,7 @@ namespace triengine::visualization
             _gui_mgr = std::make_unique<gui::gui_manager>();
             _gui_mgr->initialize(
                 this,
-                _curr_dpi_scale_x
+                _glctx.get_window_dpi_scale().x()
             );
 
             _scene_window = _gui_mgr->get_scene_window();
@@ -284,8 +289,7 @@ namespace triengine::visualization
         [[maybe_unused]] const int width,
         [[maybe_unused]] const int height)
     {
-        _curr_window_width = width;
-        _curr_window_height = height;
+        // ...
     }
 
     void visualizer::_handle_glfw_key_event(
@@ -440,8 +444,6 @@ namespace triengine::visualization
         [[maybe_unused]] const float xscale,
         [[maybe_unused]] const float yscale)
     {
-        _curr_dpi_scale_x = xscale;
-        _curr_dpi_scale_y = yscale;
         if (_cb_dpi_change) {
             _cb_dpi_change(*this, xscale, yscale);
         }

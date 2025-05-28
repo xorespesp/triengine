@@ -34,6 +34,11 @@ namespace triengine
         bool enable_hdr{ false };
         float hdr_exposure{ 1.0f }; // tone-mapping exposure
 
+        // Bloom options
+        bool enable_bloom{ true };
+        float bloom_strength{ 0.02f };
+        float bloom_upsample_filter_radius{ 0.005f };
+
         infinite_plane_options inf_plane_opts;
         lighting_options light_opts;
         color4_f32 bg_color{ 0.05f, 0.05f, 0.05f, 1.0f };

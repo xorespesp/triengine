@@ -8,8 +8,9 @@ namespace triengine::gui
         visualization::visualizer* const vis)
         : _vis{ vis }
     {
-        _state.curr_content_region.Max.x = static_cast<float>(vis->get_window_width());
-        _state.curr_content_region.Max.y = static_cast<float>(vis->get_window_height());
+        const vec2_f32 window_size = vis->get_window_size().cast<float>();
+        _state.curr_content_region.Max.x = window_size.x();
+        _state.curr_content_region.Max.y = window_size.y();
         _state.flag_invalidate_fbo = true;
     }
 

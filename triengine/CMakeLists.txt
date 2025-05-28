@@ -16,6 +16,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gpu_resource_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gpu_resources_impl.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/bloom_effect.cc"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
@@ -75,6 +76,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/render_target.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gpu_resource_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/scene_renderer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/bloom_effect.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/lineset_object.hh"
@@ -119,6 +121,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_format.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"
 
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/bloom_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/infinite_plane_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/lineset_shaders.h"

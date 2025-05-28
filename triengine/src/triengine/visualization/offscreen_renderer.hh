@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <triengine/common.h>
 #include <triengine/image.hh>
 #include <triengine/core/gl_context.hh>
@@ -54,8 +54,7 @@ namespace triengine::visualization
         bool _flag_invalidate_fbo{ true };
 
         core::gl_context _glctx;
-        int32_t _curr_window_width{};
-        int32_t _curr_window_height{};
+        vec2_i32 _curr_window_size{};
 
         core::scene_renderer _scn_renderer;
         

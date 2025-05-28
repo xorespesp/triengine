@@ -54,6 +54,8 @@ namespace triengine::core
         _pcd_renderer.create(*glctx, *_shader_prep);
         _skeleton_renderer.create(*glctx, *_shader_prep);
 
+        _bloom_effect.create(glctx->get_window_size());
+
         _wboit_composite_shader
             .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kWBOITCompositeVertexShader).c_str() })
             .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kWBOITCompositeFragmentShader).c_str() })
@@ -157,6 +159,7 @@ namespace triengine::core
 
     void scene_renderer::destroy()
     {
+        _bloom_effect.destroy();
         _inf_plane_renderer.destroy();
         _light_source_renderer.destroy();
         _mesh_renderer.destroy();
@@ -414,6 +417,21 @@ namespace triengine::core
 
                 GLCall(::glBindVertexArray(_vao_screen_quad));
                 GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
+            }
+
+            // ---------------------------------------------------------------------------------
+            // Phys. Based BLOOM pass
+            // ---------------------------------------------------------------------------------
+            if (scn_render_config.enable_bloom)
+            {
+                // NOTE: 이시점에서 적용하려는 main scene texture의 FBO(_wboit_fb)가 바인딩되어있어야 함
+
+                _bloom_effect.resize({ target_fb.width_pixels(), target_fb.height_pixels() });
+                _bloom_effect.apply(
+                    wboit_opaque_color_attach->buffer_id, // main scene texture
+                    scn_render_config.bloom_upsample_filter_radius,
+                    scn_render_config.bloom_strength
+                ); 
             }
 
             // ---------------------------------------------------------------------------------

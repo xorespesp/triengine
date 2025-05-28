@@ -1,4 +1,4 @@
-﻿#include "gl_context.hh"
+#include "gl_context.hh"
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/singleton.hh>
@@ -282,6 +282,30 @@ namespace triengine::core
             _flag_initialized = false;
             TRIENGINE_TRACE("gl_context destroyed.");
         }
+    }
+
+    GLFWwindow* gl_context::get_glfw_window() const noexcept
+    {
+        return _glfw_window.get();
+    }
+
+    vec2_i32 gl_context::get_window_size() const
+    {
+        vec2_i32 window_size{};
+        ::glfwGetWindowSize(_glfw_window.get(), &window_size.x(), &window_size.y());
+        return window_size;
+    }
+
+    vec2_f32 gl_context::get_window_dpi_scale() const
+    {
+        vec2_f32 dpi_scale{};
+        ::glfwGetWindowContentScale(_glfw_window.get(), &dpi_scale.x(), &dpi_scale.y());
+        return dpi_scale;
+    }
+
+    void gl_context::make_context_current()
+    {
+        ::glfwMakeContextCurrent(_glfw_window.get());
     }
 
 } // namespace triengine

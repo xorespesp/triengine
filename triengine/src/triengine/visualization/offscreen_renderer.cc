@@ -1,4 +1,4 @@
-﻿#include "offscreen_renderer.hh"
+#include "offscreen_renderer.hh"
 #include <triengine/utility/string_format.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
@@ -33,7 +33,7 @@ namespace triengine::visualization
             false
         );
 
-        ::glfwGetWindowSize(_glctx.get_glfw_window(), &_curr_window_width, &_curr_window_height);
+        _curr_window_size = _glctx.get_window_size();
 
         _scn_renderer.create(&_glctx);
 
@@ -159,7 +159,7 @@ namespace triengine::visualization
 
         ::glfwSwapBuffers(_glctx.get_glfw_window());
 
-        const vec2_i32 frame_size{ _curr_window_width, _curr_window_height };
+        const vec2_i32 frame_size = _curr_window_size;
 
         this->_begin_frame();
         {
@@ -197,8 +197,8 @@ namespace triengine::visualization
             // invalidate framebuffer
 
             const int32_t
-                width_pixels = _curr_window_width,
-                height_pixels = _curr_window_height;
+                width_pixels = _curr_window_size.x(),
+                height_pixels = _curr_window_size.y();
 
             if (!_fb_main.is_valid())
             {
@@ -206,8 +206,8 @@ namespace triengine::visualization
                     GL_RGBA16F,
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,
-                    _curr_window_width,
-                    _curr_window_height
+                    width_pixels,
+                    height_pixels
                 );
             }
             else

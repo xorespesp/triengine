@@ -60,6 +60,13 @@ namespace triengine::gui
                     ImGui::DragFloat("Exposure##HDR", &scn_config.hdr_exposure, 0.001f, 0.0f, 1.0f);
                 }
 
+                if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::Checkbox("Enable##Bloom", &scn_config.enable_bloom);
+                    ImGui::DragFloat("Strength##Bloom", &scn_config.bloom_strength, 0.001f, 0.0f, 1.0f);
+                    ImGui::DragFloat("Filter Radius##Bloom", &scn_config.bloom_upsample_filter_radius, 0.001f, 0.001f, 0.1f);
+                }
+
                 if (ImGui::CollapsingHeader("Lighting"))
                 {
                     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))

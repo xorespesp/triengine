@@ -61,7 +61,7 @@
      }
      catch (const std::exception& e)
      {
-         CXLIB_ERROR("----- {}() EXCEPTION -> %s", __func__, e.what());
+         CXLIB_ERROR("----- {}() EXCEPTION -> {}", __func__, e.what());
      }
      catch (...)
      {

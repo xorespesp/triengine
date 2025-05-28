@@ -7,6 +7,7 @@
 #include <triengine/core/frame_buffer.hh>
 #include <triengine/core/shader.hh>
 #include <triengine/core/shader_preprocessor.hh>
+#include <triengine/core/bloom_effect.hh>
 
 #include <triengine/renderer/infinite_plane_renderer.hh>
 #include <triengine/renderer/light_source_renderer.hh>
@@ -45,6 +46,8 @@ namespace triengine::core
         renderer::lineset_renderer _lineset_renderer;
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;
+
+        phys_bloom_effect _bloom_effect;
 
         frame_buffer _wboit_fb;
         frame_buffer _overlay_fb;

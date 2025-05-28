@@ -27,11 +27,8 @@ namespace triengine::visualization
         const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
         core::gl_context* get_gl_context() noexcept { return &_glctx; }
 
-        float get_dpi_scale_x() const { return _curr_dpi_scale_x; }
-        float get_dpi_scale_y() const { return _curr_dpi_scale_x; }
-
-        int32_t get_window_width() const { return _curr_window_width; }
-        int32_t get_window_height() const { return _curr_window_height; }
+        vec2_i32 get_window_size() const;
+        vec2_f32 get_window_dpi_scale() const;
 
         void set_close_callback(close_callback cb) {
             _cb_close = std::move(cb);
@@ -155,14 +152,7 @@ namespace triengine::visualization
         dpi_change_callback _cb_dpi_change;
         
         core::gl_context _glctx;
-        int32_t _curr_window_width{};
-        int32_t _curr_window_height{};
-        float _curr_dpi_scale_x{ 1.0f };
-        float _curr_dpi_scale_y{ 1.0f };
-        vec2_f32 _last_clicked_cursor_viewport_pos{};
-
         core::scene_renderer _scn_renderer;
-
         std::list<std::shared_ptr<scene>> _scn_list;
         std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
         std::unordered_map<
@@ -172,7 +162,9 @@ namespace triengine::visualization
 
         std::unique_ptr<gui::gui_manager> _gui_mgr;
         std::shared_ptr<gui::scene_view_window> _scene_window;
-        
+
+        vec2_f32 _last_clicked_cursor_viewport_pos{};
+
     }; // class
 
 } // namespace

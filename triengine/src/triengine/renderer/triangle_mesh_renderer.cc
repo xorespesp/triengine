@@ -19,7 +19,8 @@ namespace triengine::renderer
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(glctx.get_glfw_window());
+        glctx.make_context_current();
+
         _glctx = &glctx;
 
         //

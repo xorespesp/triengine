@@ -90,7 +90,7 @@ namespace triengine::renderer
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        ::glfwMakeContextCurrent(glctx.get_glfw_window());
+        glctx.make_context_current();
 
         //
         // Context Settings
@@ -113,7 +113,7 @@ namespace triengine::renderer
         std::vector<triangle_index_value_type> triangle_indices;
 
         _create_sphere_vertices(
-            0.1f,
+            0.04f,
             vertex_positions,
             vertex_normals,
             triangle_indices
@@ -215,7 +215,7 @@ namespace triengine::renderer
             draw_shader.set_uniform_mat4("u_model", model);
 
             // Update color
-            draw_shader.set_uniform_vec3("u_color", point_light.color.r(), point_light.color.g(), point_light.color.b());
+            draw_shader.set_uniform_vec3("u_color", point_light.color.r() * 64.0f, point_light.color.g() * 64.0f, point_light.color.b() * 64.0f);
 
             // Render triangles
             GLCall(::glBindVertexArray(_vao)); // Bind VAO
