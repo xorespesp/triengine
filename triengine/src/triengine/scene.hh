@@ -16,34 +16,26 @@
 
 namespace triengine
 {
+    enum class skeleton_render_mode
+    {
+        skeleton_default = 0,
+        skeleton_overlay,
+        overlay_with_joint_axis,
+    };
+
     struct scene_render_config
     {
-        enum class skeleton_render_mode {
-            skeleton_default = 0,
-            skeleton_overlay,
-            overlay_with_joint_axis,
-        };
-
         bool show_wireframe{ false };
         bool show_object_normals{ false };
         bool show_origin_axis{ true };
         bool show_origin_xz_grid{ false };
         bool enable_anti_aliasing{ true };
 
-        // HDR options
-        bool enable_hdr{ false };
-        float hdr_exposure{ 1.0f }; // tone-mapping exposure
-
-        // Bloom options
-        bool enable_bloom{ true };
-        float bloom_strength{ 0.02f };
-        float bloom_upsample_filter_radius{ 0.005f };
-
         infinite_plane_options inf_plane_opts;
         lighting_options light_opts;
-        color4_f32 bg_color{ 0.05f, 0.05f, 0.05f, 1.0f };
+        color4_f32 bg_color{ 0.020f, 0.020f, 0.020f, 1.0f };
         std::optional<float> pcd_point_size;
-        skeleton_render_mode skeleton_mode{ skeleton_render_mode::skeleton_overlay };
+        skeleton_render_mode skeleton_mode{ skeleton_render_mode::skeleton_default };
 
         scene_render_config() = default;
     }; // struct

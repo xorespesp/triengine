@@ -197,7 +197,7 @@ namespace triengine::core
 
             if (scn_render_config.pcd_point_size) { _pcd_renderer.set_pcd_point_size(scn_render_config.pcd_point_size.value()); }
             _mesh_renderer.enable_object_normal_rendering(scn_render_config.show_object_normals);
-            _skeleton_renderer.show_joint_axis(scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
+            _skeleton_renderer.show_joint_axis(scn_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
             _inf_plane_renderer.set_options(scn_render_config.inf_plane_opts);
         }
 
@@ -218,8 +218,8 @@ namespace triengine::core
             // NOTE: currently, overlay render pass is only for the skeleton_renderer.
             const bool overlay_render_pass_required =
                 !scn.get_skeleton_geometries().empty() &&
-                (scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::skeleton_overlay ||
-                 scn_render_config.skeleton_mode == scene_render_config::skeleton_render_mode::overlay_with_joint_axis);
+                (scn_render_config.skeleton_mode == skeleton_render_mode::skeleton_overlay ||
+                 scn_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
 
             // ---------------------------------------------------------------------------------
             // WBOIT pass
@@ -420,17 +420,16 @@ namespace triengine::core
             }
 
             // ---------------------------------------------------------------------------------
-            // Phys. Based BLOOM pass
+            // Phys. Based Bloom pass
             // ---------------------------------------------------------------------------------
-            if (scn_render_config.enable_bloom)
+            if (scn_render_config.light_opts.bloom.enabled)
             {
                 // NOTE: 이시점에서 적용하려는 main scene texture의 FBO(_wboit_fb)가 바인딩되어있어야 함
 
                 _bloom_effect.resize({ target_fb.width_pixels(), target_fb.height_pixels() });
                 _bloom_effect.apply(
                     wboit_opaque_color_attach->buffer_id, // main scene texture
-                    scn_render_config.bloom_upsample_filter_radius,
-                    scn_render_config.bloom_strength
+                    scn_render_config.light_opts.bloom
                 ); 
             }
 
@@ -585,11 +584,16 @@ namespace triengine::core
                 //       Therefore, we skip `glClear(GL_COLOR_BUFFER_BIT)` to improve performance.
                 GLCall(::glClear(/*GL_COLOR_BUFFER_BIT | */GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
 
-                if (scn_render_config.enable_hdr)
+                if (scn_render_config.light_opts.hdr.enabled)
                 {
                     // use HDR screen-quad shader
                     _hdr_screen_quad_shader.use();
-                    _hdr_screen_quad_shader.set_uniform_float("u_exposure", scn_render_config.hdr_exposure);
+                    _hdr_screen_quad_shader.set_uniform_float("u_exposure", scn_render_config.light_opts.hdr.exposure);
+                    _hdr_screen_quad_shader.set_active_subroutine(
+                        shader_object_type::fragment, 
+                        "u_tone_mapping_curve",
+                        static_cast<GLuint>(scn_render_config.light_opts.hdr.tone_mapping_curve)
+                    );
                 }
                 else
                 {

@@ -215,7 +215,7 @@ namespace triengine::renderer
             draw_shader.set_uniform_mat4("u_model", model);
 
             // Update color
-            draw_shader.set_uniform_vec3("u_color", point_light.color.r() * 64.0f, point_light.color.g() * 64.0f, point_light.color.b() * 64.0f);
+            draw_shader.set_uniform_vec3("u_color", point_light.color.to_eigen() * point_light.light_source_color_intensity);
 
             // Render triangles
             GLCall(::glBindVertexArray(_vao)); // Bind VAO

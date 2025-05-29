@@ -156,8 +156,7 @@ namespace triengine::core
 
     void phys_bloom_effect::apply(
         const GLuint src_texture_id,
-        const float upsample_filter_radius,
-        const float bloom_strength)
+        const bloom_options& bloom_opts)
     {
         struct GLStateBackupRAIIContext final {
             GLboolean depth_test_enabled{};
@@ -250,7 +249,7 @@ namespace triengine::core
         GLCall(::glBlendEquation(GL_FUNC_ADD));
 
         _upsample_shader.use();
-        _upsample_shader.set_uniform_float("u_filterRadius", upsample_filter_radius);
+        _upsample_shader.set_uniform_float("u_filterRadius", bloom_opts.upsample_filter_radius);
         _upsample_shader.set_uniform_float("u_aspectRatio", _src_texture_aspect_ratio);
 
         for (int64_t i = static_cast<int64_t>(_mip_chain.size()) - 1; i > 0; --i)
@@ -289,7 +288,7 @@ namespace triengine::core
             0));
 
         _composite_shader.use();
-        _composite_shader.set_uniform_float("u_bloomStrength", bloom_strength);
+        _composite_shader.set_uniform_float("u_bloomStrength", bloom_opts.strength);
 
         GLCall(::glBindTexture(GL_TEXTURE_2D, src_texture_id)); // u_sceneTexture
 

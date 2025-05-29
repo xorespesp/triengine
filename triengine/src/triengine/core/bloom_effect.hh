@@ -1,11 +1,13 @@
 #pragma once
 #include <triengine/common.h>
+#include <triengine/lighting_options.hh>
 #include <triengine/core/shader.hh>
 
 #include <vector>
 
 namespace triengine::core
 {
+    // TODO: optimize (DSA, compute shader) & soft threshold
     class phys_bloom_effect
     {
     public:
@@ -30,8 +32,7 @@ namespace triengine::core
 
         void apply(
             const GLuint src_texture_id,
-            const float upsample_filter_radius,
-            const float bloom_strength
+            const bloom_options& bloom_opts
         );
 
         void resize(const vec2_i32 new_window_size);

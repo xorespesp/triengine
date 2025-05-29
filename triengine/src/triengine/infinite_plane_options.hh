@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <triengine/common.h>
 #include <triengine/core/shader.hh>
 #include <triengine/utility/gl_utils.hh>
@@ -16,18 +16,18 @@ namespace triengine
 
     struct transparent_grid_plane_option_t
     {
-        vec3_f32 grid_line_color{ 0.8f, 0.8f, 0.8f };
+        vec3_f32 grid_line_color{ 0.0f, 1.0f, 0.0f };
     };
 
     struct box_filtered_grid_plane_option_t
     {
-        vec3_f32 grid_line_color{ 0.82f, 0.82f, 0.82f };
+        vec3_f32 grid_line_color{ 0.74f, 0.74f, 0.74f };
         vec3_f32 grid_cell_color{ 0.90f, 0.90f, 0.90f };
     };
 
     struct box_filtered_chess_plane_option_t
     {
-        vec3_f32 grid_cell_color1{ 0.82f, 0.82f, 0.82f };
+        vec3_f32 grid_cell_color1{ 0.74f, 0.74f, 0.74f };
         vec3_f32 grid_cell_color2{ 0.90f, 0.90f, 0.90f };
     };
 

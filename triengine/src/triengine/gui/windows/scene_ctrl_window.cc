@@ -28,18 +28,18 @@ namespace triengine::gui
                 ImGui::ColorEdit4("BG Color", scn_config.bg_color.data());
 
                 {
-                    using enum_type = triengine::scene_render_config::skeleton_render_mode;
+                    using enum_type = triengine::skeleton_render_mode;
                     static const std::unordered_map<enum_type, std::string> item_names = {
                         { enum_type::skeleton_default, "skeleton_default" },
                         { enum_type::skeleton_overlay, "skeleton_overlay" },
                         { enum_type::overlay_with_joint_axis, "overlay_with_joint_axis" }
                     };
 
-                    const enum_type selected_item = scn_config.skeleton_mode;
-                    if (ImGui::BeginCombo("Skeleton Render Mode", item_names.find(selected_item)->second.c_str())) {
-                        for (int32_t curr_item_value = 0; curr_item_value < static_cast<int32_t>(item_names.size()); ++curr_item_value) {
-                            const enum_type curr_item = static_cast<enum_type>(curr_item_value);
-                            const bool is_selected = (selected_item == curr_item);
+                    if (const enum_type selected_item{ scn_config.skeleton_mode };
+                        ImGui::BeginCombo("Skeleton Render Mode", item_names.find(selected_item)->second.c_str())) {
+                        for (int32_t curr_item_value{ 0 }; curr_item_value < static_cast<int32_t>(item_names.size()); ++curr_item_value) {
+                            const enum_type curr_item{ static_cast<enum_type>(curr_item_value) };
+                            const bool is_selected{ (selected_item == curr_item) };
                             if (ImGui::Selectable(item_names.find(curr_item)->second.c_str(), is_selected)) {
                                 // Selection changed
                                 scn_config.skeleton_mode = static_cast<enum_type>(curr_item_value);
@@ -54,26 +54,16 @@ namespace triengine::gui
                     }
                 }
 
-                if (ImGui::CollapsingHeader("HDR"))
-                {
-                    ImGui::Checkbox("Enable##HDR", &scn_config.enable_hdr);
-                    ImGui::DragFloat("Exposure##HDR", &scn_config.hdr_exposure, 0.001f, 0.0f, 1.0f);
-                }
-
-                if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    ImGui::Checkbox("Enable##Bloom", &scn_config.enable_bloom);
-                    ImGui::DragFloat("Strength##Bloom", &scn_config.bloom_strength, 0.001f, 0.0f, 1.0f);
-                    ImGui::DragFloat("Filter Radius##Bloom", &scn_config.bloom_upsample_filter_radius, 0.001f, 0.001f, 0.1f);
-                }
-
                 if (ImGui::CollapsingHeader("Lighting"))
                 {
+                    ImGui::Indent();
+
                     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         auto& dir_light_opts = scn_config.light_opts.dir_light;
                         ImGui::Checkbox("Enable##DirLight", &dir_light_opts.enabled);
-                        ImGui::Checkbox("Use Blinn##DirLight", &dir_light_opts.use_blinn);
+
+                        if (!dir_light_opts.enabled) { ImGui::BeginDisabled(); }
                         ImGui::Checkbox("Follow Camera##DirLight", &dir_light_opts.follow_camera);
                         ImGui::DragFloat3("Light Direction##DirLight",
                             dir_light_opts.direction.data(),
@@ -83,28 +73,84 @@ namespace triengine::gui
                             dir_light_opts.follow_camera ? ImGuiSliderFlags_ReadOnly : ImGuiSliderFlags_None
                         );
                         ImGui::ColorEdit3("Light Color##DirLight", dir_light_opts.color.data());
-                        ImGui::DragFloat("Ambient Intensity##DirLight", &dir_light_opts.ambientIntensity, 0.001f, 0.0f, 1.0f);
-                        ImGui::DragFloat("Diffuse Intensity##DirLight", &dir_light_opts.diffuseIntensity, 0.001f, 0.0f, 1.0f);
-                        ImGui::DragFloat("Specular Intensity##DirLight", &dir_light_opts.specularIntensity, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Ambient Intensity##DirLight", &dir_light_opts.ambientIntensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Diffuse Intensity##DirLight", &dir_light_opts.diffuseIntensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Specular Intensity##DirLight", &dir_light_opts.specularIntensity, 0.001f, 0.0f, 10.0f);
+                        if (!dir_light_opts.enabled) { ImGui::EndDisabled(); }
                     }
 
                     if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         auto& point_light_opts = scn_config.light_opts.point_light;
                         ImGui::Checkbox("Enable##PointLight", &point_light_opts.enabled);
-                        ImGui::Checkbox("Use Blinn##PointLight", &point_light_opts.use_blinn);
+
+                        if (!point_light_opts.enabled) { ImGui::BeginDisabled(); }
                         ImGui::Checkbox("Show Light Source##PointLight", &point_light_opts.show_light_source);
+                        ImGui::DragFloat("Light Source Scale##Bloom", &point_light_opts.light_source_color_intensity, 0.1f, 1.0f, 200.0f);
                         ImGui::DragFloat3("Light Position##PointLight", point_light_opts.position.data(), 0.05f, -FLT_MAX / INT_MAX, FLT_MAX / INT_MAX);
                         ImGui::ColorEdit3("Light Color##PointLight", point_light_opts.color.data());
-                        ImGui::DragFloat("Ambient Intensity##PointLight", &point_light_opts.ambientIntensity, 0.001f, 0.0f, 1.0f);
-                        ImGui::DragFloat("Diffuse Intensity##PointLight", &point_light_opts.diffuseIntensity, 0.001f, 0.0f, 1.0f);
-                        ImGui::DragFloat("Specular Intensity##PointLight", &point_light_opts.specularIntensity, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Ambient Intensity##PointLight", &point_light_opts.ambientIntensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Diffuse Intensity##PointLight", &point_light_opts.diffuseIntensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Specular Intensity##PointLight", &point_light_opts.specularIntensity, 0.001f, 0.0f, 10.0f);
+                        if (!point_light_opts.enabled) { ImGui::EndDisabled(); }
                     }
+
+                    if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        auto& bloom_opts = scn_config.light_opts.bloom;
+                        ImGui::Checkbox("Enable##Bloom", &bloom_opts.enabled);
+
+                        if (!bloom_opts.enabled) { ImGui::BeginDisabled(); }
+                        ImGui::DragFloat("Strength##Bloom", &bloom_opts.strength, 0.001f, 0.0f, 1.0f);
+                        ImGui::DragFloat("Filter Radius##Bloom", &bloom_opts.upsample_filter_radius, 0.001f, 0.001f, 0.1f);
+                        if (!bloom_opts.enabled) { ImGui::EndDisabled(); }
+                    }
+
+                    if (ImGui::CollapsingHeader("HDR", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        using enum_type = triengine::tone_mapping_curve_type;
+                        static const std::unordered_map<enum_type, std::string> item_names = {
+                            { enum_type::reinherd, "reinherd" },
+                            { enum_type::uncharted2_filmic, "uncharted2_filmic" },
+                            { enum_type::aces_filmic, "aces_filmic" }
+                        };
+
+                        auto& hdr_opts = scn_config.light_opts.hdr;
+                        ImGui::Checkbox("Enable##HDR", &hdr_opts.enabled);
+
+                        if (!hdr_opts.enabled) { ImGui::BeginDisabled(); }
+                        ImGui::DragFloat("Exposure##HDR", &hdr_opts.exposure, 0.001f, 0.0f, 1.0f);
+                        if (const enum_type selected_item{ hdr_opts.tone_mapping_curve };
+                            ImGui::BeginCombo("Tone-Mapping Curve##HDR", item_names.find(selected_item)->second.c_str())) {
+                            for (int32_t curr_item_value{ 0 }; curr_item_value < static_cast<int32_t>(item_names.size()); ++curr_item_value) {
+                                const enum_type curr_item{ static_cast<enum_type>(curr_item_value) };
+                                const bool is_selected{ (selected_item == curr_item) };
+                                if (ImGui::Selectable(item_names.find(curr_item)->second.c_str(), is_selected)) {
+                                    // Selection changed
+                                    hdr_opts.tone_mapping_curve = static_cast<enum_type>(curr_item_value);
+                                }
+
+                                if (is_selected) {
+                                    // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+                                    ImGui::SetItemDefaultFocus();
+                                }
+                            } // for
+                            ImGui::EndCombo();
+                        }
+                        if (!hdr_opts.enabled) { ImGui::EndDisabled(); }
+                    }
+
+                    ImGui::Unindent();
                 } // Lighting Options
 
                 if (ImGui::CollapsingHeader("Infinite Plane"))
                 {
+                    ImGui::Indent();
+
                     ImGui::Checkbox("Enable##InfPlane", &scn_config.show_origin_xz_grid);
+                    const bool disabled = !scn_config.show_origin_xz_grid;
+
+                    if (disabled) { ImGui::BeginDisabled(); }
 
                     static constexpr std::array<const char*, 3> kInfPlanePatternTypeNamesMap = {
                         "Transparent Grid",
@@ -145,6 +191,10 @@ namespace triengine::gui
                             TRIENGINE_ASSERT(false);
                         }
                     }, scn_config.inf_plane_opts.plane_option);
+
+                    if (disabled) { ImGui::EndDisabled(); }
+
+                    ImGui::Unindent();
                 } // Infinite Grid Options
 
             } // Render Options

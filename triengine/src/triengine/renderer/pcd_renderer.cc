@@ -78,7 +78,8 @@ namespace triengine::renderer
         draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
 
         // Update light options in shader
-        render_ctx.light_opts->apply_to_shader(draw_shader);
+        render_ctx.light_opts->dir_light.apply_to_shader(draw_shader);
+        render_ctx.light_opts->point_light.apply_to_shader(draw_shader);
 
         // Update point size
         GLCall(::glPointSize(static_cast<GLfloat>(_point_size.value_or(1.0f/* default size */))));

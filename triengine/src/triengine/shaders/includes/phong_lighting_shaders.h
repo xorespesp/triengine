@@ -3,6 +3,9 @@
 namespace triengine::shaders::includes
 {
     static const char* const kPhongLightingShader = R"glsl(
+        //#define USE_BLINN_PHONG_SHADING
+        //#define USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING
+
         vec3 calcPhongLightInViewSpace(
             in vec3 eyeDirInView/* eye direction in view space */,
             in vec3 fragNormalInView/* fragment normal in view space */,
@@ -112,7 +115,6 @@ namespace triengine::shaders::includes
         struct DirLight
         {
             bool enabled; // enable flag
-            bool use_blinn; // use blinn-phong model
 
             vec3 color; // light color
             vec3 direction; // world-space light direction
@@ -137,41 +139,40 @@ namespace triengine::shaders::includes
             // NOTE: `w = 0.0` is used for the direction vector (translation is ignored)
             const vec3 lightDirInView = normalize(vec3(viewMat * vec4(normalize(-light.direction), 0.0)));
 
-            if (light.use_blinn) {
-                return calcBlinnPhongLightInViewSpace(
-                    eyeDirInView,
-                    fragNormalInView,
-                    lightDirInView,
-                    light.color,
-                    ambientColor,
-                    diffuseColor,
-                    specularColor,
-                    shininess,
-                    light.ambientIntensity,
-                    light.diffuseIntensity,
-                    light.specularIntensity
-                );
-            } else {
-                return calcPhongLightInViewSpace(
-                    eyeDirInView,
-                    fragNormalInView,
-                    lightDirInView,
-                    light.color,
-                    ambientColor,
-                    diffuseColor,
-                    specularColor,
-                    shininess,
-                    light.ambientIntensity,
-                    light.diffuseIntensity,
-                    light.specularIntensity
-                );
-            }
+        #if defined(USE_BLINN_PHONG_SHADING)
+            return calcBlinnPhongLightInViewSpace(
+                eyeDirInView,
+                fragNormalInView,
+                lightDirInView,
+                light.color,
+                ambientColor,
+                diffuseColor,
+                specularColor,
+                shininess,
+                light.ambientIntensity,
+                light.diffuseIntensity,
+                light.specularIntensity
+            );
+        #else // ^^^ USE_BLINN_PHONG_SHADING ^^^ / vvv !USE_BLINN_PHONG_SHADING vvv
+            return calcPhongLightInViewSpace(
+                eyeDirInView,
+                fragNormalInView,
+                lightDirInView,
+                light.color,
+                ambientColor,
+                diffuseColor,
+                specularColor,
+                shininess,
+                light.ambientIntensity,
+                light.diffuseIntensity,
+                light.specularIntensity
+            );
+        #endif // ^^^ !USE_BLINN_PHONG_SHADING ^^^
         }
 
         struct PointLight
         {
             bool enabled; // enable flag
-            bool use_blinn; // use blinn-phong model
 
             vec3 color; // light color
             vec3 position; // world-space light position
@@ -209,35 +210,35 @@ namespace triengine::shaders::includes
             const float distance = length(lightPosInView - fragPosInView);
             const float attenuation = 1.0 / (light.Kc + light.Kl * distance + light.Kq * (distance * distance));
 
-            if (light.use_blinn) {
-                return calcBlinnPhongLightInViewSpace(
-                    eyeDirInView,
-                    fragNormalInView,
-                    lightDirInView,
-                    light.color,
-                    ambientColor,
-                    diffuseColor,
-                    specularColor,
-                    shininess,
-                    light.ambientIntensity * attenuation,
-                    light.diffuseIntensity * attenuation,
-                    light.specularIntensity * attenuation
-                );
-            } else {
-                return calcPhongLightInViewSpace(
-                    eyeDirInView,
-                    fragNormalInView,
-                    lightDirInView,
-                    light.color,
-                    ambientColor,
-                    diffuseColor,
-                    specularColor,
-                    shininess,
-                    light.ambientIntensity * attenuation,
-                    light.diffuseIntensity * attenuation,
-                    light.specularIntensity * attenuation
-                );
-            }
+        #if defined(USE_BLINN_PHONG_SHADING)
+            return calcBlinnPhongLightInViewSpace(
+                eyeDirInView,
+                fragNormalInView,
+                lightDirInView,
+                light.color,
+                ambientColor,
+                diffuseColor,
+                specularColor,
+                shininess,
+                light.ambientIntensity * attenuation,
+                light.diffuseIntensity * attenuation,
+                light.specularIntensity * attenuation
+            );
+        #else // ^^^ USE_BLINN_PHONG_SHADING ^^^ / vvv !USE_BLINN_PHONG_SHADING vvv
+            return calcPhongLightInViewSpace(
+                eyeDirInView,
+                fragNormalInView,
+                lightDirInView,
+                light.color,
+                ambientColor,
+                diffuseColor,
+                specularColor,
+                shininess,
+                light.ambientIntensity * attenuation,
+                light.diffuseIntensity * attenuation,
+                light.specularIntensity * attenuation
+            );
+        #endif // ^^^ !USE_BLINN_PHONG_SHADING ^^^
         }
     )glsl";
 

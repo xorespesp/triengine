@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <string_view>
 
 namespace triengine::core
 {
@@ -16,6 +17,7 @@ namespace triengine::core
         vertex = GL_VERTEX_SHADER,
         fragment = GL_FRAGMENT_SHADER,
         geometry = GL_GEOMETRY_SHADER,
+        compute = GL_COMPUTE_SHADER,
     };
 
     class shader_program final
@@ -57,14 +59,10 @@ namespace triengine::core
 
         }; // class
 
-    private:
-        GLuint _program_id{ kInvalidProgramID }; // program id
-        std::vector<shader_object> _attached_shaders;
-        std::unordered_map<std::string, GLint> _uniforms_cache;
-
     public:
         shader_program();
         ~shader_program();
+
         shader_program(shader_program&& rhs) noexcept;
         shader_program& operator=(shader_program&& rhs) noexcept;
 
@@ -85,34 +83,80 @@ namespace triengine::core
         void use();
         void destroy() noexcept;
 
-        GLint get_uniform(const std::string& var_name) const;
+        GLint get_uniform_location(const std::string& uniform_name) const;
+        GLint get_subroutine_uniform_location(shader_object_type stage_type, const std::string& uniform_name) const;
 
         //
         // Utility uniform functions
         //
 
-        void set_uniform_int(const std::string& var_name, int value) const;
-        void set_uniform_bool(const std::string& var_name, bool value) const;
-        void set_uniform_float(const std::string& var_name, float value) const;
-        void set_uniform_vec2(const std::string& var_name, float v0, float v1) const;
-        void set_uniform_vec3(const std::string& var_name, float v0, float v1, float v2) const;
-        void set_uniform_vec4(const std::string& var_name, float v0, float v1, float v2, float v3) const;
+        const this_type& set_uniform_int(const std::string& uniform_name, int value) const;
+        const this_type& set_uniform_bool(const std::string& uniform_name, bool value) const;
+        const this_type& set_uniform_float(const std::string& uniform_name, float value) const;
+        const this_type& set_uniform_vec2(const std::string& uniform_name, float v0, float v1) const;
+        const this_type& set_uniform_vec3(const std::string& uniform_name, float v0, float v1, float v2) const;
+        const this_type& set_uniform_vec4(const std::string& uniform_name, float v0, float v1, float v2, float v3) const;
 
         // Eigen helpers
-        void set_uniform_vec2(const std::string& var_name, const Eigen::Ref<const Eigen::Vector2f>& value) const;
-        void set_uniform_vec3(const std::string& var_name, const Eigen::Ref<const Eigen::Vector3f>& value) const;
-        void set_uniform_vec4(const std::string& var_name, const Eigen::Ref<const Eigen::Vector4f>& value) const;
-        void set_uniform_mat2(const std::string& var_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const;
-        void set_uniform_mat3(const std::string& var_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const;
-        void set_uniform_mat4(const std::string& var_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const;
+        const this_type& set_uniform_vec2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector2f>& value) const;
+        const this_type& set_uniform_vec3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector3f>& value) const;
+        const this_type& set_uniform_vec4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector4f>& value) const;
+        const this_type& set_uniform_mat2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const;
+        const this_type& set_uniform_mat3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const;
+        const this_type& set_uniform_mat4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const;
+
+        // Sets the active subroutine function for a specific subroutine uniform in a given shader stage.
+        void set_active_subroutine(
+            shader_object_type stage_type,
+            const std::string& subroutine_uniform_name,
+            GLuint subroutine_function_index
+        );
+        void set_active_subroutine(
+            shader_object_type stage_type,
+            const std::string& subroutine_uniform_name,
+            const std::string& subroutine_function_name
+        );
 
     private:
-
         void _attach_shader(shader_object&& new_shader);
 
         // Build uniform variables cache after linking
         // Ref: https://stackoverflow.com/a/20417594
-        void _build_uniforms_cache();
+        void _build_uniforms_location_cache();
+
+        // Build subroutine uniform variables cache after linking
+        void _build_subroutine_uniforms_cache();
+
+    private:
+        GLuint _program_id{ kInvalidProgramID }; // program id
+        std::vector<shader_object> _attached_shaders;
+        std::unordered_map<std::string, GLint/* uniform location */> _uniforms_location_map;
+
+        ////////////////////////////////////////////////////////////////////////////////
+        // --- Subroutine Cache Members ---
+        
+        // Stores the currently selected subroutine function indices for each location, per shader stage
+        std::unordered_map<
+            GLenum/* shader stage */, 
+            std::vector<GLuint>/* index: uniform location, value: function index, size: total active subroutine uniforms in current stage */
+        > _subroutine_function_indices_vector_map;
+
+        std::unordered_map<
+            GLenum/* shader stage */, 
+            std::unordered_map<std::string/* subroutine uniform name */, GLint/* uniform location */>
+        > _subroutine_uniforms_name_location_map;
+
+        std::unordered_map<
+            GLenum/* shader stage */, 
+            std::unordered_map<std::string/* subroutine function name */, GLuint/* function index */>
+        > _subroutine_functions_name_index_map;
+
+        std::unordered_map<
+            GLenum/* shader stage */,
+            std::unordered_map<GLuint/* function index */, std::string/* subroutine function name */>
+        > _subroutine_functions_index_name_map;
+
+        ////////////////////////////////////////////////////////////////////////////////
 
     }; // class
 

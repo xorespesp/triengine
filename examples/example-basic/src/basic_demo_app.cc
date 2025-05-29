@@ -430,6 +430,10 @@ namespace gui
 
                 scn->get_render_config()->show_origin_xz_grid = true;
                 scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+                scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
+                scn->get_render_config()->light_opts.point_light.diffuseIntensity = 3.25f;
+                scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
+
                 scn->get_camera()->set_mirror_mode(false);
         
                 auto mesh_axis_frame = triangle_mesh_object::create_coordinate_frame(0.5f);
@@ -440,7 +444,7 @@ namespace gui
                 _skull_mesh = std::make_shared<triangle_mesh_object>();
                 if (triengine::io::load_triangle_mesh_from_obj(
                         rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
-                    scn->get_render_config()->enable_hdr,
+                        false,
                         *_skull_mesh
                     ))
                 {
@@ -464,7 +468,7 @@ namespace gui
                 _skull_mesh2 = std::make_shared<triangle_mesh_object>();
                 if (triengine::io::load_triangle_mesh_from_obj(
                         rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
-                    scn->get_render_config()->enable_hdr,
+                        false,
                         *_skull_mesh2
                     ))
                 {
@@ -534,11 +538,11 @@ namespace gui
                 scn->set_name("engine");
 
                 scn->get_render_config()->show_origin_xz_grid = false;
-                scn->get_render_config()->bg_color = triengine::color4_f32{ 0.8f, 0.8f, 0.8f, 1.0f };
+                scn->get_render_config()->bg_color = triengine::color4_f32{ 1.0f, 1.0f, 1.0f, 1.0f };
                 scn->get_render_config()->light_opts.point_light.enabled = false;
-                scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.25f;
-                scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.5f;
-                scn->get_render_config()->light_opts.dir_light.specularIntensity = 0.35f;
+                scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.1f;
+                scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.45f;
+                scn->get_render_config()->light_opts.dir_light.specularIntensity = 3.0f;
         
                 scn->get_camera()->set_position(triengine::vec3_f32{ 0.0f, -2.2326f, -11.1618f });
                 scn->get_camera()->set_mirror_mode(false);
@@ -547,7 +551,7 @@ namespace gui
 
                 if (triengine::io::load_triangle_mesh_from_obj(
                         rsrc_dir_path / "objects/car_engine/car_engine.obj",
-                    scn->get_render_config()->enable_hdr,
+                        false,
                         *_engine_mesh
                     ))
                 {
@@ -616,8 +620,9 @@ namespace gui
 
                 scn->get_render_config()->pcd_point_size = 5.0f;
                 scn->get_render_config()->show_origin_xz_grid = false;
-                scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 1.0f;
-                scn->get_render_config()->light_opts.dir_light.specularIntensity = 1.0f;
+                scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.1f;
+                scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 1.5f;
+                scn->get_render_config()->light_opts.dir_light.specularIntensity = 2.5f;
                 scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
         
                 auto mesh_axis_frame = triangle_mesh_object::create_coordinate_frame(0.5f);
