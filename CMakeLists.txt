@@ -36,11 +36,11 @@ if(NOT TRIENGINE_LIBRARY_NAME)
   set(TRIENGINE_LIBRARY_NAME ${TRIENGINE_PROJECT_NAME_LOWERCASE})
 endif()
 
-# 라이브러리 export 시 install(TARGETS ...)와 install(EXPORT ...)에서 사용할 EXPORT 이름. 
-# (둘이 반드시 같아야 함)
+# EXPORT name used by `install(TARGETS ...)` and `install(EXPORT ...)` when exporting the library.
+# (Both must be identical)
 set(TRIENGINE_TARGETS_EXPORT_NAME "${TRIENGINE_PROJECT_NAME}TargetsExport")
 
-# 라이브러리 export 시 생성된 config 파일들이 install될 경로.
+# Install path for the config files generated when exporting the library.
 # This works for all platforms:
 #   - <prefix>/lib*/cmake/<PROJECT-NAME>
 #   - <prefix>/lib*/
@@ -56,6 +56,7 @@ set(TRIENGINE_PROJECT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 option(TRIENGINE_BUILD_EXAMPLES "Build examples" ON)
 option(TRIENGINE_BUILD_EXTERNAL_EXAMPLES "Build external examples" OFF)
+option(TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG "Enable dynamic-debugging compile option (MSVC only)" ON)
 
 message(STATUS "--------------------------------------------------")
 message(STATUS "TRIENGINE_LIBRARY_NAME: ${TRIENGINE_LIBRARY_NAME}")
@@ -64,6 +65,7 @@ message(STATUS "TRIENGINE_CONFIG_INSTALL_DIR: ${TRIENGINE_CONFIG_INSTALL_DIR}")
 message(STATUS "TRIENGINE_PROJECT_ROOT_DIR: ${TRIENGINE_PROJECT_ROOT_DIR}")
 message(STATUS "TRIENGINE_BUILD_EXAMPLES: ${TRIENGINE_BUILD_EXAMPLES}")
 message(STATUS "TRIENGINE_BUILD_EXTERNAL_EXAMPLES: ${TRIENGINE_BUILD_EXTERNAL_EXAMPLES}")
+message(STATUS "TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG: ${TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG}")
 message(STATUS "--------------------------------------------------")
 
 ########################################################################################
@@ -121,18 +123,20 @@ if (MSVC)
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")
     
-    # Ref: https://devblogs.microsoft.com/cppblog/cpp-dynamic-debugging-full-debuggability-for-optimized-builds/#other-build-systems
-    message(STATUS "Enable MSVC dynamic-debugging globally...")
+    if (TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG)
+        # Ref: https://devblogs.microsoft.com/cppblog/cpp-dynamic-debugging-full-debuggability-for-optimized-builds/#other-build-systems
+        message(STATUS "Enable MSVC dynamic-debugging globally...")
     
-    # Pass /dynamicdeopt switch to cl.exe (requires /Zi or /Z7)
-    add_compile_options(/dynamicdeopt /Zi)
+        # Pass /dynamicdeopt switch to cl.exe (requires /Zi or /Z7)
+        add_compile_options(/dynamicdeopt /Zi)
 
-    # Pass /dynamicdeopt switch to link.exe (requires /DEBUG:FULL)
-    add_link_options(/dynamicdeopt /DEBUG:FULL)
+        # Pass /dynamicdeopt switch to link.exe (requires /DEBUG:FULL)
+        add_link_options(/dynamicdeopt /DEBUG:FULL)
 
-    # Pass /dynamicdeopt switch to lib.exe
-    string(APPEND CMAKE_STATIC_LINKER_FLAGS " /dynamicdeopt")
-    message(STATUS "CMAKE_STATIC_LINKER_FLAGS: ${CMAKE_STATIC_LINKER_FLAGS}")
+        # Pass /dynamicdeopt switch to lib.exe
+        string(APPEND CMAKE_STATIC_LINKER_FLAGS " /dynamicdeopt")
+        message(STATUS "CMAKE_STATIC_LINKER_FLAGS: ${CMAKE_STATIC_LINKER_FLAGS}")
+    endif()
 endif()
 
 ########################################################################################
@@ -146,21 +150,21 @@ endif()
 ########################################################################################
 
 if (TRIENGINE_BUILD_EXTERNAL_EXAMPLES)
-    # --- 라이브러리 install 이후 example-external 타겟 빌드 수행 (Triengine 설치 패키지의 유효성 검증 목적) ---
+    # --- Build the example-external target after installing the library (to validate the Triengine install package) ---
 
-    # configure_file 을 사용하여 템플릿으로부터 실제 빌드 스크립트 생성
-    # 생성된 파일은 빌드 디렉토리에 위치하게 됨 (CMAKE_CURRENT_BINARY_DIR)
-    set(EXTERNAL_TARGET_PATH "${TRIENGINE_PROJECT_ROOT_DIR}/example-external") # 예제 소스가 있는 하위 디렉토리명
+    # Use configure_file to generate the actual build script from the template.
+    # The generated file is placed in the build directory(CMAKE_CURRENT_BINARY_DIR).
+    set(EXTERNAL_TARGET_PATH "${TRIENGINE_PROJECT_ROOT_DIR}/example-external") # subdirectory name that holds the example sources
     set(EXTERNAL_TARGET_CMAKE_GENERATOR "${CMAKE_GENERATOR}")
     set(EXTERNAL_TARGET_CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
     configure_file(
         "${TRIENGINE_PROJECT_ROOT_DIR}/cmake/BuildExternalTarget.cmake.in" # input
         "${CMAKE_CURRENT_BINARY_DIR}/cmake/BuildExternalTarget.cmake" # output
-        @ONLY # configure 시 `@VAR@` 형식의 변수만 치환하고, `${VAR}` 형식의 변수는 그대로 유지(스크립트 실행 시 평가)하도록 하는 옵션
+        @ONLY # substitute only `@VAR@`-style variables at configure time, leaving `${VAR}`-style variables intact (evaluated when the script runs)
     )
 
-    # 설치가 완료된 후 실행될 스크립트 지정
-    # CMAKE_INSTALL_PREFIX 는 사용자가 cmake --install . --prefix <경로> 로 지정한 설치 경로
+    # Specify the script to run after installation completes.
+    # CMAKE_INSTALL_PREFIX is the install path the user specifies via cmake --install . --prefix <path>
     install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/cmake/BuildExternalTarget.cmake")
 endif() # ^^^ TRIENGINE_BUILD_EXTERNAL_EXAMPLES ^^^
 
