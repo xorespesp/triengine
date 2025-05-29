@@ -33,12 +33,9 @@ namespace triengine::visualization
             false
         );
 
-        _curr_window_size = _glctx.get_window_size();
+        _curr_frame_size = _glctx.get_window_size();
 
         _scn_renderer.create(&_glctx);
-
-        // Create main scene
-        this->add_scene();
 
         TRIENGINE_TRACE("%s() LEAVE", __func__);
         _flag_initialized = true;
@@ -149,8 +146,23 @@ namespace triengine::visualization
             : nullptr;
     }
 
+    vec2_i32 offscreen_renderer::get_frame_size() const noexcept
+    {
+        return _curr_frame_size;
+    }
+
+    void offscreen_renderer::set_frame_size(int32_t width, int32_t height)
+    {
+        if (width <= 0 || height <= 0) {
+            TRIENGINE_PANIC("Invalid frame size (%d, %d)", width, height);
+        }
+        _curr_frame_size = vec2_i32{ width, height };
+        _flag_invalidate_fbo = true;
+    }
+
     void offscreen_renderer::render(
-        image& frame_image)
+        image& frame_image,
+        const image_format_type frame_image_format)
     {
         if (_curr_scn_it == _scn_list.end()) {
             TRIENGINE_PANIC("No scenes added");
@@ -159,7 +171,7 @@ namespace triengine::visualization
 
         ::glfwSwapBuffers(_glctx.get_glfw_window());
 
-        const vec2_i32 frame_size = _curr_window_size;
+        const vec2_i32 frame_size = _curr_frame_size;
 
         this->_begin_frame();
         {
@@ -179,14 +191,18 @@ namespace triengine::visualization
         this->_end_frame();
 
         GLCall(::glBindTexture(GL_TEXTURE_2D, _fb_main.color_attachment()->buffer_id));
-        frame_image.prepare(frame_size.x(), frame_size.y(), image_format_type::bgra);
+        frame_image.prepare(frame_size.x(), frame_size.y(), frame_image_format);
+
+        // TODO: validate image format
+        const GLenum frame_image_gl_format{ static_cast<GLenum>(frame_image_format) };
         GLCall(::glGetTexImage(
-            GL_TEXTURE_2D,     /* GLenum target */
-            0,                 /* GLint level */
-            GL_BGRA,            /* GLenum format */
-            GL_UNSIGNED_BYTE,  /* GLenum type */
-            frame_image.data() /* void* pixels */
+            GL_TEXTURE_2D,         /* GLenum target */
+            0,                     /* GLint level */
+            frame_image_gl_format, /* GLenum format */
+            GL_UNSIGNED_BYTE,      /* GLenum type */
+            frame_image.data()     /* void* pixels */
         ));
+
         GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
     }
 
@@ -197,8 +213,8 @@ namespace triengine::visualization
             // invalidate framebuffer
 
             const int32_t
-                width_pixels = _curr_window_size.x(),
-                height_pixels = _curr_window_size.y();
+                frame_width_pixels = _curr_frame_size.x(),
+                frame_height_pixels = _curr_frame_size.y();
 
             if (!_fb_main.is_valid())
             {
@@ -206,8 +222,8 @@ namespace triengine::visualization
                     GL_RGBA16F,
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,
-                    width_pixels,
-                    height_pixels
+                    frame_width_pixels,
+                    frame_height_pixels
                 );
             }
             else
@@ -215,8 +231,8 @@ namespace triengine::visualization
                 // It is okay to call reallocate every frame, 
                 // as there is an internal reallocation-skip optimization implemented.
                 _fb_main.reallocate(
-                    width_pixels,
-                    height_pixels
+                    frame_width_pixels,
+                    frame_height_pixels
                 );
             }
 

@@ -41,8 +41,12 @@ namespace triengine::visualization
         std::shared_ptr<const scene> get_current_scene() const;
         std::shared_ptr<scene> get_current_scene();
 
+        vec2_i32 get_frame_size() const noexcept;
+        void set_frame_size(int32_t width, int32_t height);
+
         void render(
-            image& frame_image/* out */
+            image& frame_image/* out */,
+            image_format_type frame_image_format = image_format_type::bgra
         );
 
     private:
@@ -54,7 +58,7 @@ namespace triengine::visualization
         bool _flag_invalidate_fbo{ true };
 
         core::gl_context _glctx;
-        vec2_i32 _curr_window_size{};
+        vec2_i32 _curr_frame_size{};
 
         core::scene_renderer _scn_renderer;
         

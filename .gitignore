@@ -1,5 +1,8 @@
 ## Source: https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Vcpkg
+/dependency/vcpkg_installed/
+
 # User-specific files
 *.rsuser
 *.suo

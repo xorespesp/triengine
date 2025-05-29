@@ -2,17 +2,22 @@
 #include <cxlib/utils/logger.hh>
 #include <cxlib/utils/path_utils.hh>
 
+#include "tiny_image_viewer.hh"
+
 #include <triengine/visualization/offscreen_renderer.hh>
 #include <triengine/math/math3d.hh>
 #include <triengine/io/file_obj_loader.hh>
-
-#include <opencv2/opencv.hpp>
 
 #include <memory>
 #include <array>
 
 #include <iostream>
 #include <conio.h>
+
+#undef EXAMPLE_HAS_OPENCV
+#if defined(EXAMPLE_HAS_OPENCV)
+#  include <opencv2/opencv.hpp>
+#endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
 
 namespace gui
 {
@@ -26,29 +31,35 @@ namespace gui
         {
             CXLIB_TRACE("{}() ENTER", __func__);
 
+            const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
+
             _renderer = std::make_unique<triengine::visualization::offscreen_renderer>();
             _renderer->create_renderer(1280, 720);
+            
+            auto scn = _renderer->add_scene();
+            scn->get_render_config()->bg_color = triengine::color4_f32::all(0.0f);
+            scn->get_render_config()->bg_color.a() = 1.0f;
 
-            _scene = _renderer->add_scene();
-            _scene->get_render_config()->bg_color = triengine::color4_f32::all(0.0f);
-            _scene->get_render_config()->bg_color.a() = 0.0f;
-            _scene->get_render_config()->pcd_point_size = 2.5f;
-            _scene->get_render_config()->show_origin_xz_grid = false;
-            _scene->get_render_config()->infgrid_opts.grid_color = triengine::vec3_f32{ 1.0f, 0.0f, 0.0f };
-            _scene->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
-            _scene->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.8f;
+            scn->get_render_config()->show_origin_xz_grid = true;
+            scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+            scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
+            scn->get_render_config()->light_opts.point_light.diffuseIntensity = 3.25f;
+            scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
+            //scn->get_render_config()->light_opts.hdr.enabled = false;
+            //scn->get_render_config()->light_opts.bloom.enabled = false;
 
-            auto& scn_camera = *_scene->get_camera();
+            auto& scn_camera = *scn->get_camera();
             scn_camera.set_mirror_mode(false);
             scn_camera.set_perspective_scale_factor(1.0f);
             scn_camera.set_fovy(65.0f);
-            scn_camera.set_zoom(1.0f);
+            scn_camera.set_zoom(1.25f);
             scn_camera.set_direction(triengine::vec3_f32{ 0.744f, 0.153f, -0.651f });
             scn_camera.set_position(triengine::vec3_f32{ -1.240f, -0.847f, 1.113f });
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_triangle_mesh_from_obj(
-                    triengine_resource_dir / "objects/skull/12140_Skull_v3_L2.obj",
+                    rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
+                    false,
                     *new_obj
                 ))
             {
@@ -65,10 +76,11 @@ namespace gui
                     * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
                 new_obj->rotate(R, true);
                 new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
-                _scene->add_geometry(new_obj);
+                scn->add_geometry(new_obj);
                 _obj_texcolor_mesh = new_obj;
             }
 
+            _scene = scn;
         }
 
         void destroy()
@@ -84,6 +96,60 @@ namespace gui
         void run()
         {
             CXLIB_TRACE("{}() ENTER", __func__);
+
+#if !defined(EXAMPLE_HAS_OPENCV)
+            tiny_viewer::tiny_image_viewer viewer("Offscreen Rendering Demo", 700, 500);
+            if (!viewer.create_window()) {
+                throw std::runtime_error{ "Failed to create viewer window" };
+            }
+
+            viewer.show_window();
+            viewer.set_scale_mode(tiny_viewer::scale_mode::stretch_to_fill);
+            viewer.set_flip_axis(tiny_viewer::flip_axis::vertical);
+
+            viewer.set_resize_callback(
+                [this, &viewer](const int32_t new_width, const int32_t new_height)
+                {
+                    TRIENGINE_TRACE("viewer window resize: %dx%d", new_width, new_height);
+                    this->_renderer->set_frame_size(new_width, new_height);
+                }
+            );
+
+            viewer.set_key_callback(
+                [this, &viewer](
+                    const tiny_viewer::key_action action, 
+                    const tiny_viewer::special_key skey, 
+                    const uint32_t character_code, 
+                    const tiny_viewer::key_modifiers mods)
+                {
+                    std::stringstream dump;
+
+                    dump << "Action: " << (action == tiny_viewer::key_action::press) ? "Pressed" : "Released";
+
+                    if (skey != tiny_viewer::special_key::none) {
+                        // For a real application, you'd map special_key enum to string
+                        dump << " Special KeyCode: " << static_cast<int>(skey);
+                    }
+
+                    if (character_code != 0 && skey == tiny_viewer::special_key::none) { // Character is primary if not a special key mapped
+                        dump << " Character: '" << static_cast<char>(character_code) << "' (code: " << character_code << ")";
+                    }
+
+                    dump << " Modifiers: ";
+                    if (mods.shift) dump << "[Shift] ";
+                    if (mods.ctrl)  dump << "[Ctrl] ";
+                    if (mods.alt)   dump << "[Alt] ";
+
+                    TRIENGINE_TRACE("%s", dump.str().c_str());
+
+                    if (action == tiny_viewer::key_action::press && skey == tiny_viewer::special_key::escape) {
+                        TRIENGINE_INFO("Escape pressed!");
+                        viewer.close_window();
+                    }
+                }
+            );
+
+#endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
 
             triengine::image render_frame;
             for(bool flag_stop{ false }; !flag_stop;)
@@ -105,8 +171,12 @@ namespace gui
                     _obj_texcolor_mesh->rotate(R);
                 }
 
-                _renderer->render(render_frame);
+                _renderer->render(
+                    render_frame, 
+                    triengine::image_format_type::bgra
+                );
 
+#if defined(EXAMPLE_HAS_OPENCV)
                 cv::Mat cv_render_frame(
                     render_frame.height_pixels(),
                     render_frame.width_pixels(),
@@ -115,7 +185,6 @@ namespace gui
                     render_frame.stride_bytes()
                 );
                 cv::flip(cv_render_frame, cv_render_frame, 0);
-
                 cv::imshow("offscreen rendering", cv_render_frame);
                 switch (cv::waitKey(1)) {
                 case 'w':
@@ -129,10 +198,22 @@ namespace gui
                 default:
                     break;
                 }
-
+#else // ^^^ EXAMPLE_HAS_OPENCV ^^^ / vvv !EXAMPLE_HAS_OPENCV vvv
+                viewer.set_image(
+                    render_frame.data(),
+                    render_frame.width_pixels(),
+                    render_frame.height_pixels(),
+                    tiny_viewer::image_format::bgra
+                );
+                if (!viewer.is_open()) { flag_stop = true; }
+                viewer.process_events();
+#endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
             } // for
 
+#if defined(EXAMPLE_HAS_OPENCV)
             cv::destroyAllWindows();
+#endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
+
             CXLIB_TRACE("{}() LEAVE", __func__);
         }
 
@@ -168,7 +249,7 @@ int main(int argc, char** argv)
         .enable_async_mode()
     );
 
-    const std::filesystem::path curr_image_dir_path{ utils::get_current_module_image_path().parent_path() };
+    const std::filesystem::path curr_image_dir_path{ _CXLIB utils::get_current_module_image_path().parent_path() };
 
     int retval{ -1 };
 
