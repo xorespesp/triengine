@@ -393,7 +393,11 @@ namespace triengine::core
 
         // Update uniform function indices vector
         curr_function_indices_vec[static_cast<size_t>(uniform_location)] = subroutine_function_index;
-        GLCall(::glUniformSubroutinesuiv(stage_enum, curr_function_indices_vec.size(), curr_function_indices_vec.data()));
+        GLCall(::glUniformSubroutinesuiv(
+            stage_enum, 
+            static_cast<GLsizei>(curr_function_indices_vec.size()), 
+            curr_function_indices_vec.data())
+        );
     }
 
     void shader_program::set_active_subroutine(

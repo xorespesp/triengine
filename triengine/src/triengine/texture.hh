@@ -3,7 +3,7 @@
 #include <triengine/image.hh>
 #include <triengine/utility/noncopyable.hh>
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 
 #include <filesystem>
 

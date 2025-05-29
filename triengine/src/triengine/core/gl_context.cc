@@ -238,7 +238,8 @@ namespace triengine::core
         }
 
         ::glfwMakeContextCurrent(_glfw_window.get());
-        if (!::gladLoadGLLoader(reinterpret_cast<GLADloadproc>(::glfwGetProcAddress))) {
+
+        if (!::gladLoadGL(reinterpret_cast<GLADloadfunc>(::glfwGetProcAddress))) {
             TRIENGINE_PANIC("Failed to load GL functions");
         }
 

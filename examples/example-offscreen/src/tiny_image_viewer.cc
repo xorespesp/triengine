@@ -8,10 +8,9 @@
 #include <chrono>       
 
 #ifdef TINY_VIEWER_PLATFORM_WINDOWS
-#define NOMINMAX
-#include <windows.h>
-#include <windowsx.h> 
-#include <mutex> 
+#  include <windows.h>
+#  include <windowsx.h> 
+#  include <mutex> 
 #endif
 
 namespace tiny_viewer {

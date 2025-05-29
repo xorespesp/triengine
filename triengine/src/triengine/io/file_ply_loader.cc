@@ -3,6 +3,7 @@
 #include <triengine/utility/bit_cast.hh>
 #include <triengine/utility/progress_reporter.hh>
 #include <triengine/utility/debug_utils.hh>
+
 #include <triengine/extern/rply/rply.h>
 
 namespace triengine::io
@@ -45,8 +46,8 @@ namespace triengine::io
                     return 0;  // some sanity check
                 }
                 
-                double value = ::ply_get_argument_value(argument);
-                pstate->out_pcd->points[pstate->vertex_index](rd_index) = value;
+                const double value = ::ply_get_argument_value(argument);
+                pstate->out_pcd->points[pstate->vertex_index](rd_index) = static_cast<float>(value);
                 if (rd_index == 2) { // reading 'z' ?
                     pstate->vertex_index++;
                     if (pstate->vertex_index % 1000 == 0) {
@@ -66,8 +67,8 @@ namespace triengine::io
                     return 0;
                 }
                 
-                double value = ::ply_get_argument_value(argument);
-                pstate->out_pcd->normals[pstate->normal_index](rd_index) = value;
+                const double value = ::ply_get_argument_value(argument);
+                pstate->out_pcd->normals[pstate->normal_index](rd_index) = static_cast<float>(value);
                 if (rd_index == 2) { // reading 'nz' ?
                     pstate->normal_index++;
                 }
@@ -84,8 +85,8 @@ namespace triengine::io
                     return 0;
                 }
                 
-                double value = ::ply_get_argument_value(argument);
-                pstate->out_pcd->colors[pstate->color_index](rd_index) = value / 255.0;
+                const double value = ::ply_get_argument_value(argument);
+                pstate->out_pcd->colors[pstate->color_index](rd_index) = static_cast<float>(value / 255.0);
                 if (rd_index == 2) { // reading 'blue' ?
                     pstate->color_index++;
                 }

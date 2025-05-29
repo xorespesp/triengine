@@ -167,7 +167,7 @@ namespace triengine::renderer
         
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        _num_triangle_indices = triangle_indices.size() * triangle_index_value_type::SizeAtCompileTime;
+        _num_triangle_indices = static_cast<GLsizei>(triangle_indices.size() * triangle_index_value_type::SizeAtCompileTime);
     }
 
     void light_source_renderer::destroy_impl()

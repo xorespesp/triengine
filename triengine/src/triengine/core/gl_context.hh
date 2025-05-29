@@ -2,7 +2,7 @@
 #include <triengine/core/gpu_resource_manager.hh>
 #include <triengine/utility/noncopyable.hh>
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <string>

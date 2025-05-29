@@ -448,7 +448,7 @@ namespace triengine::io
             public:
 				bvh_parser_context(
                     std::string raw_file_content,
-					double scale_factor = 1.0)
+					[[maybe_unused]] double scale_factor = 1.0)
                     : _raw_file_content{ std::move(raw_file_content) }
                     , _tokenizer{ bvh_tokenizer_method{}, _raw_file_content }
                     , _curr_token_it{ _tokenizer.begin() }
@@ -717,8 +717,8 @@ namespace triengine::io
 					} // while
 
 					_raw_frames_data = Eigen::MatrixXd::Zero(_num_frames, _num_frame_cols);
-					for (size_t frame_row = 0; frame_row < _raw_frames_data.rows(); ++frame_row) {
-						for (size_t frame_col = 0; frame_col < _raw_frames_data.cols(); ++frame_col) {
+					for (Eigen::Index frame_row = 0; frame_row < _raw_frames_data.rows(); ++frame_row) {
+						for (Eigen::Index frame_col = 0; frame_col < _raw_frames_data.cols(); ++frame_col) {
 							_raw_frames_data(frame_row, frame_col) = this->_get_current_token_scalar<double>(true);
 						}
 						this->_expect_current_token(kLineSeperator, true);

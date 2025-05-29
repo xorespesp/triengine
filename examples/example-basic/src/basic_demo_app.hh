@@ -1,4 +1,7 @@
 #pragma once
+#include <cxlib/utils/logger.hh>
+#include <cxlib/utils/path_utils.hh>
+
 #include <triengine/global_options.hh>
 #include <triengine/visualization/visualizer.hh>
 #include <triengine/utility/noncopyable.hh>

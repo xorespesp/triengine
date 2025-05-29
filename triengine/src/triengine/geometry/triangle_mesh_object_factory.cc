@@ -550,23 +550,17 @@ namespace triengine::geometry
         const int resolution,
         const int split)
     {
-        constexpr float
-            kChildSideFrustumRadiusRatio = 0.25f;
-        
-        constexpr float
-            kFrustumHeightRatio = 0.85f,
-            kParentSideConeHeightRatio = (1.0f - kFrustumHeightRatio) * 0.6f,
-            kChildSideConeHeightRatio = 1.0f - kFrustumHeightRatio - kParentSideConeHeightRatio;
-        
-        const float
-            parent_side_frustum_radius = radius,
-            child_side_frustum_radius = radius * kChildSideFrustumRadiusRatio,
-            frustum_height = height * kFrustumHeightRatio,
-            parent_side_cone_height = height * kParentSideConeHeightRatio,
-            child_side_cone_height = height * kChildSideConeHeightRatio;
+        constexpr float kChildSideFrustumRadiusRatio = 0.25f;
+        constexpr float kFrustumHeightRatio = 0.85f;
+        constexpr float kParentSideConeHeightRatio = (1.0f - kFrustumHeightRatio) * 0.6f;
+        //constexpr float kChildSideConeHeightRatio = 1.0f - kFrustumHeightRatio - kParentSideConeHeightRatio;
 
-        const float
-            height_half = height * 0.5f;
+        const float height_half = height * 0.5f;
+        const float parent_side_frustum_radius = radius;
+        const float child_side_frustum_radius = radius * kChildSideFrustumRadiusRatio;
+        const float frustum_height = height * kFrustumHeightRatio;
+        const float parent_side_cone_height = height * kParentSideConeHeightRatio;
+        //const float child_side_cone_height = height * kChildSideConeHeightRatio;
 
         std::vector<vec3_f32> tmp_vertex_positions; {
             // Total vertices: bottom center(1) + top center(1) + rings((split+1)*resolution)

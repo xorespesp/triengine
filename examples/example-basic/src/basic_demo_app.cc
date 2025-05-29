@@ -6,7 +6,6 @@
 #include <triengine/io/file_ply_loader.hh>
 #include <triengine/io/file_bvh_loader.hh>
 
-#include <cxlib/utils/logger.hh>
 #include <cxlib/utils/debug_panic.hh>
 #include <cxlib/utils/debug_assert.hh>
 #include <cxlib/utils/scrolling_buffer.hh>
@@ -431,7 +430,7 @@ namespace gui
                 scn->get_render_config()->show_origin_xz_grid = true;
                 scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
                 scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
-                scn->get_render_config()->light_opts.point_light.diffuseIntensity = 3.25f;
+                scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.5f;
                 scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
 
                 scn->get_camera()->set_mirror_mode(false);
@@ -508,7 +507,7 @@ namespace gui
                 }
             }
             
-            void render_gui(const triengine::gui::window_render_context& render_ctx) override
+            void render_gui([[maybe_unused]] const triengine::gui::window_render_context& render_ctx) override
             {
                 ImGui::Text("main scene gui!");
             }

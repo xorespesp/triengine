@@ -5,7 +5,7 @@
 #include <triengine/geometry/lineset_object.hh>
 #include <triengine/utility/noncopyable.hh>
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <deque>
@@ -211,7 +211,7 @@ namespace triengine::core
         //       to check for GPU resources that have finished their work and can be moved back to the available pool.
         size_t collect_available_objects()
         {
-            const size_t pending_count = _pending_objects.size();
+            [[maybe_unused]] const size_t pending_count = _pending_objects.size();
             size_t collect_count{};
 
             for (

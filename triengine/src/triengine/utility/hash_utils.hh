@@ -55,7 +55,7 @@ namespace triengine::utility
     struct hash_eigen {
         std::size_t operator()(_EigenMat const& eigen_matrix) const {
             size_t hash_seed = 0;
-            for (size_t i = 0; i < eigen_matrix.size(); ++i) {
+            for (int64_t i = 0; i < eigen_matrix.size(); ++i) {
                 auto elem = *(eigen_matrix.data() + i);
                 hash_seed ^= std::hash<typename _EigenMat::Scalar>()(elem) 
                             + 0x9e3779b9 

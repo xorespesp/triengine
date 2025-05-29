@@ -1,4 +1,4 @@
-﻿#include "triangle_mesh_object.hh"
+#include "triangle_mesh_object.hh"
 
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/hash_utils.hh>
@@ -61,9 +61,9 @@ namespace triengine::geometry
         if (has_vertex_colors) { vertex_colors.resize(new_vertices_size); }
         if (new_vertices_size < old_vertices_size) {
             for (auto& triangle_indice : triangle_indices) {
-                triangle_indice(0) = old_idx_2_new_idx_map[triangle_indice(0)];
-                triangle_indice(1) = old_idx_2_new_idx_map[triangle_indice(1)];
-                triangle_indice(2) = old_idx_2_new_idx_map[triangle_indice(2)];
+                triangle_indice(0) = static_cast<int32_t>(old_idx_2_new_idx_map[triangle_indice(0)]);
+                triangle_indice(1) = static_cast<int32_t>(old_idx_2_new_idx_map[triangle_indice(1)]);
+                triangle_indice(2) = static_cast<int32_t>(old_idx_2_new_idx_map[triangle_indice(2)]);
             }
         }
 
@@ -123,9 +123,9 @@ namespace triengine::geometry
         if (has_vertex_colors) { vertex_colors.resize(new_vertices_size); }
         if (new_vertices_size < old_vertices_size) {
             for (auto& triangle_indice : triangle_indices) {
-                triangle_indice(0) = old_idx_2_new_idx_map[triangle_indice(0)];
-                triangle_indice(1) = old_idx_2_new_idx_map[triangle_indice(1)];
-                triangle_indice(2) = old_idx_2_new_idx_map[triangle_indice(2)];
+                triangle_indice(0) = static_cast<int32_t>(old_idx_2_new_idx_map[triangle_indice(0)]);
+                triangle_indice(1) = static_cast<int32_t>(old_idx_2_new_idx_map[triangle_indice(1)]);
+                triangle_indice(2) = static_cast<int32_t>(old_idx_2_new_idx_map[triangle_indice(2)]);
             }
         }
 

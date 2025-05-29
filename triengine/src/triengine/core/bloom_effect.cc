@@ -217,7 +217,7 @@ namespace triengine::core
         {
             const mip_info_t& curr_mip = _mip_chain[i];
 
-            GLCall(::glViewport(0, 0, curr_mip.size_f32.x(), curr_mip.size_f32.y()));
+            GLCall(::glViewport(0, 0, static_cast<GLsizei>(curr_mip.size_i32.x()), static_cast<GLsizei>(curr_mip.size_i32.y())));
             GLCall(::glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D,
@@ -261,7 +261,7 @@ namespace triengine::core
             GLCall(::glBindTexture(GL_TEXTURE_2D, curr_mip.texture)); // u_srcTexture
 
             // Set framebuffer render target (we write to this texture)
-            GLCall(::glViewport(0, 0, next_mip.size_f32.x(), next_mip.size_f32.y()));
+            GLCall(::glViewport(0, 0, static_cast<GLsizei>(next_mip.size_i32.x()), static_cast<GLsizei>(next_mip.size_i32.y())));
             GLCall(::glFramebufferTexture2D(GL_FRAMEBUFFER,
                 GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D,

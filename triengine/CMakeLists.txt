@@ -157,12 +157,12 @@ set(TRIENGINE_LIBRARY_HEADERS_PRIVATE
 ########################################################################################
 # glad sources
 list(APPEND TRIENGINE_LIBRARY_SOURCES
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/glad/glad.c"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/glad/gl.c"
 )
 
 # glad headers
 list(APPEND TRIENGINE_LIBRARY_HEADERS_PUBLIC
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/glad/glad.h"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/glad/gl.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/glad/KHR/khrplatform.h"
 )
 ########################################################################################
@@ -244,6 +244,12 @@ target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
     TINYOBJLOADER_IMPLEMENTATION
     NOMINMAX
 )
+
+if (MSVC)
+    message(STATUS "Adding _CRT_SECURE_NO_WARNINGS compile definition to ${TRIENGINE_LIBRARY_NAME} ...")
+    target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PRIVATE
+        _CRT_SECURE_NO_WARNINGS)
+endif()
 
 # Global includes. Used by all targets
 # Use generator expressions to specify different paths for the build tree

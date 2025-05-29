@@ -1,4 +1,4 @@
-﻿########################################
+########################################
 ##### Top-level CMake project file #####
 ########################################
 
@@ -106,10 +106,17 @@ message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 ########################################################################################
 # Library Root Compile Options
 
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_ID MATCHES "Clang")
+    # Enable all warnings and treat them as errors
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
 if (MSVC)
-    message(STATUS "Suppress MSVC warning C4819 globally...")
-    add_compile_options(/wd4819) # or `target_compile_options(my_target PRIVATE /wd4819)`
-    
+    add_compile_options(/W4)
+
+    message(STATUS "Suppress MSVC warnings C4819 C4127 globally...")
+    add_compile_options(/wd4819 /wd4127) # or `target_compile_options(my_target PRIVATE /wd4819 /wd4127)`
+
     message(STATUS "Enable MSVC /utf-8 switch globally...")
     add_compile_options("$<$<COMPILE_LANGUAGE:C>:/utf-8>")
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/utf-8>")

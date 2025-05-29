@@ -1,5 +1,5 @@
 #pragma once
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <triengine/utility/debug_utils.hh>
 
 #include <vector>

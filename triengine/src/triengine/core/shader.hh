@@ -1,7 +1,7 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/utility/noncopyable.hh>
-#include <glad/glad.h>
+#include <glad/gl.h>
 
 #include <initializer_list>
 #include <unordered_map>

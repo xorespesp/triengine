@@ -2,7 +2,7 @@
 #include <triengine/common.h>
 #include <triengine/utility/debug_utils.hh>
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 // Refs:

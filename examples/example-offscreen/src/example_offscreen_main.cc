@@ -240,7 +240,9 @@ void run_demo()
     app.destroy();
 }
 
-int main(int argc, char** argv)
+int main(
+    [[maybe_unused]] int argc, 
+    [[maybe_unused]] char** argv)
 {
     _CXLIB utils::logger::instance().init(_CXLIB utils::logger::init_options()
         .set_logger_name("example-offscreen")
