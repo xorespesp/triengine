@@ -223,6 +223,10 @@ namespace gui
             }
 
             ImGui::Text("Current Scene: %s", (*_curr_scn_it)->get_scene()->get_name().c_str());
+            if (ImGui::Button("<")) { this->switch_to_prev_scene(); }
+            ImGui::SameLine();
+            if (ImGui::Button(">")) { this->switch_to_next_scene(); }
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -721,18 +725,31 @@ namespace gui
         class bvh_scene
             : public scene_wrapper
         {
+            enum class playback_state_type
+            {
+                paused,
+                playing,
+            };
+
             struct ui_state_t
             {
                 std::unique_ptr<triengine::io::bvh_file_t> bvh_data;
                 std::unordered_map<bvh_joint_id_t/* parent */, std::vector<bvh_joint_id_t>/* childs */> hierarchy_map_cache;
 
                 int current_frame_index{ 0 };
+                float playback_speed{ 1.0f }; // speed factor
+                playback_state_type playback_state{ playback_state_type::paused };
+                bool fl_update_animation{ true };
+
                 std::optional<bvh_joint_id_t> selected_joint_id;
+                
+                std::optional<triengine::mat4_f32> offset_transform;
 
                 ui_state_t() = default;
             };
 
             ui_state_t _state;
+            std::shared_ptr<triangle_mesh_object> _origin_axis;
             std::shared_ptr<skeleton_object> _skeleton;
 
         public:
@@ -746,9 +763,31 @@ namespace gui
 
                 scn->get_render_config()->show_origin_xz_grid = true;
                 scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+                scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
+                scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.8f;
+                scn->get_render_config()->light_opts.point_light.specularIntensity = 1.5f;
+                scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.2f;
+                scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.2f;
+                scn->get_render_config()->light_opts.dir_light.specularIntensity = 0.5f;
+                scn->get_render_config()->light_opts.bloom.strength = 0.05f;
+                scn->get_render_config()->light_opts.hdr.exposure = 0.3f;
+                scn->get_render_config()->inf_plane_opts.max_view_distance = 35.0f;
 
-                auto mesh_axis_frame = triangle_mesh_object::create_coordinate_frame(0.5f);
-                scn->add_geometry(mesh_axis_frame);
+                {
+
+                    Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+                    R = Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
+                        * Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
+                        * Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
+
+                    Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
+                    Tr.block<3, 3>(0, 0) = R;
+
+                    _state.offset_transform = Tr;
+                }
+
+                _origin_axis = triangle_mesh_object::create_coordinate_frame(0.5f);
+                scn->add_geometry(_origin_axis);
 
                 {
                     _state.bvh_data = std::make_unique<triengine::io::bvh_file_t>();
@@ -773,11 +812,20 @@ namespace gui
 
             void update_animation() override
             {
-                if (_skeleton) {
-                    this->get_scene()->remove_geometry(_skeleton);
+                if (_state.fl_update_animation)
+                {
+                    if (_skeleton) {
+                        this->get_scene()->remove_geometry(_skeleton);
+                    }
+                    _skeleton = this->_create_skeleton_object_from_bvh(*_state.bvh_data, _state.bvh_data->frames[_state.current_frame_index]);
+                    if (_state.offset_transform) {
+                        _skeleton->transform(_state.offset_transform.value(), true);
+                        _origin_axis->transform(_state.offset_transform.value(), false);
+                    }
+                    this->get_scene()->add_geometry(_skeleton);
+
+                    _state.fl_update_animation = false;
                 }
-                _skeleton = this->_create_skeleton_object_from_bvh(*_state.bvh_data, _state.bvh_data->frames[_state.current_frame_index]);
-                this->get_scene()->add_geometry(_skeleton);
             }
 
             void render_gui(
@@ -789,6 +837,37 @@ namespace gui
                 }
 
                 const bvh_file_t& bvh_data = *_state.bvh_data;
+
+                //
+                // Playback handling
+                // 
+
+                if (_state.playback_state == playback_state_type::playing)
+                {
+                    using clock_type = std::chrono::high_resolution_clock;
+                    using duration_type = std::chrono::microseconds;
+
+                    thread_local clock_type::time_point tp_next_update{};
+
+                    const float default_fps = 1.0 / bvh_data.frame_time;
+                    const float scaled_fps = std::max(1.0f, default_fps * _state.playback_speed);
+
+                    const auto update_step = std::chrono::milliseconds{ static_cast<int64_t>(1000.0f / scaled_fps) };
+
+                    if (const auto tp_delta = clock_type::now() - tp_next_update;
+                        tp_delta >= update_step)
+                    {
+                        tp_next_update += (tp_delta + update_step);
+
+                        // move to next frame
+                        _state.current_frame_index = (_state.current_frame_index + 1) % bvh_data.frames.size();
+                        _state.fl_update_animation = true;
+                    }
+                }
+
+                //
+                // UI rendering
+                // 
 
                 ImGui::Text("Frame Time: %.4f seconds (%.1f FPS)"
                     , bvh_data.frame_time
@@ -803,16 +882,47 @@ namespace gui
                     return;
                 }
 
+                if (ImGui::Button("|<")) {
+                    _state.current_frame_index = 0;
+                    _state.fl_update_animation = true;
+                }
+
+                ImGui::SameLine();
+
+                if (_state.playback_state == playback_state_type::playing) {
+                    if (ImGui::Button("||")) { 
+                        _state.playback_state = playback_state_type::paused;
+                    }
+                } else {
+                    if (ImGui::Button("> ")) {
+                        _state.playback_state = playback_state_type::playing;
+                    }
+                }
+
+                ImGui::SameLine();
+
+                if (ImGui::Button(">|")) {
+                    _state.current_frame_index = _state.bvh_data->frames.size() - 1;
+                    _state.fl_update_animation = true;
+                }
+
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.7f);
-                ImGui::SliderInt("##FrameSlider"
+                if (ImGui::SliderInt("##FrameSlider"
                     , &_state.current_frame_index
                     , 0
                     , static_cast<int>(bvh_data.frames.size()) - 1
-                    , "Frame: %d"
-                );
+                    , "Frame: %d"))
+                {
+                    _state.playback_state = playback_state_type::paused;
+                    _state.fl_update_animation = true;
+                }
                 ImGui::PopItemWidth();
                 ImGui::SameLine();
                 ImGui::Text("/ %zu frames", bvh_data.frames.size());
+
+                if (ImGui::DragFloat("Playback Speed", &_state.playback_speed, 0.01f, 0.01f, 4.0f, "%.2fx")) {
+                    _state.fl_update_animation = true;
+                }
 
                 ImGui::Spacing();
 
@@ -852,7 +962,7 @@ namespace gui
                         const bvh_joint_info_t& sel_bvh_jinfo = bvh_data.joints[sel_bvh_jid];
                         const bvh_joint_data_t& sel_bvh_jdata = bvh_data.frames[_state.current_frame_index].skeleton.at(sel_bvh_jid);
 
-                        ImGui::Text("Joint Name: %s (#zu)", sel_bvh_jinfo.name.c_str(), sel_bvh_jid);
+                        ImGui::Text("Joint Name: %s (#%zu)", sel_bvh_jinfo.name.c_str(), sel_bvh_jid);
                         ImGui::Text("Joint Length: %.6f", sel_bvh_jinfo.length);
 
                         ImGui::Spacing();
@@ -928,7 +1038,7 @@ namespace gui
 
                 // Assign the correct color based on the body id
                 const auto
-                    hi_conf_color = triengine::color3_f32{ 1.0f, 1.0f, 0.0f },
+                    hi_conf_color = triengine::color3_f32{ 0.8f, 0.8f, 0.8f },
                     lo_conf_color = triengine::color3_f32{ 0.6f, 0.6f, 0.6f };
 
                 // Visualize joints

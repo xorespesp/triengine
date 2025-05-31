@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <type_traits>
 
 namespace triengine::math
@@ -24,16 +24,16 @@ namespace triengine::math
 	/**
 	 * Convert angle unit: [radian] <-> [degree]
 	 */
-	template <typename _Ty>
-	constexpr _Ty rad2deg(const _Ty rad) noexcept {
-		static_assert(std::is_floating_point_v<_Ty>, "!!");
-		return rad * static_cast<_Ty>(kRadToDeg);
+	template <typename _Scalar>
+	constexpr _Scalar rad2deg(const _Scalar rad) noexcept {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		return rad * static_cast<_Scalar>(kRadToDeg);
 	}
 
-	template <typename _Ty>
-	constexpr _Ty deg2rad(const _Ty deg) noexcept {
-		static_assert(std::is_floating_point_v<_Ty>, "!!");
-		return deg * static_cast<_Ty>(kDegToRad);
+	template <typename _Scalar>
+	constexpr _Scalar deg2rad(const _Scalar deg) noexcept {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		return deg * static_cast<_Scalar>(kDegToRad);
 	}
 
 } // namespace

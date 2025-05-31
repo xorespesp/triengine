@@ -281,11 +281,14 @@ find_package(OpenGL REQUIRED)
 include(FetchEigen)
 include(FetchGlfw)
 
+find_package(glm CONFIG REQUIRED)
+
 target_link_libraries(${TRIENGINE_LIBRARY_NAME}
     PUBLIC
         OpenGL::GL
         glfw
         Eigen3::Eigen
+        glm::glm
 )
 
 ########################################################################################

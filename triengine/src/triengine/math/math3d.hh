@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <triengine/common.h>
 #include <triengine/utility/debug_utils.hh>
 
@@ -7,6 +7,187 @@
 
 namespace triengine::math
 {
+	template <typename _Scalar>
+	static inline Eigen::Vector2<_Scalar> vec2_identity() {
+		return Eigen::Vector2<_Scalar>::Identity();
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector3<_Scalar> vec3_identity() {
+		return Eigen::Vector3<_Scalar>::Identity();
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector4<_Scalar> vec4_identity() {
+		return Eigen::Vector4<_Scalar>::Identity();
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix2<_Scalar> mat2_identity() {
+		return Eigen::Matrix2<_Scalar>::Identity();
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix3<_Scalar> mat3_identity() {
+		return Eigen::Matrix3<_Scalar>::Identity();
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> mat4_identity() {
+		return Eigen::Matrix4<_Scalar>::Identity();
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector2<_Scalar> vec2_constant(_Scalar v) {
+		return Eigen::Vector2<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector3<_Scalar> vec3_constant(_Scalar v) {
+		return Eigen::Vector3<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector4<_Scalar> vec4_constant(_Scalar v) {
+		return Eigen::Vector4<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix2<_Scalar> mat2_constant(_Scalar v) {
+		return Eigen::Matrix2<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix3<_Scalar> mat3_constant(_Scalar v) {
+		return Eigen::Matrix3<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> mat4_constant(_Scalar v) {
+		return Eigen::Matrix4<_Scalar>::Constant(v);
+	}
+
+	/**
+	 * @brief Extends an Eigen::Matrix<_Scalar, 3, 3> to an Eigen::Matrix<_Scalar, 4, 4> (no translation).
+	 * The input 3x3 matrix is copied to the top-left 3x3 block of a 4x4 identity matrix.
+	 * The rest of the 4x4 matrix remains as an identity matrix (translation (0,0,0), m(3,3)=1).
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param rotationScalePart The 3x3 matrix to extend (typically rotation or rotation/scale).
+	 * @return The extended 4x4 matrix.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::Matrix<_Scalar, 3, 3>& rotationScalePart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 3>(0, 0) = rotationScalePart;
+		return mat4;
+	}
+
+	/**
+	 * @brief Creates an Eigen::Matrix<_Scalar, 4, 4> representing only a translation.
+	 * The rotation/scale part (top-left 3x3 block) will be an identity matrix.
+	 * The rest of the 4x4 matrix remains as an identity matrix (m(3,3)=1).
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param translationPart The 3D vector for the translation part.
+	 * @return The 4x4 matrix representing only the translation.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::Vector<_Scalar, 3>& translationPart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 1>(0, 3) = translationPart;
+		return mat4;
+	}
+
+	/**
+	 * @brief Extends an Eigen::Matrix<_Scalar, 3, 3> and a translation Eigen::Vector<_Scalar, 3>
+	 * to an Eigen::Matrix<_Scalar, 4, 4>.
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param rotationScalePart The 3x3 matrix for the top-left block (rotation/scale).
+	 * @param translationPart The 3D vector for the translation part.
+	 * @return The resulting 4x4 transformation matrix.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::Matrix<_Scalar, 3, 3>& rotationScalePart,
+		const Eigen::Vector<_Scalar, 3>& translationPart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 3>(0, 0) = rotationScalePart;
+		mat4.template block<3, 1>(0, 3) = translationPart;
+		return mat4;
+	}
+
+	/**
+	 * @brief Extends an Eigen::AngleAxis<_Scalar> (rotation) to an Eigen::Matrix<_Scalar, 4, 4> (no translation).
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param rotationPart The AngleAxis rotation to extend.
+	 * @return The 4x4 matrix representing the rotation.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::AngleAxis<_Scalar>& rotationPart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
+		return mat4;
+	}
+
+	/**
+	 * @brief Extends an Eigen::AngleAxis<_Scalar> (rotation) and a translation Eigen::Vector<_Scalar, 3>
+	 * to an Eigen::Matrix<_Scalar, 4, 4>.
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param rotationPart The AngleAxis for the rotation part.
+	 * @param translationPart The 3D vector for the translation part.
+	 * @return The resulting 4x4 transformation matrix.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::AngleAxis<_Scalar>& rotationPart,
+		const Eigen::Vector<_Scalar, 3>& translationPart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
+		mat4.template block<3, 1>(0, 3) = translationPart;
+		return mat4;
+	}
+
+	/**
+	 * @brief Extends an Eigen::Quaternion<_Scalar> (rotation) to an Eigen::Matrix<_Scalar, 4, 4> (no translation).
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param rotationPart The Quaternion rotation to extend.
+	 * @return The 4x4 matrix representing the rotation.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::Quaternion<_Scalar>& rotationPart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
+		return mat4;
+	}
+
+	/**
+	 * @brief Extends an Eigen::Quaternion<_Scalar> (rotation) and a translation Eigen::Vector<_Scalar, 3>
+	 * to an Eigen::Matrix<_Scalar, 4, 4>.
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param rotationPart The Quaternion for the rotation part.
+	 * @param translationPart The 3D vector for the translation part.
+	 * @return The resulting 4x4 transformation matrix.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+		const Eigen::Quaternion<_Scalar>& rotationPart,
+		const Eigen::Vector<_Scalar, 3>& translationPart) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
+		mat4.template block<3, 1>(0, 3) = translationPart;
+		return mat4;
+	}
+
 	/**
 	 * Create 3d rotation matrix around x-axis. (right-handed)
 	 *
@@ -415,6 +596,73 @@ namespace triengine::math
 		result(2, 2) = - (zFar + zNear) / (zFar - zNear);
 		result(3, 2) = - static_cast<_Scalar>(1);
 		result(2, 3) = - (static_cast<_Scalar>(2) * zFar * zNear) / (zFar - zNear);
+
+		return result;
+	}
+
+	/**
+	 * @brief Translates a 4x4 matrix 'm' by directly adding a 3D vector 'v'
+	 * to its existing translation components (the first three elements of the last column).
+	 *
+	 * This operation modifies only the translation part of the matrix 'm'.
+	 * The translation 'v' is applied along the axes of the coordinate system
+	 * in which 'm's translation component is currently expressed (e.g., world or parent space).
+	 *
+	 * This is different from post-multiplying by a translation matrix (m * TranslationMatrix(v)),
+	 * as this function does not take into account any rotation or scaling in 'm'
+	 * when determining the direction of the added translation; it's a component-wise sum
+	 * for the translation part.
+	 *
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param m The input 4x4 matrix (passed by value, modified, and returned).
+	 * @param v The 3D translation vector to add to the matrix's translation part.
+	 * @return The 4x4 matrix with 'v' added to its translation part.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix<_Scalar, 4, 4> translate_pffset(
+		Eigen::Matrix<_Scalar, 4, 4> m, // Pass by value, as it's modified and returned
+		const Eigen::Vector<_Scalar, 3>& v) {
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		// Directly add the vector 'v' to the translation part of matrix 'm':
+		m.template block<3, 1>(0, 3) += v;
+
+		// Alternative form:
+		// m(0, 3) += v.x();
+		// m(1, 3) += v.y();
+		// m(2, 3) += v.z();
+
+		return m;
+	}
+
+	/**
+	 * @brief Translates a 4x4 matrix 'm' by a 3D vector 'v'. (Equivalent of: `glm::translate`)
+	 * This operation is equivalent to post-multiplying 'm' by a translation matrix
+	 * derived from 'v' (i.e., result = m * TranslationMatrix(v)).
+	 * The translation 'v' is applied in the coordinate system defined by 'm'.
+	 *
+	 * Ref:
+	 * glm/ext/quaternion_transform.inl
+	 * 
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param m The input 4x4 matrix to be translated.
+	 * @param v The 3D translation vector.
+	 * @return The translated 4x4 matrix.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> translate_local(
+		const Eigen::Matrix4<_Scalar>& m,
+		const Eigen::Vector3<_Scalar>& v)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		Eigen::Matrix<_Scalar, 4, 4> result = m; // Start with a copy of the input matrix
+
+		result.col(3) =
+			m.col(0) * v.x() +
+			m.col(1) * v.y() +
+			m.col(2) * v.z() +
+			m.col(3)/* * 1.0 */;
 
 		return result;
 	}

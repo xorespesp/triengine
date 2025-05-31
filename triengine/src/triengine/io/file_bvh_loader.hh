@@ -35,7 +35,7 @@ namespace triengine::io
         std::vector<bvh_joint_info_t> joints; // index == bvh joint id
         std::unordered_map<bvh_joint_id_t/* child */, bvh_joint_id_t/* parent */> joints_parent_map;
         bvh_joint_id_t root_joint_id{};
-        double frame_time{ 0.0 };
+        double frame_time{ 0.0 }; // FPS = 1 / frame_time
         std::vector<bvh_motion_frame_t> frames;
         //bvh_motion_frame_t t_pose_frame;
     };
