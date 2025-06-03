@@ -94,6 +94,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/widgets/file_browser_widget.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/log_window.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/render_stats_window.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/scene_ctrl_window.hh"
@@ -281,14 +282,11 @@ find_package(OpenGL REQUIRED)
 include(FetchEigen)
 include(FetchGlfw)
 
-find_package(glm CONFIG REQUIRED)
-
 target_link_libraries(${TRIENGINE_LIBRARY_NAME}
     PUBLIC
         OpenGL::GL
         glfw
         Eigen3::Eigen
-        glm::glm
 )
 
 ########################################################################################

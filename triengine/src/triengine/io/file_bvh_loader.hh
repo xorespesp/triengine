@@ -32,6 +32,7 @@ namespace triengine::io
 
     struct bvh_file_t
     {
+        std::string name;
         std::vector<bvh_joint_info_t> joints; // index == bvh joint id
         std::unordered_map<bvh_joint_id_t/* child */, bvh_joint_id_t/* parent */> joints_parent_map;
         bvh_joint_id_t root_joint_id{};

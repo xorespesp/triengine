@@ -8,6 +8,36 @@
 namespace triengine::math
 {
 	template <typename _Scalar>
+	static inline Eigen::Vector2<_Scalar> vec2_all(_Scalar v) {
+		return Eigen::Vector2<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector3<_Scalar> vec3_all(_Scalar v) {
+		return Eigen::Vector3<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Vector4<_Scalar> vec4_all(_Scalar v) {
+		return Eigen::Vector4<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix2<_Scalar> mat2_all(_Scalar v) {
+		return Eigen::Matrix2<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix3<_Scalar> mat3_all(_Scalar v) {
+		return Eigen::Matrix3<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> mat4_all(_Scalar v) {
+		return Eigen::Matrix4<_Scalar>::Constant(v);
+	}
+
+	template <typename _Scalar>
 	static inline Eigen::Vector2<_Scalar> vec2_identity() {
 		return Eigen::Vector2<_Scalar>::Identity();
 	}
@@ -35,36 +65,6 @@ namespace triengine::math
 	template <typename _Scalar>
 	static inline Eigen::Matrix4<_Scalar> mat4_identity() {
 		return Eigen::Matrix4<_Scalar>::Identity();
-	}
-
-	template <typename _Scalar>
-	static inline Eigen::Vector2<_Scalar> vec2_constant(_Scalar v) {
-		return Eigen::Vector2<_Scalar>::Constant(v);
-	}
-
-	template <typename _Scalar>
-	static inline Eigen::Vector3<_Scalar> vec3_constant(_Scalar v) {
-		return Eigen::Vector3<_Scalar>::Constant(v);
-	}
-
-	template <typename _Scalar>
-	static inline Eigen::Vector4<_Scalar> vec4_constant(_Scalar v) {
-		return Eigen::Vector4<_Scalar>::Constant(v);
-	}
-
-	template <typename _Scalar>
-	static inline Eigen::Matrix2<_Scalar> mat2_constant(_Scalar v) {
-		return Eigen::Matrix2<_Scalar>::Constant(v);
-	}
-
-	template <typename _Scalar>
-	static inline Eigen::Matrix3<_Scalar> mat3_constant(_Scalar v) {
-		return Eigen::Matrix3<_Scalar>::Constant(v);
-	}
-
-	template <typename _Scalar>
-	static inline Eigen::Matrix4<_Scalar> mat4_constant(_Scalar v) {
-		return Eigen::Matrix4<_Scalar>::Constant(v);
 	}
 
 	/**
@@ -619,7 +619,7 @@ namespace triengine::math
 	 * @return The 4x4 matrix with 'v' added to its translation part.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> translate_pffset(
+	static inline Eigen::Matrix<_Scalar, 4, 4> translate_offset(
 		Eigen::Matrix<_Scalar, 4, 4> m, // Pass by value, as it's modified and returned
 		const Eigen::Vector<_Scalar, 3>& v) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
@@ -668,13 +668,91 @@ namespace triengine::math
 	}
 
 	/**
-	 * Equivalent of: `glm::rotate`
+	 * @brief Rotates a 4x4 matrix 'm' around a given axis 'axis_v' by 'angle_rad'. 
+	 * (Equivalent of: `glm::rotate`)
+	 * This function manually constructs a 3x3 rotation matrix using Rodrigues' formula.
+	 * The translation part of 'm' and the last row (0,0,0,1 for affine) are preserved.
 	 * 
+	 * Ref:
+	 * glm/ext/matrix_transform.inl
+	 *
+	 * @tparam _Scalar The scalar type (e.g., float, double). Must be a floating-point type.
+	 * @param m The input 4x4 matrix to be rotated.
+	 * @param angle_rad The angle of rotation in radians.
+	 * @param axis_v The 3D vector representing the axis of rotation. Must not be a zero vector.
+	 * If it's a zero vector, the original matrix 'm' is returned.
+	 * @return The rotated 4x4 matrix.
+	 */
+	template <typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> rotate_around_axis(
+		const Eigen::Matrix4<_Scalar>& m,
+		const _Scalar angle_rad,
+		const Eigen::Vector3<_Scalar>& axis_v)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		const _Scalar norm_sq = axis_v.squaredNorm();
+		if (norm_sq < std::numeric_limits<_Scalar>::epsilon() * std::numeric_limits<_Scalar>::epsilon()) {
+			return m; // Rotation axis is zero, return original matrix
+		}
+
+		const Eigen::Vector3<_Scalar> axis_normalized = axis_v / std::sqrt(norm_sq);
+
+		const _Scalar c = std::cos(angle_rad);
+		const _Scalar s = std::sin(angle_rad);
+		const _Scalar one_minus_c = _Scalar(1) - c;
+
+		const _Scalar kx = axis_normalized.x();
+		const _Scalar ky = axis_normalized.y();
+		const _Scalar kz = axis_normalized.z();
+
+		Eigen::Matrix<_Scalar, 3, 3> Rotate;
+
+		// Rodrigues' rotation formula elements (R_ij = element at row i, col j)
+		Rotate(0, 0) = c + kx * kx * one_minus_c;
+		Rotate(0, 1) = kx * ky * one_minus_c - kz * s;
+		Rotate(0, 2) = kx * kz * one_minus_c + ky * s;
+
+		Rotate(1, 0) = ky * kx * one_minus_c + kz * s;
+		Rotate(1, 1) = c + ky * ky * one_minus_c;
+		Rotate(1, 2) = ky * kz * one_minus_c - kx * s;
+
+		Rotate(2, 0) = kz * kx * one_minus_c - ky * s;
+		Rotate(2, 1) = kz * ky * one_minus_c + kx * s;
+		Rotate(2, 2) = c + kz * kz * one_minus_c;
+
+		// Extract the top-left 3x3 part of m
+		Eigen::Matrix3<_Scalar> m_3x3 = m.template topLeftCorner<3, 3>();
+
+		// Perform the 3x3 matrix multiplication using Eigen's operator*
+		Eigen::Matrix3<_Scalar> rotated_m_3x3 = m_3x3 * Rotate;
+
+		// Assemble the final 4x4 matrix
+		Eigen::Matrix4<_Scalar> Result;
+		Result.template topLeftCorner<3, 3>() = rotated_m_3x3;
+
+		// Copy the translation part from the original matrix m
+		Result(0, 3) = m(0, 3);
+		Result(1, 3) = m(1, 3);
+		Result(2, 3) = m(2, 3);
+
+		// Set the last row for a proper affine transformation matrix
+		Result(3, 0) = _Scalar(0);
+		Result(3, 1) = _Scalar(0);
+		Result(3, 2) = _Scalar(0);
+		Result(3, 3) = _Scalar(1);
+
+		return Result;
+	}
+
+	/**
+	 * Equivalent of: `glm::rotate`
+	 *
 	 * Ref:
 	 * glm/ext/quaternion_transform.inl
 	 */
 	template<typename _Scalar>
-	static inline Eigen::Quaternion<_Scalar> rotate(
+	static inline Eigen::Quaternion<_Scalar> rotate_around_axis(
 		Eigen::Quaternion<_Scalar> const& q,
 		_Scalar const angle,
 		Eigen::Vector3<_Scalar> const& v)
@@ -701,51 +779,6 @@ namespace triengine::math
 			/*y*/Tmp.y() * Sin,
 			/*z*/Tmp.z() * Sin
 		);
-	}
-	
-	/**
-	 * Equivalent of: `glm::rotate`
-	 * 
-	 * Ref:
-	 * glm/ext/matrix_transform.inl
-	 */
-	template<typename _Scalar>
-	static inline Eigen::Matrix4<_Scalar> rotate(
-		Eigen::Matrix4<_Scalar> const& m,
-		_Scalar const angle,
-		Eigen::Vector3<_Scalar> const& v)
-	{
-		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-
-		_Scalar const 
-			a = angle,
-			c = std::cos(a),
-			s = std::sin(a);
-
-		Eigen::Vector3<_Scalar> 
-			axis(v.normalized()),
-			temp((_Scalar(1) - c) * axis);
-
-		Eigen::Matrix4<_Scalar> Rotate;
-		//Rotate[0][0] = c + temp[0] * axis[0];
-		//Rotate[0][1] = temp[0] * axis[1] + s * axis[2];
-		//Rotate[0][2] = temp[0] * axis[2] - s * axis[1];
-
-		//Rotate[1][0] = temp[1] * axis[0] - s * axis[2];
-		//Rotate[1][1] = c + temp[1] * axis[1];
-		//Rotate[1][2] = temp[1] * axis[2] + s * axis[0];
-
-		//Rotate[2][0] = temp[2] * axis[0] + s * axis[1];
-		//Rotate[2][1] = temp[2] * axis[1] - s * axis[0];
-		//Rotate[2][2] = c + temp[2] * axis[2];
-
-		Eigen::Matrix4<_Scalar> Result;
-		//Result[0] = m[0] * Rotate[0][0] + m[1] * Rotate[0][1] + m[2] * Rotate[0][2];
-		//Result[1] = m[0] * Rotate[1][0] + m[1] * Rotate[1][1] + m[2] * Rotate[1][2];
-		//Result[2] = m[0] * Rotate[2][0] + m[1] * Rotate[2][1] + m[2] * Rotate[2][2];
-		//Result[3] = m[3];
-
-		return Result;
 	}
 
 	/**

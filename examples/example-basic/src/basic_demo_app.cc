@@ -2,9 +2,11 @@
 #include "basic_demo_app.hh"
 
 #include <triengine/math/math3d.hh>
+#include <triengine/utility/bit_cast.hh>
 #include <triengine/io/file_obj_loader.hh>
 #include <triengine/io/file_ply_loader.hh>
 #include <triengine/io/file_bvh_loader.hh>
+#include <triengine/gui/widgets/file_browser_widget.hh>
 
 #include <cxlib/utils/debug_panic.hh>
 #include <cxlib/utils/debug_assert.hh>
@@ -734,23 +736,23 @@ namespace gui
             struct ui_state_t
             {
                 std::unique_ptr<triengine::io::bvh_file_t> bvh_data;
+                std::optional<triengine::mat4_f32> offset_transform;
                 std::unordered_map<bvh_joint_id_t/* parent */, std::vector<bvh_joint_id_t>/* childs */> hierarchy_map_cache;
 
                 int current_frame_index{ 0 };
-                float playback_speed{ 1.0f }; // speed factor
                 playback_state_type playback_state{ playback_state_type::paused };
-                bool fl_update_animation{ true };
-
+                float playback_speed{ 1.0f }; // speed factor
                 std::optional<bvh_joint_id_t> selected_joint_id;
+                bool fl_update_scene{ true };
                 
-                std::optional<triengine::mat4_f32> offset_transform;
-
                 ui_state_t() = default;
             };
 
             ui_state_t _state;
+            triengine::gui::widgets::file_browser_widget _file_browser;
+
             std::shared_ptr<triangle_mesh_object> _origin_axis;
-            std::shared_ptr<skeleton_object> _skeleton;
+            std::shared_ptr<skeleton_object> _bvh_skeleton;
 
         public:
             bvh_scene(
@@ -773,226 +775,243 @@ namespace gui
                 scn->get_render_config()->light_opts.hdr.exposure = 0.3f;
                 scn->get_render_config()->inf_plane_opts.max_view_distance = 35.0f;
 
-                {
-
-                    Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-                    R = Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
-                        * Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
-                        * Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
-
-                    Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
-                    Tr.block<3, 3>(0, 0) = R;
-
-                    _state.offset_transform = Tr;
-                }
-
                 _origin_axis = triangle_mesh_object::create_coordinate_frame(0.5f);
                 scn->add_geometry(_origin_axis);
 
-                {
-                    _state.bvh_data = std::make_unique<triengine::io::bvh_file_t>();
-                    if (!triengine::io::load_skeleton_from_bvh(
-                        rsrc_dir_path / "bvh/xsens-sample-walk.bvh",
-                        *_state.bvh_data
-                    )) {
-                        CXLIB_PANIC("failed to load skeletons from bvh file");
-                    }
-                    
-                    // Build(rebuild) hierarchy cache
-                    _state.hierarchy_map_cache.clear();
-                    for (const auto [child_jid, parent_jid] : _state.bvh_data->joints_parent_map) {
-                        if (child_jid == parent_jid) { continue; }
-                        _state.hierarchy_map_cache[parent_jid].push_back(child_jid);
-                    }
-
-                    _state.selected_joint_id.reset();
-                    _state.current_frame_index = 0;
-                }
+                _file_browser.register_file_filters({ "*.bvh", "*.*" });
+                _file_browser.set_active_file_filter(0);
+                _file_browser.set_cwd(rsrc_dir_path / "bvh");
             }
 
             void update_animation() override
             {
-                if (_state.fl_update_animation)
+                if (_state.fl_update_scene)
                 {
-                    if (_skeleton) {
-                        this->get_scene()->remove_geometry(_skeleton);
-                    }
-                    _skeleton = this->_create_skeleton_object_from_bvh(*_state.bvh_data, _state.bvh_data->frames[_state.current_frame_index]);
-                    if (_state.offset_transform) {
-                        _skeleton->transform(_state.offset_transform.value(), true);
-                        _origin_axis->transform(_state.offset_transform.value(), false);
-                    }
-                    this->get_scene()->add_geometry(_skeleton);
+                    if (_state.bvh_data)
+                    {
+                        if (_bvh_skeleton) {
+                            this->get_scene()->remove_geometry(_bvh_skeleton);
+                        }
 
-                    _state.fl_update_animation = false;
+                        _bvh_skeleton = this->_create_skeleton_object_from_bvh(
+                            *_state.bvh_data, 
+                            _state.bvh_data->frames[_state.current_frame_index]
+                        );
+
+                        if (_state.offset_transform) {
+                            _bvh_skeleton->transform(_state.offset_transform.value(), true);
+                            _origin_axis->transform(_state.offset_transform.value(), false);
+                        }
+
+                        this->get_scene()->add_geometry(_bvh_skeleton);
+                    }
+                    else
+                    {
+                        if (_bvh_skeleton) {
+                            this->get_scene()->remove_geometry(_bvh_skeleton);
+                        }
+                        _bvh_skeleton.reset();
+                    }
+
+                    _state.fl_update_scene = false;
                 }
             }
 
             void render_gui(
                 [[maybe_unused]] const triengine::gui::window_render_context& render_ctx) override
             {
-                if (!_state.bvh_data) {
-                    ImGui::Text("No bvh file loaded.");
-                    return;
-                }
-
-                const bvh_file_t& bvh_data = *_state.bvh_data;
-
-                //
-                // Playback handling
-                // 
-
-                if (_state.playback_state == playback_state_type::playing)
+                if (_state.bvh_data)
                 {
-                    using clock_type = std::chrono::high_resolution_clock;
-                    using duration_type = std::chrono::microseconds;
+                    const bvh_file_t& bvh_data = *_state.bvh_data;
 
-                    thread_local clock_type::time_point tp_next_update{};
-
-                    const float default_fps = 1.0 / bvh_data.frame_time;
-                    const float scaled_fps = std::max(1.0f, default_fps * _state.playback_speed);
-
-                    const auto update_step = std::chrono::milliseconds{ static_cast<int64_t>(1000.0f / scaled_fps) };
-
-                    if (const auto tp_delta = clock_type::now() - tp_next_update;
-                        tp_delta >= update_step)
+                    // Playback handling...
+                    if (_state.playback_state == playback_state_type::playing)
                     {
-                        tp_next_update += (tp_delta + update_step);
+                        using clock_type = std::chrono::high_resolution_clock;
+                        using duration_type = std::chrono::microseconds;
 
-                        // move to next frame
-                        _state.current_frame_index = (_state.current_frame_index + 1) % bvh_data.frames.size();
-                        _state.fl_update_animation = true;
+                        thread_local clock_type::time_point tp_next_update{};
+
+                        const float default_fps = static_cast<float>(1.0 / bvh_data.frame_time);
+                        const float scaled_fps = std::max(1.0f, default_fps * _state.playback_speed);
+
+                        const auto update_step = std::chrono::milliseconds{ static_cast<int64_t>(1000.0f / scaled_fps) };
+
+                        if (const auto tp_delta = clock_type::now() - tp_next_update;
+                            tp_delta >= update_step)
+                        {
+                            tp_next_update += (tp_delta + update_step);
+
+                            // move to next frame
+                            _state.current_frame_index = (_state.current_frame_index + 1) % bvh_data.frames.size();
+                            _state.fl_update_scene = true;
+                        }
                     }
-                }
 
-                //
-                // UI rendering
-                // 
-
-                ImGui::Text("Frame Time: %.4f seconds (%.1f FPS)"
-                    , bvh_data.frame_time
-                    , (bvh_data.frame_time > 0.0) ? 1.0 / bvh_data.frame_time : 0.0
-                );
-
-                ImGui::Separator();
-
-                if (bvh_data.frames.empty()) {
-                    ImGui::Text("No motion frames found.");
-                    _state.current_frame_index = 0;
-                    return;
-                }
-
-                if (ImGui::Button("|<")) {
-                    _state.current_frame_index = 0;
-                    _state.fl_update_animation = true;
-                }
-
-                ImGui::SameLine();
-
-                if (_state.playback_state == playback_state_type::playing) {
-                    if (ImGui::Button("||")) { 
-                        _state.playback_state = playback_state_type::paused;
+                    ImGui::Text("File: %s", bvh_data.name.c_str());
+                    ImGui::SameLine();
+                    if (ImGui::Button("close")) {
+                        _state = ui_state_t{};
+                        return;
                     }
-                } else {
-                    if (ImGui::Button("> ")) {
-                        _state.playback_state = playback_state_type::playing;
+
+                    ImGui::Text("Frame Time: %.4f seconds (%.1f FPS)"
+                        , bvh_data.frame_time
+                        , (bvh_data.frame_time > 0.0) ? 1.0 / bvh_data.frame_time : 0.0
+                    );
+
+                    ImGui::Separator();
+
+                    if (bvh_data.frames.empty()) {
+                        ImGui::Text("No motion frames found.");
+                        _state.current_frame_index = 0;
+                        return;
                     }
-                }
 
-                ImGui::SameLine();
-
-                if (ImGui::Button(">|")) {
-                    _state.current_frame_index = _state.bvh_data->frames.size() - 1;
-                    _state.fl_update_animation = true;
-                }
-
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.7f);
-                if (ImGui::SliderInt("##FrameSlider"
-                    , &_state.current_frame_index
-                    , 0
-                    , static_cast<int>(bvh_data.frames.size()) - 1
-                    , "Frame: %d"))
-                {
-                    _state.playback_state = playback_state_type::paused;
-                    _state.fl_update_animation = true;
-                }
-                ImGui::PopItemWidth();
-                ImGui::SameLine();
-                ImGui::Text("/ %zu frames", bvh_data.frames.size());
-
-                if (ImGui::DragFloat("Playback Speed", &_state.playback_speed, 0.01f, 0.01f, 4.0f, "%.2fx")) {
-                    _state.fl_update_animation = true;
-                }
-
-                ImGui::Spacing();
-
-                if (ImGui::CollapsingHeader("File Inspector", ImGuiTreeNodeFlags_None))
-                {
-                    // Left panel
-                    const float left_panel_width = std::max(200.0f * render_ctx.dpi_scale, ImGui::GetContentRegionAvail().x * 0.45f);
-                    ImGui::BeginChild("JointHierarchyPanel", ImVec2(left_panel_width, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
-                    {
-                        ImGui::Text("Joint Hierarchy");
-                        ImGui::Separator();
-
-                        const float indent_spacing = 8.0f * render_ctx.dpi_scale;
-                        ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, indent_spacing);
-                        this->_render_hierarchy_tree(_state.bvh_data->root_joint_id);
-                        ImGui::PopStyleVar();
+                    if (ImGui::Button("|<")) {
+                        _state.current_frame_index = 0;
+                        _state.fl_update_scene = true;
                     }
-                    ImGui::EndChild();
 
                     ImGui::SameLine();
 
-                    // Right panel
-                    ImGui::BeginChild("JointDetailsPanel", ImVec2(0, 0), true);
-                    {
-                        ImGui::Text("Selected Joint Details");
-                        ImGui::Separator();
-
-                        if (!_state.selected_joint_id) {
-                            ImGui::Text("Select a joint from the hierarchy tree.");
-                            ImGui::EndChild();
-                            return;
+                    if (_state.playback_state == playback_state_type::playing) {
+                        if (ImGui::Button("||")) {
+                            _state.playback_state = playback_state_type::paused;
                         }
-
-                        CXLIB_ASSERT(_state.selected_joint_id.value() < bvh_data.joints.size());
-
-                        const bvh_joint_id_t sel_bvh_jid = _state.selected_joint_id.value();
-                        const bvh_joint_info_t& sel_bvh_jinfo = bvh_data.joints[sel_bvh_jid];
-                        const bvh_joint_data_t& sel_bvh_jdata = bvh_data.frames[_state.current_frame_index].skeleton.at(sel_bvh_jid);
-
-                        ImGui::Text("Joint Name: %s (#%zu)", sel_bvh_jinfo.name.c_str(), sel_bvh_jid);
-                        ImGui::Text("Joint Length: %.6f", sel_bvh_jinfo.length);
-
-                        ImGui::Spacing();
-                        ImGui::Text("BVH Euler Angles (%s, deg):", sel_bvh_jinfo.bvh_euler_axis_order.c_str()); {
-                            ImGui::Indent();
-                            const auto& angles = sel_bvh_jdata.bvh_euler_angels;
-                            ImGui::Text("[%.6f, %.6f, %.6f]", angles.x(), angles.y(), angles.z());
-                            ImGui::Unindent();
-                        }
-
-                        ImGui::Spacing();
-                        ImGui::Text("World Position:"); {
-                            ImGui::Indent();
-                            const auto& pos = sel_bvh_jdata.world_position;
-                            ImGui::Text("[%.6f, %.6f, %.6f]", pos.x(), pos.y(), pos.z());
-                            ImGui::Unindent();
-                        }
-
-                        ImGui::Spacing();
-                        ImGui::Text("World Rotation:"); {
-                            ImGui::Indent();
-                            const auto& R = sel_bvh_jdata.world_rotation;
-                            ImGui::Text("[%.6f, %.6f, %.6f]", R(0, 0), R(0, 1), R(0, 2));
-                            ImGui::Text("[%.6f, %.6f, %.6f]", R(1, 0), R(1, 1), R(1, 2));
-                            ImGui::Text("[%.6f, %.6f, %.6f]", R(2, 0), R(2, 1), R(2, 2));
-                            ImGui::Unindent();
+                    } else {
+                        if (ImGui::Button("> ")) {
+                            _state.playback_state = playback_state_type::playing;
                         }
                     }
-                    ImGui::EndChild();
-                } // collapsing header
+
+                    ImGui::SameLine();
+
+                    if (ImGui::Button(">|")) {
+                        _state.current_frame_index = static_cast<int>(_state.bvh_data->frames.size() - 1);
+                        _state.fl_update_scene = true;
+                    }
+
+                    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.7f);
+                    if (ImGui::SliderInt("##FrameSlider"
+                        , &_state.current_frame_index
+                        , 0
+                        , static_cast<int>(bvh_data.frames.size()) - 1
+                        , "Frame: %d"))
+                    {
+                        _state.playback_state = playback_state_type::paused;
+                        _state.fl_update_scene = true;
+                    }
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+                    ImGui::Text("/ %zu frames", bvh_data.frames.size());
+
+                    if (ImGui::DragFloat("Playback Speed", &_state.playback_speed, 0.01f, 0.01f, 4.0f, "%.2fx")) {
+                        _state.fl_update_scene = true;
+                    }
+
+                    ImGui::Spacing();
+
+                    if (ImGui::CollapsingHeader("BVH File Inspector", ImGuiTreeNodeFlags_None))
+                    {
+                        // Left panel
+                        const float left_panel_width = std::max(200.0f * render_ctx.dpi_scale, ImGui::GetContentRegionAvail().x * 0.45f);
+                        ImGui::BeginChild("JointHierarchyPanel", ImVec2(left_panel_width, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
+                        {
+                            ImGui::Text("Joint Hierarchy");
+                            ImGui::Separator();
+
+                            const float indent_spacing = 8.0f * render_ctx.dpi_scale;
+                            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, indent_spacing);
+                            this->_render_hierarchy_tree(_state.bvh_data->root_joint_id);
+                            ImGui::PopStyleVar();
+                        }
+                        ImGui::EndChild();
+
+                        ImGui::SameLine();
+
+                        // Right panel
+                        ImGui::BeginChild("JointDetailsPanel", ImVec2(0, 0), true);
+                        {
+                            ImGui::Text("Selected Joint Details");
+                            ImGui::Separator();
+
+                            if (!_state.selected_joint_id) {
+                                ImGui::Text("Select a joint from the hierarchy tree.");
+                                ImGui::EndChild();
+                                return;
+                            }
+
+                            CXLIB_ASSERT(_state.selected_joint_id.value() < bvh_data.joints.size());
+
+                            const bvh_joint_id_t sel_bvh_jid = _state.selected_joint_id.value();
+                            const bvh_joint_info_t& sel_bvh_jinfo = bvh_data.joints[sel_bvh_jid];
+                            const bvh_joint_data_t& sel_bvh_jdata = bvh_data.frames[_state.current_frame_index].skeleton.at(sel_bvh_jid);
+
+                            ImGui::Text("Joint Name: %s (#%zu)", sel_bvh_jinfo.name.c_str(), sel_bvh_jid);
+                            ImGui::Text("Joint Length: %.6f", sel_bvh_jinfo.length);
+
+                            ImGui::Spacing();
+                            ImGui::Text("BVH Euler Angles (%s, deg):", sel_bvh_jinfo.bvh_euler_axis_order.c_str()); {
+                                ImGui::Indent();
+                                const auto& angles = sel_bvh_jdata.bvh_euler_angels;
+                                ImGui::Text("[%.6f, %.6f, %.6f]", angles.x(), angles.y(), angles.z());
+                                ImGui::Unindent();
+                            }
+
+                            ImGui::Spacing();
+                            ImGui::Text("World Position:"); {
+                                ImGui::Indent();
+                                const auto& pos = sel_bvh_jdata.world_position;
+                                ImGui::Text("[%.6f, %.6f, %.6f]", pos.x(), pos.y(), pos.z());
+                                ImGui::Unindent();
+                            }
+
+                            ImGui::Spacing();
+                            ImGui::Text("World Rotation:"); {
+                                ImGui::Indent();
+                                const auto& R = sel_bvh_jdata.world_rotation;
+                                ImGui::Text("[%.6f, %.6f, %.6f]", R(0, 0), R(0, 1), R(0, 2));
+                                ImGui::Text("[%.6f, %.6f, %.6f]", R(1, 0), R(1, 1), R(1, 2));
+                                ImGui::Text("[%.6f, %.6f, %.6f]", R(2, 0), R(2, 1), R(2, 2));
+                                ImGui::Unindent();
+                            }
+                        }
+                        ImGui::EndChild();
+                    } // collapsing header
+                }
+                else //if (!_state.bvh_data)
+                {
+                    ImGui::Text("Select BVH file to play...");
+
+                    if (_file_browser.show())
+                    {
+                        _state.bvh_data = std::make_unique<triengine::io::bvh_file_t>();
+                        if (!triengine::io::load_skeleton_from_bvh(
+                            _file_browser.get_selected_path(),
+                            *_state.bvh_data
+                        )) {
+                            CXLIB_PANIC("failed to load skeletons from bvh file");
+                        }
+
+                        // Build(rebuild) hierarchy cache
+                        _state.hierarchy_map_cache.clear();
+                        for (const auto [child_bvh_jid, parent_bvh_jid] : _state.bvh_data->joints_parent_map) {
+                            if (child_bvh_jid == parent_bvh_jid) { continue; }
+                            _state.hierarchy_map_cache[parent_bvh_jid].push_back(child_bvh_jid);
+                        }
+
+                        Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+                        R = Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
+                            * Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
+                            * Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
+                        Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
+                        Tr.block<3, 3>(0, 0) = R;
+                        _state.offset_transform = Tr;
+
+                        _state.fl_update_scene = true;
+                    }
+                }
             }
 
         private:
@@ -1004,14 +1023,16 @@ namespace gui
                 const bool has_children = _state.hierarchy_map_cache.count(bvh_jid) && _state.hierarchy_map_cache.at(bvh_jid).size() > 0;
                 const auto& bvh_jinfo = _state.bvh_data->joints[bvh_jid];
 
-                char node_label[256];
-                snprintf(node_label, sizeof(node_label), "%s (#%zu)", bvh_jinfo.name.c_str(), bvh_jid);
-
                 ImGuiTreeNodeFlags tree_node_flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
                 if (_state.selected_joint_id == bvh_jid) { tree_node_flags |= ImGuiTreeNodeFlags_Selected; }
                 if (!has_children) { tree_node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; }
 
-                bool open_tree_node = ImGui::TreeNodeEx((void*)(intptr_t)bvh_jid, tree_node_flags, "%s", node_label);
+                bool open_tree_node = ImGui::TreeNodeEx(triengine::utility::bit_cast<void*>(bvh_jid), tree_node_flags, 
+                    "%s (#%zu)"
+                    , bvh_jinfo.name.c_str()
+                    , bvh_jid
+                );
+
                 if (!has_children) {
                     open_tree_node = false; // If there are no children (Leaf), TreeNodeEx only displays the contents and does not open.
                 }
@@ -1034,40 +1055,36 @@ namespace gui
             {
                 constexpr double kScaleCM2M = 0.01;
 
-                auto new_skeleton = skeleton_object::create();
+                std::vector<triengine::geometry::skeleton_joint_info_t> skeleton_joints;
+                skeleton_joints.resize(bvh_frame.skeleton.size());
 
-                // Assign the correct color based on the body id
-                const auto
-                    hi_conf_color = triengine::color3_f32{ 0.8f, 0.8f, 0.8f },
-                    lo_conf_color = triengine::color3_f32{ 0.6f, 0.6f, 0.6f };
-
-                // Visualize joints
                 for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
                 {
-                    new_skeleton->add_joint(
-                        (bvh_jdata.world_position * kScaleCM2M).cast<float>(),
-                        bvh_jdata.world_rotation.cast<float>(),
-                        hi_conf_color
-                    );
+                    skeleton_joints.at(static_cast<size_t>(bvh_jid)) = triengine::geometry::skeleton_joint_info_t{
+                        (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval(),
+                        bvh_jdata.world_rotation.cast<float>().eval(),
+                        triengine::color3_f32{ 0.8f, 0.8f, 0.8f }
+                    };
                 }
 
-                // Visualize bones
-                for (const auto [child_jid, parent_jid] : bvh_file.joints_parent_map)
+                std::vector<triengine::geometry::skeleton_bone_info_t> skeleton_bones;
+                skeleton_bones.reserve(bvh_frame.skeleton.size());
+
+                for (const auto [child_bvh_jid, parent_bvh_jid] : bvh_file.joints_parent_map)
                 {
-                    if (child_jid == parent_jid) { continue; }
+                    if (child_bvh_jid == parent_bvh_jid) { continue; }
 
-                    const auto
-                        & child_jdata = bvh_frame.skeleton.at(child_jid), 
-                        & parent_jdata = bvh_frame.skeleton.at(parent_jid);
-
-                    new_skeleton->add_bone(
-                        (child_jdata.world_position * kScaleCM2M).cast<float>(),
-                        (parent_jdata.world_position * kScaleCM2M).cast<float>(),
-                        hi_conf_color
+                    skeleton_bones.emplace_back(
+                        &skeleton_joints.at(static_cast<size_t>(child_bvh_jid))/* from_joint */,
+                        &skeleton_joints.at(static_cast<size_t>(parent_bvh_jid))/* to_joint */,
+                        triengine::color3_f32{ 0.8f, 0.8f, 0.8f }/* color */
                     );
                 }
 
-                return new_skeleton;
+                return skeleton_object::create(
+                    skeleton_joints,
+                    skeleton_bones
+                );
             }
 
         }; // class

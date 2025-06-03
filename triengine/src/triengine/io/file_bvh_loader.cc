@@ -17,41 +17,47 @@
 #include <list>
 
 /*
+BVH File Format Ref: https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/BVH.html
+
 ## BVH 모션 계산 과정
 
 BVH 파일에서 각 관절의 최종 월드 변환은 부모 관절의 변환에 자신의 로컬 변환(오프셋 + 애니메이션된 회전/이동)을 순차적으로 곱해나가는 방식으로 계산된다.
 관절 `J`의 월드 변환 행렬 $M_{world}^J$ 는 다음과 같이 표현될 수 있다:
 
-1.  Root Joint:
+### 1. Root Joint:
 	$M_{world}^{Root} = T_{anim}^{Root} \times M_{offset}^{Root} \times R_{anim}^{Root}$
 	> $T_{anim}^{Root}$: 루트 관절의 애니메이션된 이동 변환 (주로 X, Y, Z Position 채널 데이터로부터 계산)
 	> $M_{offset}^{Root}$: 루트 관절의 정적 오프셋 변환 (HIERARCHY의 OFFSET 값으로부터 계산, 일반적으로 루트는 (0,0,0)이지만 아닐 수도 있음)
 	> $R_{anim}^{Root}$: 루트 관절의 애니메이션된 회전 변환 (X, Y, Z Rotation 채널 데이터로부터 계산, 채널 순서에 따름)
 
-2.  Child Joint:
+### 2. Child Joint:
 	$M_{world}^J = M_{world}^{Parent(J)} \times M_{offset}^J \times R_{anim}^J$
 	> $M_{world}^{Parent(J)}$: 부모 관절의 월드 변환 행렬.
 	> $M_{offset}^J$: 현재 관절 `J`의 부모 관절로부터의 정적 오프셋 변환.
 	> $R_{anim}^J$: 현재 관절 `J`의 애니메이션된 회전 변환. (일반적으로 자식 관절은 위치 채널을 갖지 않으므로 $T_{anim}^J$는 단위 행렬로 간주된다. 
 	>               만약 자식 관절도 위치 채널을 갖는다면 $M_{offset}^J \times T_{anim}^J \times R_{anim}^J$ 순서로 곱해질 수 있지만, 
 	>               일반적으로는 자식 관절은 위치 채널을 갖지 않고 회전 채널만 갖는다.
+	>               위치 채널을 가지는 자식 관절의 계산 공식: $M_world^J = ((M_world^{Parent(J)} * M_offset^J) * T_{anim}^J) * R_anim^J$
 
-> NOTE: 행렬 곱셈은 오른쪽에서 왼쪽 순서로 적용된다. (예를 들어 $A \times B \times C$ 라면, $C$ 변환 후 $B$ 변환 후 $A$ 변환이 적용됨)
+> NOTE: 행렬 곱셈은 오른쪽에서 왼쪽 순서로 적용됨에 주의 (예를 들어 $A \times B \times C$ 라면, $C$ 변환 후 $B$ 변환 후 $A$ 변환이 적용됨)
 
 
-## BVH에서 조인트의 HIREARCHY(루트/자식 관절)과 T-Pose(기본 자세 정의) 간의 상관관계
+## BVH에서 루트/자식 조인트의 회전과 T-Pose 간의 상관관계
 
-BVH 파일에서 루트 관절 또는 자식 관절의 회전값(MOTION 섹션)과 HIERARCHY 섹션에 정의된 T-Pose(또는 Bind Pose, Rest Pose)는 다음과 같은 상관관계를 갖는다:
+BVH 파일에서 루트/자식 조인트의 회전값(MOTION 섹션)과 HIERARCHY 섹션에 정의된 T-Pose(또는 Bind Pose, Rest Pose)는 다음과 같은 상관관계를 갖는다:
 
 ### 1. HIERARCHY 섹션과 T-Pose
 	- HIERARCHY 섹션의 OFFSET: 
 	  이 값들은 각 관절의 기본 자세(T-Pose)에서의 상대적인 위치와 방향을 결정한다.
+
 	- 루트(ROOT) 관절의 OFFSET: 
 	  월드 좌표계 원점 (0,0,0)을 기준으로 루트 관절의 T-Pose 시 위치를 정의한다. 대부분 (0,0,0)이지만, 캐릭터 전체가 특정 위치에서 시작하도록 오프셋을 가질 수도 있다.
+
 	- 자식(JOINT) 관절의 OFFSET: 
 	  부모 관절의 피봇(pivot) 지점을 기준으로 해당 자식 관절의 T-Pose 시 위치를 정의한다.
 	  이 오프셋들이 연결되어 팔다리 등의 골격 형태를 이룬다. 예를 들어, 어깨 관절의 오프셋은 가슴 관절로부터 팔이 시작되는 위치, 
 	  팔꿈치 관절의 오프셋은 어깨 관절로부터 팔꿈치까지의 팔뚝 방향과 길이를 결정한다.
+
 	- T-Pose에서의 회전: 
 	  HIERARCHY 섹션만으로는 각 관절의 "초기 회전"을 직접적으로 명시하지 않는다.
 	  OFFSET을 통해 부모로부터 자식으로 이어지는 뼈대(bone)의 방향이 결정될 뿐, 이 T-Pose 상태에서는 MOTION 섹션의 모든 회전 채널 값은 0이라고 가정한다.
@@ -513,8 +519,11 @@ namespace triengine::io
 						this->set_policy(bvh_tokenizer_policy_type::handle_line_seperators);
 					}
 
-					void set_policy(bvh_tokenizer_policy_type new_policy)
-					{
+					bvh_tokenizer_policy_type get_policy() const noexcept {
+						return _policy;
+					}
+
+					void set_policy(bvh_tokenizer_policy_type new_policy) {
 						_policy = new_policy;
 						switch (_policy) {
 						case bvh_tokenizer_policy_type::handle_line_seperators:
@@ -526,7 +535,7 @@ namespace triengine::io
 							this->keep_delims().erase(kLineSeperator);
 							break;
 						default:
-							// TODO: throw error
+                            TRIENGINE_PANIC("Invalid bvh_tokenizer_policy_type");
 							break;
 						}
 					}
@@ -622,6 +631,16 @@ namespace triengine::io
 					return _raw_frames_data;
 				}
 
+				Eigen::Ref<const Eigen::MatrixXd> extract_joint_channel_data(
+					bvh_hierarchy_node_ptr joint_node) const
+				{
+					const auto [start_col, end_col] = joint_node->get_frame_col_range();
+					return _raw_frames_data.middleCols(
+						static_cast<Eigen::Index>(start_col),
+						static_cast<Eigen::Index>(end_col - start_col)
+					);
+				}
+
 				std::vector<Eigen::Vector3d> extract_root_joint_positions() const
 				{
 					const auto channel_types = _root_joint_node->get_channel_types();
@@ -632,11 +651,11 @@ namespace triengine::io
 						y_pos_col = std::string::npos,
 						z_pos_col = std::string::npos;
 
-					for (size_t i = 0; i < channel_types.size(); ++i) {
-						switch (channel_types[i]) {
-						case bvh_channel_type::x_position: x_pos_col = start_col + i; break;
-						case bvh_channel_type::y_position: y_pos_col = start_col + i; break;
-						case bvh_channel_type::z_position: z_pos_col = start_col + i; break;
+					for (size_t channel_idx = 0; channel_idx < channel_types.size(); ++channel_idx) {
+						switch (channel_types[channel_idx]) {
+						case bvh_channel_type::x_position: x_pos_col = start_col + channel_idx; break;
+						case bvh_channel_type::y_position: y_pos_col = start_col + channel_idx; break;
+						case bvh_channel_type::z_position: z_pos_col = start_col + channel_idx; break;
 						default: break;
 						}
 					}
@@ -666,18 +685,18 @@ namespace triengine::io
 
 					std::array<size_t, 3> euler_angle_cols{ std::string::npos, };
 					std::string euler_axis_order;
-					for (size_t i = 0; i < channel_types.size(); ++i) {
-						switch (channel_types[i]) {
+					for (size_t channel_idx = 0; channel_idx < channel_types.size(); ++channel_idx) {
+						switch (channel_types[channel_idx]) {
 						case bvh_channel_type::x_rotation:
-							euler_angle_cols.at(euler_axis_order.size()) = start_col + i; // x_rot_col
+							euler_angle_cols.at(euler_axis_order.size()) = start_col + channel_idx; // x_rot_col
 							euler_axis_order.push_back('X');
 							break;
 						case bvh_channel_type::y_rotation:
-							euler_angle_cols.at(euler_axis_order.size()) = start_col + i; // y_rot_col
+							euler_angle_cols.at(euler_axis_order.size()) = start_col + channel_idx; // y_rot_col
 							euler_axis_order.push_back('Y');
 							break;
 						case bvh_channel_type::z_rotation:
-							euler_angle_cols.at(euler_axis_order.size()) = start_col + i; // z_rot_col
+							euler_angle_cols.at(euler_axis_order.size()) = start_col + channel_idx; // z_rot_col
 							euler_axis_order.push_back('Z'); 
 							break;
 						default:
@@ -748,16 +767,25 @@ namespace triengine::io
 
 							std::vector<bvh_channel_type> node_channel_types;
 							node_channel_types.resize(this->_get_current_token_scalar<size_t>(true));
-							for (size_t i = 0; i < node_channel_types.size(); ++i) {
+							for (size_t channel_idx = 0; channel_idx < node_channel_types.size(); ++channel_idx) {
 								const auto channel_type = try_parse_bvh_channel_type(this->_get_current_token(true));
 								if (!channel_type) { throw std::runtime_error{ "Failed to parse BVH channel type" }; }
-								node_channel_types[i] = channel_type.value();
+								node_channel_types[channel_idx] = channel_type.value();
+							}
+
+							// validate node channel types
+							if (node_channel_types.end() != std::adjacent_find(node_channel_types.begin(), node_channel_types.end())) {
+								throw std::runtime_error{ "BVH node cannot have duplicate channel types" };
 							}
 
 							if (is_root_node) {
-								// TODO: validate node channel types...
+								if (node_channel_types.size() != 6) {
+									throw std::runtime_error{ "Root node must have 6 channels (3 position + 3 rotation)" };
+                                }
 							} else {
-								// TODO: validate node channel types...
+								if (node_channel_types.size() != 3) {
+									throw std::runtime_error{ "Child node must have 3 rotation channels" };
+                                }
 							}
 
 							auto curr_node = this->_allocate_bvh_hierarchy_node(
@@ -970,8 +998,6 @@ namespace triengine::io
 
 			using joints_euler_angles_map_t = std::unordered_map<bvh_hierarchy_node_ptr, std::vector<Eigen::Vector3d>>;
 			using joints_euler_axis_order_map_t = std::unordered_map<bvh_hierarchy_node_ptr, std::string>;
-			using joints_world_rotation_map_t = std::unordered_map<bvh_hierarchy_node_ptr, std::vector<Eigen::Matrix3d>>;
-			using joints_world_position_map_t = std::unordered_map<bvh_hierarchy_node_ptr, std::vector<Eigen::Vector3d>>;
 
         public:
             bvh_file_parser() = default;
@@ -992,8 +1018,6 @@ namespace triengine::io
                 _parser_ctx = std::make_unique<bvh_parser_context>(bvh_file_content);
 				TRIENGINE_TRACE("Parser dump info:\n%s", _parser_ctx->dump().c_str());
 
-				// Eigen issue: https://gitlab.com/libeigen/eigen/-/issues/1806
-
 				joints_euler_angles_map_t joints_euler_angles_map;
 				joints_euler_axis_order_map_t joints_euler_axis_order_map;
 				for (const auto& node_ptr : _parser_ctx->ordered_joint_nodes()) {
@@ -1005,15 +1029,10 @@ namespace triengine::io
 					joints_euler_axis_order_map[node_ptr] = std::move(euler_axis_order);
 				}
 
-				const auto [
-					joints_world_rotations_map, 
-					joints_world_positions_map
-				] = this->_calculate_joints_world_transforms(
-					joints_euler_angles_map, 
-					joints_euler_axis_order_map
-				);
+				const auto joints_world_transform_map = this->_calculate_joints_world_transformation();
 
 				bvh_file_t result;
+				result.name = bvh_file_abs_path.stem().string();
 
 				// fill joints info
 				std::unordered_map<bvh_hierarchy_node_ptr, bvh_joint_id_t> bvh_jid_map;
@@ -1038,15 +1057,25 @@ namespace triengine::io
 
 				// fill frames
 				result.frames.reserve(_parser_ctx->num_frames());
-				for (size_t frame_idx = 0; frame_idx < _parser_ctx->num_frames(); ++frame_idx) {
+				for (size_t frame_idx = 0; frame_idx < _parser_ctx->num_frames(); ++frame_idx)
+				{
 					bvh_motion_frame_t new_bvh_frame;
-					for (const auto& [joint_node, bvh_jid] : bvh_jid_map) {
-						bvh_joint_data_t& new_bvh_jdata = new_bvh_frame.skeleton[bvh_jid];
-						new_bvh_jdata.joint_id = bvh_jid;
-						new_bvh_jdata.bvh_euler_angels = joints_euler_angles_map.at(joint_node)[frame_idx];
-						new_bvh_jdata.world_rotation = joints_world_rotations_map.at(joint_node)[frame_idx];
-						new_bvh_jdata.world_position = joints_world_positions_map.at(joint_node)[frame_idx];
+					for (const auto& [curr_joint_node, curr_bvh_jid] : bvh_jid_map)
+					{
+						bvh_joint_data_t& new_bvh_jdata = new_bvh_frame.skeleton[curr_bvh_jid];
+						new_bvh_jdata.joint_id = curr_bvh_jid;
+						new_bvh_jdata.bvh_euler_angels = joints_euler_angles_map.at(curr_joint_node)[frame_idx];
+
+						// 현재 프레임에서 현재 관절의 최종 계산된 world transformation 행렬 조희
+						const Eigen::Matrix4d& curr_joint_world_tm = joints_world_transform_map.at(curr_joint_node)[frame_idx];
+
+						// world transformation 행렬에서 world translation(월드 위치) 추출
+						new_bvh_jdata.world_position = curr_joint_world_tm.block<3, 1>(0, 3); // extract 3x1 translation from 4x4 matrix
+
+						// world transformation 행렬에서 world rotation 추출
+						new_bvh_jdata.world_rotation = curr_joint_world_tm.block<3, 3>(0, 0); // extract 3x3 rotation from 4x4 matrix
 					}
+
 					result.frames.emplace_back(new_bvh_frame);
 				}
 
@@ -1087,11 +1116,7 @@ namespace triengine::io
         private:
 
 			/** Enumeration class for axis */
-			enum class Axis {
-				X,
-				Y,
-				Z
-			};
+			enum class Axis { X, Y, Z };
 
 			/** 
 			 * Create rotation matrix (right-handed)
@@ -1100,7 +1125,7 @@ namespace triengine::io
 			 * @return  The rotation matrix
 			 */
 			template <typename _Scalar>
-			Eigen::Matrix4<_Scalar> mat4_rotation(_Scalar angle_rad, Axis axis) const
+			static inline Eigen::Matrix4<_Scalar> mat4_rotation(_Scalar angle_rad, Axis axis)
 			{
 				Eigen::Matrix4<_Scalar> M = Eigen::Matrix4<_Scalar>::Identity();
 
@@ -1149,119 +1174,97 @@ namespace triengine::io
 			 *  @return  The rotation matrix
 			 */
 			template <typename _Scalar>
-			Eigen::Matrix4<_Scalar> rotate(Eigen::Matrix4<_Scalar> M, _Scalar angle_rad, Axis axis) const {
+			static inline Eigen::Matrix4<_Scalar> rotate(Eigen::Matrix4<_Scalar> M, _Scalar angle_rad, Axis axis) {
 				return M * mat4_rotation(angle_rad, axis);
 			}
 
-			auto _calculate_joints_world_transforms(
-				const joints_euler_angles_map_t& joints_euler_angles_map,
-				const joints_euler_axis_order_map_t& joints_euler_axis_order_map
-			) const -> std::pair<joints_world_rotation_map_t, joints_world_position_map_t>
+			void _calculate_joint_local_transformation(
+				const bvh_hierarchy_node_ptr joint_node,
+				const Eigen::Ref<const Eigen::RowVectorXd> joint_frame_channel_data,
+				Eigen::Matrix4d& joint_local_position_tm/* out */,
+				Eigen::Matrix4d& joint_local_rotation_tm/* out */) const
 			{
-				/*
-				// recalculate bvh joint's local transformation matrix
-				void Bvh::recalculate_joints_ltm(std::shared_ptr<Joint> start_joint)
+				const auto& joint_channel_types = joint_node->get_channel_types();
+                TRIENGINE_ASSERT(!joint_channel_types.empty());
+
+				if (static_cast<size_t>(joint_frame_channel_data.cols()) != joint_channel_types.size()) {
+					TRIENGINE_PANIC("Invalid joint frame channel data cols: expected %zu, got %zu"
+						, joint_channel_types.size()
+						, joint_frame_channel_data.cols()
+					);
+                }
+
+				// 주어진 조인트 프레임의 로컬 이동 transformation 행렬 ($T_anim^J$, 루트 조인트 계산에만 사용)
+				joint_local_position_tm = math::mat4_identity<double>(); // 단위행렬로 초기화
+
+				// 주어진 조인트 프레임의 로컬 회전 transformation 행렬 ($R_anim^J$)
+				joint_local_rotation_tm = math::mat4_identity<double>(); // 단위행렬로 초기화
+
+				// 주어진 조인트 프레임 채널 데이터를 기반으로 로컬 이동 및 로컬 회전 transformation 행렬 계산
+				// 아래 루프가 끝나면 `joint_local_position_tm`은 $T_anim^J$, `joint_local_rotation_tm`은 $R_anim^J$ 가 된다.
+				// (BVH 파일의 CHANNELS 순서대로 값을 읽어와 회전을 누적시킴. 예를 들어, ZYX 순서일 경우 `curr_joint_local_rotation_tm = Rz * Rx * Ry` 가 됨)
+				for (size_t channel_idx = 0; channel_idx < joint_channel_types.size(); ++channel_idx)
 				{
-					// 시작 관절 설정 (재귀의 시작점 또는 현재 처리 대상)
-					if (start_joint == NULL) { // 함수가 처음 호출될 때 start_joint가 NULL이면
-						if (root_joint_ == NULL) return; // 루트 관절이 없으면 계산 불가
-						else start_joint = root_joint_; // 루트 관절부터 시작
+					switch (joint_channel_types[channel_idx]) {
+					case bvh_channel_type::x_position:
+						joint_local_position_tm = math::translate_local(
+							joint_local_position_tm,
+							Eigen::Vector3d{ joint_frame_channel_data(0, channel_idx), 0.0, 0.0 }
+						);
+						break;
+					case bvh_channel_type::y_position:
+						joint_local_position_tm = math::translate_local(
+							joint_local_position_tm,
+							Eigen::Vector3d{ 0.0, joint_frame_channel_data(0, channel_idx), 0.0 }
+						);
+						break;
+					case bvh_channel_type::z_position:
+						joint_local_position_tm = math::translate_local(
+							joint_local_position_tm,
+							Eigen::Vector3d{ 0.0, 0.0, joint_frame_channel_data(0, channel_idx) }
+						);
+						break;
+					case bvh_channel_type::x_rotation:
+						joint_local_rotation_tm = rotate(
+							joint_local_rotation_tm,
+							math::deg2rad(joint_frame_channel_data(0, channel_idx)),
+							Axis::X
+						);
+						break;
+					case bvh_channel_type::y_rotation:
+						joint_local_rotation_tm = rotate(
+							joint_local_rotation_tm,
+							math::deg2rad(joint_frame_channel_data(0, channel_idx)),
+							Axis::Y
+						);
+						break;
+					case bvh_channel_type::z_rotation:
+						joint_local_rotation_tm = rotate(
+							joint_local_rotation_tm,
+							math::deg2rad(joint_frame_channel_data(0, channel_idx)),
+							Axis::Z
+						);
+						break;
 					}
+				} // for
+			}
 
-					// 정적 오프셋 행렬 준비 (모든 프레임에 동일하게 적용)
-					// M_offset^J 에 해당. 부모 관절 좌표계에서 현재 관절의 피봇 위치로 이동하는 변환.
-					glm::mat4 offmat_backup = glm::translate(
-						glm::mat4(1.0), // 단위 행렬에서 시작
-						glm::vec3(start_joint->offset().x, start_joint->offset().y, start_joint->offset().z));
-
-					// 현재 관절의 모든 프레임에 대한 모션 데이터 가져오기
-					std::vector<std::vector<float>> data = start_joint->channel_data();
-
-					// 각 프레임에 대해 반복
-					for (int i = 0; i < num_frames_; i++) { // i는 현재 프레임 인덱스
-						glm::mat4 offmat = offmat_backup; // 현재 프레임의 오프셋 행렬 (매번 동일)
-						glm::mat4 rmat(1.0);  // 현재 프레임의 로컬 회전 행렬 (R_anim^J), 단위 행렬로 초기화
-						glm::mat4 tmat(1.0);  // 현재 프레임의 로컬 이동 행렬 (T_anim^J, 주로 루트용), 단위 행렬로 초기화
-
-						// 현재 프레임(i)의 채널 데이터를 기반으로 로컬 이동(tmat) 및 회전(rmat) 행렬 계산
-						// BVH 파일의 CHANNELS 순서대로 값을 읽어와 적용
-						for (int j = 0; j < start_joint->channels_order().size(); j++) { // j는 채널 인덱스
-							// data[i][j]는 현재 프레임(i)의 j번째 채널 값
-							if (start_joint->channels_order()[j] == Joint::Channel::XPOSITION)
-								// tmat = tmat * translate(X,0,0)
-								tmat = glm::translate(tmat, glm::vec3(data[i][j], 0, 0));
-							else if (start_joint->channels_order()[j] == Joint::Channel::YPOSITION)
-								tmat = glm::translate(tmat, glm::vec3(0, data[i][j], 0));
-							else if (start_joint->channels_order()[j] == Joint::Channel::ZPOSITION)
-								tmat = glm::translate(tmat, glm::vec3(0, 0, data[i][j]));
-							else if (start_joint->channels_order()[j] == Joint::Channel::XROTATION)
-								// rmat = rmat * rotateX(angle)
-								rmat = utils::rotate(rmat, data[i][j], utils::Axis::X);
-							else if (start_joint->channels_order()[j] == Joint::Channel::YROTATION)
-								rmat = utils::rotate(rmat, data[i][j], utils::Axis::Y);
-							else if (start_joint->channels_order()[j] == Joint::Channel::ZROTATION)
-								rmat = utils::rotate(rmat, data[i][j], utils::Axis::Z);
-						}
-						// 이 루프가 끝나면 tmat은 T_anim^J, rmat은 R_anim^J 가 됩니다.
-						// (CHANNELS 순서에 따라 회전이 누적됨, 예: ZYX 순서면 rmat = Rz * Rx * Ry 가 됨)
-
-						// 월드 변환 행렬(ltm) 계산
-						glm::mat4 ltm; // 최종적으로 M_world^J 가 될 행렬
-
-						if (start_joint->parent() != NULL) { // 자식 관절인 경우
-							// M_world^J = M_world^{Parent(J)} * M_offset^J
-							// 부모의 월드 변환 행렬에 자신의 오프셋 변환을 곱한다.
-							// 이 시점의 ltm은 현재 관절의 피봇이 월드 공간에서 어디에 위치하고 어떤 방향을 가지는지 나타낸다.
-							// (아직 자신의 애니메이션된 회전 R_anim^J 는 적용되지 않음)
-							ltm = start_joint->parent()->ltm(i) * offmat;
-						} else { // 루트 관절인 경우
-							// M_world^{Root} = T_anim^{Root} * M_offset^{Root}
-							// 루트의 애니메이션된 이동과 정적 오프셋을 결합.
-							// (아직 자신의 애니메이션된 회전 R_anim^{Root} 는 적용되지 않음)
-							ltm = tmat * offmat;
-						}
-
-						// 현재 관절의 월드 위치 저장
-						// ltm 행렬의 4번째 열(인덱스 3)이 이동(translation) 성분을 나타냄.
-						// ltm[3]은 glm::vec4 타입이므로, glm::vec3으로 변환하여 저장.
-						// 이 위치는 M_world^{Parent(J)} * M_offset^J (또는 T_anim^{Root} * M_offset^{Root})의 결과,
-						// 즉, 현재 관절의 '피봇'의 월드 좌표.
-						start_joint->set_pos(glm::vec3(ltm[3]));
-						LOG(TRACE) << "Joint world position: " << utils::vec3tos(ltm[3]);
-
-						// 최종 월드 변환 행렬 계산: 위에서 계산된 ltm에 자신의 애니메이션된 회전(rmat)을 적용
-						// M_world^J = (M_world^{Parent(J)} * M_offset^J) * R_anim^J  (자식 관절)
-						// 또는
-						// M_world^{Root} = (T_anim^{Root} * M_offset^{Root}) * R_anim^{Root} (루트 관절)
-						ltm = ltm * rmat;
-
-						LOG(TRACE) << "Local transformation matrix: \n" << utils::mat4tos(ltm);
-
-						// 계산된 최종 월드 변환 행렬을 현재 관절, 현재 프레임에 저장
-						start_joint->set_ltm(ltm, i);
-					}
-
-					// 모든 자식 관절에 대해 재귀적으로 이 함수를 호출
-					// 부모의 ltm(i)가 이미 계산되어 있어야 자식의 ltm(i)를 올바르게 계산할 수 있으므로,
-					// 깊이 우선 탐색(DFS) 방식으로 계층 구조를 따라 내려가며 계산.
-					for (auto& child : start_joint->children()) {
-						recalculate_joints_ltm(child);
-					}
-				}
-				*/
-
-				joints_world_rotation_map_t joints_world_rotation_map;
-				joints_world_position_map_t joints_world_position_map;
-
-				// pre-allocate
-				constexpr double NaN = std::numeric_limits<double>::quiet_NaN();
-				for (const auto& joint_node : _parser_ctx->ordered_joint_nodes()) {
-					joints_world_rotation_map[joint_node].resize(_parser_ctx->num_frames(), Eigen::Matrix3d::Constant(NaN).eval());
-					joints_world_position_map[joint_node].resize(_parser_ctx->num_frames(), Eigen::Vector3d::Constant(NaN).eval());
-				}
+			auto _calculate_joints_world_transformation() const -> std::unordered_map<bvh_hierarchy_node_ptr, std::vector<Eigen::Matrix4d>>
+			{
+				// NOTE: Eigen issue https://gitlab.com/libeigen/eigen/-/issues/1806
 
 				const auto& joints_parent_map = _parser_ctx->joint_nodes_parent_map();
-				const auto root_joint_positions = _parser_ctx->extract_root_joint_positions();
+
+				std::unordered_map<bvh_hierarchy_node_ptr, Eigen::Ref<const Eigen::MatrixXd>> joints_channel_data_map;
+				std::unordered_map<bvh_hierarchy_node_ptr, std::vector<Eigen::Matrix4d>> joints_world_tm_map; // joint's world transformation matrix map
+
+				for (const auto& joint_node : _parser_ctx->ordered_joint_nodes())
+				{
+					joints_channel_data_map.emplace(joint_node, _parser_ctx->extract_joint_channel_data(joint_node));
+
+					// pre-allocate with NaN
+					joints_world_tm_map[joint_node].resize(_parser_ctx->num_frames(), math::mat4_all(std::numeric_limits<double>::quiet_NaN()));
+				}
 
 				for (size_t frame_idx = 0; frame_idx < _parser_ctx->num_frames(); ++frame_idx)
 				{
@@ -1270,90 +1273,57 @@ namespace triengine::io
 					// so the child can be processed while the parent's world transformation has been computed.
 					for (const auto& curr_joint : _parser_ctx->ordered_joint_nodes())
 					{
-						const Eigen::Vector3d curr_local_euler_angles_rad{ joints_euler_angles_map.at(curr_joint)[frame_idx].unaryExpr(&math::deg2rad<double>).eval() };
-						const std::string& curr_local_euler_axis_order{ joints_euler_axis_order_map.at(curr_joint) };
+						// 현재 프레임의 오프셋 transformation 행렬 (HIERARCHY 섹션에 명시되어있는 OFFSET 값)
 						const Eigen::Matrix4d curr_joint_offset_tm = math::translate_local(
 							math::mat4_identity<double>(),
 							curr_joint->get_t_pose_offset()
 						);
 
-						Eigen::Matrix4d local_rotation{ math::mat4_identity<double>() };
-						for (size_t i = 0; i < curr_local_euler_axis_order.size(); ++i) {
-							const double curr_axis_angle = curr_local_euler_angles_rad(i);
-							const char curr_axis = curr_local_euler_axis_order[i];
-							if (curr_axis == 'X') local_rotation = rotate(local_rotation, curr_axis_angle, Axis::X);
-							else if (curr_axis == 'Y') local_rotation = rotate(local_rotation, curr_axis_angle, Axis::Y);
-							else if (curr_axis == 'Z') local_rotation = rotate(local_rotation, curr_axis_angle, Axis::Z);
-						}
+						// 현재 프레임의 로컬 이동 transformation 행렬 ($T_anim^J$, 루트 조인트 계산에만 사용)
+						Eigen::Matrix4d curr_joint_local_position_tm;
 
-						Eigen::Matrix3d& curr_world_rotation = joints_world_rotation_map[curr_joint][frame_idx];
-						Eigen::Vector3d& curr_world_position = joints_world_position_map[curr_joint][frame_idx];
+						// 현재 프레임의 로컬 회전 transformation 행렬 ($R_anim^J$)
+						Eigen::Matrix4d curr_joint_local_rotation_tm;
 
-						if (curr_joint->get_node_type() == bvh_hierarchy_node_type::root) // root joint?
-						{
-							curr_world_rotation = local_rotation.block<3, 3>(0, 0); // The world rotation of the root joint is equal to its local rotation.
-							curr_world_position = root_joint_positions[frame_idx];
-						}
-						else // child joint
-						{
-							const auto& parent_joint = joints_parent_map.at(curr_joint);
-							const Eigen::Matrix3d& parent_world_rotation = joints_world_rotation_map.at(parent_joint)[frame_idx];
-							const Eigen::Vector3d& parent_world_position = joints_world_position_map.at(parent_joint)[frame_idx];
-							
-							TRIENGINE_ASSERT(!parent_world_rotation.array().isNaN().any());
-							TRIENGINE_ASSERT(!parent_world_position.array().isNaN().any());
-
-							const Eigen::Matrix4d parent_world_rotation_tm = math::extend_to_mat4(parent_world_rotation);
-
-							// Calculate current world rotation (rotation apply order: parent -> local)
-							curr_world_rotation = (parent_world_rotation_tm * local_rotation).block<3, 3>(0, 0);
-
-							// Calculate world position: Parent world position + (Parent world rotation * T-pose offset of current joint)
-							// Since T-pose offset is relative to the parent coordinate system, 
-							// apply the parent's world rotation to convert it to a world coordinate system vector and then add it.
-							curr_world_position = parent_world_position + Eigen::Vector3d{ 
-								(parent_world_rotation_tm * curr_joint_offset_tm).block<3, 1>(0, 3) 
-							};
-						}
-
-						/*
-						// Compute local rotation of current frame (Euler angles -> Quaternion)
-						const Eigen::Quaterniond local_rotation = math::quat_from_euler(
-							euler_angles_rad,
-							euler_axis_order
+						this->_calculate_joint_local_transformation(
+							curr_joint,
+							joints_channel_data_map.at(curr_joint).row(static_cast<Eigen::Index>(frame_idx)),
+							curr_joint_local_position_tm,
+							curr_joint_local_rotation_tm
 						);
 
-						Eigen::Quaterniond& world_rotation = joints_world_rotation_map[curr_joint][frame_idx];
-						Eigen::Vector3d& world_position = joints_world_position_map[curr_joint][frame_idx];
+						// 현재 조인트의 최종 world transformation 계산
+						Eigen::Matrix4d& curr_joint_world_tm = joints_world_tm_map[curr_joint][frame_idx]; // 최종적으로 M_world^J(혹은 M_world^{Root})가 될 행렬
+						TRIENGINE_ASSERT(curr_joint_world_tm.array().isNaN().all());
 
-						if (curr_joint->get_node_type() == bvh_hierarchy_node_type::root) // root joint?
+						if (curr_joint->get_node_type() == bvh_hierarchy_node_type::root)
 						{
-							world_rotation = local_rotation; // The world rotation of the root joint is equal to its local rotation.
-							world_position = root_joint_positions[frame_idx];
+							/* root joint */
+
+							// root joint의 world transformation matrix 계산 공식:
+							// $M_world^{Root} = (T_anim^{Root} * M_offset^{Root}) * R_anim^{Root}$
+							curr_joint_world_tm = (curr_joint_local_position_tm * curr_joint_offset_tm) * curr_joint_local_rotation_tm;
 						}
-						else // child joint
+						else 
 						{
-							const auto& parent_joint = joints_parent_map.at(curr_joint);
-							const Eigen::Quaterniond& parent_world_rotation = joints_world_rotation_map.at(parent_joint)[frame_idx];
-							const Eigen::Vector3d& parent_world_position = joints_world_position_map.at(parent_joint)[frame_idx];
+							/* child joint */
+							
+							// 부모 조인트의 (이전에 계산한) world transformation matrix ($M_world^{Parent(J)}$)를 가져옴
+							const auto parent_joint_world_tm = joints_world_tm_map.at(joints_parent_map.at(curr_joint))[frame_idx];
+							TRIENGINE_ASSERT(!parent_joint_world_tm.array().isNaN().any());
 
-							TRIENGINE_ASSERT(!parent_world_rotation.coeffs().array().isNaN().any());
-							TRIENGINE_ASSERT(!parent_world_position.array().isNaN().any());
-
-							// Calculate current world rotation (rotation apply order: parent -> local)
-							world_rotation = math::quat_combine(parent_world_rotation, local_rotation).normalized();
-
-							// Calculate world position: Parent world position + (Parent world rotation * T-pose offset of current joint)
-							// Since T-pose offset is relative to the parent coordinate system, 
-							// apply the parent's world rotation to convert it to a world coordinate system vector and then add it.
-							world_position = parent_world_position + (parent_world_rotation * curr_joint->get_t_pose_offset());
+							// 일반적인 child joint의 world transformation matrix 계산 공식:
+							// $M_world^J = (M_world^{Parent(J)} * M_offset^J) * R_anim^J$
+							// 
+							// 만약 child joint가 (매우 드물게) 위치 채널도 갖는 경우:
+							// $M_world^J = ((M_world^{Parent(J)} * M_offset^J) * T_{anim}^J) * R_anim^J$
+							curr_joint_world_tm = ((parent_joint_world_tm * curr_joint_offset_tm) * curr_joint_local_position_tm) * curr_joint_local_rotation_tm;
 						}
-						*/
 
 					} // for each joint nodes
 				} // for each frames
 
-				return { joints_world_rotation_map, joints_world_position_map };
+				return joints_world_tm_map;
 			}
 
         }; // class

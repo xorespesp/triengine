@@ -71,6 +71,28 @@ namespace triengine::geometry
 
     } // namespace
 
+    skeleton_object::skeleton_object(
+        const std::vector<skeleton_joint_info_t>& skeleton_joints,
+        const std::vector<skeleton_bone_info_t>& skeleton_bones)
+        : geometry_object_base{ geometry_object_type::skeleton }
+    {
+        for (const auto& skeleton_joint : skeleton_joints) {
+            this->_add_joint_object(
+                skeleton_joint.position,
+                skeleton_joint.rotation,
+                skeleton_joint.color
+            );
+        }
+
+        for (const auto& skeleton_bone : skeleton_bones) {
+            this->_add_bone_object(
+                skeleton_bone.from_joint->position,
+                skeleton_bone.to_joint->position,
+                skeleton_bone.color
+            );
+        }
+    }
+
     void skeleton_object::translate(
         const vec3_f32& t, 
         const bool relative)
@@ -103,20 +125,7 @@ namespace triengine::geometry
         this->_update_objects_model();
     }
 
-    void skeleton_object::add_joint(
-        const vec3_f32& joint_pos,
-        const quat_f32& joint_rot,
-        const color3_f32& joint_color)
-    {
-        auto mesh = geometry::triangle_mesh_object::create_sphere(kDefaultJointRadius);
-        mesh->translate(joint_pos);
-        mesh->rotate(joint_rot);
-        mesh->transform(this->get_model(), true);
-        mesh->paint_uniform_color(joint_color);
-        _joint_objects.emplace_back(mesh);
-    }
-
-    void skeleton_object::add_joint(
+    void skeleton_object::_add_joint_object(
         const vec3_f32& joint_pos,
         const mat3_f32& joint_rot,
         const color3_f32& joint_color)
@@ -129,7 +138,7 @@ namespace triengine::geometry
         _joint_objects.emplace_back(mesh);
     }
 
-    void skeleton_object::add_bone(
+    void skeleton_object::_add_bone_object(
         const vec3_f32& from_joint_pos,
         const vec3_f32& to_joint_pos,
         const color3_f32& bone_color)
@@ -143,19 +152,13 @@ namespace triengine::geometry
             to_joint_pos
         );
         auto mesh = geometry::triangle_mesh_object::create_skeletal_bone(
-            std::max(0.0125f, cylinder_height * kDefaultBoneRadiusRatio), 
+            std::max(0.0125f, cylinder_height * kDefaultBoneRadiusRatio),
             cylinder_height
         );
         mesh->transform(cylinder_model);
         mesh->transform(this->get_model(), true);
         mesh->paint_uniform_color(bone_color);
         _bone_objects.emplace_back(mesh);
-    }
-
-    void skeleton_object::clear()
-    {
-        _joint_objects.clear();
-        _bone_objects.clear();
     }
 
     void skeleton_object::_update_objects_model()
