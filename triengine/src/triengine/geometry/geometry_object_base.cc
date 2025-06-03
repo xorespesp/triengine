@@ -40,7 +40,7 @@ namespace triengine::geometry
         const std::vector<vec3_f32>& points) const
     {
         if (points.empty()) {
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
 
         vec3_f64 min_bound_f64 = std::accumulate(
@@ -60,7 +60,7 @@ namespace triengine::geometry
         const std::vector<vec3_f32>& points) const
     {
         if (points.empty()) {
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
         
         vec3_f64 max_bound_d = std::accumulate(
@@ -80,14 +80,14 @@ namespace triengine::geometry
         const std::vector<vec3_f32>& points) const
     {
         if (points.empty()) {
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
 
         // Use `std::accumulate` for summation, operating in f64 precision.
         vec3_f64 center_f64 = std::accumulate(
             points.begin(),
             points.end(),
-            vec3_f64::Zero().eval(), // Initial value is f64 zero vector
+            math::vec3_all(0.0), // Initial value is f64 zero vector
             [](vec3_f64 curr_sum_f64, const vec3_f32& point_f32) {
                 return (curr_sum_f64 + point_f32.cast<double>()).eval();
             });

@@ -183,7 +183,7 @@ namespace triengine::geometry
         else
         {
             /// for smooth shading
-            vertex_normals.assign(vertex_positions.size(), vec3_f32::Zero());
+            vertex_normals.assign(vertex_positions.size(), math::vec3_all(0.0f));
 
             for (const auto& triangle : triangle_indices)
             {

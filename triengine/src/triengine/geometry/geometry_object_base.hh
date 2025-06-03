@@ -27,7 +27,7 @@ namespace triengine::geometry
         const geometry_object_type _type;
         
         std::string _name;
-        mat4_f32 _model = mat4_f32::Identity();
+        mat4_f32 _model{ math::mat4_identity<float>() };
 
         bool _flag_visible = true;
         mutable bool _flag_dirty = true; // upload to gpu?
@@ -89,7 +89,7 @@ namespace triengine::geometry
             const bool relative = false)
         {
             if (relative) {
-                mat4_f32 T{ mat4_f32::Identity() }; // translation matrix
+                mat4_f32 T{ math::mat4_identity<float>() }; // translation matrix
                 T.block<3, 1>(0, 3) = t;
                 _model = T * _model; // Apply translation to the model matrix
             } else {
@@ -102,7 +102,7 @@ namespace triengine::geometry
             const bool relative = false)
         {
             if (relative) {
-                mat4_f32 T{ mat4_f32::Identity() };
+                mat4_f32 T{ math::mat4_identity<float>() };
                 T.block<3, 3>(0, 0) = R;
                 _model = T * _model; // Apply rotation to the model matrix
             } else {
@@ -115,7 +115,7 @@ namespace triengine::geometry
             const bool relative = false)
         {
             if (relative) {
-                mat4_f32 T{ mat4_f32::Identity() };
+                mat4_f32 T{ math::mat4_identity<float>() };
                 T.block<3, 3>(0, 0) = Q.toRotationMatrix();
                 _model = T * _model; // Apply rotation to the model matrix
             } else {
@@ -143,21 +143,21 @@ namespace triengine::geometry
         /// NOTE: Derived classes are responsible for implementing it.
         virtual vec3_f32 get_min_bound() const {
             TRIENGINE_PANIC("not implemented");
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
 
         /// Returns max bounds for geometry coordinates.
         /// NOTE: Derived classes are responsible for implementing it.
         virtual vec3_f32 get_max_bound() const {
             TRIENGINE_PANIC("not implemented");
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
         
         /// Returns the center of the geometry coordinates.
         /// NOTE: Derived classes are responsible for implementing it.
         virtual vec3_f32 get_center() const {
             TRIENGINE_PANIC("not implemented");
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
 
     protected:

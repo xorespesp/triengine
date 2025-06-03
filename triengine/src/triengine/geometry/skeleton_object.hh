@@ -104,17 +104,17 @@ namespace triengine::geometry
 
         vec3_f32 get_min_bound() const override {
             TRIENGINE_PANIC("not implemented");
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
 
         vec3_f32 get_max_bound() const override {
             TRIENGINE_PANIC("not implemented");
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
         
         vec3_f32 get_center() const override {
             TRIENGINE_PANIC("not implemented");
-            return vec3_f32::Zero();
+            return math::vec3_all(0.0f);
         }
 
     private:

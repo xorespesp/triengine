@@ -201,7 +201,7 @@ namespace triengine::renderer
         if (point_light.enabled &&
             point_light.show_light_source)
         {
-            mat4_f32 model{ mat4_f32::Identity() };
+            mat4_f32 model{ math::mat4_identity<float>() };
             model.block<3, 1>(0, 3) = point_light.position;
 
             auto& draw_shader = _point_light_source_shader;

@@ -203,7 +203,7 @@ namespace triengine::geometry
                 vn = (normal_mat * vn).normalized();
             }
 
-            this->set_model(mat4_f32::Identity());
+            this->set_model(math::mat4_identity<float>());
         }
 
         vec3_f32 get_min_bound() const override {
@@ -390,7 +390,7 @@ namespace triengine::geometry
         /// \param origin defines the origin of the coordinate frame.
         static std::shared_ptr<triangle_mesh_object> create_coordinate_frame(
             float size = 1.0f,
-            vec3_f32 origin_point = vec3_f32::Zero()
+            vec3_f32 origin_point = math::vec3_all(0.0f)
         );
 
         /// Factory function to create a stick figure(skeleton) bone mesh

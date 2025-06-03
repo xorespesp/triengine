@@ -19,7 +19,7 @@ namespace triengine::geometry
                 sinTheta = v.norm(); // get vector length
 
             if (sinTheta < 0.00001f) {
-                rotation = mat4_f32::Identity();
+                rotation = math::mat4_identity<float>();
                 return;
             }
 
@@ -38,7 +38,7 @@ namespace triengine::geometry
             const mat4_f32 vx2 = vx * vx;
             const mat4_f32 vx2Scaled = vx2 * scale;
 
-            rotation = mat4_f32::Identity() + vx + vx2Scaled;
+            rotation = math::mat4_identity<float>() + vx + vx2Scaled;
             rotation(3, 3) = 1.0f;
         }
 
@@ -55,7 +55,7 @@ namespace triengine::geometry
 
             // Create translation matrix
             // Note: https://stackoverflow.com/questions/59222806/how-does-glm-handle-translation
-            mat4_f32 translation{ mat4_f32::Identity() };
+            mat4_f32 translation{ math::mat4_identity<float>() };
             translation.block<3, 1>(0, 3) = centerPosition;
 
             mat4_f32 rotation;
