@@ -26,14 +26,14 @@ namespace triengine::geometry
 
     struct skeleton_bone_info_t
     {
-        skeleton_joint_info_t* from_joint{ nullptr };
-        skeleton_joint_info_t* to_joint{ nullptr };
+        const skeleton_joint_info_t* from_joint{ nullptr };
+        const skeleton_joint_info_t* to_joint{ nullptr };
         color3_f32 color{ color3_f32::all(0.0f) };
 
         skeleton_bone_info_t() = default;
         skeleton_bone_info_t(
-            skeleton_joint_info_t* from_joint_,
-            skeleton_joint_info_t* to_joint_,
+            const skeleton_joint_info_t* from_joint_,
+            const skeleton_joint_info_t* to_joint_,
             const color3_f32& color_)
             : from_joint{ from_joint_ }
             , to_joint{ to_joint_ }
@@ -44,11 +44,6 @@ namespace triengine::geometry
     class skeleton_object
         : public geometry_object_base
     {
-    private:
-        static constexpr float
-            kDefaultBoneRadiusRatio{ 0.09f },
-            kDefaultJointRadius{ 0.0175f };
-
     private:
         std::list<std::shared_ptr<geometry::triangle_mesh_object>>
             _joint_objects,
@@ -66,16 +61,16 @@ namespace triengine::geometry
             const std::vector<skeleton_bone_info_t>& skeleton_bones
         );
 
-        std::shared_ptr<skeleton_object> clone() const {
-            return std::static_pointer_cast<skeleton_object>(this->clone_impl());
-        }
-
         const auto& get_joint_objects() const noexcept {
             return _joint_objects;
         }
-        
+
         const auto& get_bone_objects() const noexcept {
             return _bone_objects;
+        }
+
+        std::shared_ptr<skeleton_object> clone() const {
+            return std::static_pointer_cast<skeleton_object>(this->clone_impl());
         }
 
         void translate(
@@ -118,9 +113,8 @@ namespace triengine::geometry
         }
 
     private:
-        // NOTE: 
-        // In the current implementation, the vertex data of the internal `triangle_mesh_object`s
-        // inside the `skeleton_object` must NOT be modified after initialization.
+        // NOTE: In the current implementation, the number of `triangle_mesh_object`s 
+        // internally added to a `skeleton_object` must NOT change after object creation.
         // (The `gpu_resource_manager` does not automatically track these changes.)
 
         void _add_joint_object(

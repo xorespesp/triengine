@@ -5,6 +5,10 @@ namespace triengine::geometry
 {
     namespace
     {
+        constexpr float
+            kDefaultBoneRadiusRatio{ 0.09f },
+            kDefaultJointRadius{ 0.0175f };
+
         inline void _compute_rotation_between_vectors(
             mat4_f32& rotation/* out */,
             const vec3_f32& v0,

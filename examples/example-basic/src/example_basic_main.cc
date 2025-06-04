@@ -4,7 +4,7 @@
  
  void run_demo()
  {
-     gui::basic_demo_app app;
+     demo::basic_demo_app app;
 
      CXLIB_INFO("Creating app..");
      app.create();

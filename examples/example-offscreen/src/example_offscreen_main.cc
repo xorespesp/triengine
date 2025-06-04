@@ -19,7 +19,7 @@
 #  include <opencv2/opencv.hpp>
 #endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
 
-namespace gui
+namespace demo
 {
     class offscreen_demo_app
     {
@@ -228,7 +228,7 @@ namespace gui
 
 void run_demo()
 {
-    gui::offscreen_demo_app app;
+    demo::offscreen_demo_app app;
 
     CXLIB_INFO("Creating app..");
     app.create();
