@@ -30,6 +30,16 @@ namespace demo::scene
             std::unique_ptr<io::bvh_file_t> bvh_data;
             std::optional<mat4_f32> offset_transform;
             std::unordered_map<io::bvh_joint_id_t/* parent */, std::vector<io::bvh_joint_id_t>/* childs */> hierarchy_map_cache;
+            
+            triengine::color3_f32 joint_color{ 0.85f, 0.85f, 0.85f };
+            triengine::color3_f32 bone_color{ 0.15f, 0.15f, 0.15f };
+            float joint_radius{ 0.020f };
+            float bone_parent_cap_radius_ratio{ 0.001f };
+            float bone_child_cap_radius_ratio{ 0.010f };
+            float bone_middle_radius_ratio{ 0.090f };
+            float max_bone_middle_radius{ 0.018f };
+            float bone_height_ratio_parent{ 0.10f };
+            int bone_resolution{ 4 };
 
             int current_frame_index{ 0 };
             playback_state_type playback_state{ playback_state_type::paused };
@@ -187,8 +197,7 @@ namespace demo::scene
                     if (ImGui::Button("||")) {
                         _state.playback_state = playback_state_type::paused;
                     }
-                }
-                else {
+                } else {
                     if (ImGui::Button("> ")) {
                         _state.playback_state = playback_state_type::playing;
                     }
@@ -216,6 +225,42 @@ namespace demo::scene
                 ImGui::Text("/ %zu frames", bvh_data.frames.size());
 
                 if (ImGui::DragFloat("Playback Speed", &_state.playback_speed, 0.01f, 0.01f, 4.0f, "%.2fx")) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::ColorEdit3("Joint Color", _state.joint_color.data(), ImGuiColorEditFlags_NoAlpha)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::ColorEdit3("Bone Color", _state.bone_color.data(), ImGuiColorEditFlags_NoAlpha)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::DragFloat("Joint Radius", &_state.joint_radius, 0.001f, 0.001f, 0.1f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::DragFloat("Bone Parent Cap Radius Ratio", &_state.bone_parent_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::DragFloat("Bone Child Cap Radius Ratio", &_state.bone_child_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::DragFloat("Bone Middle Radius Ratio", &_state.bone_middle_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::DragFloat("Max Bone Middle Radius", &_state.max_bone_middle_radius, 0.001f, 0.001f, 0.2f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::DragFloat("Bone Height Ratio", &_state.bone_height_ratio_parent, 0.001f, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    _state.fl_update_scene = true;
+                }
+
+                if (ImGui::SliderInt("Bone Resolution", &_state.bone_resolution, 3, 40, "%d")) {
                     _state.fl_update_scene = true;
                 }
 
@@ -366,27 +411,35 @@ namespace demo::scene
 
             std::vector<geometry::skeleton_joint_info_t> skeleton_joints;
             skeleton_joints.resize(bvh_frame.skeleton.size());
-
             for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
             {
                 skeleton_joints.at(static_cast<size_t>(bvh_jid)) = geometry::skeleton_joint_info_t{
                     (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval(),
                     bvh_jdata.world_rotation.cast<float>().eval(),
-                    color3_f32{ 0.8f, 0.8f, 0.8f }
+                    _state.joint_color,
+                    _state.joint_radius
                 };
             }
 
             std::vector<geometry::skeleton_bone_info_t> skeleton_bones;
             skeleton_bones.reserve(bvh_frame.skeleton.size());
-
             for (const auto [child_bvh_jid, parent_bvh_jid] : bvh_file.joints_parent_map)
             {
-                if (child_bvh_jid == parent_bvh_jid) { continue; }
+                if (child_bvh_jid == parent_bvh_jid) { continue; } // root joint has no parent
+                
+                const geometry::skeleton_joint_info_t* const from_joint = &skeleton_joints.at(static_cast<size_t>(child_bvh_jid));
+                const geometry::skeleton_joint_info_t* const to_joint = &skeleton_joints.at(static_cast<size_t>(parent_bvh_jid));
+                const float bone_length = triengine::math::vec3_distance(from_joint->position, to_joint->position);
 
                 skeleton_bones.emplace_back(
-                    &skeleton_joints.at(static_cast<size_t>(child_bvh_jid))/* from_joint */,
-                    &skeleton_joints.at(static_cast<size_t>(parent_bvh_jid))/* to_joint */,
-                    color3_f32{ 0.8f, 0.8f, 0.8f }/* color */
+                    from_joint/* from_joint */,
+                    to_joint/* to_joint */,
+                    _state.bone_color/* color */,
+                    bone_length * _state.bone_parent_cap_radius_ratio/* parent_cap_radius */,
+                    bone_length * _state.bone_child_cap_radius_ratio/* child_cap_radius */,
+                    std::max(bone_length * _state.bone_middle_radius_ratio, _state.max_bone_middle_radius)/* middle_radius */,
+                    _state.bone_height_ratio_parent/* height_ratio_parent */,
+                    _state.bone_resolution/* resolution */
                 );
             }
 

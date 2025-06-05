@@ -5,10 +5,6 @@ namespace triengine::geometry
 {
     namespace
     {
-        constexpr float
-            kDefaultBoneRadiusRatio{ 0.09f },
-            kDefaultJointRadius{ 0.0175f };
-
         inline void _compute_rotation_between_vectors(
             mat4_f32& rotation/* out */,
             const vec3_f32& v0,
@@ -80,19 +76,28 @@ namespace triengine::geometry
         const std::vector<skeleton_bone_info_t>& skeleton_bones)
         : geometry_object_base{ geometry_object_type::skeleton }
     {
-        for (const auto& skeleton_joint : skeleton_joints) {
+        for (const auto& skeleton_joint : skeleton_joints)
+        {
             this->_add_joint_object(
                 skeleton_joint.position,
                 skeleton_joint.rotation,
-                skeleton_joint.color
+                skeleton_joint.color,
+                skeleton_joint.radius,
+                skeleton_joint.resolution
             );
         }
 
-        for (const auto& skeleton_bone : skeleton_bones) {
+        for (const auto& skeleton_bone : skeleton_bones)
+        {
             this->_add_bone_object(
                 skeleton_bone.from_joint->position,
                 skeleton_bone.to_joint->position,
-                skeleton_bone.color
+                skeleton_bone.color,
+                skeleton_bone.parent_cap_radius,
+                skeleton_bone.child_cap_radius,
+                skeleton_bone.middle_radius,
+                skeleton_bone.height_ratio_parent,
+                skeleton_bone.resolution
             );
         }
     }
@@ -132,9 +137,14 @@ namespace triengine::geometry
     void skeleton_object::_add_joint_object(
         const vec3_f32& joint_pos,
         const mat3_f32& joint_rot,
-        const color3_f32& joint_color)
+        const color3_f32& joint_color,
+        const float joint_radius,
+        const int joint_resolution)
     {
-        auto mesh = geometry::triangle_mesh_object::create_sphere(kDefaultJointRadius);
+        auto mesh = geometry::triangle_mesh_object::create_sphere(
+            joint_radius, 
+            joint_resolution
+        );
         mesh->translate(joint_pos);
         mesh->rotate(joint_rot);
         mesh->transform(this->get_model(), true);
@@ -145,7 +155,12 @@ namespace triengine::geometry
     void skeleton_object::_add_bone_object(
         const vec3_f32& from_joint_pos,
         const vec3_f32& to_joint_pos,
-        const color3_f32& bone_color)
+        const color3_f32& bone_color,
+        const float bone_parent_cap_radius,
+        const float bone_child_cap_radius,
+        const float bone_middle_radius,
+        const float bone_height_ratio_parent,
+        const int bone_resolution)
     {
         mat4_f32 cylinder_model;
         float cylinder_height;
@@ -155,9 +170,14 @@ namespace triengine::geometry
             from_joint_pos,
             to_joint_pos
         );
-        auto mesh = geometry::triangle_mesh_object::create_skeletal_bone(
-            std::max(0.0125f, cylinder_height * kDefaultBoneRadiusRatio),
-            cylinder_height
+
+        auto mesh = geometry::triangle_mesh_object::create_bifrustum(
+            bone_middle_radius,
+            bone_parent_cap_radius,
+            bone_child_cap_radius,
+            cylinder_height,
+            bone_height_ratio_parent,
+            bone_resolution
         );
         mesh->transform(cylinder_model);
         mesh->transform(this->get_model(), true);

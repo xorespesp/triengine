@@ -37,6 +37,10 @@ namespace triengine::renderer
     {
         for (const auto& object : render_obj_list)
         {
+            if (!object->is_visible()) {
+                continue;
+            }
+
             if (predicate && !predicate(*object, predicate_userdata)) {
                 continue;
             }

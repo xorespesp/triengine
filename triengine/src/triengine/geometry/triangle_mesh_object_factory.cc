@@ -301,12 +301,12 @@ namespace triengine::geometry
                 const size_t
                     new_triangle_begin_index = vertex_positions.size();
 
-                // NOTE: ������ ���� �ﰢ���� ���� ���� ������ �ߺ��ؼ� �߰� (for flat shading)
+                // NOTE: 각각의 측면 삼각형을 위한 독립 정점을 중복해서 추가 (for flat shading)
                 vertex_positions.push_back(p0);
                 vertex_positions.push_back(p1);
                 vertex_positions.push_back(p2);
 
-                // NOTE: �� ������ ������ face normal�� �ߺ��ؼ� �߰� (for flat shading)
+                // NOTE: 각 정점에 동일한 face normal을 중복해서 추가 (for flat shading)
                 vertex_normals.push_back(new_triangle_face_normal);
                 vertex_normals.push_back(new_triangle_face_normal);
                 vertex_normals.push_back(new_triangle_face_normal);
@@ -424,12 +424,12 @@ namespace triengine::geometry
                 const size_t 
                     new_triangle_begin_index = vertex_positions.size();
 
-                // NOTE: ������ ���� �ﰢ���� ���� ���� ������ �ߺ��ؼ� �߰� (for flat shading)
+                // NOTE: 각각의 측면 삼각형을 위한 독립 정점을 중복해서 추가 (for flat shading)
                 vertex_positions.push_back(p0);
                 vertex_positions.push_back(p1);
                 vertex_positions.push_back(p2);
 
-                // NOTE: �� ������ ������ face normal�� �ߺ��ؼ� �߰� (for flat shading)
+                // NOTE: 각 정점에 동일한 face normal을 중복해서 추가 (for flat shading)
                 vertex_normals.push_back(new_triangle_face_normal);
                 vertex_normals.push_back(new_triangle_face_normal);
                 vertex_normals.push_back(new_triangle_face_normal);
@@ -442,6 +442,191 @@ namespace triengine::geometry
             }
         }
 
+        return mesh;
+    }
+
+    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_bifrustum(
+        const float middle_radius, 
+        const float bottom_cap_radius, 
+        const float top_cap_radius, 
+        const float height, 
+        const float height_ratio_bottom, 
+        const int resolution, 
+        const int split_bottom,
+        const int split_top)
+    {
+        TRIENGINE_ASSERT(middle_radius > 0.0f);
+        TRIENGINE_ASSERT(bottom_cap_radius > 0.0f);
+        TRIENGINE_ASSERT(top_cap_radius > 0.0f);
+        TRIENGINE_ASSERT(height > 0.0f);
+        TRIENGINE_ASSERT(height_ratio_bottom >= 0.0f && height_ratio_bottom <= 1.0f);
+        TRIENGINE_ASSERT(resolution >= 3); // Minimum for a prism shape
+        TRIENGINE_ASSERT(split_bottom >= 0);
+        TRIENGINE_ASSERT(split_top >= 0);
+
+        const float h_total = height;
+        const float h_bottom_frustum = h_total * height_ratio_bottom;
+        const float h_top_frustum = h_total * (1.0f - height_ratio_bottom);
+
+        const float z_bottom_abs = -h_total * 0.5f;
+        const float z_middle_plane = z_bottom_abs + h_bottom_frustum;
+        const float z_top_abs = h_total * 0.5f;
+
+        std::vector<vec3_f32> tmp_vertex_positions;
+        {
+            // Total rings = (split_bottom segments + split_top segments + 1 base ring)
+            const int num_rings_on_height = split_bottom + split_top + 1;
+            // Total vertices: bottom center(1) + top center(1) + rings (num_rings_on_height * resolution)
+            tmp_vertex_positions.resize(2 + num_rings_on_height * resolution);
+
+            tmp_vertex_positions[0] = vec3_f32{ 0.0f, 0.0f, z_bottom_abs }; // Bottom center vertex
+            tmp_vertex_positions[1] = vec3_f32{ 0.0f, 0.0f, z_top_abs };    // Top center vertex
+
+            const double angle_step = math::pi<double>() * 2.0 / static_cast<double>(resolution);
+
+            // Generate vertices for each ring (`s` is the ring index)
+            for (int s = 0; s <= (split_bottom + split_top); ++s)
+            {
+                const int current_ring_base_idx = 2 + s * resolution;
+                float current_z_coord;
+                float current_ring_radius;
+
+                if (s <= split_bottom) { // Ring is in the bottom frustum part or is the middle ring
+                    // t_interp_bottom: 0.0 at bottom cap, 1.0 at middle plane
+                    const float t_interp_bottom = (split_bottom == 0) ? 1.0f : static_cast<float>(s) / static_cast<float>(split_bottom);
+
+                    current_z_coord = z_bottom_abs + h_bottom_frustum * t_interp_bottom;
+                    current_ring_radius = bottom_cap_radius + (middle_radius - bottom_cap_radius) * t_interp_bottom;
+
+                    // Clamp Z in case of h_bottom_frustum being zero (prevents potential float inaccuracies pushing it beyond z_middle_plane)
+                    if (h_bottom_frustum == 0.0f) { current_z_coord = z_bottom_abs; }
+                } else { // Ring is in the top frustum part (and s > split_bottom)
+                    // t_interp_top: 0.0 at middle plane (effectively, for this segment), 1.0 at top cap
+                    // (s - split_bottom) ranges from 1 to split_top
+                    const float t_interp_top = (split_top == 0) ? 1.0f : static_cast<float>(s - split_bottom) / static_cast<float>(split_top);
+
+                    current_z_coord = z_middle_plane + h_top_frustum * t_interp_top;
+                    current_ring_radius = middle_radius + (top_cap_radius - middle_radius) * t_interp_top;
+
+                    // Clamp Z in case of h_top_frustum being zero
+                    if (h_top_frustum == 0.0f) { current_z_coord = z_middle_plane; }
+                    // Ensure the very last ring is exactly at z_top_abs
+                    if (s == split_bottom + split_top) { current_z_coord = z_top_abs; }
+                }
+
+                // Special case: if total height is 0 (should be caught by assert, but for robustness)
+                // or if a segment height is 0, the radius logic might need guard for split_x == 0.
+                // The (split_x == 0) ? 1.0f : ... handles this by taking the "end" radius of that segment.
+
+                for (int j = 0; j < resolution; ++j) {
+                    const double theta = angle_step * j;
+                    tmp_vertex_positions[current_ring_base_idx + j] = vec3_f32{
+                        static_cast<float>(std::cos(theta) * current_ring_radius),
+                        static_cast<float>(std::sin(theta) * current_ring_radius),
+                        current_z_coord
+                    };
+                }
+            }
+        }
+
+        std::vector<vec3_i32> tmp_triangle_indices;
+        {
+            const int total_z_segments = split_bottom + split_top;
+            // Reserve space: bottom_cap (res) + top_cap (res) + sides (total_z_segments * res * 2)
+            tmp_triangle_indices.reserve(resolution * 2 + total_z_segments * resolution * 2);
+
+            // Create bottom face (connects bottom center to the first ring, s=0)
+            // Bottom center: index 0
+            // First ring (s=0): indices [2, 2 + resolution - 1]
+            const int first_ring_vtx_start_idx = 2;
+            for (int j = 0; j < resolution; ++j) {
+                const int j1 = (j + 1) % resolution;
+                // Ensure counter-clockwise winding when viewed from outside (bottom, -Z direction)
+                tmp_triangle_indices.emplace_back(0,
+                    first_ring_vtx_start_idx + j1,
+                    first_ring_vtx_start_idx + j);
+            }
+
+            // Create top face (connects top center to the last ring)
+            // Top center: index 1
+            // Last ring (s = split_bottom + split_top):
+            const int last_ring_s_idx = split_bottom + split_top;
+            const int last_ring_vtx_start_idx = 2 + last_ring_s_idx * resolution;
+            for (int j = 0; j < resolution; ++j) {
+                const int j1 = (j + 1) % resolution;
+                // Ensure counter-clockwise winding when viewed from outside (top, +Z direction)
+                tmp_triangle_indices.emplace_back(1,
+                    last_ring_vtx_start_idx + j,
+                    last_ring_vtx_start_idx + j1);
+            }
+
+            // Create side faces
+            // Connect ring(s) and ring(s+1)
+            // Loop s from 0 to total_z_segments - 1
+            if (total_z_segments > 0) { // Only create side faces if there's at least one segment along Z
+                for (int s = 0; s < total_z_segments; ++s) {
+                    const int ring1_vtx_start_idx = 2 + s * resolution;
+                    const int ring2_vtx_start_idx = ring1_vtx_start_idx + resolution;
+                    for (int j = 0; j < resolution; ++j) {
+                        const int j1 = (j + 1) % resolution;
+
+                        const int v0 = ring1_vtx_start_idx + j;
+                        const int v1 = ring1_vtx_start_idx + j1;
+                        const int v2 = ring2_vtx_start_idx + j;
+                        const int v3 = ring2_vtx_start_idx + j1;
+
+                        // Split quad (v0,v1,v3,v2) into two triangles (v0,v3,v2) and (v0,v1,v3)
+                        // To maintain CCW order from outside:
+                        tmp_triangle_indices.emplace_back(v0, v3, v2);
+                        tmp_triangle_indices.emplace_back(v0, v1, v3);
+                    }
+                }
+            }
+        }
+
+        auto mesh = std::make_shared<triangle_mesh_object>();
+        {
+            // This part implements flat shading by duplicating vertices for each triangle face.
+            // Performance consideration: This increases vertex count significantly but is simple for flat shading.
+            // For smooth shading, vertices would be shared, and normals averaged or calculated differently.
+
+            auto& vertex_positions = mesh->vertex_positions;
+            auto& vertex_normals = mesh->vertex_normals;
+            auto& triangle_indices = mesh->triangle_indices;
+
+            vertex_positions.reserve(tmp_triangle_indices.size() * 3);
+            vertex_normals.reserve(tmp_triangle_indices.size() * 3);
+            triangle_indices.reserve(tmp_triangle_indices.size());
+
+            for (const vec3_i32& tri_idx_map : tmp_triangle_indices)
+            {
+                const vec3_f32& p0 = tmp_vertex_positions[tri_idx_map[0]];
+                const vec3_f32& p1 = tmp_vertex_positions[tri_idx_map[1]];
+                const vec3_f32& p2 = tmp_vertex_positions[tri_idx_map[2]];
+
+                const vec3_f32 edge1 = p1 - p0;
+                const vec3_f32 edge2 = p2 - p0;
+                const vec3_f32 new_triangle_face_normal = edge1.cross(edge2).normalized();
+
+                const size_t new_triangle_begin_index = vertex_positions.size();
+
+                // NOTE: 각각의 측면 삼각형을 위한 독립 정점을 중복해서 추가 (for flat shading)
+                vertex_positions.push_back(p0);
+                vertex_positions.push_back(p1);
+                vertex_positions.push_back(p2);
+
+                // NOTE: 각 정점에 동일한 face normal을 중복해서 추가 (for flat shading)
+                vertex_normals.push_back(new_triangle_face_normal);
+                vertex_normals.push_back(new_triangle_face_normal);
+                vertex_normals.push_back(new_triangle_face_normal);
+
+                triangle_indices.emplace_back(
+                    static_cast<int>(new_triangle_begin_index),
+                    static_cast<int>(new_triangle_begin_index + 1),
+                    static_cast<int>(new_triangle_begin_index + 2)
+                );
+            }
+        }
         return mesh;
     }
 
@@ -542,135 +727,6 @@ namespace triengine::geometry
 
         mesh_frame->translate(origin_point);
         return mesh_frame;
-    }
-
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_skeletal_bone(
-        const float radius, 
-        const float height,
-        const int resolution,
-        const int split)
-    {
-        constexpr float kChildSideFrustumRadiusRatio = 0.25f;
-        constexpr float kFrustumHeightRatio = 0.85f;
-        constexpr float kParentSideConeHeightRatio = (1.0f - kFrustumHeightRatio) * 0.6f;
-        //constexpr float kChildSideConeHeightRatio = 1.0f - kFrustumHeightRatio - kParentSideConeHeightRatio;
-
-        const float height_half = height * 0.5f;
-        const float parent_side_frustum_radius = radius;
-        const float child_side_frustum_radius = radius * kChildSideFrustumRadiusRatio;
-        const float frustum_height = height * kFrustumHeightRatio;
-        const float parent_side_cone_height = height * kParentSideConeHeightRatio;
-        //const float child_side_cone_height = height * kChildSideConeHeightRatio;
-
-        std::vector<vec3_f32> tmp_vertex_positions; {
-            // Total vertices: bottom center(1) + top center(1) + rings((split+1)*resolution)
-            tmp_vertex_positions.resize(2 + (split + 1) * resolution);
-            tmp_vertex_positions[0] = vec3_f32(0.0f, 0.0f, -height_half); // bottom center vertex
-            tmp_vertex_positions[1] = vec3_f32(0.0f, 0.0f, height_half); // top center vertex
-
-            const double step = math::pi<double>() * 2.0 / static_cast<double>(resolution);
-            const double h_step = frustum_height / static_cast<double>(split);
-
-            // For each ring(0) ... ring(split): (total `split+1` rings)
-            for (int i = 0; i <= split; ++i) {
-                const int base_index = 2 + resolution * i; // start index of each rings
-                const double r = parent_side_frustum_radius + (child_side_frustum_radius - parent_side_frustum_radius) * (static_cast<double>(i) / split);
-                for (int j = 0; j < resolution; ++j) {
-                    const double theta = step * j + math::deg2rad(45.0)/* initial rotation offset */;
-                    tmp_vertex_positions[base_index + j] = vec3_f32(
-                        static_cast<float>(std::cos(theta) * r),
-                        static_cast<float>(std::sin(theta) * r),
-                        static_cast<float>(h_step * i) + parent_side_cone_height - height_half
-                    );
-                }
-            }
-        }
-
-        std::vector<vec3_i32> tmp_triangle_indices; {
-            tmp_triangle_indices.reserve((2 + split) * resolution);
-
-            // create bottom face
-            // bottom center: index 0
-            // bottom ring: index [2, 2+resolution-1]
-            for (int j = 0; j < resolution; ++j) {
-                const int j1 = (j + 1) % resolution;
-                const int base_index = 2;
-                tmp_triangle_indices.emplace_back(0, base_index + j1, base_index + j);
-            }
-
-            // create top face
-            // top center: index 1
-            // top ring: index [2 + resolution*split, 2 + resolution*split + resolution - 1]
-            {
-                const int top_ring_base = 2 + resolution * split;
-                for (int j = 0; j < resolution; ++j) {
-                    const int j1 = (j + 1) % resolution;
-                    tmp_triangle_indices.emplace_back(1, top_ring_base + j, top_ring_base + j1);
-                }
-            }
-
-            // create side faces
-            // Connect each pair of rings to form quads, then split them into two triangles.
-            // connect ring(`i`) and ring(`i+1`)
-            // range of `i`: `0/*bottom ring*/ <= i < split/*top ring*/`
-            // num of side faces: `split`
-            for (int i = 0; i < split; ++i) {
-                const int base_index1 = 2 + resolution * i;
-                const int base_index2 = base_index1 + resolution;
-                for (int j = 0; j < resolution; ++j) {
-                    const int j1 = (j + 1) % resolution;
-                    // Each quad formed by vertices (base1+j, base1+j1, base2+j, base2+j1)
-                    // Split into two triangles:
-                    //   (base1+j, base2+j1, base2+j)
-                    //   (base1+j, base1+j1, base2+j1)
-                    tmp_triangle_indices.emplace_back(base_index1 + j, base_index2 + j1, base_index2 + j);
-                    tmp_triangle_indices.emplace_back(base_index1 + j, base_index1 + j1, base_index2 + j1);
-                }
-            }
-        }
-
-        auto mesh = std::make_shared<triangle_mesh_object>();
-        {
-            auto& vertex_positions = mesh->vertex_positions;
-            auto& vertex_normals = mesh->vertex_normals;
-            auto& triangle_indices = mesh->triangle_indices;
-
-            vertex_positions.reserve(tmp_triangle_indices.size() * 3);
-            vertex_normals.reserve(tmp_triangle_indices.size() * 3);
-            triangle_indices.reserve(tmp_triangle_indices.size());
-
-            for (const vec3_i32& triangle_indice : tmp_triangle_indices)
-            {
-                const vec3_f32
-                    & p0 = tmp_vertex_positions[triangle_indice[0]],
-                    & p1 = tmp_vertex_positions[triangle_indice[1]],
-                    & p2 = tmp_vertex_positions[triangle_indice[2]];
-
-                const vec3_f32
-                    new_triangle_face_normal = (p1 - p0).cross(p2 - p0).normalized();
-
-                const size_t
-                    new_triangle_begin_index = vertex_positions.size();
-
-                // NOTE: ������ ���� �ﰢ���� ���� ���� ������ �ߺ��ؼ� �߰� (for flat shading)
-                vertex_positions.push_back(p0);
-                vertex_positions.push_back(p1);
-                vertex_positions.push_back(p2);
-
-                // NOTE: �� ������ ������ face normal�� �ߺ��ؼ� �߰� (for flat shading)
-                vertex_normals.push_back(new_triangle_face_normal);
-                vertex_normals.push_back(new_triangle_face_normal);
-                vertex_normals.push_back(new_triangle_face_normal);
-
-                triangle_indices.emplace_back(
-                    static_cast<int>(new_triangle_begin_index),
-                    static_cast<int>(new_triangle_begin_index + 1),
-                    static_cast<int>(new_triangle_begin_index + 2)
-                );
-            }
-        }
-
-        return mesh;
     }
 
 } // namespace

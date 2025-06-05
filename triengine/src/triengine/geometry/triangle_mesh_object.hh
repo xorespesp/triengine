@@ -312,6 +312,31 @@ namespace triengine::geometry
             int split = 1
         );
 
+        /// Factory function to create a Bifrustum mesh.
+        /// https://en.wikipedia.org/wiki/Bifrustum
+        /// The Bi-Frustum consists of two frustums joined at their middle.
+        /// The axis of the Bi-Frustum will be from (0, 0, -height/2) to (0, 0, height/2).
+        /// \param middle_radius defines the radius at the junction of the two frustums.
+        /// \param bottom_cap_radius defines the radius of the bottom circular face.
+        /// \param top_cap_radius defines the radius of the top circular face.
+        /// \param height defines the total height of the Bi-Frustum.
+        /// \param height_ratio_bottom defines the proportion of the total height occupied by the bottom frustum (0.0 to 1.0).
+        ///                            0.0 means bottom frustum has no height (becomes a disk/cone base).
+        ///                            1.0 means top frustum has no height.
+        /// \param resolution defines that circles will be split into resolution segments.
+        /// \param split_bottom defines the number of height segments for the bottom frustum.
+        /// \param split_top defines the number of height segments for the top frustum.
+        static std::shared_ptr<triangle_mesh_object> create_bifrustum(
+            float middle_radius = 0.10f,
+            float bottom_cap_radius = 0.05f,
+            float top_cap_radius = 0.05f,
+            float height = 1.0f,
+            float height_ratio_bottom = 0.5f,
+            int resolution = 20,
+            int split_bottom = 1,
+            int split_top = 1
+        );
+
         /// Factory function to create a torus mesh
         /// https://en.wikipedia.org/wiki/Torus
         /// The torus will be centered at (0, 0, 0) and a radius of
@@ -391,21 +416,6 @@ namespace triengine::geometry
         static std::shared_ptr<triangle_mesh_object> create_coordinate_frame(
             float size = 1.0f,
             vec3_f32 origin_point = math::vec3_all(0.0f)
-        );
-
-        /// Factory function to create a stick figure(skeleton) bone mesh
-        /// The axis of the bone will be from (0, 0, -height/2) to (0, 0, height/2).
-        /// The circle with radius will be split into resolution segments.
-        /// The height will be split into split segments.
-        /// \param radius defines the radius of the bone.
-        /// \param height defines the height of the bone.
-        /// \param resolution defines that the bone will be split into resolution segments.
-        /// \param split defines that the height will be split into split segments.
-        static std::shared_ptr<triangle_mesh_object> create_skeletal_bone(
-            float radius = 0.25f,
-            float height = 1.0f,
-            int resolution = 4,
-            int split = 1
         );
 
     }; // class
