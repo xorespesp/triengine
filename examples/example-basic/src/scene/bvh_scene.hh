@@ -31,12 +31,12 @@ namespace demo::scene
             std::optional<mat4_f32> offset_transform;
             std::unordered_map<io::bvh_joint_id_t/* parent */, std::vector<io::bvh_joint_id_t>/* childs */> hierarchy_map_cache;
             
-            triengine::color3_f32 joint_color{ 0.85f, 0.85f, 0.85f };
-            triengine::color3_f32 bone_color{ 0.15f, 0.15f, 0.15f };
+            triengine::color3_f32 joint_color{ 0.196f, 0.196f, 0.196f };
+            triengine::color3_f32 bone_color{ 0.098f, 0.098f, 0.098f };
             float joint_radius{ 0.020f };
             float bone_parent_cap_radius_ratio{ 0.001f };
             float bone_child_cap_radius_ratio{ 0.010f };
-            float bone_middle_radius_ratio{ 0.090f };
+            float bone_middle_radius_ratio{ 0.080f };
             float max_bone_middle_radius{ 0.018f };
             float bone_height_ratio_parent{ 0.10f };
             int bone_resolution{ 4 };
@@ -65,6 +65,7 @@ namespace demo::scene
             auto scn = this->get_scene();
             scn->set_name("bvh playback");
 
+            scn->get_render_config()->bg_color = triengine::color4_f32::all(1.0f);
             scn->get_render_config()->show_origin_xz_grid = true;
             scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, -1.5f, -1.5f };
             scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
@@ -79,12 +80,12 @@ namespace demo::scene
 
             {
                 scn->get_render_config()->show_origin_xz_grid = true;
-                scn->get_render_config()->inf_plane_opts.max_view_distance = 25.0f;
+                scn->get_render_config()->inf_plane_opts.max_view_distance = 80.0f;
                 scn->get_render_config()->inf_plane_opts.grid_cell_size = 0.5f;
 
-                box_filtered_chess_plane_option_t inf_plane_opt{};
-                inf_plane_opt.grid_cell_color1 = math::vec3_all(72.0f / 255.0f);
-                inf_plane_opt.grid_cell_color2 = math::vec3_all(58.0f / 255.0f);
+                box_filtered_grid_plane_option_t inf_plane_opt{};
+                inf_plane_opt.grid_line_color = math::vec3_all(80.0f / 255.0f);
+                inf_plane_opt.grid_cell_color = math::vec3_all(40.0f / 255.0f);
                 scn->get_render_config()->inf_plane_opts.plane_option = inf_plane_opt;
             }
 
@@ -228,40 +229,47 @@ namespace demo::scene
                     _state.fl_update_scene = true;
                 }
 
-                if (ImGui::ColorEdit3("Joint Color", _state.joint_color.data(), ImGuiColorEditFlags_NoAlpha)) {
-                    _state.fl_update_scene = true;
-                }
+                if (ImGui::CollapsingHeader("Skeleton Render Options", ImGuiTreeNodeFlags_None))
+                {
+                    ImGui::Indent();
 
-                if (ImGui::ColorEdit3("Bone Color", _state.bone_color.data(), ImGuiColorEditFlags_NoAlpha)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::ColorEdit3("Joint Color", _state.joint_color.data(), ImGuiColorEditFlags_NoAlpha)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::DragFloat("Joint Radius", &_state.joint_radius, 0.001f, 0.001f, 0.1f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::ColorEdit3("Bone Color", _state.bone_color.data(), ImGuiColorEditFlags_NoAlpha)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::DragFloat("Bone Parent Cap Radius Ratio", &_state.bone_parent_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::DragFloat("Joint Radius", &_state.joint_radius, 0.001f, 0.001f, 0.1f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::DragFloat("Bone Child Cap Radius Ratio", &_state.bone_child_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::DragFloat("Bone Parent Cap Radius Ratio", &_state.bone_parent_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::DragFloat("Bone Middle Radius Ratio", &_state.bone_middle_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::DragFloat("Bone Child Cap Radius Ratio", &_state.bone_child_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::DragFloat("Max Bone Middle Radius", &_state.max_bone_middle_radius, 0.001f, 0.001f, 0.2f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::DragFloat("Bone Middle Radius Ratio", &_state.bone_middle_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::DragFloat("Bone Height Ratio", &_state.bone_height_ratio_parent, 0.001f, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                    _state.fl_update_scene = true;
-                }
+                    if (ImGui::DragFloat("Max Bone Middle Radius", &_state.max_bone_middle_radius, 0.001f, 0.001f, 0.2f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_update_scene = true;
+                    }
 
-                if (ImGui::SliderInt("Bone Resolution", &_state.bone_resolution, 3, 40, "%d")) {
-                    _state.fl_update_scene = true;
+                    if (ImGui::DragFloat("Bone Height Ratio", &_state.bone_height_ratio_parent, 0.001f, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_update_scene = true;
+                    }
+
+                    if (ImGui::SliderInt("Bone Resolution", &_state.bone_resolution, 3, 40, "%d")) {
+                        _state.fl_update_scene = true;
+                    }
+
+                    ImGui::Unindent();
                 }
 
                 ImGui::Spacing();
