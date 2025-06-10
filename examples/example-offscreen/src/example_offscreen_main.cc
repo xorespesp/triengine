@@ -259,8 +259,7 @@ int main(
 {
     _CXLIB utils::logger::instance().init(_CXLIB utils::logger::init_options()
         .set_logger_name("example-offscreen")
-        .set_logger_level(_CXLIB utils::logger::level::trace)
-        .enable_stdout_logging()
+        .enable_stdout_logging(_CXLIB utils::logger::level::trace)
         .enable_async_mode()
     );
 

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <cxlib/cxlib_defs.h>
 
 #include <filesystem>
@@ -92,62 +92,79 @@ namespace utils
         {
         private:
             std::string _logger_name{ "logger" };
-            level _logger_level{ level::trace };
             bool _is_async_logger{ false };
-            size_t _async_logger_q_size{ 0 }, _async_logger_thread_count{ 0 };
+            size_t _async_logger_q_size{ 0 };
+            size_t _async_logger_thread_count{ 0 };
             std::vector<spdlog::sink_ptr> _logger_sinks{};
+            level _flush_on_level{ level::warn };
             std::chrono::seconds _flush_interval{ 3 };
 
         public:
             init_options() = default;
 
-            init_options& set_logger_name(const std::string_view new_name) {
+            init_options& set_logger_name(const std::string_view new_name)
+            {
                 _logger_name = new_name;
                 return *this;
             }
 
-            init_options& set_logger_level(const level lv) {
-                _logger_level = lv;
+            init_options& set_flush_on_level(const level flush_on_lv)
+            {
+                _flush_on_level = flush_on_lv;
                 return *this;
             }
 
-            init_options& set_flush_interval(const std::chrono::seconds interval) {
+            init_options& set_flush_interval(const std::chrono::seconds interval)
+            {
                 _flush_interval = interval;
                 return *this;
             }
 
-            init_options& enable_async_mode(const size_t q_size = 16 * 1024, const size_t thread_count = 1) {
+            init_options& enable_async_mode(
+                const size_t q_size = 16 * 1024,
+                const size_t thread_count = 1)
+            {
                 _is_async_logger = true;
                 _async_logger_q_size = q_size;
                 _async_logger_thread_count = thread_count;
                 return *this;
             }
 
-            init_options& enable_file_logging(const std::filesystem::path& file_path, const level lv = level::trace) {
+            init_options& enable_file_logging(
+                const std::filesystem::path& file_path,
+                const level lv = level::trace,
+                const std::string& pattern = "%Y-%m-%d %H:%M:%S.%f %z | %n | ---%L--- | TID %t | %s:%#@%! | %v")
+            {
                 auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(file_path.string(), true);
-                file_sink->set_pattern("%Y-%m-%d %H:%M:%S.%f %z | %n | ---%L--- | TID %t | %s:%#@%! | %v");
                 file_sink->set_level(static_cast<spdlog::level::level_enum>(lv));
+                file_sink->set_pattern(pattern);
 
                 _logger_sinks.push_back(file_sink);
                 return *this;
             }
 
-            init_options& enable_stdout_logging(const level lv = level::trace) {
+            init_options& enable_stdout_logging(
+                const level lv = level::trace,
+                const std::string& pattern = "%^%H:%M:%S.%f | %n | TID %t | %s:%# | %v%$")
+            {
                 auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-                stdout_sink->set_pattern("%^%H:%M:%S.%f | %n | TID %t | %s:%# | %v%$");
                 stdout_sink->set_level(static_cast<spdlog::level::level_enum>(lv));
+                stdout_sink->set_pattern(pattern);
 
                 _logger_sinks.push_back(stdout_sink);
                 return *this;
             }
 
-            init_options& enable_callback_logging(const level lv = level::trace) {
+            init_options& enable_callback_logging(
+                const level lv = level::trace,
+                const std::string& pattern = "%H:%M:%S.%f | %n | TID %t | %s:%# | %v")
+            {
                 auto callback_sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
                     [](const spdlog::details::log_msg& /*msg*/) {
-                        // for example you can be notified by sending an email to yourself
-                    });
-                callback_sink->set_pattern("%H:%M:%S.%f | %n | TID %t | %s:%# | %v");
+                    // for example you can be notified by sending an email to yourself
+                });
                 callback_sink->set_level(static_cast<spdlog::level::level_enum>(lv));
+                callback_sink->set_pattern(pattern);
 
                 _logger_sinks.push_back(callback_sink);
                 return *this;
@@ -217,8 +234,8 @@ namespace utils
                 );
             }
 
-            new_logger->set_level(static_cast<spdlog::level::level_enum>(opts._logger_level));
-            new_logger->flush_on(static_cast<spdlog::level::level_enum>(level::warn));
+            new_logger->set_level(spdlog::level::trace); // set default global level to trace
+            new_logger->flush_on(static_cast<spdlog::level::level_enum>(opts._flush_on_level));
 
             // Periodically flush all *registered* loggers every 3 seconds:
             // Warning: only use if all your loggers are thread-safe ("_mt" loggers)

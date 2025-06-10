@@ -22,8 +22,7 @@
  {
      _CXLIB utils::logger::instance().init(_CXLIB utils::logger::init_options()
          .set_logger_name("example-basic")
-         .set_logger_level(_CXLIB utils::logger::level::trace)
-         .enable_stdout_logging()
+         .enable_stdout_logging(_CXLIB utils::logger::level::trace)
          .enable_async_mode()
      );
 
