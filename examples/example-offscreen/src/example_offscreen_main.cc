@@ -208,6 +208,19 @@ namespace demo
                 if (!viewer.is_open()) { flag_stop = true; }
                 viewer.process_events();
 #endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
+
+                using namespace std::chrono_literals;
+                static int32_t frameCount = 0;
+                ++frameCount;
+                static auto lastTime = std::chrono::steady_clock::now();
+                const auto currentTime = std::chrono::steady_clock::now();
+                if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s)
+                {
+                    CXLIB_TRACE("Render FPS: {}", frameCount);
+                    lastTime = currentTime;
+                    frameCount = 0;
+                }
+
             } // for
 
 #if defined(EXAMPLE_HAS_OPENCV)

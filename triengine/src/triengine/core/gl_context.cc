@@ -136,12 +136,23 @@ namespace triengine::core
         // NOTE: Should be called in main thread
         global_glfw_environment::instance()->initialize();
 
+        /**
+         * The GLFW_CONTEXT_VERSION_MAJOR and GLFW_CONTEXT_VERSION_MINOR hints specify the 
+         * client API version that the created context must be compatible with.
+         * For OpenGL, these hints are not hard constraints, as they don't have to match exactly, 
+         * but glfwCreateWindow will still fail if the resulting OpenGL version is less than the one requested.
+         * While there is no way to ask the driver for a context of the highest supported version, 
+         * most drivers provide this when you ask GLFW for a version 1.0 context.
+         * 
+         * Refs:
+         * http://www.glfw.org/docs/latest/window.html#window_hints
+         * https://stackoverflow.com/a/27762480
+         */
         ::glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        ::glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        ::glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 
-        // NOTE: https://stackoverflow.com/a/27762480
-        ::glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
-        ::glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Enable OpenGL forward-compatibility
+        ::glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        ::glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Enable forward-compatibility
 
 #if defined (TRIENGINE_DEBUG_MODE)
         //::glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // Enable OpenGL debug context
@@ -261,7 +272,7 @@ namespace triengine::core
             );
         }
 
-        // glfwSwapInterval(1) -> Enable vsync
+        TRIENGINE_TRACE("Enable vsync: %d", enable_vsync);
         ::glfwSwapInterval((enable_vsync) ? 1 : 0);
 
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();
