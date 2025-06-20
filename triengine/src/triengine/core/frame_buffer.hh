@@ -14,7 +14,7 @@ namespace triengine::core
     };
 
     /**
-     * @brief A simple OpenGL 4.2+ framebuffer wrapper
+     * @brief A simple Modern OpenGL framebuffer wrapper class
      *        supporting single-color/multiple-color attachments(MRT),
      *        optional depth/stencil attachments, single/multi-sampling,
      *        dynamic framebuffer size reallocation, and blitting between framebuffers.
@@ -361,12 +361,12 @@ namespace triengine::core
             attachment_info_t& attach_info/* in-out */
         );
 
-        // Attaches the given attachment buffer to the currently bound FBO
+        // Attaches the given attachment buffer to the target FBO
         // at the specified attachment point (e.g., `GL_COLOR_ATTACHMENT0`, `GL_DEPTH_ATTACHMENT`).
         static void _attach_to_framebuffer(
+            const GLuint target_fbo_id,
             const attachment_info_t& attach_info,
-            GLenum attachment_point,
-            bool multisampled
+            GLenum attach_point
         );
 
     }; // class

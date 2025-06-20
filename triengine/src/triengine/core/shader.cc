@@ -282,53 +282,53 @@ namespace triengine::core
     }
 
     const shader_program::this_type& shader_program::set_uniform_int(const std::string& uniform_name, int value) const {
-        GLCall(::glUniform1i(this->get_uniform_location(uniform_name), value));
+        GLCall(::glProgramUniform1i(_program_id, this->get_uniform_location(uniform_name), value));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_bool(const std::string& uniform_name, bool value) const {
-        GLCall(::glUniform1i(this->get_uniform_location(uniform_name), static_cast<int>(value)));
+        GLCall(::glProgramUniform1i(_program_id, this->get_uniform_location(uniform_name), static_cast<int>(value)));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_float(const std::string& uniform_name, float value) const {
-        GLCall(::glUniform1f(this->get_uniform_location(uniform_name), value));
+        GLCall(::glProgramUniform1f(_program_id, this->get_uniform_location(uniform_name), value));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_vec2(const std::string& uniform_name, float v0, float v1) const {
-        GLCall(::glUniform2f(this->get_uniform_location(uniform_name), v0, v1));
+        GLCall(::glProgramUniform2f(_program_id, this->get_uniform_location(uniform_name), v0, v1));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_vec3(const std::string& uniform_name, float v0, float v1, float v2) const {
-        GLCall(::glUniform3f(this->get_uniform_location(uniform_name), v0, v1, v2));
+        GLCall(::glProgramUniform3f(_program_id, this->get_uniform_location(uniform_name), v0, v1, v2));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_vec4(const std::string& uniform_name, float v0, float v1, float v2, float v3) const {
-        GLCall(::glUniform4f(this->get_uniform_location(uniform_name), v0, v1, v2, v3));
+        GLCall(::glProgramUniform4f(_program_id, this->get_uniform_location(uniform_name), v0, v1, v2, v3));
         return *this;
     }
 
     // Eigen helpers
     const shader_program::this_type& shader_program::set_uniform_vec2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector2f>& value) const {
-        GLCall(::glUniform2fv(this->get_uniform_location(uniform_name), 1, value.data()));
+        GLCall(::glProgramUniform2fv(_program_id, this->get_uniform_location(uniform_name), 1, value.data()));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_vec3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector3f>& value) const {
-        GLCall(::glUniform3fv(this->get_uniform_location(uniform_name), 1, value.data()));
+        GLCall(::glProgramUniform3fv(_program_id, this->get_uniform_location(uniform_name), 1, value.data()));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_vec4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector4f>& value) const {
-        GLCall(::glUniform4fv(this->get_uniform_location(uniform_name), 1, value.data()));
+        GLCall(::glProgramUniform4fv(_program_id, this->get_uniform_location(uniform_name), 1, value.data()));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_mat2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const {
-        GLCall(::glUniformMatrix2fv(this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
+        GLCall(::glProgramUniformMatrix2fv(_program_id, this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_mat3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const {
-        GLCall(::glUniformMatrix3fv(this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
+        GLCall(::glProgramUniformMatrix3fv(_program_id, this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
         return *this;
     }
     const shader_program::this_type& shader_program::set_uniform_mat4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const {
-        GLCall(::glUniformMatrix4fv(this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
+        GLCall(::glProgramUniformMatrix4fv(_program_id, this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
         return *this;
     }
 

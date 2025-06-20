@@ -136,14 +136,6 @@ namespace triengine::core
             return; // skip reallocation
         }
 
-        const bool multisampled = sample_count > 1;
-
-        GLint old_fbo{};
-        GLCall(::glGetIntegerv(GL_FRAMEBUFFER_BINDING, &old_fbo));
-
-        // bind current fbo
-        GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, _fbo_id));
-
         // 1) Reallocate and attach color attachments
         if (!_color_attachments.empty())
         {
@@ -158,9 +150,9 @@ namespace triengine::core
                 );
 
                 _attach_to_framebuffer(
+                    _fbo_id,
                     curr_attach_info, 
-                    static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i),
-                    multisampled
+                    static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i)
                 );
             } // for
         }
@@ -177,9 +169,9 @@ namespace triengine::core
             );
 
             _attach_to_framebuffer(
+                _fbo_id,
                 curr_attach_info,
-                GL_DEPTH_ATTACHMENT,
-                multisampled
+                GL_DEPTH_ATTACHMENT
             );
         }
 
@@ -197,23 +189,40 @@ namespace triengine::core
 
             // reattach attachment to framebuffer
             _attach_to_framebuffer(
+                _fbo_id,
                 curr_attach_info,
-                GL_STENCIL_ATTACHMENT,
-                multisampled
+                GL_STENCIL_ATTACHMENT
             );
         }
 
         // Check FBO completeness
-        if (::glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        if (::glCheckNamedFramebufferStatus(_fbo_id, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             TRIENGINE_PANIC("Framebuffer reallocation has not been completed!");
         }
+
+#if FALSE
+        // (Optional) Set up draw buffers for MRT
+        if (this->has_color_attachment())
+        {
+            // If we have color attachments, set up the draw buffers for MRT
+            std::vector<GLenum> draw_buffers;
+            draw_buffers.reserve(_color_attachments.size());
+            for (size_t i = 0; i < _color_attachments.size(); ++i) {
+                draw_buffers.push_back(static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i));
+            }
+            GLCall(::glNamedFramebufferDrawBuffers(_fbo_id, static_cast<GLsizei>(draw_buffers.size()), draw_buffers.data()));
+        }
+        else
+        {
+            // No color attachments => depth/stencil only. No color output.
+            GLCall(::glNamedFramebufferDrawBuffer(_fbo_id, GL_NONE));
+            GLCall(::glNamedFramebufferReadBuffer(_fbo_id, GL_NONE));
+        }
+#endif
 
         _width_pixels = width_pixels;
         _height_pixels = height_pixels;
         _sample_count = sample_count;
-
-        // restore to prev fbo
-        GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(old_fbo)));
     }
 
     void frame_buffer::destroy() noexcept
@@ -252,25 +261,6 @@ namespace triengine::core
         }
 
         GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, _fbo_id));
-
-#if FALSE
-        if (this->has_color_attachment())
-        {
-            // If we have color attachments, set up the draw buffers for MRT
-            std::vector<GLenum> draw_buffers;
-            draw_buffers.reserve(_color_attachments.size());
-            for (size_t i = 0; i < _color_attachments.size(); ++i) {
-                draw_buffers.push_back(static_cast<GLenum>(GL_COLOR_ATTACHMENT0 + i));
-            }
-            GLCall(::glDrawBuffers(static_cast<GLsizei>(draw_buffers.size()), draw_buffers.data()));
-        }
-        else
-        {
-            // No color attachments => depth/stencil only. No color output.
-            GLCall(::glDrawBuffer(GL_NONE));
-            GLCall(::glReadBuffer(GL_NONE));
-        }
-#endif
     }
 
     void frame_buffer::unbind() const
@@ -291,23 +281,19 @@ namespace triengine::core
     
         TRIENGINE_ASSERT(!(blit_filter == GL_LINEAR && (blit_depth || blit_stencil)));
 
-        GLCall(::glBindFramebuffer(GL_READ_FRAMEBUFFER, _fbo_id));
-        GLCall(::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target_fb._fbo_id));
-
         GLbitfield mask{};
         if (blit_color) { mask |= GL_COLOR_BUFFER_BIT; }
         if (blit_depth) { mask |= GL_DEPTH_BUFFER_BIT; }
         if (blit_stencil) { mask |= GL_STENCIL_BUFFER_BIT; }
 
-        GLCall(::glBlitFramebuffer(
+        GLCall(::glBlitNamedFramebuffer(
+            _fbo_id,                                                 /* GLuint readFramebuffer */
+            target_fb._fbo_id,                                       /* GLuint drawFramebuffer */
             0, 0, _width_pixels, _height_pixels,                     /* GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1 */
             0, 0, target_fb._width_pixels, target_fb._height_pixels, /* GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1 */
             mask,                                                    /* GLbitfield mask */
             blit_filter                                              /* GLenum filter */
         ));
-
-        GLCall(::glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-        GLCall(::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
     }
 
     // ------------------------------
@@ -327,7 +313,7 @@ namespace triengine::core
         }
 
         frame_buffer new_fb;
-        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+        GLCall(::glCreateFramebuffers(1, &new_fb._fbo_id));
 
         // Single / Multiple(MRT) color attachment(s)
         new_fb._color_attachments.reserve(internal_color_formats.size());
@@ -353,7 +339,7 @@ namespace triengine::core
         const bool use_renderbuffer)
     {
         frame_buffer new_fb;
-        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+        GLCall(::glCreateFramebuffers(1, &new_fb._fbo_id));
 
         // Depth attachment
         {
@@ -377,7 +363,7 @@ namespace triengine::core
         const bool use_renderbuffer)
     {
         frame_buffer new_fb;
-        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+        GLCall(::glCreateFramebuffers(1, &new_fb._fbo_id));
 
         // Stencil attachment
         {
@@ -408,7 +394,7 @@ namespace triengine::core
         }
 
         frame_buffer new_fb;
-        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+        GLCall(::glCreateFramebuffers(1, &new_fb._fbo_id));
 
         // Single / Multiple(MRT) color attachment(s)
         new_fb._color_attachments.reserve(internal_color_formats.size());
@@ -450,7 +436,7 @@ namespace triengine::core
         }
 
         frame_buffer new_fb;
-        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+        GLCall(::glCreateFramebuffers(1, &new_fb._fbo_id));
 
         // Single / Multiple(MRT) color attachment(s)
         new_fb._color_attachments.reserve(internal_color_formats.size());
@@ -494,7 +480,7 @@ namespace triengine::core
         }
 
         frame_buffer new_fb;
-        GLCall(::glGenFramebuffers(1, &new_fb._fbo_id));
+        GLCall(::glCreateFramebuffers(1, &new_fb._fbo_id));
 
         // Single / Multiple(MRT) color attachment(s)
         new_fb._color_attachments.reserve(internal_color_formats.size());
@@ -553,44 +539,38 @@ namespace triengine::core
             // create new texture attachment
             //
 
-            GLCall(::glGenTextures(1, &attach_info.buffer_id));
-
             if (!multisampled)
             {
-                GLCall(::glBindTexture(GL_TEXTURE_2D, attach_info.buffer_id));
+                GLCall(::glCreateTextures(GL_TEXTURE_2D, 1, &attach_info.buffer_id));
 
                 // Set texture parameters (wrap, filter) for display
-                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, attach_info.tex_params.wrap_s));
-                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, attach_info.tex_params.wrap_t));
-                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, attach_info.tex_params.min_filter));
-                GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, attach_info.tex_params.mag_filter));
+                GLCall(::glTextureParameteri(attach_info.buffer_id, GL_TEXTURE_WRAP_S, attach_info.tex_params.wrap_s));
+                GLCall(::glTextureParameteri(attach_info.buffer_id, GL_TEXTURE_WRAP_T, attach_info.tex_params.wrap_t));
+                GLCall(::glTextureParameteri(attach_info.buffer_id, GL_TEXTURE_MIN_FILTER, attach_info.tex_params.min_filter));
+                GLCall(::glTextureParameteri(attach_info.buffer_id, GL_TEXTURE_MAG_FILTER, attach_info.tex_params.mag_filter));
 
-                // NOTE: In this case (FBO attachment case), we create the texture using `glTexStoarge2D` instead of `glTexImage2D`.
-                GLCall(::glTexStorage2D(
-                    GL_TEXTURE_2D,               /*GLenum target*/
-                    1,                           /*GLsizei levels (1 for no mipmaps)*/
-                    attach_info.internal_format, /*GLenum internalformat*/
-                    width_pixels,                /*GLsizei width*/
-                    height_pixels                /*GLsizei height*/
+                // Allocate texture storage
+                GLCall(::glTextureStorage2D(
+                    attach_info.buffer_id,       /* GLuint texture */
+                    1,                           /* GLsizei levels (1 for no mipmaps) */
+                    attach_info.internal_format, /* GLenum internalformat */
+                    width_pixels,                /* GLsizei width */
+                    height_pixels                /* GLsizei height */
                 ));
-
-                GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
             }
             else
             {
-                GLCall(::glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, attach_info.buffer_id));
+                GLCall(::glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &attach_info.buffer_id));
 
-                // Create a multisample texture
-                GLCall(::glTexStorage2DMultisample(
-                    GL_TEXTURE_2D_MULTISAMPLE,   /* GLenum target */
+                // Allocate multisample texture storage
+                GLCall(::glTextureStorage2DMultisample(
+                    attach_info.buffer_id,       /* GLuint texture */
                     sample_count,                /* GLsizei samples */
                     attach_info.internal_format, /* GLenum internalformat */
                     width_pixels,                /* GLsizei width */
                     height_pixels,               /* GLsizei height */
                     GL_TRUE                      /* GLboolean fixedsamplelocations */
                 ));
-
-                GLCall(::glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0));
             }
         }
         else
@@ -599,13 +579,12 @@ namespace triengine::core
             // create new renderbuffer attachment
             //
 
-            GLCall(::glGenRenderbuffers(1, &attach_info.buffer_id));
-            GLCall(::glBindRenderbuffer(GL_RENDERBUFFER, attach_info.buffer_id));
+            GLCall(::glCreateRenderbuffers(1, &attach_info.buffer_id));
 
             if (!multisampled)
             {
-                GLCall(::glRenderbufferStorage(
-                    GL_RENDERBUFFER,             /* GLenum target */
+                GLCall(::glNamedRenderbufferStorage(
+                    attach_info.buffer_id,       /* GLuint renderbuffer */
                     attach_info.internal_format, /* GLenum internalformat */
                     width_pixels,                /* GLsizei width */
                     height_pixels                /* GLsizei height */
@@ -613,16 +592,14 @@ namespace triengine::core
             }
             else
             {
-                GLCall(::glRenderbufferStorageMultisample(
-                    GL_RENDERBUFFER,             /* GLenum target */
+                GLCall(::glNamedRenderbufferStorageMultisample(
+                    attach_info.buffer_id,       /* GLuint renderbuffer */
                     sample_count,                /* GLsizei samples */
                     attach_info.internal_format, /* GLenum internalformat */
                     width_pixels,                /* GLsizei width */
                     height_pixels                /* GLsizei height */
                 ));
             }
-
-            GLCall(::glBindRenderbuffer(GL_RENDERBUFFER, 0));
         }
     }
 
@@ -640,26 +617,25 @@ namespace triengine::core
     }
 
     void frame_buffer::_attach_to_framebuffer(
+        const GLuint target_fbo_id,
         const attachment_info_t& attach_info, 
-        const GLenum attachment_point, 
-        const bool multisampled)
+        const GLenum attach_point)
     {
         if (!attach_info.is_render_buffer)
         {
-            GLenum tex_target = multisampled ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-            GLCall(::glFramebufferTexture2D(
-                GL_FRAMEBUFFER,            /* GLenum target */
-                attachment_point,          /* GLenum attachment */
-                tex_target,                /* GLenum textarget */
+            // GLuint framebuffer, GLenum attachment, GLuint texture, GLint level
+            GLCall(::glNamedFramebufferTexture(
+                target_fbo_id,             /* GLuint framebuffer */
+                attach_point,              /* GLenum attachment */
                 attach_info.buffer_id,     /* GLuint texture */
                 0                          /* GLint level */
             ));
         }
         else
         {
-            GLCall(::glFramebufferRenderbuffer(
-                GL_FRAMEBUFFER,            /* GLenum target */
-                attachment_point,          /* GLenum attachment */
+            GLCall(::glNamedFramebufferRenderbuffer(
+                target_fbo_id,             /* GLuint framebuffer */
+                attach_point,              /* GLenum attachment */
                 GL_RENDERBUFFER,           /* GLenum renderbuffertarget */
                 attach_info.buffer_id      /* GLuint renderbuffer */
             ));

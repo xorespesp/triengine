@@ -19,6 +19,7 @@ namespace triengine::core
             vec3_f32 position; // vertex position
             vec2_f32 uv; // texture coordinate (uv coordinate)
         };
+        static_assert(std::is_standard_layout_v<quad_vertex_t>, "!!");
         static_assert(sizeof(quad_vertex_t) == 5 * sizeof(float), "!!");
 
         const std::array<quad_vertex_t, 6> quadVertices = {
@@ -29,6 +30,55 @@ namespace triengine::core
             quad_vertex_t{ vec3_f32{ -1.0f,  1.0f, 0.0f }, vec2_f32{ 0.0f, 1.0f } },
             quad_vertex_t{ vec3_f32{ -1.0f, -1.0f, 0.0f }, vec2_f32{ 0.0f, 0.0f } }
         };
+
+        inline void create_screen_quad_vao(
+            GLuint& vao_id/* out */,
+            GLuint& vbo_id/* out */)
+        {
+            GLCall(::glCreateVertexArrays(1, &vao_id));
+            GLCall(::glCreateBuffers(1, &vbo_id));
+
+            // Link VAO's binding index 0 to the VBO
+            GLCall(::glVertexArrayVertexBuffer(
+                vao_id/*vao id*/,
+                0/*bindingindex*/,
+                vbo_id/*vbo id*/,
+                0/*startoffset*/,
+                sizeof(quad_vertex_t)/*stride*/
+            ));
+
+            // Allocate (immutable) GPU storage & upload data to VBO
+            GLCall(::glNamedBufferStorage(
+                vbo_id,
+                sizeof(quad_vertex_t) * quadVertices.size(),
+                quadVertices.data(),
+                GL_MAP_READ_BIT
+            ));
+
+            // Setup vertex attribute index 0
+            GLCall(::glEnableVertexArrayAttrib(vao_id, 0/*attribindex*/)); // attrib 0 = position
+            GLCall(::glVertexArrayAttribBinding(vao_id, 0/*attribindex*/, 0/*bindingindex*/)); // attrib 0 <- binding 0
+            GLCall(::glVertexArrayAttribFormat(
+                vao_id,
+                0/*attribindex*/,
+                decltype(quad_vertex_t::position)::SizeAtCompileTime/*size*/,
+                GL_FLOAT/*type*/,
+                GL_FALSE/*normalize*/,
+                offsetof(quad_vertex_t, position)/*relativeoffset*/
+            ));
+
+            // Setup vertex attribute index 1
+            GLCall(::glEnableVertexArrayAttrib(vao_id, 1/*attribindex*/)); // attrib 1 = uv
+            GLCall(::glVertexArrayAttribBinding(vao_id, 1/*attribindex*/, 0/*bindingindex*/)); // attrib 1 <- binding 0
+            GLCall(::glVertexArrayAttribFormat(
+                vao_id,
+                1/*attribindex*/,
+                decltype(quad_vertex_t::uv)::SizeAtCompileTime/*size*/,
+                GL_FLOAT/*type*/,
+                GL_FALSE/*normalize*/,
+                offsetof(quad_vertex_t, uv)/*relativeoffset*/
+            ));
+        }
 
     } // namespace
 
@@ -92,18 +142,7 @@ namespace triengine::core
             .link();
 
         // Create screen-quad VAO
-        {
-            GLCall(::glGenVertexArrays(1, &_vao_screen_quad));
-            GLCall(::glGenBuffers(1, &_vbo_screen_quad));
-            GLCall(::glBindVertexArray(_vao_screen_quad));
-            GLCall(::glBindBuffer(GL_ARRAY_BUFFER, _vbo_screen_quad));
-            GLCall(::glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertex_t) * quadVertices.size(), quadVertices.data(), GL_STATIC_DRAW));
-            GLCall(::glEnableVertexAttribArray(0));
-            GLCall(::glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(quad_vertex_t), (void*)offsetof(quad_vertex_t, position)));
-            GLCall(::glEnableVertexAttribArray(1));
-            GLCall(::glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(quad_vertex_t), (void*)offsetof(quad_vertex_t, uv)));
-            GLCall(::glBindVertexArray(0));
-        }
+        create_screen_quad_vao(_vao_screen_quad, _vbo_screen_quad);
 
         // Load SMAA textures
         {

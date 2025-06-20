@@ -118,8 +118,7 @@ namespace triengine
 
         // Create & Bind Texture
         GLuint new_tex_id{ kInvalidTextureID };
-        GLCall(::glGenTextures(1, &new_tex_id));
-        GLCall(::glBindTexture(GL_TEXTURE_2D, new_tex_id));
+        GLCall(::glCreateTextures(GL_TEXTURE_2D, 1, &new_tex_id));
 
         // If user wants mipmaps but min_filter is not a mipmap-based filter, adjust it automatically
         GLint adjusted_min_filter{ params.min_filter };
@@ -129,31 +128,41 @@ namespace triengine
         }
 
         // Set texture parameters (wrap, filter) for display
-        GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, params.wrap_s));
-        GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, params.wrap_t));
-        GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, adjusted_min_filter));
-        GLCall(::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, params.mag_filter));
+        GLCall(::glTextureParameteri(new_tex_id, GL_TEXTURE_WRAP_S, params.wrap_s));
+        GLCall(::glTextureParameteri(new_tex_id, GL_TEXTURE_WRAP_T, params.wrap_t));
+        GLCall(::glTextureParameteri(new_tex_id, GL_TEXTURE_MIN_FILTER, adjusted_min_filter));
+        GLCall(::glTextureParameteri(new_tex_id, GL_TEXTURE_MAG_FILTER, params.mag_filter));
 
-        // Upload pixels to GPU
-        // Ref: https://docs.gl/gl4/glTexImage2D
-        GLCall(::glTexImage2D(
-            GL_TEXTURE_2D,                     /*GLenum target*/
-            0,                                 /*GLint level*/
-            internal_format,                   /*GLint internalformat*/
-            width_pixels,                      /*GLsizei width*/
-            height_pixels,                     /*GLsizei height*/
-            0,                                 /*GLint border*/
-            format,                            /*GLenum format*/
-            GL_UNSIGNED_BYTE,                  /*GLenum type*/
-            image_buffer                       /*const void *pixels*/
+        // Allocate (immutable) GPU storage for the texture
+        // Ref: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexStorage2D.xhtml
+        const GLsizei num_mipmap_levels = generate_mipmap 
+            ? static_cast<GLsizei>(std::floor(std::log2f(std::max(width_pixels, height_pixels)))) + 1
+            : static_cast<GLsizei>(1); // 1 means no mipmaps
+        GLCall(::glTextureStorage2D(
+            new_tex_id,                         /* GLuint texture */
+            num_mipmap_levels,                  /* GLsizei levels */
+            internal_format,                    /* GLenum internalformat */
+            static_cast<GLsizei>(width_pixels), /* GLsizei width */
+            static_cast<GLsizei>(height_pixels) /* GLsizei height */
+        ));
+
+        // Upload the image data to the texture GPU storage
+        GLCall(::glTextureSubImage2D(
+            new_tex_id,                          /* GLuint texture */
+            0,                                   /* GLint level */
+            0,                                   /* GLint xoffset */
+            0,                                   /* GLint yoffset */
+            static_cast<GLsizei>(width_pixels),  /* GLsizei width */
+            static_cast<GLsizei>(height_pixels), /* GLsizei height */
+            format,                              /* GLenum format */
+            GL_UNSIGNED_BYTE,                    /* GLenum type */
+            image_buffer                         /* const void* pixels */
         ));
 
         // Generate mipmaps if requested
         if (generate_mipmap) {
-            GLCall(::glGenerateMipmap(GL_TEXTURE_2D));
+            GLCall(::glGenerateTextureMipmap(new_tex_id));
         }
-
-        GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
 
         if (this->is_valid()) {
             this->destroy();
