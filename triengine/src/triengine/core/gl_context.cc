@@ -1,4 +1,5 @@
 #include "gl_context.hh"
+#include <triengine/utility/logger.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/singleton.hh>
@@ -22,7 +23,7 @@ namespace triengine::core
             // Constructor: Initializes the GLFW library and sets up an error callback.
             // (Called automatically when the singleton instance is first accessed.)
             global_glfw_environment() {
-                //std::cout << "glfwInit() START.." << std::endl;
+                //std::cout << "glfwInit() start.." << std::endl;
                 if (!::glfwInit()) {
                     std::cerr << "\nglfwInit() failed" << std::endl;
                     ::exit(EXIT_FAILURE);
@@ -42,7 +43,7 @@ namespace triengine::core
             // Destructor: Terminates the GLFW library.
             // (Called automatically when the singleton instance is destroyed; typically at program exit.)
             ~global_glfw_environment() {
-                //std::cout << "glfwTerminate() START.." << std::endl;
+                //std::cout << "glfwTerminate() start.." << std::endl;
                 ::glfwTerminate();
             }
 
@@ -74,10 +75,10 @@ namespace triengine::core
 
         const std::string msg = utility::string::c_format(""
             "\n------------------------------------------------------------"
-            "\nOpenGL Debug message (%lu) : %.*s"
-            "\nOpenGL Debug Source: %s"
-            "\nOpenGL Debug Type: %s"
-            "\nOpenGL Debug Severity: %s"
+            "\nGL Debug message (%lu) : %.*s"
+            "\nGL Debug Source: %s"
+            "\nGL Debug Type: %s"
+            "\nGL Debug Severity: %s"
             "\n------------------------------------------------------------"
             , id
             , message_length
@@ -118,7 +119,7 @@ namespace triengine::core
             }()
         );
 
-        std::cout << msg << std::endl;
+        TRIENGINE_TRACE(msg);
     }
 
     void gl_context::create(
@@ -154,9 +155,16 @@ namespace triengine::core
         ::glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         ::glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Enable forward-compatibility
 
+        // Enable OpenGL debug context
+        constexpr int kEnableGLDebugContext =
 #if defined (TRIENGINE_DEBUG_MODE)
-        //::glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // Enable OpenGL debug context
+            GL_TRUE;
+#else  // ^^^ TRIENGINE_DEBUG_MODE ^^^ / vvv !TRIENGINE_DEBUG_MODE vvv
+            GL_FALSE;
 #endif // ^^^ TRIENGINE_DEBUG_MODE ^^^
+        ::glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, kEnableGLDebugContext);
+
+        TRIENGINE_TRACE("GL debug context: %s", (kEnableGLDebugContext) ? "enabled" : "disabled");
 
         //::glfwWindowHint(GLFW_SAMPLES, 4); // Set framebuffer MSAA quality to 4x
 
@@ -254,8 +262,7 @@ namespace triengine::core
             TRIENGINE_PANIC("Failed to load GL functions");
         }
 
-        const GLint gl_context_flags{ []() { GLint flags{}; ::glGetIntegerv(GL_CONTEXT_FLAGS, &flags); return flags; }() };
-        if (gl_context_flags & GL_CONTEXT_FLAG_DEBUG_BIT)
+        if constexpr (kEnableGLDebugContext)
         {
             // Initialize OpenGL debug output
             // Basic Ref: https://learnopengl.com/In-Practice/Debugging
@@ -272,7 +279,7 @@ namespace triengine::core
             );
         }
 
-        TRIENGINE_TRACE("Enable vsync: %d", enable_vsync);
+        TRIENGINE_TRACE("V-Sync: %s", enable_vsync ? "enabled" : "disabled");
         ::glfwSwapInterval((enable_vsync) ? 1 : 0);
 
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();

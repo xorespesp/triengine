@@ -58,18 +58,45 @@ namespace triengine::renderer
             return;
         }
 
-        // Enable depth testing
-        //GLCall(::glEnable(GL_DEPTH_TEST));
+        /*
+        struct GLStateBackupRAIIContext final {
+            GLboolean depth_test_enabled{};
+            GLboolean blend_enabled{};
+            GLint blend_equation_rgb{}, blend_equation_alpha{};
+            GLint src_rgb{}, dst_rgb{}, src_alpha{}, dst_alpha{};
 
-        // Save previous state
-        //GLint prev_blend_state{};
-        //GLCall(::glGetIntegerv(GL_BLEND, &prev_blend_state));
-        //GLint prev_blend_src_state{};
-        //GLCall(::glGetIntegerv(GL_BLEND_SRC, &prev_blend_src_state));
+            // Backup GL state
+            GLStateBackupRAIIContext() {
+                depth_test_enabled = ::glIsEnabled(GL_DEPTH_TEST);
+                blend_enabled = ::glIsEnabled(GL_BLEND);
+                GLCall(::glGetIntegerv(GL_BLEND_EQUATION_RGB, &blend_equation_rgb));
+                GLCall(::glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &blend_equation_alpha));
+                GLCall(::glGetIntegerv(GL_BLEND_SRC_RGB, &src_rgb));
+                GLCall(::glGetIntegerv(GL_BLEND_DST_RGB, &dst_rgb));
+                GLCall(::glGetIntegerv(GL_BLEND_SRC_ALPHA, &src_alpha));
+                GLCall(::glGetIntegerv(GL_BLEND_DST_ALPHA, &dst_alpha));
+            }
+
+            // Restore GL state
+            ~GLStateBackupRAIIContext() {
+                if (depth_test_enabled) { GLCall(::glEnable(GL_DEPTH_TEST)); }
+                else { GLCall(::glDisable(GL_DEPTH_TEST)); }
+                if (blend_enabled) { GLCall(::glEnable(GL_BLEND)); }
+                else { GLCall(::glDisable(GL_BLEND)); }
+                GLCall(::glBlendEquationSeparate(blend_equation_rgb, blend_equation_alpha));
+                GLCall(::glBlendFuncSeparate(src_rgb, dst_rgb, src_alpha, dst_alpha));
+            }
+        };
+
+        GLStateBackupRAIIContext state_backup_{};
+
+        // Enable depth testing
+        GLCall(::glEnable(GL_DEPTH_TEST));
 
         // Enable blending
-        //GLCall(::glEnable(GL_BLEND));
-        //GLCall(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        GLCall(::glEnable(GL_BLEND));
+        GLCall(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+        */
 
         std::visit(
             [this, &render_ctx](const auto& pattern_opt)
@@ -109,14 +136,6 @@ namespace triengine::renderer
         GLCall(::glBindVertexArray(_vao));
         GLCall(::glDrawArrays(GL_TRIANGLES, 0, 6));
         //GLCall(::glBindVertexArray(0)); // Unbind VAO (optional)
-
-        // Restore previous state
-        //if (prev_blend_state) {
-        //    GLCall(::glEnable(GL_BLEND));
-        //} else {
-        //    GLCall(::glDisable(GL_BLEND));
-        //}
-        //GLCall(::glBlendFunc(GL_SRC_ALPHA, prev_blend_src_state));
     }
 
 } // namespace
