@@ -27,7 +27,6 @@ namespace triengine
     {
         bool show_wireframe{ false };
         bool show_object_normals{ false };
-        bool show_origin_axis{ true };
         bool show_origin_xz_grid{ false };
         bool enable_anti_aliasing{ true };
 

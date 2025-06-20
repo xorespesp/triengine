@@ -22,7 +22,6 @@ namespace triengine::gui
             if (ImGui::CollapsingHeader("Render Options", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::Checkbox("Anti-Aliasing", &scn_config.enable_anti_aliasing);
-                ImGui::Checkbox("Show Origin Axes", &scn_config.show_origin_axis);
                 ImGui::Checkbox("Show Object Normals", &scn_config.show_object_normals);
                 ImGui::Checkbox("Show Wireframe", &scn_config.show_wireframe);
                 ImGui::ColorEdit4("BG Color", scn_config.bg_color.data());
