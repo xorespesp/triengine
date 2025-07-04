@@ -32,7 +32,9 @@ namespace triengine::core
         void destroy();
 
         void render(
-            const frame_buffer& target_fb,
+            GLuint target_fbo_id,
+            int32_t frame_width_pixels,
+            int32_t frame_height_pixels,
             scene& target_scn
         );
 

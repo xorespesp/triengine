@@ -13,46 +13,29 @@ namespace triengine::visualization
         : utility::noncopyable
     {
     public:
-        using close_callback = std::function<void(visualizer& vis, bool& handled)>;
-        using key_callback = std::function<void(visualizer& vis, int key, int scancode, int action, int mods, bool& handled)>;
-        using mouse_button_callback = std::function<void(visualizer& vis, int button, int action, int mods, bool& handled)>;
-        using mouse_move_callback = std::function<void(visualizer& vis, double cursor_xpos, double cursor_ypos, bool& handled)>;
-        using mouse_scroll_callback = std::function<void(visualizer& vis, double scroll_xoffset, double scroll_yoffset, bool& handled)>;
-        using dpi_change_callback = std::function<void(visualizer& vis, float xscale, float yscale)>;
+        using close_callback = std::function<void(bool& cancel)>;
+        using dpi_change_callback = std::function<void(double dpi_xscale, double dpi_yscale)>;
+        using key_callback = std::function<void(int32_t key, int32_t scancode, int32_t action, int32_t mods, bool& handled)>;
+        using mouse_button_callback = std::function<void(int32_t button, int32_t action, int32_t mods, bool& handled)>;
+        using mouse_move_callback = std::function<void(double cursor_xpos, double cursor_ypos, bool& handled)>;
+        using mouse_scroll_callback = std::function<void(double scroll_xoffset, double scroll_yoffset, bool& handled)>;
 
     public:
         visualizer();
         virtual ~visualizer() = default;
 
-        const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
-        core::gl_context* get_gl_context() noexcept { return &_glctx; }
+        const core::gl_context* get_gl_context() const noexcept;
+        core::gl_context* get_gl_context() noexcept;
 
         vec2_i32 get_window_size() const;
         vec2_f32 get_window_dpi_scale() const;
 
-        void set_close_callback(close_callback cb) {
-            _cb_close = std::move(cb);
-        }
-
-        void set_key_callback(key_callback cb) {
-            _cb_key = std::move(cb);
-        }
-
-        void set_mouse_button_callback(mouse_button_callback cb) {
-            _cb_mouse_button = std::move(cb);
-        }
-        
-        void set_mouse_move_callback(mouse_move_callback cb) {
-            _cb_mouse_move = std::move(cb);
-        }
-
-        void set_mouse_scroll_callback(mouse_scroll_callback cb) {
-            _cb_mouse_scroll = std::move(cb);
-        }
-
-        void set_dpi_change_callback(dpi_change_callback cb) {
-            _cb_dpi_change = std::move(cb);
-        }
+        void set_close_callback(close_callback cb);
+        void set_dpi_change_callback(dpi_change_callback cb);
+        void set_key_callback(key_callback cb);
+        void set_mouse_button_callback(mouse_button_callback cb);
+        void set_mouse_move_callback(mouse_move_callback cb);
+        void set_mouse_scroll_callback(mouse_scroll_callback cb);
 
         void create_window(
             const std::string& window_name,
@@ -66,7 +49,7 @@ namespace triengine::visualization
 
         void destroy_window();
 
-        void set_window_position(int xpos, int ypos);
+        void set_window_position(int32_t xpos, int32_t ypos);
 
         std::shared_ptr<scene> add_scene();
         void remove_scene(scene_id_t scn_id);
@@ -98,48 +81,13 @@ namespace triengine::visualization
         }
 
     private:
-        void _handle_glfw_window_close_event(
-            GLFWwindow* window
-        );
-
-        void _handle_glfw_frame_buffer_resize_event(
-            GLFWwindow* window,
-            int width,
-            int height
-        );
-
-        void _handle_glfw_key_event(
-            GLFWwindow* window,
-            int key,
-            int scancode,
-            int action,
-            int mods
-        );
-
-        void _handle_glfw_mouse_button_event(
-            GLFWwindow* window,
-            int button,
-            int action,
-            int mods
-        );
-
-        void _handle_glfw_mouse_move_event(
-            GLFWwindow* window,
-            double cursor_xpos,
-            double cursor_ypos
-        );
-
-        void _handle_glfw_mouse_scroll_event(
-            GLFWwindow* window,
-            double scroll_xoffset,
-            double scroll_yoffset
-        );
-        
-        void _handle_glfw_content_scale_change_event(
-            GLFWwindow* window,
-            float xscale,
-            float yscale
-        );
+        void _handle_close_event(bool& cancel);
+        void _handle_frame_resize_event(int32_t width, int32_t height);
+        void _handle_key_event(int32_t key, int32_t scancode, int32_t action, int32_t mods);
+        void _handle_mouse_button_event(int32_t button, int32_t action, int32_t mods);
+        void _handle_mouse_move_event(double cursor_xpos, double cursor_ypos);
+        void _handle_mouse_scroll_event(double scroll_xoffset, double scroll_yoffset);
+        void _handle_dpi_change_event(double xscale, double yscale);
 
     private:
         bool _flag_initialized{ false };

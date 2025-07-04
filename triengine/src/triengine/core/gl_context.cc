@@ -122,6 +122,10 @@ namespace triengine::core
         TRIENGINE_TRACE(msg);
     }
 
+    bool gl_context::is_created() const noexcept {
+        return _flag_initialized;
+    }
+
     void gl_context::create(
         const std::string& window_name,
         const bool visible,
@@ -282,6 +286,74 @@ namespace triengine::core
         TRIENGINE_TRACE("V-Sync: %s", enable_vsync ? "enabled" : "disabled");
         ::glfwSwapInterval((enable_vsync) ? 1 : 0);
 
+        ::glfwSetWindowUserPointer(_glfw_window.get(), this);
+
+        //
+        // Setup event callbacks
+        //
+
+        ::glfwSetWindowCloseCallback(_glfw_window.get(),
+            +[](GLFWwindow* window) {
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_close) {
+                bool canceled{ false };
+                pThis->_cb_close(canceled);
+                if (canceled) {
+                    // cancel close requests (reset close flag)
+                    ::glfwSetWindowShouldClose(window, GL_FALSE);
+                }
+            }
+        });
+
+        ::glfwSetFramebufferSizeCallback(_glfw_window.get(),
+            +[](GLFWwindow* window, int w, int h) {
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_frame_resize) {
+                pThis->_cb_frame_resize(w, h);
+            }
+        });
+
+        ::glfwSetKeyCallback(_glfw_window.get(),
+            +[](GLFWwindow* window, int key, int scancode, int action, int mods) {
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_key) {
+                pThis->_cb_key(key, scancode, action, mods);
+            }
+        });
+
+        ::glfwSetMouseButtonCallback(_glfw_window.get(),
+            +[](GLFWwindow* window, int button, int action, int mods) {
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_mouse_button) {
+                pThis->_cb_mouse_button(button, action, mods);
+            }
+        });
+
+        ::glfwSetCursorPosCallback(_glfw_window.get(),
+            +[](GLFWwindow* window, double xpos, double ypos) {
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_mouse_move) {
+                pThis->_cb_mouse_move(xpos, ypos);
+            }
+        });
+
+        ::glfwSetScrollCallback(_glfw_window.get(),
+            +[](GLFWwindow* window, double xoffset, double yoffset) {
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_mouse_scroll) {
+                pThis->_cb_mouse_scroll(xoffset, yoffset);
+            }
+        });
+
+        ::glfwSetWindowContentScaleCallback(_glfw_window.get(),
+            +[]([[maybe_unused]] GLFWwindow* window, float xscale, float yscale) {
+            TRIENGINE_TRACE("dpi scale changed: [%f, %f]", xscale, yscale);
+            auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
+            if (pThis->_cb_dpi_change) {
+                pThis->_cb_dpi_change(xscale, yscale);
+            }
+        });
+
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();
 
         _flag_initialized = true;
@@ -322,9 +394,88 @@ namespace triengine::core
         return dpi_scale;
     }
 
+    // NOTE: Device screen coordinates are relative to the upper-left corner of the window content area.
+    vec2_f32 gl_context::get_cursor_screen_pos() const
+    {
+        double xpos{}, ypos{};
+        ::glfwGetCursorPos(_glfw_window.get(), &xpos, &ypos);
+        return vec2_f32{ static_cast<float>(xpos), static_cast<float>(ypos) };
+    }
+
+    bool gl_context::get_window_close_flag() const
+    {
+        /**
+         * https://www.glfw.org/docs/3.0/window.html
+         *
+         * When the user attempts to close the window,
+         * for example by clicking the close widget or using a key chord like Alt+F4,
+         * the close flag of the window is set.
+         *
+         * The window is however not actually destroyed and, unless you watch for this state change, nothing further happens.
+         * The current state of the close flag is returned by glfwWindowShouldClose and can be set or cleared directly with glfwSetWindowShouldClose.
+         */
+        return static_cast<bool>(::glfwWindowShouldClose(_glfw_window.get()));
+    }
+
+    void gl_context::set_window_close_flag(bool close)
+    {
+        ::glfwSetWindowShouldClose(_glfw_window.get(), close);
+    }
+
+    void gl_context::set_window_position(int32_t xpos, int32_t ypos)
+    {
+        ::glfwSetWindowPos(_glfw_window.get(), xpos, ypos);
+    }
+
     void gl_context::make_context_current()
     {
         ::glfwMakeContextCurrent(_glfw_window.get());
+    }
+
+    void gl_context::swap_buffers()
+    {
+        ::glfwSwapBuffers(_glfw_window.get());
+    }
+
+    void gl_context::poll_window_events()
+    {
+        ::glfwPollEvents();
+    }
+
+    void gl_context::set_close_callback(close_callback cb) {
+        _cb_close = std::move(cb);
+    }
+
+    void gl_context::set_frame_resize_callback(frame_resize_callback cb) {
+        _cb_frame_resize = std::move(cb);
+    }
+
+    void gl_context::set_dpi_change_callback(dpi_change_callback cb) {
+        _cb_dpi_change = std::move(cb);
+    }
+
+    void gl_context::set_key_callback(key_callback cb) {
+        _cb_key = std::move(cb);
+    }
+
+    void gl_context::set_mouse_button_callback(mouse_button_callback cb) {
+        _cb_mouse_button = std::move(cb);
+    }
+
+    void gl_context::set_mouse_move_callback(mouse_move_callback cb) {
+        _cb_mouse_move = std::move(cb);
+    }
+
+    void gl_context::set_mouse_scroll_callback(mouse_scroll_callback cb) {
+        _cb_mouse_scroll = std::move(cb);
+    }
+
+    std::shared_ptr<gpu_resource_manager> gl_context::get_gpu_resource_manager() noexcept {
+        return _gpu_res_mgr;
+    }
+
+    std::shared_ptr<const gpu_resource_manager> gl_context::get_gpu_resource_manager() const noexcept {
+        return _gpu_res_mgr;
     }
 
 } // namespace triengine

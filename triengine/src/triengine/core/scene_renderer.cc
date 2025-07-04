@@ -220,7 +220,9 @@ namespace triengine::core
     }
 
     void scene_renderer::render(
-        const frame_buffer& target_fb,
+        const GLuint target_fbo_id,
+        const int32_t frame_width_pixels,
+        const int32_t frame_height_pixels,
         scene& scn)
     {
         _glctx->get_gpu_resource_manager()->process_pending_requests();
@@ -275,8 +277,8 @@ namespace triengine::core
                     },
                     GL_DEPTH_COMPONENT24,
                     GL_STENCIL_INDEX8,
-                    target_fb.width_pixels(),
-                    target_fb.height_pixels()
+                    frame_width_pixels,
+                    frame_height_pixels
                 );
             }
             else
@@ -284,8 +286,8 @@ namespace triengine::core
                 // It is okay to call reallocate every frame, 
                 // as there is an internal reallocation-skip optimization implemented.
                 _wboit_fb.reallocate(
-                    target_fb.width_pixels(),
-                    target_fb.height_pixels()
+                    frame_width_pixels,
+                    frame_height_pixels
                 );
             }
 
@@ -416,8 +418,8 @@ namespace triengine::core
                     _overlay_fb = frame_buffer::create_color_depth_only_buffer(
                         GL_RGBA16F,
                         GL_DEPTH_COMPONENT24,
-                        target_fb.width_pixels(),
-                        target_fb.height_pixels()
+                        frame_width_pixels,
+                        frame_height_pixels
                     );
                 }
                 else
@@ -425,8 +427,8 @@ namespace triengine::core
                     // It is okay to call reallocate every frame, 
                     // as there is an internal reallocation-skip optimization implemented.
                     _overlay_fb.reallocate(
-                        target_fb.width_pixels(),
-                        target_fb.height_pixels()
+                        frame_width_pixels,
+                        frame_height_pixels
                     );
                 }
 
@@ -465,7 +467,7 @@ namespace triengine::core
             {
                 // NOTE: 이시점에서 적용하려는 main scene texture의 FBO(_wboit_fb)가 바인딩되어있어야 함
 
-                _bloom_effect.resize({ target_fb.width_pixels(), target_fb.height_pixels() });
+                _bloom_effect.resize({ frame_width_pixels, frame_height_pixels });
                 _bloom_effect.apply(
                     wboit_opaque_color_attach->buffer_id, // main scene texture
                     scn_render_config.light_opts.bloom
@@ -486,8 +488,8 @@ namespace triengine::core
                         GL_RGBA16F/* neighborhood blending buffer */
                     },
                     GL_STENCIL_INDEX8,
-                    target_fb.width_pixels(),
-                    target_fb.height_pixels()
+                    frame_width_pixels,
+                    frame_height_pixels
                 );
             }
             else
@@ -495,8 +497,8 @@ namespace triengine::core
                 // It is okay to call reallocate every frame, 
                 // as there is an internal reallocation-skip optimization implemented.
                 _smaa_fb.reallocate(
-                    target_fb.width_pixels(),
-                    target_fb.height_pixels()
+                    frame_width_pixels,
+                    frame_height_pixels
                 );
             }
 
@@ -616,7 +618,7 @@ namespace triengine::core
                 GLCall(::glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
 
                 // bind frame buffers
-                GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, target_fb.fbo_id()));
+                GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, target_fbo_id));
                 GLCall(::glDrawBuffer(GL_COLOR_ATTACHMENT0/* main color buffer */));
 
                 // NOTE: In this pass, there is no need to clear color buffer since the entire color buffer is refreshed every time.
@@ -671,7 +673,7 @@ namespace triengine::core
                 scn_render_config.bg_color.a())
             );
 
-            GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, target_fb.fbo_id()));
+            GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, target_fbo_id));
             GLCall(::glDrawBuffer(GL_COLOR_ATTACHMENT0));
 
             // clear frame buffers

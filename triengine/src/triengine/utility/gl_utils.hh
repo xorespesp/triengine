@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <triengine/common.h>
 #include <triengine/utility/debug_utils.hh>
 
@@ -25,14 +25,5 @@ namespace triengine::utility
     bool GLCheckError_impl(
         const source_loc& src_loc
     );
-
-    // NOTE: Device screen coordinates are relative to the upper-left corner of the window content area.
-    static inline vec2_f32 get_cursor_device_screen_pos(
-        GLFWwindow* const glfw_window)
-    {
-        double xpos, ypos;
-        ::glfwGetCursorPos(glfw_window, &xpos, &ypos);
-        return vec2_f32{ static_cast<float>(xpos), static_cast<float>(ypos) };
-    }
 
 } // namespace

@@ -169,7 +169,7 @@ namespace triengine::visualization
             return;
         }
 
-        ::glfwSwapBuffers(_glctx.get_glfw_window());
+        _glctx.swap_buffers();
 
         const vec2_i32 frame_size = _curr_frame_size;
 
@@ -177,7 +177,12 @@ namespace triengine::visualization
         {
             scene& target_scn = *(_curr_scn_it->get());
             target_scn.get_camera()->set_view_port(view_port{ 0, 0, frame_size.x(),  frame_size.y() });
-            _scn_renderer.render(_fb_main, target_scn);
+            _scn_renderer.render(
+                _fb_main.fbo_id(),
+                _fb_main.width_pixels(),
+                _fb_main.height_pixels(),
+                target_scn
+            );
 
             //frame_image.prepare(W, H, image_format_type::bgr);
             //GLCall(::glReadPixels(

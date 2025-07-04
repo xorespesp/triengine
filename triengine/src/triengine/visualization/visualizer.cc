@@ -9,17 +9,46 @@
 namespace triengine::visualization
 {
     visualizer::visualizer()
-    {
+    { }
+
+    const core::gl_context* visualizer::get_gl_context() const noexcept {
+        return &_glctx;
     }
 
-    vec2_i32 visualizer::get_window_size() const
-    {
+    core::gl_context* visualizer::get_gl_context() noexcept {
+        return &_glctx;
+    }
+
+    vec2_i32 visualizer::get_window_size() const {
         return _glctx.get_window_size();
     }
 
-    vec2_f32 visualizer::get_window_dpi_scale() const
-    {
+    vec2_f32 visualizer::get_window_dpi_scale() const {
         return _glctx.get_window_dpi_scale();
+    }
+
+    void visualizer::set_close_callback(close_callback cb) {
+        _cb_close = std::move(cb);
+    }
+
+    void visualizer::set_dpi_change_callback(dpi_change_callback cb) {
+        _cb_dpi_change = std::move(cb);
+    }
+
+    void visualizer::set_key_callback(key_callback cb) {
+        _cb_key = std::move(cb);
+    }
+
+    void visualizer::set_mouse_button_callback(mouse_button_callback cb) {
+        _cb_mouse_button = std::move(cb);
+    }
+
+    void visualizer::set_mouse_move_callback(mouse_move_callback cb) {
+        _cb_mouse_move = std::move(cb);
+    }
+
+    void visualizer::set_mouse_scroll_callback(mouse_scroll_callback cb) {
+        _cb_mouse_scroll = std::move(cb);
     }
 
     void visualizer::create_window(
@@ -41,52 +70,20 @@ namespace triengine::visualization
             fullscreen
         );
 
-        // In to use the member function as callback, set the current class as the Window User Pointer
-        ::glfwSetWindowUserPointer(_glctx.get_glfw_window(), this);
-
-        // Set all callbacks
-        ::glfwSetWindowCloseCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window) {
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_window_close_event(window);
-            });
-
-        ::glfwSetFramebufferSizeCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window, int w, int h) {
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_frame_buffer_resize_event(window, w, h);
-            });
-
-        ::glfwSetKeyCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window, int key, int scancode, int action, int mods) {
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_key_event(window, key, scancode, action, mods);
-            });
-
-        ::glfwSetMouseButtonCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window, int button, int action, int mods) {
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_mouse_button_event(window, button, action, mods);
-            });
-
-        ::glfwSetCursorPosCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window, double xpos, double ypos) {
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_mouse_move_event(window, xpos, ypos);
-            });
-
-        ::glfwSetScrollCallback(_glctx.get_glfw_window(),
-            +[](GLFWwindow* window, double xoffset, double yoffset) {
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_mouse_scroll_event(window, xoffset, yoffset);
-            });
-
-        ::glfwSetWindowContentScaleCallback(_glctx.get_glfw_window(),
-            +[]([[maybe_unused]] GLFWwindow* window, float xscale, float yscale) {
-                TRIENGINE_DEBUG("dpi scale changed: [%f, %f]", xscale, yscale);
-                auto pThis = static_cast<visualizer*>(::glfwGetWindowUserPointer(window));
-                pThis->_handle_glfw_content_scale_change_event(window, xscale, yscale);
-            });
+        _glctx.set_close_callback(std::bind(&visualizer::_handle_close_event, this, 
+            std::placeholders::_1));
+        _glctx.set_frame_resize_callback(std::bind(&visualizer::_handle_frame_resize_event, this,
+            std::placeholders::_1, std::placeholders::_2));
+        _glctx.set_dpi_change_callback(std::bind(&visualizer::_handle_dpi_change_event, this,
+            std::placeholders::_1, std::placeholders::_2));
+        _glctx.set_key_callback(std::bind(&visualizer::_handle_key_event, this,
+            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+        _glctx.set_mouse_button_callback(std::bind(&visualizer::_handle_mouse_button_event, this,
+            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        _glctx.set_mouse_move_callback(std::bind(&visualizer::_handle_mouse_move_event, this,
+            std::placeholders::_1, std::placeholders::_2));
+        _glctx.set_mouse_scroll_callback(std::bind(&visualizer::_handle_mouse_scroll_event, this,
+            std::placeholders::_1, std::placeholders::_2));
 
         _scn_renderer.create(&_glctx);
 
@@ -106,8 +103,7 @@ namespace triengine::visualization
 
     void visualizer::close_window()
     {
-        // Set the close flag
-        ::glfwSetWindowShouldClose(_glctx.get_glfw_window(), GL_TRUE);
+        _glctx.set_window_close_flag(true);
     }
 
     void visualizer::destroy_window()
@@ -124,12 +120,9 @@ namespace triengine::visualization
         }
     }
 
-    void visualizer::set_window_position(int xpos, int ypos)
+    void visualizer::set_window_position(int32_t xpos, int32_t ypos)
     {
-        if (const auto gl_window = _glctx.get_glfw_window();
-            gl_window) {
-            ::glfwSetWindowPos(gl_window, xpos, ypos);
-        }
+        _glctx.set_window_position(xpos, ypos);
     }
 
     std::shared_ptr<scene> visualizer::add_scene()
@@ -240,7 +233,9 @@ namespace triengine::visualization
         scene& target_scn = *(_curr_scn_it->get());
         target_scn.get_camera()->set_view_port(view_port{ 0, 0, target_fb.width_pixels(), target_fb.height_pixels() });
         _scn_renderer.render(
-            target_fb,
+            target_fb.fbo_id(),
+            target_fb.width_pixels(),
+            target_fb.height_pixels(),
             target_scn
         );
 
@@ -255,49 +250,31 @@ namespace triengine::visualization
 
     bool visualizer::update_window()
     {
-        ::glfwSwapBuffers(_glctx.get_glfw_window());
-        ::glfwPollEvents();
-
-        /**
-         * https://www.glfw.org/docs/3.0/window.html
-         *
-         * When the user attempts to close the window,
-         * for example by clicking the close widget or using a key chord like Alt+F4,
-         * the close flag of the window is set.
-         *
-         * The window is however not actually destroyed and, unless you watch for this state change, nothing further happens.
-         * The current state of the close flag is returned by glfwWindowShouldClose and can be set or cleared directly with glfwSetWindowShouldClose.
-         */
-        return !static_cast<bool>(::glfwWindowShouldClose(_glctx.get_glfw_window()));
+        _glctx.swap_buffers();
+        _glctx.poll_window_events();
+        return !_glctx.get_window_close_flag();
     }
 
-    void visualizer::_handle_glfw_window_close_event(
-        [[maybe_unused]] GLFWwindow* const window)
+    void visualizer::_handle_close_event(
+        bool& cancel)
     {
         if (_cb_close) {
-            bool canceled = false;
-            _cb_close(*this, canceled);
-            if (canceled) {
-                // cancel close requests (reset close flag)
-                ::glfwSetWindowShouldClose(window, GL_FALSE);
-            }
+            _cb_close(cancel);
         }
     }
 
-    void visualizer::_handle_glfw_frame_buffer_resize_event(
-        [[maybe_unused]] GLFWwindow* const window,
-        [[maybe_unused]] const int width,
-        [[maybe_unused]] const int height)
+    void visualizer::_handle_frame_resize_event(
+        [[maybe_unused]] const int32_t width,
+        [[maybe_unused]] const int32_t height)
     {
         // ...
     }
 
-    void visualizer::_handle_glfw_key_event(
-        [[maybe_unused]] GLFWwindow* const window,
-        [[maybe_unused]] const int key,
-        [[maybe_unused]] const int scancode,
-        [[maybe_unused]] const int action,
-        [[maybe_unused]] const int mods)
+    void visualizer::_handle_key_event(
+        [[maybe_unused]] const int32_t key,
+        [[maybe_unused]] const int32_t scancode,
+        [[maybe_unused]] const int32_t action,
+        [[maybe_unused]] const int32_t mods)
     {
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
@@ -309,7 +286,7 @@ namespace triengine::visualization
 
         if (_cb_key) {
             bool handled = false;
-            _cb_key(*this, key, scancode, action, mods, handled);
+            _cb_key(key, scancode, action, mods, handled);
             if (handled) { return; }
         }
 
@@ -323,13 +300,12 @@ namespace triengine::visualization
         }
     }
 
-    void visualizer::_handle_glfw_mouse_button_event(
-        [[maybe_unused]] GLFWwindow* const window,
-        [[maybe_unused]] const int button,
-        [[maybe_unused]] const int action,
-        [[maybe_unused]] const int mods)
+    void visualizer::_handle_mouse_button_event(
+        [[maybe_unused]] const int32_t button,
+        [[maybe_unused]] const int32_t action,
+        [[maybe_unused]] const int32_t mods)
     {
-        const vec2_f32 curr_cursor_screen_pos = utility::get_cursor_device_screen_pos(window);
+        const vec2_f32 curr_cursor_screen_pos = _glctx.get_cursor_screen_pos();
         const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -342,7 +318,7 @@ namespace triengine::visualization
 
         if (_cb_mouse_button) {
             bool handled = false;
-            _cb_mouse_button(*this, button, action, mods, handled);
+            _cb_mouse_button(button, action, mods, handled);
             if (handled) { return; }
         }
 
@@ -352,8 +328,7 @@ namespace triengine::visualization
         }
     }
 
-    void visualizer::_handle_glfw_mouse_move_event(
-        [[maybe_unused]] GLFWwindow* const window,
+    void visualizer::_handle_mouse_move_event(
         [[maybe_unused]] const double cursor_screen_xpos,
         [[maybe_unused]] const double cursor_screen_ypos)
     {
@@ -374,7 +349,7 @@ namespace triengine::visualization
 
         if (_cb_mouse_move) {
             bool handled = false;
-            _cb_mouse_move(*this, cursor_screen_xpos, cursor_screen_ypos, handled);
+            _cb_mouse_move(cursor_screen_xpos, cursor_screen_ypos, handled);
             if (handled) { return; }
         }
 
@@ -404,12 +379,11 @@ namespace triengine::visualization
         }
     }
 
-    void visualizer::_handle_glfw_mouse_scroll_event(
-        [[maybe_unused]] GLFWwindow* const window,
+    void visualizer::_handle_mouse_scroll_event(
         [[maybe_unused]] const double scroll_xoffset,
         [[maybe_unused]] const double scroll_yoffset)
     {
-        const vec2_f32 curr_cursor_screen_pos = utility::get_cursor_device_screen_pos(window);
+        const vec2_f32 curr_cursor_screen_pos = _glctx.get_cursor_screen_pos();
         const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -422,7 +396,7 @@ namespace triengine::visualization
 
         if (_cb_mouse_scroll) {
             bool handled = false;
-            _cb_mouse_scroll(*this, scroll_xoffset, scroll_yoffset, handled);
+            _cb_mouse_scroll(scroll_xoffset, scroll_yoffset, handled);
             if (handled) { return; }
         }
 
@@ -430,7 +404,7 @@ namespace triengine::visualization
         {
             camera* const scn_camera = this->get_current_scene()->get_camera();
 
-            const bool ctrl_pressed = ::glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
+            const bool ctrl_pressed = ::glfwGetKey(_glctx.get_glfw_window(), GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
             if (!ctrl_pressed) {
                 scn_camera->process_mouse_scroll_for_zoom(static_cast<float>(scroll_yoffset));
             } else {
@@ -439,13 +413,12 @@ namespace triengine::visualization
         }
     }
 
-    void visualizer::_handle_glfw_content_scale_change_event(
-        [[maybe_unused]] GLFWwindow* const window,
-        [[maybe_unused]] const float xscale,
-        [[maybe_unused]] const float yscale)
+    void visualizer::_handle_dpi_change_event(
+        [[maybe_unused]] const double dpi_xscale,
+        [[maybe_unused]] const double dpi_yscale)
     {
         if (_cb_dpi_change) {
-            _cb_dpi_change(*this, xscale, yscale);
+            _cb_dpi_change(dpi_xscale, dpi_yscale);
         }
     }
 

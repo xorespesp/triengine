@@ -140,11 +140,10 @@ namespace demo
 
         _vis->set_key_callback(
             [this](
-                [[maybe_unused]] triengine::visualization::visualizer& vis,
-                [[maybe_unused]] const int key,
-                [[maybe_unused]] const int scancode,
-                [[maybe_unused]] const int action,
-                [[maybe_unused]] const int mods,
+                [[maybe_unused]] const int32_t key,
+                [[maybe_unused]] const int32_t scancode,
+                [[maybe_unused]] const int32_t action,
+                [[maybe_unused]] const int32_t mods,
                 [[maybe_unused]] bool& handled)
             {
                 if (action != GLFW_RELEASE)
