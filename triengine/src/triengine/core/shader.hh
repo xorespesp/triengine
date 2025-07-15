@@ -111,6 +111,7 @@ namespace triengine::core
             const std::string& subroutine_uniform_name,
             GLuint subroutine_function_index
         );
+        
         void set_active_subroutine(
             shader_object_type stage_type,
             const std::string& subroutine_uniform_name,
