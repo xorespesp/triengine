@@ -151,7 +151,7 @@ namespace triengine::visualization
         return _curr_frame_size;
     }
 
-    void offscreen_renderer::set_frame_size(int32_t width, int32_t height)
+    void offscreen_renderer::resize_frame(int32_t width, int32_t height)
     {
         if (width <= 0 || height <= 0) {
             TRIENGINE_PANIC("Invalid frame size (%d, %d)", width, height);

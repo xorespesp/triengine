@@ -1,3 +1,6 @@
 add_subdirectory(common)
 add_subdirectory(example-basic)
 add_subdirectory(example-offscreen)
+if (WIN32)
+	add_subdirectory(example-interprocess)
+endif()

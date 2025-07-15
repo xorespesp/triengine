@@ -42,7 +42,7 @@ namespace triengine::visualization
         std::shared_ptr<scene> get_current_scene();
 
         vec2_i32 get_frame_size() const noexcept;
-        void set_frame_size(int32_t width, int32_t height);
+        void resize_frame(int32_t width, int32_t height);
 
         void render(
             image& frame_image/* out */,

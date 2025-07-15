@@ -60,10 +60,7 @@ namespace utils
         }
 
         constexpr std::string_view filename() const {
-            const auto pos = filepath.find_last_of("/\\");
-            return (pos != std::string_view::npos)
-                ? filepath.substr(pos + 1) // split filename
-                : filepath; // if no path separator is found, the whole filepath is the filename
+            return filepath.substr(filepath.find_last_of("/\\") + 1); // split filename
         }
 
 #if defined(_CXLIB_HAS_SPDLOG)

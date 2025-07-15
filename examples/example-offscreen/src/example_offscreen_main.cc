@@ -111,7 +111,7 @@ namespace demo
                 [this, &viewer](const int32_t new_width, const int32_t new_height)
                 {
                     TRIENGINE_TRACE("viewer window resize: %dx%d", new_width, new_height);
-                    this->_renderer->set_frame_size(new_width, new_height);
+                    this->_renderer->resize_frame(new_width, new_height);
                 }
             );
 

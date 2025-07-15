@@ -125,17 +125,24 @@ if (MSVC)
     
     if (TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG)
         # Ref: https://devblogs.microsoft.com/cppblog/cpp-dynamic-debugging-full-debuggability-for-optimized-builds/#other-build-systems
-        message(STATUS "Enable MSVC dynamic-debugging globally...")
+        #message(STATUS "Enable MSVC dynamic-debugging globally...")
     
         # Pass /dynamicdeopt switch to cl.exe (requires /Zi or /Z7)
-        add_compile_options(/dynamicdeopt /Zi)
+        add_compile_options(
+            "$<$<NOT:$<CONFIG:Debug>>:/dynamicdeopt>"
+            "$<$<NOT:$<CONFIG:Debug>>:/Zi>"
+        )
 
         # Pass /dynamicdeopt switch to link.exe (requires /DEBUG:FULL)
-        add_link_options(/dynamicdeopt /DEBUG:FULL)
+        add_link_options(
+            "$<$<NOT:$<CONFIG:Debug>>:/dynamicdeopt>"
+            "$<$<NOT:$<CONFIG:Debug>>:/DEBUG:FULL>"
+        )
+        
+        # Pass /dynamicdeopt switch to lib.exe (release only)
+        string(APPEND CMAKE_STATIC_LINKER_FLAGS_RELEASE " /dynamicdeopt") # Release
+        string(APPEND CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO " /dynamicdeopt") # RelWithDebInfo
 
-        # Pass /dynamicdeopt switch to lib.exe
-        string(APPEND CMAKE_STATIC_LINKER_FLAGS " /dynamicdeopt")
-        message(STATUS "CMAKE_STATIC_LINKER_FLAGS: ${CMAKE_STATIC_LINKER_FLAGS}")
     endif()
 endif()
 

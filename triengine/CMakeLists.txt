@@ -42,6 +42,7 @@ set(TRIENGINE_LIBRARY_SOURCES
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/visualizer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer_dx.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/logger.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/debug_utils.cc"
@@ -138,6 +139,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/smaa_shaders.h"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer.hh"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer_dx.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/visualizer.hh"
 )
 
@@ -152,6 +154,8 @@ set(TRIENGINE_LIBRARY_HEADERS_PRIVATE
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/stb_image.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/tiny_obj_loader.h"
+
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/wglext.h"
 )
 ########################################################################################
 
