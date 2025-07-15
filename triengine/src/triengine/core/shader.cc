@@ -146,13 +146,19 @@ namespace triengine::core
 
     shader_program& shader_program::operator=(shader_program&& rhs) noexcept
     {
-        if (this != &rhs) {
+        if (this != &rhs)
+        {
             if (this->is_valid()) {
                 this->destroy();
             }
+
             std::swap(_program_id, rhs._program_id);
             std::swap(_attached_shaders, rhs._attached_shaders);
             std::swap(_uniforms_location_map, rhs._uniforms_location_map);
+            std::swap(_subroutine_function_indices_vector_map, rhs._subroutine_function_indices_vector_map);
+            std::swap(_subroutine_uniforms_name_location_map, rhs._subroutine_uniforms_name_location_map);
+            std::swap(_subroutine_functions_name_index_map, rhs._subroutine_functions_name_index_map);
+            std::swap(_subroutine_functions_index_name_map, rhs._subroutine_functions_index_name_map);
         }
 
         return *this;
