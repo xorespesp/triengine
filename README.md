@@ -11,15 +11,16 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Point cloud rendering  
 - Line set rendering  
 - Skeletal motion rendering  
-- Offscreen rendering support  
-- Blinn-Phong lighting  
+- Offscreen rendering support
+- Inter-process rendering support (currently, supports Windows OS only)
+- Blinn-Phong lighting
 - Order-independent transparency  
 - HDR tone-mapping
 - SMAA anti-aliasing  
 - OBJ file visualization  
 - PLY file visualization  
 - BVH file playback / inspection  
-- Resource pool optimization  
+- Resource pool optimization
 
 ---
 
