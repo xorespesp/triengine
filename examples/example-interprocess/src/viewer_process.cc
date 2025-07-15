@@ -51,7 +51,7 @@ void viewer_process::_connect_to_renderer_process()
 
         // 자식 프로세스(GL 렌더러)를 별도의 콘솔 창으로 실행
         std::array<char, MAX_PATH + 20> currExePathBuff{};
-        ::GetModuleFileNameA(NULL, currExePathBuff.data(), currExePathBuff.size());
+        ::GetModuleFileNameA(NULL, currExePathBuff.data(), static_cast<DWORD>(currExePathBuff.size()));
         std::string cmdLine = fmt::format("\"{}\" --renderer-mode", currExePathBuff.data());
 
         STARTUPINFOA si = { sizeof(si) };
@@ -66,7 +66,7 @@ void viewer_process::_connect_to_renderer_process()
             NULL,
             NULL,
             &si, &pi
-        ), "Failed to launch renderer process");
+        ));
 
         _renderer_process_handle.reset(pi.hProcess);
         ::CloseHandle(pi.hThread); // Thread handle not needed
@@ -89,10 +89,6 @@ void viewer_process::_connect_to_renderer_process()
             const std::string_view data)
         {
             packet_view pck{ data.data(), data.size() };
-            if (!pck.is_valid()) {
-                CXLIB_WARN("Got invalid packet");
-                return;
-            }
 
             switch (pck.type()) {
             case ipc_proto::packet_type::shared_render_context:
@@ -417,7 +413,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
         CXLIB_TRACE("frame resize request: {}x{}", width, height);
 
-        packet_buffer<ipc_proto::packets::frame_resize_request_t> req{ ipc_proto::packet_type::frame_resize_request };
+        packet_builder<ipc_proto::packets::frame_resize_request_t> req{ ipc_proto::packet_type::frame_resize_request };
         req.body()->width = width;
         req.body()->height = height;
 
@@ -586,7 +582,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         //    , static_cast<int>(mods)
         //);
 
-        packet_buffer<ipc_proto::packets::mouse_button_event_t> pck{ ipc_proto::packet_type::mouse_button_event };
+        packet_builder<ipc_proto::packets::mouse_button_event_t> pck{ ipc_proto::packet_type::mouse_button_event };
         pck.body()->x = x;
         pck.body()->y = y;
         pck.body()->button = btn;
@@ -603,7 +599,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
         //CXLIB_TRACE("mouse move event: ({}, {})", x, y);
 
-        packet_buffer<ipc_proto::packets::mouse_move_event_t> pck{ ipc_proto::packet_type::mouse_move_event };
+        packet_builder<ipc_proto::packets::mouse_move_event_t> pck{ ipc_proto::packet_type::mouse_move_event };
         pck.body()->x = x;
         pck.body()->y = y;
         pck.body()->mods.ctrl_pressed = wParam & MK_CONTROL;
@@ -626,7 +622,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         // raw_delta 값을 WHEEL_DELTA로 나누어준다. (Normalization)
         const float yoffset = static_cast<float>(raw_delta) / static_cast<float>(WHEEL_DELTA);
 
-        packet_buffer<ipc_proto::packets::mouse_scroll_event_t> pck{ ipc_proto::packet_type::mouse_scroll_event };
+        packet_builder<ipc_proto::packets::mouse_scroll_event_t> pck{ ipc_proto::packet_type::mouse_scroll_event };
         pck.body()->yoffset = yoffset;
         CXLIB_ASSERT(std::errc{} == _ipc_cli->send_notify(pck.data(), pck.size()));
 

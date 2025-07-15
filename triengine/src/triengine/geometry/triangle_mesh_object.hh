@@ -81,7 +81,7 @@ namespace triengine::geometry
     private:
         std::shared_ptr<geometry_object_base> clone_impl() const override {
             TRIENGINE_PANIC("Not implemented");
-            return nullptr;
+            //return nullptr;
         }
 
     public:

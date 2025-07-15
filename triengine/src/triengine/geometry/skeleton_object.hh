@@ -73,7 +73,7 @@ namespace triengine::geometry
     private:
         std::shared_ptr<geometry_object_base> clone_impl() const override {
             TRIENGINE_PANIC("Not implemented");
-            return nullptr;
+            //return nullptr;
         }
 
     public:
@@ -120,17 +120,17 @@ namespace triengine::geometry
 
         vec3_f32 get_min_bound() const override {
             TRIENGINE_PANIC("not implemented");
-            return math::vec3_all(0.0f);
+            //return math::vec3_all(0.0f);
         }
 
         vec3_f32 get_max_bound() const override {
             TRIENGINE_PANIC("not implemented");
-            return math::vec3_all(0.0f);
+            //return math::vec3_all(0.0f);
         }
         
         vec3_f32 get_center() const override {
             TRIENGINE_PANIC("not implemented");
-            return math::vec3_all(0.0f);
+            //return math::vec3_all(0.0f);
         }
 
     private:

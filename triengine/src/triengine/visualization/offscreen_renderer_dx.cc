@@ -1,4 +1,12 @@
 #include "offscreen_renderer_dx.hh"
+
+// https://www.opengl.org/registry/api/GL/wglext.h
+#include <triengine/extern/wglext.h>
+
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+
 #include <triengine/utility/bit_cast.hh>
 #include <triengine/utility/string_format.hh>
 #include <triengine/utility/debug_utils.hh>
@@ -7,9 +15,6 @@
 
 #include <iostream>
 #include <memory>
-
-// https://www.opengl.org/registry/api/GL/wglext.h
-#include <triengine/extern/wglext.h>
 
 #define ASSERT_HR(EXPR) assert_hr_impl(EXPR, _TRIENGINE_CURRENT_SOURCE_LOC())
 
@@ -315,7 +320,6 @@ namespace triengine::visualization
     {
         if (_curr_scn_it == _scn_list.end()) {
             TRIENGINE_PANIC("No scenes added");
-            return nullptr;
         }
 
         _glctx.swap_buffers();

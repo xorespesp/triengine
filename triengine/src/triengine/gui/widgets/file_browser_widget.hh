@@ -66,7 +66,7 @@ namespace triengine::gui::widgets
         // Helper to convert std::string to lowercase (from previous version)
         static std::string to_lower_str(std::string s) {
             std::transform(s.begin(), s.end(), s.begin(),
-                [](uint8_t c) { return std::tolower(c); });
+                [](char c) { return static_cast<char>(std::tolower(c)); });
             return s;
         }
 
@@ -300,31 +300,23 @@ namespace triengine::gui::widgets
                 _last_error = "Path normalization failed: " + ec.message();
             }
 
-            if (!std::filesystem::exists(new_dir_path)) {
-                _last_error = "Path does not exist: " + new_dir_path.string();
-                // 입력된 경로를 버퍼에 유지하되, 목록은 업데이트하지 않음
-                std::strncpy(_cwd_input_buff.data(), new_dir_path.string().c_str(), _cwd_input_buff.size() - 1);
-                _cwd_input_buff[_cwd_input_buff.size() - 1] = '\0';
-                _cwd_items.clear();
-                return;
-            }
-
-            if (!std::filesystem::is_directory(new_dir_path)) {
-                _last_error = "Path is not a directory: " + new_dir_path.string();
-                std::strncpy(_cwd_input_buff.data(), new_dir_path.string().c_str(), _cwd_input_buff.size() - 1);
-                _cwd_input_buff[_cwd_input_buff.size() - 1] = '\0';
-                _cwd_items.clear();
-                return;
-            }
-
-            _cwd_path = new_dir_path;
-
-            std::string current_path_str = _cwd_path.string();
-            std::strncpy(_cwd_input_buff.data(), current_path_str.c_str(), _cwd_input_buff.size() - 1);
-            _cwd_input_buff[std::min(current_path_str.length(), _cwd_input_buff.size() - 1)] = '\0';
-
+            // Clear the current working directory items
             _cwd_items.clear();
 
+            // The entered directory path is stored in the input buffer regardless of whether the path is actually valid.
+            std::snprintf(_cwd_input_buff.data(), _cwd_input_buff.size(), "%s", new_dir_path.string().c_str());
+
+            // Validate the new directory path
+            if (!std::filesystem::is_directory(new_dir_path)) {
+                _last_error = "Invalid directory path: " + new_dir_path.string();
+                // If the directory path is invalid, skip the cwd items update.
+                return;
+            }
+
+            // Update the current working directory path
+            _cwd_path = new_dir_path;
+
+            // Update the current working directory items ...
             // add ".." item to cwd items (if the current path has a parent)
             if (_cwd_path.has_parent_path()) {
                 std::filesystem::path parent_p = _cwd_path.parent_path();

@@ -136,7 +136,7 @@ namespace triengine
         // Allocate (immutable) GPU storage for the texture
         // Ref: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexStorage2D.xhtml
         const GLsizei num_mipmap_levels = generate_mipmap 
-            ? static_cast<GLsizei>(std::floor(std::log2f(std::max(width_pixels, height_pixels)))) + 1
+            ? static_cast<GLsizei>(std::floor(std::log2f(static_cast<float>(std::max(width_pixels, height_pixels))))) + 1
             : static_cast<GLsizei>(1); // 1 means no mipmaps
         GLCall(::glTextureStorage2D(
             new_tex_id,                         /* GLuint texture */

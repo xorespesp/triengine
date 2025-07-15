@@ -121,7 +121,6 @@ namespace ipc_proto
     {
         packet_type type;
         size_t body_size;
-        uint8_t body[0];
     };
 
     namespace packets
@@ -181,85 +180,114 @@ namespace ipc_proto
 } // namespace
 
 template <typename _PckBody>
-class packet_buffer
+class packet_builder
 {
-    static_assert(std::is_standard_layout_v<_PckBody>&& std::is_trivial_v<_PckBody>);
+    static_assert(std::is_standard_layout_v<_PckBody> && std::is_trivial_v<_PckBody>);
 
 public:
-    packet_buffer(ipc_proto::packet_type type) {
-        auto* hdr = this->header();
+    packet_builder(ipc_proto::packet_type type) {
+        auto* const hdr = this->header();
         hdr->type = type;
         hdr->body_size = sizeof(_PckBody);
     }
 
-    ipc_proto::packet_header_t* header() {
-        return _CXLIB utils::bit_cast<ipc_proto::packet_header_t*>(buffer_.data());
+    const ipc_proto::packet_header_t* header() const noexcept {
+        return _CXLIB utils::bit_cast<ipc_proto::packet_header_t*>(_pck_buff.data());
     }
 
-    _PckBody* body() {
-        return _CXLIB utils::bit_cast<_PckBody*>(buffer_.data() + sizeof(ipc_proto::packet_header_t));
+    ipc_proto::packet_header_t* header() noexcept {
+        return _CXLIB utils::bit_cast<ipc_proto::packet_header_t*>(_pck_buff.data());
     }
 
-    const uint8_t* data() const {
-        return buffer_.data();
+    const _PckBody* body() const noexcept {
+        return _CXLIB utils::bit_cast<_PckBody*>(_pck_buff.data() + sizeof(ipc_proto::packet_header_t));
     }
 
-    size_t size() const {
-        return buffer_.size();
+    _PckBody* body() noexcept {
+        return _CXLIB utils::bit_cast<_PckBody*>(_pck_buff.data() + sizeof(ipc_proto::packet_header_t));
+    }
+
+    const uint8_t* data() const noexcept {
+        return _pck_buff.data();
+    }
+
+    size_t size() const noexcept {
+        return _pck_buff.size();
     }
 
 private:
-    std::array<uint8_t, sizeof(ipc_proto::packet_header_t) + sizeof(_PckBody)> buffer_;
+    std::array<uint8_t, sizeof(ipc_proto::packet_header_t) + sizeof(_PckBody)> _pck_buff;
 };
 
 class packet_view
 {
 public:
-    /**
-     * @brief 수신된 raw 버퍼를 기반으로 packet_view를 생성
-     * @param data 수신된 데이터 버퍼의 시작 포인터
-     * @param size 수신된 데이터 버퍼의 전체 크기
-     */
+    packet_view() = default;
     packet_view(const void* data, size_t size)
+        : _data_view{ static_cast<const char*>(data), size }
     {
-        if (!data || size < sizeof(ipc_proto::packet_header_t)) {
-            return; // is_valid()가 false를 반환하도록 header_를 nullptr로 둠
+        if (!this->_validate_format()) {
+            throw std::invalid_argument{ "Invalid packet format" };
         }
-
-        header_ = static_cast<const ipc_proto::packet_header_t*>(data);
-
-        if (sizeof(ipc_proto::packet_header_t) + header_->body_size != size)
-        {
-            header_ = nullptr; // 크기가 맞지 않으면 유효하지 않은 패킷으로 간주
-            return;
-        }
-
-        total_size_ = size;
     }
 
-    bool is_valid() const {
-        return header_ != nullptr;
+    bool empty() const noexcept {
+        return !_data_view.empty();
     }
 
-    ipc_proto::packet_type type() const {
-        return is_valid() ? header_->type : ipc_proto::packet_type::invalid;
+    ipc_proto::packet_type type() const noexcept {
+        return this->empty()
+            ? this->_header()->type
+            : ipc_proto::packet_type::invalid;
     }
 
     template <typename _PckBody>
-    const _PckBody* body() const
+    const _PckBody* body() const noexcept
     {
         static_assert(std::is_standard_layout_v<_PckBody> && std::is_trivial_v<_PckBody>);
 
-        if (!is_valid() || header_->body_size != sizeof(_PckBody)) {
+        if (!this->empty() || this->_header()->body_size < sizeof(_PckBody)) {
             return nullptr;
         }
-        return _CXLIB utils::bit_cast<const _PckBody*>(&header_->body[0]);
+
+        return _CXLIB utils::bit_cast<const _PckBody*>(_data_view.data() + sizeof(ipc_proto::packet_header_t));
     }
 
-    const uint8_t* data() const { return _CXLIB utils::bit_cast<const uint8_t*>(header_); }
-    size_t size() const { return total_size_; }
+    const uint8_t* data() const noexcept {
+        return _CXLIB utils::bit_cast<const uint8_t*>(_data_view.data());
+    }
+
+    size_t size() const noexcept {
+        return _data_view.size();
+    }
 
 private:
-    const ipc_proto::packet_header_t* header_{ nullptr };
-    size_t total_size_{ 0 };
+    inline const ipc_proto::packet_header_t* _header() const noexcept {
+        return _CXLIB utils::bit_cast<ipc_proto::packet_header_t*>(_data_view.data());
+    }
+
+    inline ipc_proto::packet_header_t* _header() noexcept {
+        return _CXLIB utils::bit_cast<ipc_proto::packet_header_t*>(_data_view.data());
+    }
+
+    inline bool _validate_format() const noexcept
+    {
+        if (_data_view.empty()) {
+            return false;
+        }
+
+        if (_data_view.size() < sizeof(ipc_proto::packet_header_t)) {
+            return false;
+        }
+
+        const auto header = _CXLIB utils::bit_cast<const ipc_proto::packet_header_t*>(_data_view.data());
+        if (_data_view.size() != header->body_size + sizeof(ipc_proto::packet_header_t)) {
+            return false;
+        }
+
+        return true;
+    }
+
+private:
+    std::string_view _data_view{};
 };

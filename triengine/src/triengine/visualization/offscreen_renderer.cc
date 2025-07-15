@@ -166,7 +166,6 @@ namespace triengine::visualization
     {
         if (_curr_scn_it == _scn_list.end()) {
             TRIENGINE_PANIC("No scenes added");
-            return;
         }
 
         _glctx.swap_buffers();

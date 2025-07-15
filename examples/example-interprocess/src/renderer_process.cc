@@ -254,10 +254,6 @@ private:
                 const std::string_view data)
             {
                 packet_view pck{ data.data(), data.size() };
-                if (!pck.is_valid()) {
-                    CXLIB_WARN("Got invalid packet");
-                    return;
-                }
 
                 switch (pck.type()) {
                 case ipc_proto::packet_type::mouse_move_event:
@@ -340,7 +336,7 @@ private:
                     //);
 
                     std::scoped_lock lk{ _ipc_lock };
-                    triengine::camera* const scn_camera = _scene->get_camera();
+                    [[maybe_unused]] triengine::camera* const scn_camera = _scene->get_camera();
 
                     switch (body->button) {
                     case ipc_proto::MOUSEBTN_L:
@@ -380,10 +376,6 @@ private:
                 std::vector<uint8_t>& rep_pck_data)
             {
                 packet_view pck{ req_pck_data.data(), req_pck_data.size() };
-                if (!pck.is_valid()) {
-                    CXLIB_WARN("Got invalid packet");
-                    return;
-                }
 
                 switch (pck.type()) {
                 case ipc_proto::packet_type::frame_resize_request:
@@ -402,7 +394,7 @@ private:
                         CXLIB_TRACE("----- frame resize complete");
                     }
 
-                    packet_buffer<ipc_proto::packets::frame_resize_response_t> rep_pck{ ipc_proto::packet_type::frame_resize_response };
+                    packet_builder<ipc_proto::packets::frame_resize_response_t> rep_pck{ ipc_proto::packet_type::frame_resize_response };
                     rep_pck.body()->shared_texture_handle = _shared_texture_handle.get();
                     rep_pck_data.assign(rep_pck.data(), rep_pck.data() + rep_pck.size());
                     break;
@@ -414,7 +406,7 @@ private:
             });
 
         // 클라이언트 프로세스(뷰어 프로세스)로 데이터 전송
-        packet_buffer<ipc_proto::packets::shared_render_context_t> pck{ ipc_proto::packet_type::shared_render_context };
+        packet_builder<ipc_proto::packets::shared_render_context_t> pck{ ipc_proto::packet_type::shared_render_context };
         pck.body()->renderer_process_id = ::GetCurrentProcessId();
         pck.body()->target_adapter_luid = _target_dxgi_adapter_luid;
         pck.body()->shared_texture_handle = _shared_texture_handle.get();
@@ -536,7 +528,7 @@ renderer_process::renderer_process()
         });
 
     _ipc_srv->set_session_disconnected_callback(
-        [this](std::shared_ptr<ipc_session> session) {
+        [this]([[maybe_unused]] std::shared_ptr<ipc_session> session) {
             this->_post_task([this]() {
                 CXLIB_DEBUG("Session disconnected, cleaning up GL renderer resources...");
 

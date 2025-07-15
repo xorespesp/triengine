@@ -4,19 +4,15 @@
 #  error Unsupported platform
 #endif // ^^^ _TRIENGINE_PLATFORM_WIN32 ^^^
 
-#include <triengine/core/gl_context.hh>
-#include <triengine/core/scene_renderer.hh>
-#include <triengine/utility/noncopyable.hh>
-
-#define INITGUID
 #include <windows.h>
-#include <wrl/client.h> // Microsoft::WRL::ComPtr
 #include <dxgi1_2.h> // DXGI 1.2 API header
 #include <d3d11_2.h> // DX11.2 API header
 #include <d3dcompiler.h>
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "d3dcompiler.lib")
+#include <wrl/client.h> // Microsoft::WRL::ComPtr
+
+#include <triengine/core/gl_context.hh>
+#include <triengine/core/scene_renderer.hh>
+#include <triengine/utility/noncopyable.hh>
 
 #include <functional>
 #include <unordered_map>

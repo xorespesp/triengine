@@ -487,7 +487,7 @@ std::errc ipc_session::send_request_sync(
                     lk_req.unlock();
 
                     timeout_occurred = true;
-                } catch (const std::future_error& e) {
+                } catch (const std::future_error&) {
                     // If the receiving thread has already called `set_value()`, `set_exception()` will fail.
                     // in this case, we do nothing and call `future.get()` below to handle the fall-through.
                     CXLIB_TRACE("Request(seq={}) timed out, but response arrived just in time.", curr_req_id);
@@ -905,7 +905,7 @@ bool ipc_client::connect(
 
     // Send a handshake request to the server and wait for a response.
     detail::handshake_req_mq handshake_req_pck{};
-    strncpy(handshake_req_pck.server_name, server_name.data(), sizeof(handshake_req_pck.server_name) - 1);
+    std::snprintf(handshake_req_pck.server_name, sizeof(handshake_req_pck.server_name), "%s", server_name.data());
     mq_handshake_c2s->send(&handshake_req_pck, sizeof(handshake_req_pck), 0);
     detail::handshake_rep_mq handshake_rep_pck;
     unsigned int priority;
@@ -925,7 +925,7 @@ bool ipc_client::connect(
     const std::string_view new_session_name = handshake_rep_pck.session_name;
     auto new_session = std::make_shared<ipc_session>(
         std::make_unique<detail::ipc_session_base>(detail::ipc_session_base::mode_type::open, new_session_name, shm),
-        [weak_self = std::weak_ptr{ shared_from_this() }](std::shared_ptr<ipc_session> session)
+        [weak_self = std::weak_ptr{ shared_from_this() }]([[maybe_unused]] std::shared_ptr<ipc_session> session)
         {
             CXLIB_INFO("Client disconnected!");
 

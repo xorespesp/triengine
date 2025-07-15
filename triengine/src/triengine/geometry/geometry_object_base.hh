@@ -143,21 +143,21 @@ namespace triengine::geometry
         /// NOTE: Derived classes are responsible for implementing it.
         virtual vec3_f32 get_min_bound() const {
             TRIENGINE_PANIC("not implemented");
-            return math::vec3_all(0.0f);
+            //return math::vec3_all(0.0f);
         }
 
         /// Returns max bounds for geometry coordinates.
         /// NOTE: Derived classes are responsible for implementing it.
         virtual vec3_f32 get_max_bound() const {
             TRIENGINE_PANIC("not implemented");
-            return math::vec3_all(0.0f);
+            //return math::vec3_all(0.0f);
         }
         
         /// Returns the center of the geometry coordinates.
         /// NOTE: Derived classes are responsible for implementing it.
         virtual vec3_f32 get_center() const {
             TRIENGINE_PANIC("not implemented");
-            return math::vec3_all(0.0f);
+            //return math::vec3_all(0.0f);
         }
 
     protected:
@@ -185,7 +185,7 @@ namespace triengine::geometry
 
         virtual std::shared_ptr<geometry_object_base> clone_impl() const {
             TRIENGINE_PANIC("Not implemented");
-            return nullptr;
+            //return nullptr;
         }
 
     }; // class
