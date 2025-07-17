@@ -16,6 +16,7 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Blinn-Phong lighting
 - Order-independent transparency  
 - HDR tone-mapping
+- Bloom effect
 - SMAA anti-aliasing  
 - OBJ file visualization  
 - PLY file visualization  

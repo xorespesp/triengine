@@ -9,6 +9,7 @@
 
 #include <triengine/shaders/includes/phong_lighting_shaders.h>
 #include <triengine/shaders/includes/smaa_shaders.h>
+#include <triengine/shaders/includes/hdr_shaders.h>
 #include <triengine/shaders/smaa_pass_shaders.h>
 #include <triengine/shaders/overlay_pass_shaders.h>
 
@@ -95,6 +96,7 @@ namespace triengine::core
 
         _shader_prep = std::make_unique<shader_preprocessor>();
         _shader_prep->register_system_include_from_memory("phong_lighting", shaders::includes::kPhongLightingShader);
+        _shader_prep->register_system_include_from_memory("hdr", shaders::includes::kHDRShader);
         _shader_prep->register_system_include_from_memory("SMAA.hlsl", shaders::includes::kSMAAShaders);
 
         _inf_plane_renderer.create(*glctx, *_shader_prep);
@@ -117,8 +119,8 @@ namespace triengine::core
             .link();
 
         _hdr_screen_quad_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kHDRScreenQuadVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kHDRScreenQuadFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kScreenQuadVertexShader).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(shaders::kScreenQuadFragmentShader_HDR).c_str() })
             .link();
 
         _overlay_composite_shader
@@ -210,6 +212,7 @@ namespace triengine::core
         _screen_quad_shader.destroy();
         _hdr_screen_quad_shader.destroy();
         _overlay_composite_shader.destroy();
+
         _smaa_edge_detect_shader.destroy();
         _smaa_blend_weight_shader.destroy();
         _smaa_neighbor_blend_shader.destroy();
@@ -395,11 +398,10 @@ namespace triengine::core
                 // use composite shader
                 _wboit_composite_shader.use();
 
+                GLCall(::glBindTextureUnit(0, wboit_accum_color_attach->buffer_id)); // u_accum
+                GLCall(::glBindTextureUnit(1, wboit_reveal_color_attach->buffer_id)); // u_reveal
+
                 // draw screen quad to opaque color buffer
-                GLCall(::glActiveTexture(GL_TEXTURE0));
-                GLCall(::glBindTexture(GL_TEXTURE_2D, wboit_accum_color_attach->buffer_id));
-                GLCall(::glActiveTexture(GL_TEXTURE1));
-                GLCall(::glBindTexture(GL_TEXTURE_2D, wboit_reveal_color_attach->buffer_id));
                 GLCall(::glBindVertexArray(_vao_screen_quad));
                 GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
             }
@@ -453,8 +455,7 @@ namespace triengine::core
 
                 _overlay_composite_shader.use();
 
-                GLCall(::glActiveTexture(GL_TEXTURE0));
-                GLCall(::glBindTexture(GL_TEXTURE_2D, _overlay_fb.color_attachment()->buffer_id));
+                GLCall(::glBindTextureUnit(0, _overlay_fb.color_attachment()->buffer_id)); // u_srcFrame
 
                 GLCall(::glBindVertexArray(_vao_screen_quad));
                 GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
@@ -544,8 +545,7 @@ namespace triengine::core
                     draw_shader.use();
                     draw_shader.set_uniform_vec4("u_smaaRTMetrics", smaa_rt_metrics);
 
-                    GLCall(::glActiveTexture(GL_TEXTURE0));
-                    GLCall(::glBindTexture(GL_TEXTURE_2D, wboit_opaque_color_attach->buffer_id)); // main color buffer
+                    GLCall(::glBindTextureUnit(0, wboit_opaque_color_attach->buffer_id)); // main color buffer (u_colorTex)
 
                     // draw screen quad
                     GLCall(::glBindVertexArray(_vao_screen_quad));
@@ -568,12 +568,9 @@ namespace triengine::core
                     draw_shader.set_uniform_vec4("u_smaaRTMetrics", smaa_rt_metrics);
                     draw_shader.set_uniform_vec4("u_subsampleIndices", vec4_f32(0.0f, 0.0f, 0.0f, 0.0f));
 
-                    GLCall(::glActiveTexture(GL_TEXTURE0));
-                    GLCall(::glBindTexture(GL_TEXTURE_2D, smaa_edge_color_attach->buffer_id));
-                    GLCall(::glActiveTexture(GL_TEXTURE1));
-                    GLCall(::glBindTexture(GL_TEXTURE_2D, _smaa_area_tex.id()));
-                    GLCall(::glActiveTexture(GL_TEXTURE2));
-                    GLCall(::glBindTexture(GL_TEXTURE_2D, _smaa_search_tex.id()));
+                    GLCall(::glBindTextureUnit(0, smaa_edge_color_attach->buffer_id)); // u_edgesTex
+                    GLCall(::glBindTextureUnit(1, _smaa_area_tex.id())); // u_areaTex
+                    GLCall(::glBindTextureUnit(2, _smaa_search_tex.id())); // u_searchTex
 
                     // draw screen quad
                     GLCall(::glBindVertexArray(_vao_screen_quad));
@@ -596,10 +593,8 @@ namespace triengine::core
                     draw_shader.use();
                     draw_shader.set_uniform_vec4("u_smaaRTMetrics", smaa_rt_metrics);
 
-                    GLCall(::glActiveTexture(GL_TEXTURE0));
-                    GLCall(::glBindTexture(GL_TEXTURE_2D, wboit_opaque_color_attach->buffer_id)); // main color buffer
-                    GLCall(::glActiveTexture(GL_TEXTURE1));
-                    GLCall(::glBindTexture(GL_TEXTURE_2D, smaa_blend_color_attach->buffer_id));
+                    GLCall(::glBindTextureUnit(0, wboit_opaque_color_attach->buffer_id)); // u_colorTex (main color buffer)
+                    GLCall(::glBindTextureUnit(1, smaa_blend_color_attach->buffer_id)); // u_blendTex
 
                     // draw screen quad
                     GLCall(::glBindVertexArray(_vao_screen_quad));
@@ -631,8 +626,8 @@ namespace triengine::core
                     _hdr_screen_quad_shader.use();
                     _hdr_screen_quad_shader.set_uniform_float("u_exposure", scn_render_config.light_opts.hdr.exposure);
                     _hdr_screen_quad_shader.set_active_subroutine(
-                        shader_object_type::fragment, 
-                        "u_tone_mapping_curve",
+                        shader_object_type::fragment,
+                        "u_toneMappingCurve",
                         static_cast<GLuint>(scn_render_config.light_opts.hdr.tone_mapping_curve)
                     );
                 }
@@ -642,8 +637,8 @@ namespace triengine::core
                     _screen_quad_shader.use();
                 }
 
-                GLCall(::glActiveTexture(GL_TEXTURE0));
-                GLCall(::glBindTexture(GL_TEXTURE_2D, 
+                // u_screenTexture (or u_screenHdrTexture)
+                GLCall(::glBindTextureUnit(0,
                     (scn_render_config.enable_anti_aliasing)
                     ? smaa_neighbor_color_attach->buffer_id
                     : wboit_opaque_color_attach->buffer_id

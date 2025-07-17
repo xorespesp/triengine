@@ -136,6 +136,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/triangle_mesh_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/wboit_composite_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/phong_lighting_shaders.h"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/hdr_shaders.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/smaa_shaders.h"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer.hh"
