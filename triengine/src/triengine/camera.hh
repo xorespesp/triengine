@@ -13,6 +13,11 @@ namespace triengine
         int32_t x{}, y{}; // lower-left corner of the viewport area (Unit: [pixel])
         int32_t width{}, height{}; // viewport width, height (Unit: [pixel])
 
+        view_port() = default;
+        view_port(int32_t x, int32_t y, int32_t width, int32_t height)
+            : x{ x }, y{ y }, width{ width }, height{ height }
+        { }
+
         // Viewport screen coordinates are relative to the lower-left corner of the window content area.
         bool contains(vec2_f32 viewport_screen_pos) const noexcept {
             const int32_t
@@ -21,6 +26,10 @@ namespace triengine
             return
                 0 <= vx && vx < width &&
                 0 <= vy && vy < height;
+        }
+
+        float aspect_ratio() const noexcept {
+            return static_cast<float>(width) / static_cast<float>(height);
         }
 
         bool operator==(const view_port& rhs) const noexcept {
@@ -37,8 +46,8 @@ namespace triengine
 
     namespace
     {
-        static constexpr float
-            kDefaultMouseSensitivity = 0.2f;
+        static const vec3_f32
+            kWorldUp{ 0.0f, 1.0f, 0.0f };
 
         static constexpr float
             kMinFovy = 45.0f,
@@ -56,8 +65,10 @@ namespace triengine
             kDefaulPerspectiveScaleFactor = 0.7f;
 
         static const vec3_f32
-            kDefaultLookAtCenter{ 0.0f, 0.0f, 1.5f },
-            kDefaultWorldUp{ 0.0f, -1.0f, 0.0f };
+            kDefaultLookAtCenter{ 0.0f, 0.0f, 1.5f };
+
+        static constexpr float
+            kDefaultMouseSensitivity = 0.2f;
 
     } // namespace
 
@@ -72,10 +83,10 @@ namespace triengine
 
         vec3_f32
             lookat_center{ kDefaultLookAtCenter }, // Target position (location of the camera points to)
-            world_up{ kDefaultWorldUp }; // World Up
+            world_up{ kWorldUp }; // World Up
 
         // Euler Angles (relative to forward direction)
-        float yaw{ 0.0f }, pitch{ 10.0f };
+        float yaw{ 0.0f }, pitch{ -10.0f };
 
         // Zoom
         float zoom{ kDefaultZoom };

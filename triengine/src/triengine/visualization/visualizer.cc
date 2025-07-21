@@ -367,7 +367,7 @@ namespace triengine::visualization
                 camera* const scn_camera = this->get_current_scene()->get_camera();
 
                 if (flag_l_mouse_pressed) {
-                    scn_camera->process_mouse_move_for_rotation(curr_cursor_viewport_pos - _last_clicked_cursor_viewport_pos);
+                    scn_camera->process_mouse_move_for_rotation(-(curr_cursor_viewport_pos - _last_clicked_cursor_viewport_pos));
                 }
                 else if (flag_m_mouse_pressed) {
                     scn_camera->process_mouse_move_for_translation(_last_clicked_cursor_viewport_pos, curr_cursor_viewport_pos);

@@ -30,7 +30,7 @@ namespace demo::scene
             scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.45f;
             scn->get_render_config()->light_opts.dir_light.specularIntensity = 3.0f;
 
-            scn->get_camera()->set_position(vec3_f32{ 0.0f, -2.2326f, -11.1618f });
+            scn->get_camera()->set_position(vec3_f32{ 0.0f, 2.2326f, -11.1618f });
             scn->get_camera()->set_mirror_mode(false);
 
             _engine_mesh = std::make_shared<geometry::triangle_mesh_object>();
@@ -47,7 +47,7 @@ namespace demo::scene
                 );
 
                 _engine_mesh->apply_model_in_place();
-                _engine_mesh->translate(vec3_f32(0.0f, -0.5f, 0.0f), true);
+                _engine_mesh->translate(vec3_f32(0.0f, 0.5f, 0.0f), true);
 
                 scn->add_geometry(_engine_mesh);
             }
@@ -63,7 +63,7 @@ namespace demo::scene
             //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
             //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
 
-            R = Eigen::AngleAxisf(math::deg2rad(90.0f), Eigen::Vector3f::UnitX()) *
+            R = Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
                 Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
 
             if (_engine_mesh) {

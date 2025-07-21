@@ -182,7 +182,7 @@ private:
         scn->set_name("main");
 
         scn->get_render_config()->show_origin_xz_grid = true;
-        scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+        scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, 1.5f, -1.5f };
         scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
         scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.5f;
         scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
@@ -211,10 +211,10 @@ private:
             Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
             R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                 * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+                * Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
 
             _skull_mesh->rotate(R, true);
-            _skull_mesh->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
+            _skull_mesh->translate(triengine::vec3_f32(0.0f, 0.5f, 0.0f), true);
             scn->add_geometry(_skull_mesh);
         }
 
@@ -235,9 +235,9 @@ private:
             Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
             R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                 * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+                * Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
             _skull_mesh2->rotate(R, true);
-            _skull_mesh2->translate(triengine::vec3_f32(0.0f, -0.6f, 0.0f), true);
+            _skull_mesh2->translate(triengine::vec3_f32(0.0f, 0.6f, 0.0f), true);
 
             scn->add_geometry(_skull_mesh2);
         }
@@ -286,7 +286,7 @@ private:
                                 _last_clicked_mouse_screen_pos->y() - curr_mouse_screen_pos.y() // reversed since y-coordinates go from bottom to top
                             };
 
-                            scn_camera->process_mouse_move_for_rotation(delta);
+                            scn_camera->process_mouse_move_for_rotation(-delta);
                         }
                         else if (_flag_m_mouse_pressed)
                         {
@@ -467,7 +467,7 @@ private:
         //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
         //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
 
-        R = Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX()) *
+        R = Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
             Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
 
         if (_skull_mesh) {

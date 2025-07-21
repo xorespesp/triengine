@@ -10,7 +10,7 @@ namespace triengine
         bool enabled{ true }; // enable flag
         bool follow_camera{ true }; // use camera direction as light direction
 
-        vec3_f32 direction{ 0.0f, 1.0f, 0.0f }; // world-space light direction
+        vec3_f32 direction{ 0.0f, -1.0f, 0.0f }; // world-space light direction
         color3_f32 color{ color3_f32::all(1.0f) }; // light color
 
         float ambientIntensity{ 0.2f }; // ambient intensity
@@ -48,7 +48,7 @@ namespace triengine
         bool show_light_source{ true }; // show light source object (not used in shader)
         float light_source_color_intensity{ 32.0f }; // light source object color intensity (not used in shader)
 
-        vec3_f32 position{ 0.0f, -1.5f, 0.0f }; // world-space light position
+        vec3_f32 position{ 0.0f, 1.5f, 0.0f }; // world-space light position
         color3_f32 color{ color3_f32::all(1.0f) }; // light color
 
         // Ref: https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation

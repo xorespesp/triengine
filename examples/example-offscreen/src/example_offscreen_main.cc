@@ -41,7 +41,7 @@ namespace demo
             scn->get_render_config()->bg_color.a() = 1.0f;
 
             scn->get_render_config()->show_origin_xz_grid = true;
-            scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, -1.5f, -1.5f };
+            scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, 1.5f, -1.5f };
             scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
             scn->get_render_config()->light_opts.point_light.diffuseIntensity = 3.25f;
             scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
@@ -54,7 +54,7 @@ namespace demo
             scn_camera.set_fovy(65.0f);
             scn_camera.set_zoom(1.25f);
             scn_camera.set_direction(triengine::vec3_f32{ 0.744f, 0.153f, -0.651f });
-            scn_camera.set_position(triengine::vec3_f32{ -1.240f, -0.847f, 1.113f });
+            scn_camera.set_position(triengine::vec3_f32{ -1.240f, 0.847f, 1.113f });
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_triangle_mesh_from_obj(
@@ -73,9 +73,9 @@ namespace demo
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
                 R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                     * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                    * Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+                    * Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
                 new_obj->rotate(R, true);
-                new_obj->translate(triengine::vec3_f32(0.0f, -0.5f, 0.0f), true);
+                new_obj->translate(triengine::vec3_f32(0.0f, 0.5f, 0.0f), true);
                 scn->add_geometry(new_obj);
                 _obj_texcolor_mesh = new_obj;
             }
@@ -165,7 +165,7 @@ namespace demo
                     //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
                     //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
 
-                    R = Eigen::AngleAxisf(triengine::math::deg2rad(90.0f), Eigen::Vector3f::UnitX()) *
+                    R = Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
                         Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
 
                     _obj_texcolor_mesh->rotate(R);

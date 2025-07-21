@@ -25,7 +25,7 @@ namespace demo::scene
             scn->set_name("main");
 
             scn->get_render_config()->show_origin_xz_grid = true;
-            scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, -1.5f, -1.5f };
+            scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, 1.5f, -1.5f };
             scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
             scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.5f;
             scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
@@ -54,10 +54,10 @@ namespace demo::scene
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
                 R = Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                     * Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                    * Eigen::AngleAxisf(math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+                    * Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
 
                 _skull_mesh->rotate(R, true);
-                _skull_mesh->translate(vec3_f32(0.0f, -0.5f, 0.0f), true);
+                _skull_mesh->translate(vec3_f32(0.0f, 0.5f, 0.0f), true);
                 scn->add_geometry(_skull_mesh);
             }
 
@@ -78,9 +78,9 @@ namespace demo::scene
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
                 R = Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                     * Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                    * Eigen::AngleAxisf(math::deg2rad(90.0f), Eigen::Vector3f::UnitX());
+                    * Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
                 _skull_mesh2->rotate(R, true);
-                _skull_mesh2->translate(vec3_f32(0.0f, -0.6f, 0.0f), true);
+                _skull_mesh2->translate(vec3_f32(0.0f, 0.6f, 0.0f), true);
 
                 scn->add_geometry(_skull_mesh2);
             }
@@ -96,7 +96,7 @@ namespace demo::scene
             //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
             //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
 
-            R = Eigen::AngleAxisf(math::deg2rad(90.0f), Eigen::Vector3f::UnitX()) *
+            R = Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
                 Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
 
             if (_skull_mesh) {

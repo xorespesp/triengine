@@ -67,7 +67,7 @@ namespace demo::scene
 
             scn->get_render_config()->bg_color = triengine::color4_f32::all(1.0f);
             scn->get_render_config()->show_origin_xz_grid = true;
-            scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, -1.5f, -1.5f };
+            scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, 1.5f, -1.5f };
             scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
             scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.8f;
             scn->get_render_config()->light_opts.point_light.specularIntensity = 1.5f;
@@ -363,13 +363,13 @@ namespace demo::scene
                         _state.hierarchy_map_cache[parent_bvh_jid].push_back(child_bvh_jid);
                     }
 
-                    Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-                    R = Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
-                        * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
-                        * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
-                    Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
-                    Tr.block<3, 3>(0, 0) = R;
-                    _state.offset_transform = Tr;
+                    //Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+                    //R = Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
+                    //    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
+                    //    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
+                    //Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
+                    //Tr.block<3, 3>(0, 0) = R;
+                    //_state.offset_transform = Tr;
 
                     _state.fl_update_scene = true;
                 }

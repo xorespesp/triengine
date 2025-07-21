@@ -184,6 +184,7 @@ namespace demo::scene
         : public scene_wrapper
     {
         std::shared_ptr<geometry::pcd_object> _pcd;
+        std::shared_ptr<geometry::triangle_mesh_object> _pcd_axis_frame;
         std::unique_ptr<pcd_noise_generator> _pcd_gen;
         bool _inplace_update{ true };
 
@@ -195,25 +196,33 @@ namespace demo::scene
             const auto rsrc_dir_path = global_options::instance()->get_resource_directory();
             auto scn = this->get_scene();
             scn->set_name("pointcloud");
-
             scn->get_render_config()->pcd_point_size = 5.0f;
             scn->get_render_config()->show_origin_xz_grid = false;
             scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.1f;
             scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 1.5f;
             scn->get_render_config()->light_opts.dir_light.specularIntensity = 2.5f;
-            scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, -1.5f, -1.5f };
+            scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, 1.5f, -1.5f };
 
-            auto mesh_axis_frame = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
-            scn->add_geometry(mesh_axis_frame);
+            Eigen::Matrix4f offset_Tr{ Eigen::Matrix4f::Identity() }; {
+                Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+                R = Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
+                    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
+                    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
+                offset_Tr.block<3, 3>(0, 0) = R;
+            }
 
             _pcd = std::make_shared<geometry::pcd_object>();
             if (io::load_pointcloud_from_ply(
                 rsrc_dir_path / "pointcloud/sample.ply",
                 *_pcd
-            ))
-            {
+            )) {
+                _pcd->transform(offset_Tr, true);
                 scn->add_geometry(_pcd);
             }
+
+            _pcd_axis_frame = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            _pcd_axis_frame->transform(offset_Tr, true);
+            scn->add_geometry(_pcd_axis_frame);
 
             pcd_noise_generator::generate_options_t gen_opts{};
             gen_opts.wave_origin = _pcd->get_center();
