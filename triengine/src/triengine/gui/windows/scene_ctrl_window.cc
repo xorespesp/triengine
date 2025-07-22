@@ -17,7 +17,8 @@ namespace triengine::gui
     {
         if (_vis)
         {
-            auto& scn_config = *_vis->get_current_scene()->get_render_config();
+            auto& scn = *_vis->get_current_scene();
+            auto& scn_config = *scn.get_render_config();
 
             if (ImGui::CollapsingHeader("Render Options", ImGuiTreeNodeFlags_DefaultOpen))
             {
@@ -52,6 +53,151 @@ namespace triengine::gui
                         ImGui::EndCombo();
                     }
                 }
+
+                if (ImGui::CollapsingHeader("Camera"))
+                {
+                    static constexpr std::array<const char*, 2> kCameraTypeNamesMap = {
+                        "Fly",
+                        "Arcball"
+                    };
+
+                    if (int cam_type_idx = static_cast<int>(scn.get_camera()->get_type());
+                        ImGui::Combo(
+                            "Camera Type##CameraType",
+                            &cam_type_idx,
+                            kCameraTypeNamesMap.data(),
+                            static_cast<int>(kCameraTypeNamesMap.size())
+                        )) {
+                        scn.switch_camera_type(static_cast<triengine::camera_type>(cam_type_idx));
+                    }
+
+                    ImGui::SeparatorText("Camera Control");
+
+                    thread_local bool fl_smooth_update{ true };
+                    ImGui::Checkbox("Smooth Update", &fl_smooth_update);
+
+                    const auto cam_type = scn.get_camera()->get_type();
+                    if (cam_type == camera_type::fly)
+                    {
+                        auto* fly_cam = scn.get_camera()->as<fly_camera>();
+                        TRIENGINE_ASSERT(fly_cam != nullptr);
+                        auto& fly_cam_opts = fly_cam->get_options();
+
+                        ImGui::DragFloat("Movement Speed", &fly_cam_opts.movement_speed,
+                            0.1f, 0.1f, 100.0f,
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        ImGui::DragFloat("Mouse Sensitivity", &fly_cam_opts.mouse_sensitivity,
+                            0.01f, 0.01f, 10.0f,
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        ImGui::DragFloat("Damping Factor", &fly_cam_opts.damping_factor,
+                            0.1f, 1.0f, 30.0f,
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        if (auto position = fly_cam->get_position();
+                            ImGui::DragFloat3("Position", position.data(),
+                                0.1f, -100.0f, 100.0f)) {
+                            fly_cam->set_position(position, fl_smooth_update);
+                        }
+
+                        if (auto direction = fly_cam->get_direction();
+                            ImGui::DragFloat3("Direction", direction.data(),
+                                0.01f, -1.0f, 1.0f,
+                                "%.3f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            fly_cam->set_direction(direction, fl_smooth_update);
+                        }
+
+                        if (float yaw = fly_cam->get_yaw();
+                            ImGui::DragFloat("Yaw", &yaw,
+                                1.0f, -180.0f, 180.0f,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            fly_cam->set_yaw(yaw, fl_smooth_update);
+                        }
+
+                        if (float pitch = fly_cam->get_pitch();
+                            ImGui::DragFloat("Pitch", &pitch,
+                                1.0f, camera_constants::kMinPitch, camera_constants::kMaxPitch,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            fly_cam->set_pitch(pitch, fl_smooth_update);
+                        }
+
+                        if (float fovy = fly_cam->get_fovy();
+                            ImGui::DragFloat("Fovy", &fovy,
+                                0.1f, camera_constants::kMinFovy, camera_constants::kMaxFovy,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            fly_cam->set_fovy(fovy, fl_smooth_update);
+                        }
+                    }
+                    else if (cam_type == camera_type::arcball)
+                    {
+                        auto* arcball_cam = scn.get_camera()->as<arcball_camera>();
+                        TRIENGINE_ASSERT(arcball_cam != nullptr);
+                        auto& arcball_cam_opts = arcball_cam->get_options();
+
+                        ImGui::DragFloat("Mouse Sensitivity", &arcball_cam_opts.mouse_sensitivity,
+                            0.01f, 0.01f, 10.0f, 
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        ImGui::DragFloat("Damping Factor", &arcball_cam_opts.damping_factor,
+                            0.1f, 1.0f, 30.0f, 
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        if (auto pivot_point = arcball_cam->get_pivot_point();
+                            ImGui::DragFloat3("Pivot Point", pivot_point.data(),
+                                0.1f, -100.0f, 100.0f)) {
+                            arcball_cam->set_pivot_point(pivot_point, fl_smooth_update);
+                        }
+
+                        if (float zoom_distance = arcball_cam->get_zoom_distance();
+                            ImGui::DragFloat("Zoom Distance", &zoom_distance,
+                                0.1f, camera_constants::kMinArcballZoomDistance, camera_constants::kMaxArcballZoomDistance)) {
+                            arcball_cam->set_zoom_distance(zoom_distance, fl_smooth_update);
+                        }
+
+                        if (float yaw = arcball_cam->get_yaw();
+                            ImGui::DragFloat("Yaw", &yaw,
+                                1.0f, -180.0f, 180.0f, 
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            arcball_cam->set_yaw(yaw, fl_smooth_update);
+                        }
+
+                        if (float pitch = arcball_cam->get_pitch();
+                            ImGui::DragFloat("Pitch", &pitch,
+                                1.0f, camera_constants::kMinPitch, camera_constants::kMaxPitch,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            arcball_cam->set_pitch(pitch, fl_smooth_update);
+                        }
+
+                        if (float fovy = arcball_cam->get_fovy();
+                            ImGui::DragFloat("Fovy", &fovy,
+                                0.1f, camera_constants::kMinFovy, camera_constants::kMaxFovy,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            arcball_cam->set_fovy(fovy, fl_smooth_update);
+                        }
+                    }
+                    else
+                    {
+                        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "ERROR: Unknown Camera Type");
+                    }
+                } // Camera Options
 
                 if (ImGui::CollapsingHeader("Lighting"))
                 {
@@ -199,7 +345,7 @@ namespace triengine::gui
             } // Render Options
 
         }
-        else
+        else //if (!_vis)
         {
             // ...
         }

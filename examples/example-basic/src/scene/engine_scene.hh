@@ -30,8 +30,10 @@ namespace demo::scene
             scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.45f;
             scn->get_render_config()->light_opts.dir_light.specularIntensity = 3.0f;
 
-            scn->get_camera()->set_position(vec3_f32{ 0.0f, 2.2326f, -11.1618f });
-            scn->get_camera()->set_mirror_mode(false);
+            scn->switch_camera_type(triengine::camera_type::fly);
+            auto fly_cam = scn->get_camera()->as<triengine::fly_camera>();
+            fly_cam->set_position(vec3_f32{ 0.0f, 1.0f, -9.5f });
+            fly_cam->set_direction(vec3_f32{ 0.0f, 0.0f, 1.0f });
 
             _engine_mesh = std::make_shared<geometry::triangle_mesh_object>();
 

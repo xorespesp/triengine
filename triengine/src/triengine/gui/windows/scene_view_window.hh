@@ -63,12 +63,10 @@ namespace triengine::gui
 
         bool is_window_focused() const;
 
-        bool test_cursor_hovered(vec2_f32 cursor_screen_pos) const;
+        // Check if the cursor is hovered over the scene viewport area.
+        bool check_cursor_in_scene_viewport(vec2_f32 cursor_screen_pos) const;
 
-        // Convert device screen coordinates to OpenGL viewport coordinates.
-        // NOTE: Device screen coordinates are relative to the upper-left corner of the window content area.
-        //       OpenGL viewport coordinates are relative to the lower-left corner of the window content area.
-        // https://learnopengl.com/img/getting-started/coordinate_systems.png
+        // Convert a win32 screen position to a gl viewport position.
         std::optional<vec2_f32> try_convert_screen_pos_2_viewport_pos(vec2_f32 screen_pos) const;
 
         void pre_render(ImGuiWindowFlags& window_flags) override;

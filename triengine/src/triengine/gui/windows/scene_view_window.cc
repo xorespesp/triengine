@@ -64,7 +64,7 @@ namespace triengine::gui
         return _state.flag_window_focused;
     }
 
-    bool scene_view_window::test_cursor_hovered(vec2_f32 cursor_screen_pos) const {
+    bool scene_view_window::check_cursor_in_scene_viewport(vec2_f32 cursor_screen_pos) const {
         return
             _state.flag_window_focused &&
             _state.curr_content_region.Contains(ImVec2{ cursor_screen_pos.x(), cursor_screen_pos.y() });
@@ -73,20 +73,28 @@ namespace triengine::gui
     std::optional<vec2_f32> scene_view_window::try_convert_screen_pos_2_viewport_pos(
         const vec2_f32 screen_pos) const
     {
-        if (!this->test_cursor_hovered(screen_pos)) {
+        if (!this->check_cursor_in_scene_viewport(screen_pos)) {
             return std::nullopt;
         }
 
         // global screen pos to local screen(scene window relative) pos
-        vec2_f32 viewport_pos{
+        const vec2_f32 local_screen_pos{
             screen_pos.x() - _state.curr_content_region.Min.x,
             screen_pos.y() - _state.curr_content_region.Min.y
         };
 
-        // screen pos to viewport pos
-        viewport_pos.y() = (static_cast<float>(_fb_main.height_pixels()) - viewport_pos.y() - 1.0f);
+        // global screen size to local screen(scene window relative) size
+        const vec2_i32 local_screen_size{
+            _state.curr_content_region.GetSize().x,
+            _state.curr_content_region.GetSize().y
+        };
 
-        return viewport_pos;
+        // local screen pos to gl viewport pos
+        return win32_screen_pos_2_gl_viewport_pos(
+            local_screen_pos,
+            local_screen_size,
+            view_port{ vec2_i32{ 0, 0 }, local_screen_size }
+        );
     }
 
     void scene_view_window::pre_render(
@@ -216,7 +224,7 @@ namespace triengine::gui
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 5.0f * render_ctx.dpi_scale, 5.0f * render_ctx.dpi_scale });
         if (ImGui::Begin("##SceneWindowOverlay", &_state.flag_show_overlay, window_flags))
         {
-            const auto scene_mouse_pos = 
+            const auto mouse_scene_viewport_pos = 
                 [this]() -> std::optional<vec2_f32> {
                     if (ImGui::IsMousePosValid()) {
                         const auto& mouse_pos = ImGui::GetIO().MousePos;
@@ -241,40 +249,33 @@ namespace triengine::gui
 
             if (_state.flag_show_overlay_debug_info)
             {
-                const camera* const curr_camera = _vis->get_current_scene()->get_camera();
-                const camera_parameters* const curr_camera_params = &curr_camera->get_parameters();
-                const vec3_f32 eye_pos = curr_camera->get_position();
-                const vec3_f32 eye_dir = curr_camera->get_direction();
+                const abstract_camera* const scn_camera = _vis->get_current_scene()->get_camera();
+                const auto eye_world_pos = scn_camera->get_position();
+                const auto eye_front = scn_camera->get_front();
+                const auto eye_right = scn_camera->get_right();
+                const auto eye_up = scn_camera->get_up();
 
                 sb_.appendf(
-                    "\nEye Position: [%f, %f, %f]"
-                    "\nEye Direction: [%f, %f, %f]"
-                    "\nEye Center: [%f, %f, %f]"
-                    "\nFront: [%f, %f, %f]"
-                    "\nRight: [%f, %f, %f]"
-                    "\nUp: [%f, %f, %f]"
-                    "\nYaw: %f"
-                    "\nPitch: %f"
-                    "\nZoom: %f"
-                    "\nFovy: %.1fdeg"
-                    "\nPerspective Scale: %f"
-                    , eye_pos.x(), eye_pos.y(), eye_pos.z()
-                    , eye_dir.x(), eye_dir.y(), eye_dir.z()
-                    , curr_camera_params->lookat_center.x(), curr_camera_params->lookat_center.y(), curr_camera_params->lookat_center.z()
-                    , curr_camera_params->camera_front.x(), curr_camera_params->camera_front.y(), curr_camera_params->camera_front.z()
-                    , curr_camera_params->camera_right.x(), curr_camera_params->camera_right.y(), curr_camera_params->camera_right.z()
-                    , curr_camera_params->camera_up.x(), curr_camera_params->camera_up.y(), curr_camera_params->camera_up.z()
-                    , curr_camera_params->yaw
-                    , curr_camera_params->pitch
-                    , curr_camera_params->zoom
-                    , curr_camera->get_fovy()
-                    , curr_camera->get_perspective_scale_factor()
+                    "\nEye World Pos: [%f, %f, %f]"
+                    "\nEye Front: [%f, %f, %f]"
+                    "\nEye Right: [%f, %f, %f]"
+                    "\nEye Up: [%f, %f, %f]"
+                    "\nFovy: %.2f"
+                    "\nNear: %.3f / Far: %.3f"
+                    , eye_world_pos.x(), eye_world_pos.y(), eye_world_pos.z()
+                    , eye_front.x(), eye_front.y(), eye_front.z()
+                    , eye_right.x(), eye_right.y(), eye_right.z()
+                    , eye_up.x(), eye_up.y(), eye_up.z()
+                    , scn_camera->get_fovy()
+                    , triengine::camera_constants::kNearPlane, triengine::camera_constants::kFarPlane
                 );
 
-                if (scene_mouse_pos) {
-                    sb_.appendf("\nCursor Position: [%.1f, %.1f]", scene_mouse_pos->x(), scene_mouse_pos->y());
+                if (mouse_scene_viewport_pos) {
+                    sb_.appendf("\nCursor Viewport Pos: [%.1f, %.1f]"
+                        , mouse_scene_viewport_pos->x()
+                        , mouse_scene_viewport_pos->y());
                 } else {
-                    sb_.append("\nCursor Position: N/A");
+                    sb_.append("\nCursor Viewport Pos: N/A");
                 }
             }
             

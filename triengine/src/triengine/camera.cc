@@ -1,170 +1,618 @@
 #include "camera.hh"
 
+#include <triengine/utility/logger.hh>
+#include <algorithm>
+#include <optional>
+
 namespace triengine
 {
-    vec3_f32 camera::get_position() const
+    namespace
     {
-        return _camera_params.lookat_center - (_camera_params.camera_front * this->_get_perspective_scaled_zoom());
-    }
-
-    void camera::set_position(const vec3_f32& position)
-    {
-        TRIENGINE_TRACE("set camera position: [%f, %f, %f]"
-            , position.x(), position.y(), position.z()
-        );
-
-        _camera_params.lookat_center = position + (_camera_params.camera_front * this->_get_perspective_scaled_zoom());
-    }
-
-    vec3_f32 camera::get_direction() const
-    {
-        return _camera_params.camera_front;
-    }
-
-    void camera::set_direction(const vec3_f32& direction)
-    {
-        TRIENGINE_TRACE("set camera direction: [%f, %f, %f]"
-            , direction.x(), direction.y(), direction.z()
-        );
-
-        // update camera parameters manually
-        _camera_params.camera_front = direction.normalized();
-        _camera_params.camera_right = _camera_params.camera_front.cross(_camera_params.world_up).normalized();
-        _camera_params.camera_up = _camera_params.camera_right.cross(_camera_params.camera_front).normalized();
-        _camera_params.yaw = math::rad2deg(std::atan2(_camera_params.camera_front.x(), _camera_params.camera_front.z()));
-        _camera_params.pitch = math::rad2deg(std::asin(_camera_params.camera_front.y()));
-    }
-
-    void camera::get_view_projection(
-        mat4_f32& view_matrix/* out */,
-        mat4_f32& projection_matrix/* out */) const
-    {
-        view_matrix = math::lookAt(
-            this->get_position(),
-            _camera_params.lookat_center,
-            _camera_params.camera_up
-        );
-
-        projection_matrix = math::perspective(
-            math::deg2rad(this->_get_perspective_scaled_fovy()),
-            static_cast<float>(_viewport.width) / static_cast<float>(_viewport.height),
-            0.01f,
-            200.0f
-        );
-
-        if (_flag_mirror_mode) {
-            projection_matrix(0, 0) *= -1.0f;
-        }
-    }
-
-    bool camera::project_to_screen(
-        vec2_f32& screen_pos/* out */,
-        const vec3_f32& target_world_pos) const
-    {
-        mat4_f32 view, projection;
-        this->get_view_projection(view, projection);
-
-        // world space to clip space
-        const vec4_f32 clip_pos = projection * view * vec4_f32{ target_world_pos.x(), target_world_pos.y(), target_world_pos.z(), 1.0f/* w */ };
-
-        // clip space to ndc space
-        const vec3_f32 ndc_pos = vec3_f32(clip_pos.head<3>()) / clip_pos.w();
-        if (ndc_pos.z() == 0) {
-            return false;
+        // Computes the smoothing factor for interpolation in the current frame
+        // (how quickly the current values approach the target values).
+        // The range is [0.0f, 1.0f], where values closer to 1.0f result in faster convergence.
+        inline float compute_smoothing_factor(
+            const float damping_factor,
+            const float frame_delta_time)
+        {
+            // To resolve the issue where animation speed changes with frame rate fluctuations (`delta_time`),
+            // a frame-rate-independent exponential decay formula is used. This ensures a consistent
+            // animation speed regardless of the `delta_time` value.
+            // Ref: https://www.rorydriscoll.com/2016/03/07/frame-rate-independent-damping-using-lerp/
+            const float factor = 1.0f - std::exp(-damping_factor * frame_delta_time);
+            return std::clamp(factor, 0.0f, 1.0f);
         }
 
-        // ndc space to screen space
-        screen_pos.x() = (1.0f + ndc_pos.x() / ndc_pos.z()) / 2.0f * _viewport.width + _viewport.x + 0.5f;
-        screen_pos.y() = (1.0f + ndc_pos.y() / ndc_pos.z()) / 2.0f * _viewport.height + _viewport.y + 0.5f;
+        // Linear interpolation for scalars and Eigen vectors
+        template<typename T>
+        T lerp(const T& a, const T& b, float t) {
+            return a * (1.0f - t) + b * t;
+        }
+
+    } // namespace
+
+    //-------------------------------------------------------------------------------------------------
+    // Abstract Camera Implementations
+    //-------------------------------------------------------------------------------------------------
+
+    abstract_camera::abstract_camera(
+        camera_type type,
+        const vec3_f32& position)
+        : _type{ type }
+        , _position{ position }
+    { }
+
+    void abstract_camera::set_viewport(const view_port& viewport)
+    {
+        if (_viewport != viewport) {
+            TRIENGINE_TRACE("Update camera viewport: %d, %d, %d, %d"
+                , viewport.x
+                , viewport.y
+                , viewport.width
+                , viewport.height
+            );
+        }
+        _viewport = viewport;
+    }
+
+    bool abstract_camera::project_to_ndc_space(
+        const vec3_f32& target_world_pos,
+        vec3_f32& ndc_pos_out/* out */) const
+    {
+        mat4_f32 view, proj;
+        this->get_view_projection(view, proj);
+
+        // world space -> view space -> clip space
+        const vec4_f32 clip_pos = proj * view * target_world_pos.homogeneous(); // vec4(target_world_pos.xyz, 1.0f)
+        if (clip_pos.w() <= 0.0f) {
+            return false; // The target point is behind the camera or outside the view frustum
+        }
+
+        // clip space -> ndc space (perspective division)
+        const vec3_f32 ndc_pos = clip_pos.hnormalized(); // clip_pos.xyz / clip_pos.w
+        if (ndc_pos.x() < -1.0f || ndc_pos.x() > 1.0f ||
+            ndc_pos.y() < -1.0f || ndc_pos.y() > 1.0f ||
+            ndc_pos.z() < -1.0f || ndc_pos.z() > 1.0f) {
+            return false; // The target point is outside the view frustum boundary
+        }
+
+        ndc_pos_out = ndc_pos;
         return true;
     }
 
-    void camera::unproject_from_screen(
-        vec3_f32& ray/* out */,
-        const vec2_f32 target_screen_pos,
-        const float zDepth) const
+    bool abstract_camera::project_to_viewport_space(
+        const vec3_f32& target_world_pos,
+        vec2_f32& projected_viewport_pos/* out */) const
     {
-        mat4_f32 view, projection;
-        this->get_view_projection(view, projection);
+        vec3_f32 ndc_pos{};
+        if (!this->project_to_ndc_space(target_world_pos, ndc_pos)) {
+            return false; // The target point is outside the view frustum
+        }
 
-        const mat4_f32 M = projection * view;
-        const mat4_f32 invM = M.inverse();
+        // ndc space [-1, 1] -> screen space [0, viewport_dimension] (OpenGL convention)
+        // Ref: https://www.gamedev.net/forums/topic/685104-ndc-to-pixel-space/
+        //      https://msdn.microsoft.com/en-us/library/windows/desktop/bb205126(v=vs.85).aspx
+        projected_viewport_pos.x() = ((ndc_pos.x() + 1.0f) * 0.5f * static_cast<float>(_viewport.width)) + _viewport.x;
+        projected_viewport_pos.y() = ((ndc_pos.y() + 1.0f) * 0.5f * static_cast<float>(_viewport.height)) + _viewport.y;
+        return true;
+    }
 
-        const vec4_f32 s{
-            /* x */(target_screen_pos.x() - 0.5f - _viewport.x) / _viewport.width * 2.f - 1.f,
-            /* y */(target_screen_pos.y() - 0.5f - _viewport.y) / _viewport.height * 2.f - 1.f,
-            /* z */0.0f,
+    bool abstract_camera::unproject_from_viewport_space_with_ndc_z(
+        const vec2_f32 target_viewport_pos,
+        const float ndc_z,
+        vec3_f32& unprojected_world_pos/* out */) const
+    {
+        if (!_viewport.contains(target_viewport_pos)) {
+            return false; // Target position is outside the viewport
+        }
+
+        // screen space -> ndc space
+        const vec4_f32 ndc_pos{
+            /* ndc x */(target_viewport_pos.x() - _viewport.x) / _viewport.width * 2.0f - 1.0f,
+            /* ndc y */(target_viewport_pos.y() - _viewport.y) / _viewport.height * 2.0f - 1.0f,
+            /* ndc z */ndc_z,
             /* w */1.0f
         };
 
-        const vec4_f32 r = s * zDepth;
+        mat4_f32 view, proj;
+        this->get_view_projection(view, proj);
+        const mat4_f32 inv_vp = (proj * view).inverse();
 
-        ray = vec4_f32(invM * r).head<3>();
-    }
-
-    void camera::process_mouse_move_for_rotation(
-        const vec2_f32 move_offset)
-    {
-        float
-            xoffset = move_offset.x(),
-            yoffset = move_offset.y();
-
-        if (_flag_mirror_mode) {
-            xoffset = -xoffset;
+        // ndc space -> world space (homogeneous)
+        const vec4_f32 world_pos_homog = inv_vp * ndc_pos;
+        if (world_pos_homog.w() <= 0.0f) {
+            return false; // The target point is behind the camera or outside the view frustum
         }
 
-        _camera_params.yaw += xoffset * _mouse_sensitivity;
-        _camera_params.pitch -= yoffset * _mouse_sensitivity;
-
-        // Make sure that when pitch is out of bounds, screen doesn't get flipped
-        _camera_params.pitch = std::clamp(_camera_params.pitch, -89.5f, 89.5f);
-
-        // Update camera vectors(Front, Right, Up) using the updated Euler angles
-        _camera_params.update_camera_vectors();
+        // homogeneous world space -> cartesian world space (perspective division)
+        unprojected_world_pos = world_pos_homog.hnormalized(); // world_pos_homog.xyz / world_pos_homog.w
+        return true;
     }
 
-    void camera::process_mouse_move_for_translation(
-        const vec2_f32 start_screen_pos,
-        const vec2_f32 end_screen_pos)
+    //-------------------------------------------------------------------------------------------------
+    // Fly Camera Implementations
+    //-------------------------------------------------------------------------------------------------
+
+    fly_camera::fly_camera(
+        const vec3_f32& position,
+        float yaw,
+        float pitch)
+        : abstract_camera{ camera_type::fly, position }
+        , _yaw{ yaw }, _target_yaw{ yaw }
+        , _pitch{ pitch }, _target_pitch{ pitch }
+        , _target_position{ position }
     {
-        vec3_f32 start_ray;
-        this->unproject_from_screen(
-            start_ray,
-            start_screen_pos,
-            this->_get_perspective_scaled_zoom()
-        );
-
-        vec3_f32 end_ray;
-        this->unproject_from_screen(
-            end_ray,
-            end_screen_pos,
-            this->_get_perspective_scaled_zoom()
-        );
-
-        const vec3_f32 translation_offset = end_ray - start_ray;
-        _camera_params.lookat_center -= translation_offset;
+        this->update_camera_vectors();
     }
 
-    void camera::process_mouse_scroll_for_zoom(
-        const float scroll_yoffset)
+    void fly_camera::get_view_projection(mat4_f32& view, mat4_f32& proj) const
     {
-        _camera_params.zoom = std::clamp(
-            _camera_params.zoom + (scroll_yoffset * _mouse_sensitivity),
-            kMinZoom,
-            kMaxZoom
+        const auto& vectors = this->_get_camera_vectors();
+        const auto& position = this->get_position();
+
+        view = math::lookAt(
+            position,
+            (position + vectors.front).eval(),
+            vectors.up
         );
-        //TRIENGINE_TRACE("update zoom: %f", _view_param.zoom);
+
+        proj = math::perspective(
+            math::deg2rad(this->get_fovy()),
+            this->get_viewport().aspect_ratio(),
+            camera_constants::kNearPlane,
+            camera_constants::kFarPlane
+        );
     }
 
-    void camera::process_mouse_scroll_for_perspective(
-        const float scroll_yoffset)
+    void fly_camera::process_keyboard_translation(const camera_movement_type move_dir, const float delta_time)
     {
-        _perspective_scale_factor = std::clamp(
-            _perspective_scale_factor + (scroll_yoffset * _mouse_sensitivity),
-            kMinPerspectiveScaleFactor,
-            kMaxPerspectiveScaleFactor
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        const float displacement = _opts.movement_speed * delta_time;
+
+        auto& vectors = this->_get_camera_vectors();
+        switch (move_dir) {
+        case camera_movement_type::forward:  _target_position += vectors.front * displacement; break;
+        case camera_movement_type::backward: _target_position -= vectors.front * displacement; break;
+        case camera_movement_type::left:     _target_position -= vectors.right * displacement; break;
+        case camera_movement_type::right:    _target_position += vectors.right * displacement; break;
+        case camera_movement_type::up:       _target_position += camera_constants::kWorldUp * displacement; break;
+        case camera_movement_type::down:     _target_position -= camera_constants::kWorldUp * displacement; break;
+        default: // Unknown movement type, do nothing
+            TRIENGINE_WARN("Unknown camera movement type: %d", static_cast<int>(move_dir));
+            break;
+        }
+    }
+
+    void fly_camera::process_mouse_translation(
+        [[maybe_unused]] const vec2_f32 start_viewport_pos,
+        [[maybe_unused]] const vec2_f32 end_viewport_pos)
+    {
+        // do nothing
+    }
+
+    void fly_camera::process_mouse_rotation(vec2_f32 move_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        // Apply mouse sensitivity to the movement offset
+        move_offset *= _opts.mouse_sensitivity;
+
+        _target_yaw += move_offset.x();
+        _target_pitch += move_offset.y();
+
+        // constraint pitch
+        _target_pitch = std::clamp(
+            _target_pitch,
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
         );
-        TRIENGINE_TRACE("update perspective_factor: %f", _perspective_scale_factor);
+    }
+
+    void fly_camera::process_mouse_zoom(const float zoom_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        this->process_mouse_perspective_zoom(zoom_offset);
+    }
+
+    void fly_camera::process_mouse_perspective_zoom(const float zoom_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        _target_fovy = std::clamp(
+            _target_fovy - zoom_offset,
+            camera_constants::kMinFovy,
+            camera_constants::kMaxFovy
+        );
+    }
+
+    void fly_camera::update_animation(const float delta_time)
+    {
+        //
+        // Determine how much to interpolate in the current frame (how quickly to approach the target values)
+        // and update the camera parameters (gradually and smoothly) based on that interpolation value.
+        //
+
+        // Value for how much to interpolate in the current frame.
+        const float mixFactor = compute_smoothing_factor(_opts.damping_factor, delta_time);
+
+        // Update position
+        this->_set_position(lerp(this->get_position(), _target_position, mixFactor));
+
+        // Update fovy
+        this->_set_fovy(lerp(this->get_fovy(), _target_fovy, mixFactor));
+
+        // Update camera vectors (based on yaw and pitch)
+        _yaw = lerp(_yaw, _target_yaw, mixFactor);
+        _pitch = lerp(_pitch, _target_pitch, mixFactor);
+        this->update_camera_vectors();
+    }
+
+    void fly_camera::set_position(const vec3_f32& new_position, const bool smooth_update) noexcept
+    {
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            this->_set_position(new_position);
+        }
+
+        // Always update the target state regardless of animation
+        _target_position = new_position;
+    }
+
+    void fly_camera::set_direction(const vec3_f32& new_direction, const bool smooth_update) noexcept
+    {
+        // make sure the direction vector is normalized
+        const vec3_f32 norm_dir = new_direction.normalized();
+
+        // Inversely calculate yaw and pitch angles from the new direction vector
+        const float new_yaw = math::rad2deg(std::atan2(norm_dir.z(), norm_dir.x()));
+        const float new_pitch = std::clamp(math::rad2deg(std::asin(norm_dir.y())),
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _yaw = new_yaw;
+            _pitch = new_pitch;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_yaw = new_yaw;
+        _target_pitch = new_pitch;
+    }
+
+    void fly_camera::set_yaw(const float yaw, const bool smooth_update) noexcept
+    {
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _yaw = yaw;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_yaw = yaw;
+    }
+
+    void fly_camera::set_pitch(const float pitch, const bool smooth_update) noexcept
+    {
+        const float clamped_pitch = std::clamp(
+            pitch,
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _pitch = clamped_pitch;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_pitch = clamped_pitch;
+    }
+
+    void fly_camera::set_fovy(const float fovy, const bool smooth_update) noexcept
+    {
+        const float clamped_fovy = std::clamp(
+            fovy,
+            camera_constants::kMinFovy,
+            camera_constants::kMaxFovy
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            this->_set_fovy(clamped_fovy);
+        }
+
+        // Always update the target state regardless of animation
+        _target_fovy = clamped_fovy;
+    }
+
+    void fly_camera::update_camera_vectors()
+    {
+        const vec3_f32 new_front{
+            /*x*/std::cos(math::deg2rad(_yaw)) * std::cos(math::deg2rad(_pitch)),
+            /*y*/std::sin(math::deg2rad(_pitch)),
+            /*z*/std::sin(math::deg2rad(_yaw)) * std::cos(math::deg2rad(_pitch))
+        };
+        this->_get_camera_vectors().update_vectors(new_front);
+    }
+
+
+    //-------------------------------------------------------------------------------------------------
+    // Arcball Camera Implementations
+    //-------------------------------------------------------------------------------------------------
+
+    arcball_camera::arcball_camera(
+        const vec3_f32& pivot_point,
+        float zoom_distance)
+        : abstract_camera{ camera_type::arcball, pivot_point + vec3_f32(0.0f, 0.0f, zoom_distance) }
+        , _pivot_point{ pivot_point }, _target_pivot_point{ pivot_point }
+        , _zoom_distance{ zoom_distance }, _target_zoom_distance{ zoom_distance }
+    {
+        this->update_camera_vectors();
+    }
+
+    void arcball_camera::get_view_projection(mat4_f32& view, mat4_f32& proj) const
+    {
+        // For arcball cameras, the view matrix is generated using a
+        // fixed world-up vector(`kWorldUp`) instead of the camera's up vector to prevent rolling.
+        view = math::lookAt(
+            this->get_position(),
+            _pivot_point,
+            camera_constants::kWorldUp
+        );
+
+        proj = math::perspective(
+            math::deg2rad(this->get_fovy()),
+            this->get_viewport().aspect_ratio(),
+            camera_constants::kNearPlane,
+            camera_constants::kFarPlane
+        );
+    }
+
+    void arcball_camera::process_keyboard_translation(const camera_movement_type move_dir, const float delta_time)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        // Implement panning feature that moves the pivot point.
+        // The movement distance is proportional to the camera distance,
+        // allowing for fine movement when zoomed in and faster movement when zoomed out.
+
+        constexpr float kPanningSensitivity = 0.5f; // Ratio multiplied by zoom distance to determine panning distance. e.g., 0.5 -> move by 50% of zoom distance.
+        const float displacement = std::max(
+            (_zoom_distance * kPanningSensitivity) * delta_time,
+            0.01f /* minimum guaranteed movement distance */
+        );
+
+        // When moving forward/backward, to ensure the target moves horizontally on the XZ plane
+        // even if the camera is tilted, calculate the horizontal forward vector from the current camera's Yaw angle.
+        const vec3_f32 forwardVectorOnGroundPlane = vec3_f32{
+            std::cos(math::deg2rad(_target_yaw)),
+            0.0f,
+            std::sin(math::deg2rad(_target_yaw))
+        }.normalized();
+
+        auto& vectors = this->_get_camera_vectors();
+        switch (move_dir) {
+        case camera_movement_type::forward:  _target_pivot_point -= forwardVectorOnGroundPlane * displacement; break;
+        case camera_movement_type::backward: _target_pivot_point += forwardVectorOnGroundPlane * displacement; break;
+        case camera_movement_type::left:     _target_pivot_point -= vectors.right * displacement; break;
+        case camera_movement_type::right:    _target_pivot_point += vectors.right * displacement; break;
+        case camera_movement_type::up:       _target_pivot_point += camera_constants::kWorldUp * displacement; break;
+        case camera_movement_type::down:     _target_pivot_point -= camera_constants::kWorldUp * displacement; break;
+        default: // Unknown movement type, do nothing
+            TRIENGINE_WARN("Unknown camera movement type: %d", static_cast<int>(move_dir));
+            break;
+        }
+    }
+
+    void arcball_camera::process_mouse_translation(const vec2_f32 start_viewport_pos, const vec2_f32 end_viewport_pos)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        std::optional<float> panning_ref_ndc_z;
+        if (vec3_f32 ndc_pos;
+            this->project_to_ndc_space(
+                _pivot_point,
+                ndc_pos
+            )) {
+            panning_ref_ndc_z = std::clamp(ndc_pos.z(), -1.0f, 1.0f);
+        }
+
+        if (!panning_ref_ndc_z.has_value()) {
+            TRIENGINE_ERROR("Failed to get panning_ref_ndc_z");
+            return;
+        }
+
+        vec3_f32 start_world_pos;
+        vec3_f32 end_world_pos;
+
+        if (!this->unproject_from_viewport_space_with_ndc_z(
+            start_viewport_pos,
+            panning_ref_ndc_z.value(),
+            start_world_pos
+        )) {
+            TRIENGINE_ERROR("Failed to get start_world_pos");
+            return;
+        }
+
+        if (!this->unproject_from_viewport_space_with_ndc_z(
+            end_viewport_pos,
+            panning_ref_ndc_z.value(),
+            end_world_pos
+        )) {
+            TRIENGINE_ERROR("Failed to get end_world_pos");
+            return;
+        }
+
+        const vec3_f32 translation_offset = end_world_pos - start_world_pos;
+        _target_pivot_point -= translation_offset;
+    }
+
+    void arcball_camera::process_mouse_rotation(vec2_f32 move_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        // Apply mouse sensitivity to the movement offset
+        move_offset *= _opts.mouse_sensitivity;
+
+        _target_yaw += move_offset.x();
+        _target_pitch -= move_offset.y();
+
+        // constraint pitch
+        _target_pitch = std::clamp(
+            _target_pitch,
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
+        );
+    }
+
+    void arcball_camera::process_mouse_zoom(const float zoom_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        _target_zoom_distance = std::clamp(
+            _target_zoom_distance - zoom_offset,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+    }
+
+    void arcball_camera::process_mouse_perspective_zoom(const float zoom_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        _target_fovy = std::clamp(
+            _target_fovy - zoom_offset,
+            camera_constants::kMinFovy,
+            camera_constants::kMaxFovy
+        );
+    }
+
+    void arcball_camera::update_animation(const float delta_time)
+    {
+        //
+        // Determine how much to interpolate in the current frame (how quickly to approach the target values)
+        // and update the camera parameters (gradually and smoothly) based on that interpolation value.
+        //
+
+        // Value for how much to interpolate in the current frame.
+        const float mixFactor = compute_smoothing_factor(_opts.damping_factor, delta_time);
+
+        // Update fovy
+        this->_set_fovy(lerp(this->get_fovy(), _target_fovy, mixFactor));
+
+        _pivot_point = lerp(_pivot_point, _target_pivot_point, mixFactor);
+        _zoom_distance = lerp(_zoom_distance, _target_zoom_distance, mixFactor);
+        _yaw = lerp(_yaw, _target_yaw, mixFactor);
+        _pitch = lerp(_pitch, _target_pitch, mixFactor);
+        this->update_camera_vectors();
+    }
+
+    void arcball_camera::set_pivot_point(const vec3_f32& new_pivot_point, const bool smooth_update)
+    {
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _pivot_point = new_pivot_point;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_pivot_point = new_pivot_point;
+    }
+
+    void arcball_camera::set_zoom_distance(const float zoom_distance, const bool smooth_update) noexcept
+    {
+        const float clamped_zoom_distance = std::clamp(
+            zoom_distance,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _zoom_distance = clamped_zoom_distance;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_zoom_distance = clamped_zoom_distance;
+    }
+
+    void arcball_camera::set_yaw(const float yaw, const bool smooth_update) noexcept
+    {
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _yaw = yaw;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_yaw = yaw;
+    }
+
+    void arcball_camera::set_pitch(const float pitch, const bool smooth_update) noexcept
+    {
+        const float clamped_pitch = std::clamp(
+            pitch,
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _pitch = clamped_pitch;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_pitch = clamped_pitch;
+    }
+
+    void arcball_camera::set_fovy(const float fovy, const bool smooth_update) noexcept
+    {
+        const float clamped_fovy = std::clamp(
+            fovy,
+            camera_constants::kMinFovy,
+            camera_constants::kMaxFovy
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            this->_set_fovy(clamped_fovy);
+        }
+
+        // Always update the target state regardless of animation
+        _target_fovy = clamped_fovy;
+    }
+
+    void arcball_camera::update_camera_vectors()
+    {
+        // Calculate new camera position using spherical coordinates
+        const vec3_f32 new_position{
+            _pivot_point.x() + _zoom_distance * std::cos(math::deg2rad(_pitch)) * std::cos(math::deg2rad(_yaw)),
+            _pivot_point.y() + _zoom_distance * std::sin(math::deg2rad(_pitch)),
+            _pivot_point.z() + _zoom_distance * std::cos(math::deg2rad(_pitch)) * std::sin(math::deg2rad(_yaw))
+        };
+
+        // Calculate new camera front vector
+        const vec3_f32 new_front{ (_pivot_point - new_position).normalized() };
+
+        this->_set_position(new_position);
+        this->_get_camera_vectors().update_vectors(new_front);
     }
 
 } // namespace

@@ -231,8 +231,8 @@ namespace triengine::core
         _glctx->get_gpu_resource_manager()->process_pending_requests();
         
         scene_render_config& scn_render_config = *scn.get_render_config();
-        const camera& scn_camera = *scn.get_camera();
-        const view_port viewport = scn_camera.get_view_port();
+        const abstract_camera& scn_camera = *scn.get_camera();
+        const view_port& viewport = scn_camera.get_viewport();
 
         {
             if (scn_render_config.light_opts.dir_light.follow_camera) {

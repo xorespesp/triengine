@@ -128,7 +128,7 @@ namespace triengine::visualization
         load_wgl_nvdx_interop_functions();
 
         _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_handle_frame_resize_event, this, 
-            std::placeholders::_1, std::placeholders::_2));
+            std::placeholders::_1));
 
         _curr_frame_size = _glctx.get_window_size();
 
@@ -322,22 +322,29 @@ namespace triengine::visualization
             TRIENGINE_PANIC("No scenes added");
         }
 
+        // Calculate frame delta time
+        const double curr_frame_time = ::glfwGetTime();
+        _frame_time_delta = curr_frame_time - _last_frame_time;
+        _last_frame_time = curr_frame_time;
+        const float frame_delta_f32 = static_cast<float>(_frame_time_delta);
+
         _glctx.swap_buffers();
         _glctx.poll_window_events();
 
-        const vec2_i32 frame_size = _curr_frame_size;
+        scene& target_scn = *(_curr_scn_it->get());
+        abstract_camera& target_scn_camera = *target_scn.get_camera();
+        target_scn_camera.set_viewport(view_port{ 0, 0, _curr_frame_size.x(), _curr_frame_size.y() });
+
+        // Process camera input
+        target_scn_camera.update_animation(frame_delta_f32);
 
         this->_begin_frame();
-        {
-            scene& target_scn = *(_curr_scn_it->get());
-            target_scn.get_camera()->set_view_port(view_port{ 0, 0, frame_size.x(),  frame_size.y() });
-            _scn_renderer.render(
-                _main_fbo,
-                _curr_frame_size.x(),
-                _curr_frame_size.y(),
-                target_scn
-            );
-        }
+        _scn_renderer.render(
+            _main_fbo,
+            _curr_frame_size.x(),
+            _curr_frame_size.y(),
+            target_scn
+        );
         this->_end_frame();
 
         return _dx11_gl_interop_color_texture.Get();
@@ -355,16 +362,18 @@ namespace triengine::visualization
         ::wglDXUnlockObjectsNV(_wgl_dx11_device_handle.get(), 1, &handle_value);
     }
 
-    void offscreen_renderer_dx::_handle_frame_resize_event(
-        [[maybe_unused]] const int32_t new_frame_width,
-        [[maybe_unused]] const int32_t new_frame_height)
+    void offscreen_renderer_dx::_handle_frame_resize_event(const vec2_i32 new_frame_size)
     {
-        if (_curr_frame_size == vec2_i32{ new_frame_width, new_frame_height }) {
+        if (_curr_frame_size == new_frame_size) {
             return; // skip resize
         }
 
         // Recreate gldx interop color texture
-        _dx11_gl_interop_color_texture = create_dxgl_interop_texture(new_frame_width, new_frame_height, _dx11_device2);
+        _dx11_gl_interop_color_texture = create_dxgl_interop_texture(
+            new_frame_size.x(), 
+            new_frame_size.y(), 
+            _dx11_device2
+        );
         TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
 
         TRIENGINE_ASSERT(_frame_gl_interop_color_texture != 0);
@@ -388,7 +397,7 @@ namespace triengine::visualization
             TRIENGINE_PANIC("Framebuffer is not complete!");
         }
 
-        _curr_frame_size = vec2_i32{ new_frame_width, new_frame_height };
+        _curr_frame_size = new_frame_size;
     }
 
 } // namespace

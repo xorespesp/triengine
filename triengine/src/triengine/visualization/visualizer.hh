@@ -13,12 +13,12 @@ namespace triengine::visualization
         : utility::noncopyable
     {
     public:
-        using close_callback = std::function<void(bool& cancel)>;
-        using dpi_change_callback = std::function<void(double dpi_xscale, double dpi_yscale)>;
-        using key_callback = std::function<void(int32_t key, int32_t scancode, int32_t action, int32_t mods, bool& handled)>;
-        using mouse_button_callback = std::function<void(int32_t button, int32_t action, int32_t mods, bool& handled)>;
-        using mouse_move_callback = std::function<void(double cursor_xpos, double cursor_ypos, bool& handled)>;
-        using mouse_scroll_callback = std::function<void(double scroll_xoffset, double scroll_yoffset, bool& handled)>;
+        using close_callback_type = std::function<void(bool& cancel)>;
+        using dpi_change_callback_type = std::function<void(vec2_f32 dpi_scale)>;
+        using key_callback_type = std::function<void(int32_t key, int32_t scancode, int32_t action, int32_t mods, bool& handled)>;
+        using mouse_button_callback_type = std::function<void(int32_t button, int32_t action, int32_t mods, bool& handled)>;
+        using mouse_move_callback_type = std::function<void(vec2_f64 cursor_pos, bool& handled)>;
+        using mouse_scroll_callback_type = std::function<void(vec2_f64 scroll_offset, bool& handled)>;
 
     public:
         visualizer();
@@ -30,12 +30,12 @@ namespace triengine::visualization
         vec2_i32 get_window_size() const;
         vec2_f32 get_window_dpi_scale() const;
 
-        void set_close_callback(close_callback cb);
-        void set_dpi_change_callback(dpi_change_callback cb);
-        void set_key_callback(key_callback cb);
-        void set_mouse_button_callback(mouse_button_callback cb);
-        void set_mouse_move_callback(mouse_move_callback cb);
-        void set_mouse_scroll_callback(mouse_scroll_callback cb);
+        void set_close_callback(close_callback_type cb);
+        void set_dpi_change_callback(dpi_change_callback_type cb);
+        void set_key_callback(key_callback_type cb);
+        void set_mouse_button_callback(mouse_button_callback_type cb);
+        void set_mouse_move_callback(mouse_move_callback_type cb);
+        void set_mouse_scroll_callback(mouse_scroll_callback_type cb);
 
         void create_window(
             const std::string& window_name,
@@ -82,22 +82,22 @@ namespace triengine::visualization
 
     private:
         void _handle_close_event(bool& cancel);
-        void _handle_frame_resize_event(int32_t width, int32_t height);
+        void _handle_frame_resize_event(vec2_i32 new_frame_size);
         void _handle_key_event(int32_t key, int32_t scancode, int32_t action, int32_t mods);
         void _handle_mouse_button_event(int32_t button, int32_t action, int32_t mods);
-        void _handle_mouse_move_event(double cursor_xpos, double cursor_ypos);
-        void _handle_mouse_scroll_event(double scroll_xoffset, double scroll_yoffset);
-        void _handle_dpi_change_event(double xscale, double yscale);
+        void _handle_mouse_move_event(vec2_f64 cursor_pos);
+        void _handle_mouse_scroll_event(vec2_f64 scroll_offset);
+        void _handle_dpi_change_event(vec2_f32 dpi_scale);
 
     private:
         bool _flag_initialized{ false };
 
-        close_callback _cb_close;
-        key_callback _cb_key;
-        mouse_button_callback _cb_mouse_button;
-        mouse_move_callback _cb_mouse_move;
-        mouse_scroll_callback _cb_mouse_scroll;
-        dpi_change_callback _cb_dpi_change;
+        close_callback_type _cb_close;
+        key_callback_type _cb_key;
+        mouse_button_callback_type _cb_mouse_button;
+        mouse_move_callback_type _cb_mouse_move;
+        mouse_scroll_callback_type _cb_mouse_scroll;
+        dpi_change_callback_type _cb_dpi_change;
         
         core::gl_context _glctx;
         core::scene_renderer _scn_renderer;
@@ -111,7 +111,10 @@ namespace triengine::visualization
         std::unique_ptr<gui::gui_manager> _gui_mgr;
         std::shared_ptr<gui::scene_view_window> _scene_window;
 
-        vec2_f32 _last_clicked_cursor_viewport_pos{};
+        // frame time calculation
+        double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
+
+        std::optional<vec2_f32> _begin_click_cursor_screen_pos;
 
     }; // class
 

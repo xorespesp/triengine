@@ -71,6 +71,9 @@ namespace triengine::visualization
 
         core::frame_buffer _fb_main;
 
+        // frame time calculation
+        double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
+
     }; // class
 
 } // namespace

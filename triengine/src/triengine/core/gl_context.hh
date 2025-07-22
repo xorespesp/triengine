@@ -18,13 +18,13 @@ namespace triengine::core
         : utility::noncopyable
     {
     public:
-        using close_callback = std::function<void(bool& cancel)>;
-        using frame_resize_callback = std::function<void(int32_t width, int32_t height)>;
-        using dpi_change_callback = std::function<void(double dpi_xscale, double dpi_yscale)>;
-        using key_callback = std::function<void(int32_t key, int32_t scancode, int32_t action, int32_t mods)>;
-        using mouse_button_callback = std::function<void(int32_t button, int32_t action, int32_t mods)>;
-        using mouse_move_callback = std::function<void(double cursor_xpos, double cursor_ypos)>;
-        using mouse_scroll_callback = std::function<void(double scroll_xoffset, double scroll_yoffset)>;
+        using close_callback_type = std::function<void(bool& cancel)>;
+        using frame_resize_callback_type = std::function<void(vec2_i32 new_frame_size)>;
+        using dpi_change_callback_type = std::function<void(vec2_f32 dpi_scale)>;
+        using key_callback_type = std::function<void(int32_t key, int32_t scancode, int32_t action, int32_t mods)>;
+        using mouse_button_callback_type = std::function<void(int32_t button, int32_t action, int32_t mods)>;
+        using mouse_move_callback_type = std::function<void(vec2_f64 cursor_pos)>;
+        using mouse_scroll_callback_type = std::function<void(vec2_f64 scroll_offset)>;
 
     public:
         gl_context() = default;
@@ -56,13 +56,15 @@ namespace triengine::core
         void swap_buffers();
         void poll_window_events();
 
-        void set_close_callback(close_callback cb);
-        void set_frame_resize_callback(frame_resize_callback cb);
-        void set_dpi_change_callback(dpi_change_callback cb);
-        void set_key_callback(key_callback cb);
-        void set_mouse_button_callback(mouse_button_callback cb);
-        void set_mouse_move_callback(mouse_move_callback cb);
-        void set_mouse_scroll_callback(mouse_scroll_callback cb);
+        int get_key_state(int32_t glfw_key) const;
+
+        void set_close_callback(close_callback_type cb);
+        void set_frame_resize_callback(frame_resize_callback_type cb);
+        void set_dpi_change_callback(dpi_change_callback_type cb);
+        void set_key_callback(key_callback_type cb);
+        void set_mouse_button_callback(mouse_button_callback_type cb);
+        void set_mouse_move_callback(mouse_move_callback_type cb);
+        void set_mouse_scroll_callback(mouse_scroll_callback_type cb);
 
         std::shared_ptr<gpu_resource_manager> get_gpu_resource_manager() noexcept;
         std::shared_ptr<const gpu_resource_manager> get_gpu_resource_manager() const noexcept;
@@ -72,13 +74,13 @@ namespace triengine::core
         bool _flag_initialized{ false };
         std::shared_ptr<gpu_resource_manager> _gpu_res_mgr;
 
-        close_callback _cb_close;
-        frame_resize_callback _cb_frame_resize;
-        dpi_change_callback _cb_dpi_change;
-        key_callback _cb_key;
-        mouse_button_callback _cb_mouse_button;
-        mouse_move_callback _cb_mouse_move;
-        mouse_scroll_callback _cb_mouse_scroll;
+        close_callback_type _cb_close;
+        frame_resize_callback_type _cb_frame_resize;
+        dpi_change_callback_type _cb_dpi_change;
+        key_callback_type _cb_key;
+        mouse_button_callback_type _cb_mouse_button;
+        mouse_move_callback_type _cb_mouse_move;
+        mouse_scroll_callback_type _cb_mouse_scroll;
     };
 
 } // namespace triengine

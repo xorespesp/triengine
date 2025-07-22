@@ -1,4 +1,4 @@
-﻿#include "scene.hh"
+#include "scene.hh"
 
 #include <atomic>
 
@@ -15,7 +15,11 @@ namespace triengine
         : _id{ _create_unique_scene_id() }
         , _name{ utility::string::c_format("scene #%X", _id) }
         , _gpu_rsrc_mgr{ gpu_rsrc_mgr }
-    {}
+    {
+        _camera_map.emplace(camera_type::arcball, std::make_unique<arcball_camera>());
+        _camera_map.emplace(camera_type::fly, std::make_unique<fly_camera>());
+        _active_camera_ptr = _camera_map.find(camera_type::arcball)->second.get();
+    }
 
     void scene::add_geometry(std::shared_ptr<geometry::geometry_object_base> geometry_object)
     {

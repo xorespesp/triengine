@@ -27,27 +27,27 @@ namespace triengine::visualization
         return _glctx.get_window_dpi_scale();
     }
 
-    void visualizer::set_close_callback(close_callback cb) {
+    void visualizer::set_close_callback(close_callback_type cb) {
         _cb_close = std::move(cb);
     }
 
-    void visualizer::set_dpi_change_callback(dpi_change_callback cb) {
+    void visualizer::set_dpi_change_callback(dpi_change_callback_type cb) {
         _cb_dpi_change = std::move(cb);
     }
 
-    void visualizer::set_key_callback(key_callback cb) {
+    void visualizer::set_key_callback(key_callback_type cb) {
         _cb_key = std::move(cb);
     }
 
-    void visualizer::set_mouse_button_callback(mouse_button_callback cb) {
+    void visualizer::set_mouse_button_callback(mouse_button_callback_type cb) {
         _cb_mouse_button = std::move(cb);
     }
 
-    void visualizer::set_mouse_move_callback(mouse_move_callback cb) {
+    void visualizer::set_mouse_move_callback(mouse_move_callback_type cb) {
         _cb_mouse_move = std::move(cb);
     }
 
-    void visualizer::set_mouse_scroll_callback(mouse_scroll_callback cb) {
+    void visualizer::set_mouse_scroll_callback(mouse_scroll_callback_type cb) {
         _cb_mouse_scroll = std::move(cb);
     }
 
@@ -73,17 +73,17 @@ namespace triengine::visualization
         _glctx.set_close_callback(std::bind(&visualizer::_handle_close_event, this, 
             std::placeholders::_1));
         _glctx.set_frame_resize_callback(std::bind(&visualizer::_handle_frame_resize_event, this,
-            std::placeholders::_1, std::placeholders::_2));
+            std::placeholders::_1));
         _glctx.set_dpi_change_callback(std::bind(&visualizer::_handle_dpi_change_event, this,
-            std::placeholders::_1, std::placeholders::_2));
+            std::placeholders::_1));
         _glctx.set_key_callback(std::bind(&visualizer::_handle_key_event, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
         _glctx.set_mouse_button_callback(std::bind(&visualizer::_handle_mouse_button_event, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
         _glctx.set_mouse_move_callback(std::bind(&visualizer::_handle_mouse_move_event, this,
-            std::placeholders::_1, std::placeholders::_2));
+            std::placeholders::_1));
         _glctx.set_mouse_scroll_callback(std::bind(&visualizer::_handle_mouse_scroll_event, this,
-            std::placeholders::_1, std::placeholders::_2));
+            std::placeholders::_1));
 
         _scn_renderer.create(&_glctx);
 
@@ -225,12 +225,29 @@ namespace triengine::visualization
             TRIENGINE_PANIC("No scenes added");
         }
 
+        // Calculate frame delta time
+        const double curr_frame_time = ::glfwGetTime();
+        _frame_time_delta = curr_frame_time - _last_frame_time;
+        _last_frame_time = curr_frame_time;
+        const float frame_delta_f32 = static_cast<float>(_frame_time_delta);
+
         // Render Scene
         _scene_window->bind_framebuffer();
 
         const core::frame_buffer& target_fb = _scene_window->get_framebuffer();
         scene& target_scn = *(_curr_scn_it->get());
-        target_scn.get_camera()->set_view_port(view_port{ 0, 0, target_fb.width_pixels(), target_fb.height_pixels() });
+        abstract_camera& target_scn_camera = *target_scn.get_camera();
+        target_scn_camera.set_viewport(view_port{ 0, 0, target_fb.width_pixels(), target_fb.height_pixels() });
+
+        // Process camera input
+        target_scn_camera.update_animation(frame_delta_f32);
+        if (_glctx.get_key_state(GLFW_KEY_W) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::forward, frame_delta_f32); }
+        if (_glctx.get_key_state(GLFW_KEY_S) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::backward, frame_delta_f32); }
+        if (_glctx.get_key_state(GLFW_KEY_A) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::left, frame_delta_f32); }
+        if (_glctx.get_key_state(GLFW_KEY_D) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::right, frame_delta_f32); }
+        if (_glctx.get_key_state(GLFW_KEY_UP) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::up, frame_delta_f32); }
+        if (_glctx.get_key_state(GLFW_KEY_DOWN) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::down, frame_delta_f32); }
+
         _scn_renderer.render(
             target_fb.fbo_id(),
             target_fb.width_pixels(),
@@ -262,15 +279,13 @@ namespace triengine::visualization
         }
     }
 
-    void visualizer::_handle_frame_resize_event(
-        [[maybe_unused]] const int32_t width,
-        [[maybe_unused]] const int32_t height)
+    void visualizer::_handle_frame_resize_event([[maybe_unused]] const vec2_i32 new_frame_size)
     {
         // ...
     }
 
     void visualizer::_handle_key_event(
-        [[maybe_unused]] const int32_t key,
+        const int32_t key,
         [[maybe_unused]] const int32_t scancode,
         [[maybe_unused]] const int32_t action,
         [[maybe_unused]] const int32_t mods)
@@ -294,24 +309,24 @@ namespace triengine::visualization
 
         switch (key) {
         case GLFW_KEY_HOME:
-            this->get_current_scene()->get_camera()->reset();
+            //TODO: reset camera state
             break;
         }
     }
 
     void visualizer::_handle_mouse_button_event(
-        [[maybe_unused]] const int32_t button,
+        const int32_t button,
         [[maybe_unused]] const int32_t action,
         [[maybe_unused]] const int32_t mods)
     {
         const vec2_f32 curr_cursor_screen_pos = _glctx.get_cursor_screen_pos();
-        const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
+        const bool cursor_in_scene_viewport = _scene_window->check_cursor_in_scene_viewport(curr_cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
         // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
         // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        if (ImGui::GetIO().WantCaptureMouse && !cursor_test_succeeded) {
+        if (ImGui::GetIO().WantCaptureMouse && !cursor_in_scene_viewport) {
             return;
         }
 
@@ -320,104 +335,121 @@ namespace triengine::visualization
             _cb_mouse_button(button, action, mods, handled);
             if (handled) { return; }
         }
-
-        if (action == GLFW_PRESS && cursor_test_succeeded) {
-            _last_clicked_cursor_viewport_pos =
-                _scene_window->try_convert_screen_pos_2_viewport_pos(curr_cursor_screen_pos).value();
-        }
     }
 
-    void visualizer::_handle_mouse_move_event(
-        [[maybe_unused]] const double cursor_screen_xpos,
-        [[maybe_unused]] const double cursor_screen_ypos)
+    void visualizer::_handle_mouse_move_event(const vec2_f64 cursor_pos)
     {
-        const vec2_f32 curr_cursor_screen_pos{
-            static_cast<float>(cursor_screen_xpos),
-            static_cast<float>(cursor_screen_ypos)
-        };
+        const vec2_f32 cursor_screen_pos = cursor_pos.cast<float>();
 
-        const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
+        const bool cursor_in_scene_viewport = _scene_window->check_cursor_in_scene_viewport(cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
         // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
         // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        if (ImGui::GetIO().WantCaptureMouse && !cursor_test_succeeded) {
+        if (ImGui::GetIO().WantCaptureMouse && !cursor_in_scene_viewport) {
             return;
         }
 
         if (_cb_mouse_move) {
             bool handled = false;
-            _cb_mouse_move(cursor_screen_xpos, cursor_screen_ypos, handled);
+            _cb_mouse_move(cursor_pos, handled);
             if (handled) { return; }
         }
 
-        if (cursor_test_succeeded)
+        // If the cursor is not hovered over the scene window, skip scene interaction control.
+        if (!cursor_in_scene_viewport) {
+            return;
+        }
+
+        //
+        // Scene interaction control start
+        //
+
+        const bool
+            fl_l_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_LEFT),
+            fl_r_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_RIGHT),
+            fl_m_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_MIDDLE);
+
+        if (fl_l_mouse_pressed || fl_r_mouse_pressed || fl_m_mouse_pressed)
         {
-            const bool
-                flag_l_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_LEFT),
-                flag_r_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_RIGHT),
-                flag_m_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_MIDDLE);
+            const vec2_f32 move_offset{
+                cursor_screen_pos.x() - _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).x(),
+                _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
+            };
 
-            if (flag_l_mouse_pressed || flag_r_mouse_pressed || flag_m_mouse_pressed)
+            abstract_camera* const scn_camera = this->get_current_scene()->get_camera();
+
+            if (fl_l_mouse_pressed)
             {
-                const vec2_f32 curr_cursor_viewport_pos =
-                    _scene_window->try_convert_screen_pos_2_viewport_pos(curr_cursor_screen_pos).value();
+                scn_camera->process_mouse_rotation(move_offset);
+            }
+            else if (fl_m_mouse_pressed)
+            {
+                const vec2_f32 start_viewport_pos = _scene_window->try_convert_screen_pos_2_viewport_pos(
+                    _begin_click_cursor_screen_pos.value_or(cursor_screen_pos)
+                ).value();
 
-                camera* const scn_camera = this->get_current_scene()->get_camera();
+                const vec2_f32 end_viewport_pos = _scene_window->try_convert_screen_pos_2_viewport_pos(
+                    cursor_screen_pos
+                ).value();
 
-                if (flag_l_mouse_pressed) {
-                    scn_camera->process_mouse_move_for_rotation(-(curr_cursor_viewport_pos - _last_clicked_cursor_viewport_pos));
-                }
-                else if (flag_m_mouse_pressed) {
-                    scn_camera->process_mouse_move_for_translation(_last_clicked_cursor_viewport_pos, curr_cursor_viewport_pos);
-                }
+                scn_camera->process_mouse_translation(
+                    start_viewport_pos,
+                    end_viewport_pos
+                );
+            }
 
-                _last_clicked_cursor_viewport_pos = curr_cursor_viewport_pos;
+            _begin_click_cursor_screen_pos = cursor_screen_pos;
+        }
+        else
+        {
+            if (_begin_click_cursor_screen_pos) {
+                _begin_click_cursor_screen_pos.reset();
             }
         }
     }
 
-    void visualizer::_handle_mouse_scroll_event(
-        [[maybe_unused]] const double scroll_xoffset,
-        [[maybe_unused]] const double scroll_yoffset)
+    void visualizer::_handle_mouse_scroll_event(const vec2_f64 scroll_offset)
     {
         const vec2_f32 curr_cursor_screen_pos = _glctx.get_cursor_screen_pos();
-        const bool cursor_test_succeeded = _scene_window->test_cursor_hovered(curr_cursor_screen_pos);
+        const bool cursor_in_scene_viewport = _scene_window->check_cursor_in_scene_viewport(curr_cursor_screen_pos);
 
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
         // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
         // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
         // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        if (ImGui::GetIO().WantCaptureMouse && !cursor_test_succeeded) {
+        if (ImGui::GetIO().WantCaptureMouse && !cursor_in_scene_viewport) {
             return;
         }
 
         if (_cb_mouse_scroll) {
             bool handled = false;
-            _cb_mouse_scroll(scroll_xoffset, scroll_yoffset, handled);
+            _cb_mouse_scroll(scroll_offset, handled);
             if (handled) { return; }
         }
 
-        if (cursor_test_succeeded)
+        if (cursor_in_scene_viewport)
         {
-            camera* const scn_camera = this->get_current_scene()->get_camera();
+            abstract_camera* const scn_camera = this->get_current_scene()->get_camera();
 
-            const bool ctrl_pressed = ::glfwGetKey(_glctx.get_glfw_window(), GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
-            if (!ctrl_pressed) {
-                scn_camera->process_mouse_scroll_for_zoom(static_cast<float>(scroll_yoffset));
+            const bool shift_pressed =
+                GLFW_PRESS == _glctx.get_key_state(GLFW_KEY_LEFT_SHIFT) ||
+                GLFW_PRESS == _glctx.get_key_state(GLFW_KEY_RIGHT_SHIFT);
+
+            const float zoom_offset = static_cast<float>(scroll_offset.y());
+            if (!shift_pressed) {
+                scn_camera->process_mouse_zoom(zoom_offset);
             } else {
-                scn_camera->process_mouse_scroll_for_perspective(static_cast<float>(scroll_yoffset));
+                scn_camera->process_mouse_perspective_zoom(zoom_offset);
             }
         }
     }
 
-    void visualizer::_handle_dpi_change_event(
-        [[maybe_unused]] const double dpi_xscale,
-        [[maybe_unused]] const double dpi_yscale)
+    void visualizer::_handle_dpi_change_event(const vec2_f32 dpi_scale)
     {
         if (_cb_dpi_change) {
-            _cb_dpi_change(dpi_xscale, dpi_yscale);
+            _cb_dpi_change(dpi_scale);
         }
     }
 

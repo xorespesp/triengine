@@ -30,7 +30,7 @@ namespace demo::scene
             scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.5f;
             scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
 
-            scn->get_camera()->set_mirror_mode(false);
+            scn->switch_camera_type(triengine::camera_type::arcball);
 
             auto mesh_axis_frame = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
             //mesh_axis_frame->paint_uniform_color(_get_next_color());

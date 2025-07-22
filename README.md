@@ -11,17 +11,18 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Point cloud rendering  
 - Line set rendering  
 - Skeletal motion rendering  
-- Offscreen rendering support
-- Inter-process rendering support (currently, supports Windows OS only)
-- Blinn-Phong lighting
+- Smoothed Arcball / Fly camera system support
+- Offscreen rendering support  
+- Inter-process rendering support (currently, supports Windows OS only)  
+- Blinn-Phong lighting model  
 - Order-independent transparency  
-- HDR tone-mapping
-- Bloom effect
+- HDR tone-mapping  
+- Bloom effect  
 - SMAA anti-aliasing  
 - OBJ file visualization  
 - PLY file visualization  
 - BVH file playback / inspection  
-- Resource pool optimization
+- Resource pool optimization  
 
 ---
 
@@ -30,12 +31,12 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - [ ] SMAA T2x (temporal SMAA variant)  
 - [ ] Skybox support  
 - [ ] Object picking and outlining (planned with `imguigazmo`)  
-- [ ] PBR support
+- [ ] SSAO support  
+- [ ] PBR support  
 - [ ] Advanced lighting models (Disney Diffuse, Cook-Torrance BRDF, etc.)  
-- [ ] Camera interface improvements  
 - [ ] Support for various file formats  
 - [ ] Frustum culling  
 - [ ] Bounding Volume Hierarchy (BVH)  
-- [ ] ECS architecture (Entity-Component-System)
+- [ ] ECS architecture (Entity-Component-System)  
 
 ---

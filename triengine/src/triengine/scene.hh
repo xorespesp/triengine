@@ -50,12 +50,15 @@ namespace triengine
         std::string _name; // scene name
         std::weak_ptr<core::gpu_resource_manager> _gpu_rsrc_mgr;
 
-        scene_render_config _render_config;
-        camera _main_camera; // TODO: multi camera support?
+        std::unordered_map<camera_type, std::unique_ptr<abstract_camera>> _camera_map; // list of available cameras in the scene
+        abstract_camera* _active_camera_ptr{ nullptr };
+
         std::list<std::shared_ptr<geometry::lineset_object>> _lineset_geometries;
         std::list<std::shared_ptr<geometry::pcd_object>> _pcd_geometries;
         std::list<std::shared_ptr<geometry::triangle_mesh_object>> _mesh_geometries;
         std::list<std::shared_ptr<geometry::skeleton_object>> _skeleton_geometries;
+
+        scene_render_config _render_config;
 
     public:
         scene(std::shared_ptr<core::gpu_resource_manager> gpu_rsrc_mgr);
@@ -70,8 +73,24 @@ namespace triengine
         const scene_render_config* get_render_config() const noexcept { return &_render_config; }
         scene_render_config* get_render_config() noexcept { return &_render_config; }
 
-        const camera* get_camera() const noexcept { return &_main_camera; }
-        camera* get_camera() noexcept { return &_main_camera; }
+        const abstract_camera* get_camera() const noexcept {
+            TRIENGINE_ASSERT(_active_camera_ptr != nullptr);
+            return _active_camera_ptr;
+        }
+
+        abstract_camera* get_camera() noexcept {
+            TRIENGINE_ASSERT(_active_camera_ptr != nullptr);
+            return _active_camera_ptr;
+        }
+
+        void switch_camera_type(camera_type cam_type) {
+            auto it = _camera_map.find(cam_type);
+            if (it != _camera_map.end()) {
+                _active_camera_ptr = it->second.get();
+            } else {
+                TRIENGINE_PANIC("Camera type %d not avaiable in scene", static_cast<int>(cam_type));
+            }
+        }
 
         const auto& get_lineset_geometries() const noexcept { return _lineset_geometries; }
         auto& get_lineset_geometries() noexcept { return _lineset_geometries; }

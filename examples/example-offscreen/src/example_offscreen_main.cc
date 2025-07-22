@@ -45,16 +45,16 @@ namespace demo
             scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
             scn->get_render_config()->light_opts.point_light.diffuseIntensity = 3.25f;
             scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
-            //scn->get_render_config()->light_opts.hdr.enabled = false;
-            //scn->get_render_config()->light_opts.bloom.enabled = false;
 
-            auto& scn_camera = *scn->get_camera();
-            scn_camera.set_mirror_mode(false);
-            scn_camera.set_perspective_scale_factor(1.0f);
-            scn_camera.set_fovy(65.0f);
-            scn_camera.set_zoom(1.25f);
-            scn_camera.set_direction(triengine::vec3_f32{ 0.744f, 0.153f, -0.651f });
-            scn_camera.set_position(triengine::vec3_f32{ -1.240f, 0.847f, 1.113f });
+            scn->switch_camera_type(triengine::camera_type::arcball);
+            auto& arcball_cam = *scn->get_camera()->as<triengine::arcball_camera>();
+            arcball_cam.set_pivot_point(triengine::vec3_f32(0.0f, 0.5f, 0.0f));
+            arcball_cam.set_yaw(120.0f);
+            arcball_cam.set_pitch(0.0f);
+            arcball_cam.set_zoom_distance(2.0f);
+
+            auto mesh_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            scn->add_geometry(mesh_axis_frame);
 
             if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
                 triengine::io::load_triangle_mesh_from_obj(

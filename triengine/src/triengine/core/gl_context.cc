@@ -309,7 +309,7 @@ namespace triengine::core
             +[](GLFWwindow* window, int w, int h) {
             auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
             if (pThis->_cb_frame_resize) {
-                pThis->_cb_frame_resize(w, h);
+                pThis->_cb_frame_resize(vec2_i32{ w, h });
             }
         });
 
@@ -333,7 +333,7 @@ namespace triengine::core
             +[](GLFWwindow* window, double xpos, double ypos) {
             auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
             if (pThis->_cb_mouse_move) {
-                pThis->_cb_mouse_move(xpos, ypos);
+                pThis->_cb_mouse_move(vec2_f64{ xpos, ypos });
             }
         });
 
@@ -341,7 +341,7 @@ namespace triengine::core
             +[](GLFWwindow* window, double xoffset, double yoffset) {
             auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
             if (pThis->_cb_mouse_scroll) {
-                pThis->_cb_mouse_scroll(xoffset, yoffset);
+                pThis->_cb_mouse_scroll(vec2_f64{ xoffset, yoffset });
             }
         });
 
@@ -350,7 +350,7 @@ namespace triengine::core
             TRIENGINE_TRACE("dpi scale changed: [%f, %f]", xscale, yscale);
             auto pThis = static_cast<gl_context*>(::glfwGetWindowUserPointer(window));
             if (pThis->_cb_dpi_change) {
-                pThis->_cb_dpi_change(xscale, yscale);
+                pThis->_cb_dpi_change(vec2_f32{ xscale, yscale });
             }
         });
 
@@ -442,31 +442,37 @@ namespace triengine::core
         ::glfwPollEvents();
     }
 
-    void gl_context::set_close_callback(close_callback cb) {
+    int gl_context::get_key_state(int32_t glfw_key) const
+    {
+        const int state = ::glfwGetKey(_glfw_window.get(), glfw_key);
+        return state;
+    }
+
+    void gl_context::set_close_callback(close_callback_type cb) {
         _cb_close = std::move(cb);
     }
 
-    void gl_context::set_frame_resize_callback(frame_resize_callback cb) {
+    void gl_context::set_frame_resize_callback(frame_resize_callback_type cb) {
         _cb_frame_resize = std::move(cb);
     }
 
-    void gl_context::set_dpi_change_callback(dpi_change_callback cb) {
+    void gl_context::set_dpi_change_callback(dpi_change_callback_type cb) {
         _cb_dpi_change = std::move(cb);
     }
 
-    void gl_context::set_key_callback(key_callback cb) {
+    void gl_context::set_key_callback(key_callback_type cb) {
         _cb_key = std::move(cb);
     }
 
-    void gl_context::set_mouse_button_callback(mouse_button_callback cb) {
+    void gl_context::set_mouse_button_callback(mouse_button_callback_type cb) {
         _cb_mouse_button = std::move(cb);
     }
 
-    void gl_context::set_mouse_move_callback(mouse_move_callback cb) {
+    void gl_context::set_mouse_move_callback(mouse_move_callback_type cb) {
         _cb_mouse_move = std::move(cb);
     }
 
-    void gl_context::set_mouse_scroll_callback(mouse_scroll_callback cb) {
+    void gl_context::set_mouse_scroll_callback(mouse_scroll_callback_type cb) {
         _cb_mouse_scroll = std::move(cb);
     }
 

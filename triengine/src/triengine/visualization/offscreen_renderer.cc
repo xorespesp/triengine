@@ -168,34 +168,32 @@ namespace triengine::visualization
             TRIENGINE_PANIC("No scenes added");
         }
 
+        // Calculate frame delta time
+        const double curr_frame_time = ::glfwGetTime();
+        _frame_time_delta = curr_frame_time - _last_frame_time;
+        _last_frame_time = curr_frame_time;
+        const float frame_delta_f32 = static_cast<float>(_frame_time_delta);
+
         _glctx.swap_buffers();
 
-        const vec2_i32 frame_size = _curr_frame_size;
+        scene& target_scn = *(_curr_scn_it->get());
+        abstract_camera& target_scn_camera = *target_scn.get_camera();
+        target_scn_camera.set_viewport(view_port{ 0, 0, _curr_frame_size.x(), _curr_frame_size.y() });
+
+        // Process camera input
+        target_scn_camera.update_animation(frame_delta_f32);
 
         this->_begin_frame();
-        {
-            scene& target_scn = *(_curr_scn_it->get());
-            target_scn.get_camera()->set_view_port(view_port{ 0, 0, frame_size.x(),  frame_size.y() });
-            _scn_renderer.render(
-                _fb_main.fbo_id(),
-                _fb_main.width_pixels(),
-                _fb_main.height_pixels(),
-                target_scn
-            );
-
-            //frame_image.prepare(W, H, image_format_type::bgr);
-            //GLCall(::glReadPixels(
-            //    0, 0,              /* GLint x, GLint y */
-            //    W, H,              /* GLsizei width, GLsizei height */
-            //    GL_BGR,            /* GLenum format */
-            //    GL_UNSIGNED_BYTE,  /* GLenum type */
-            //    frame_image.data() /* void* pixels */
-            //));
-        }
+        _scn_renderer.render(
+            _fb_main.fbo_id(),
+            _fb_main.width_pixels(),
+            _fb_main.height_pixels(),
+            target_scn
+        );
         this->_end_frame();
 
         GLCall(::glBindTexture(GL_TEXTURE_2D, _fb_main.color_attachment()->buffer_id));
-        frame_image.prepare(frame_size.x(), frame_size.y(), frame_image_format);
+        frame_image.prepare(_curr_frame_size.x(), _curr_frame_size.y(), frame_image_format);
 
         // TODO: validate image format
         const GLenum frame_image_gl_format{ static_cast<GLenum>(frame_image_format) };

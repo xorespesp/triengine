@@ -29,20 +29,6 @@ namespace
         return dx11_shared_texture;
     }
 
-    triengine::vec2_f32 screen_pos_2_viewport_pos(
-        const triengine::vec2_f32 screen_pos,
-        const triengine::vec2_f32 screen_size)
-    {
-        // NOTE: Screen coordinates are relative to the upper-left corner of the window content area.
-
-        // Convert screen coordinates to OpenGL viewport coordinates.
-        // NOTE: OpenGL viewport coordinates are relative to the lower-left corner of the window content area.
-        triengine::vec2_f32 viewport_pos;
-        viewport_pos.x() = screen_pos.x();
-        viewport_pos.y() = (screen_size.y() - screen_pos.y() - 1.0f);
-        return viewport_pos;
-    }
-
 } // namespace
 
 class renderer_process::impl
@@ -187,7 +173,8 @@ private:
         scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.5f;
         scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
 
-        scn->get_camera()->set_mirror_mode(false);
+        scn->switch_camera_type(triengine::camera_type::arcball);
+        scn->get_camera()->as<triengine::arcball_camera>()->get_options().damping_factor = 9.0f;
 
         auto mesh_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
         //mesh_axis_frame->paint_uniform_color(_get_next_color());
@@ -256,77 +243,6 @@ private:
                 packet_view pck{ data.data(), data.size() };
 
                 switch (pck.type()) {
-                case ipc_proto::packet_type::mouse_move_event:
-                {
-                    auto body = pck.body<ipc_proto::packets::mouse_move_event_t>();
-                    //CXLIB_TRACE("mouse move: {}x{}", body->x, body->y);
-
-                    std::scoped_lock lk{ _ipc_lock };
-                    triengine::camera* const scn_camera = _scene->get_camera();
-
-                    const triengine::vec2_f32 curr_mouse_screen_pos{
-                        static_cast<float>(body->x),
-                        static_cast<float>(body->y)
-                    };
-
-                    if (!_flag_mouse_dragging)
-                    {
-                        _last_clicked_mouse_screen_pos.reset();
-                    }
-                    else //if (_flag_mouse_dragging)
-                    {
-                        if (!_last_clicked_mouse_screen_pos) {
-                            _last_clicked_mouse_screen_pos = curr_mouse_screen_pos;
-                        }
-
-                        if (_flag_l_mouse_pressed)
-                        {
-                            const triengine::vec2_f32 delta{
-                                curr_mouse_screen_pos.x() - _last_clicked_mouse_screen_pos->x(),
-                                _last_clicked_mouse_screen_pos->y() - curr_mouse_screen_pos.y() // reversed since y-coordinates go from bottom to top
-                            };
-
-                            scn_camera->process_mouse_move_for_rotation(-delta);
-                        }
-                        else if (_flag_m_mouse_pressed)
-                        {
-                            triengine::vec2_f32 start_pos = screen_pos_2_viewport_pos(
-                                _last_clicked_mouse_screen_pos.value(),
-                                _renderer->get_frame_size().cast<float>()
-                            );
-                            triengine::vec2_f32 end_pos = screen_pos_2_viewport_pos(
-                                curr_mouse_screen_pos,
-                                _renderer->get_frame_size().cast<float>()
-                            );
-                            scn_camera->process_mouse_move_for_translation(
-                                start_pos,
-                                end_pos
-                            );
-                        }
-
-                        _last_clicked_mouse_screen_pos = curr_mouse_screen_pos;
-                    }
-
-                    break;
-                }
-                case ipc_proto::packet_type::mouse_scroll_event:
-                {
-                    auto body = pck.body<ipc_proto::packets::mouse_scroll_event_t>();
-                    //CXLIB_TRACE("mouse scroll: {}"
-                    //    , body->yoffset
-                    //);
-                    std::scoped_lock lk{ _ipc_lock };
-                    triengine::camera* const scn_camera = _scene->get_camera();
-                
-                    const float scroll_yoffset = body->yoffset;
-                    //const bool ctrl_pressed = ::glfwGetKey(_glctx.get_glfw_window(), GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS;
-                    //if (!ctrl_pressed) {
-                        scn_camera->process_mouse_scroll_for_zoom(static_cast<float>(scroll_yoffset));
-                    //} else {
-                    //    scn_camera->process_mouse_scroll_for_perspective(static_cast<float>(scroll_yoffset));
-                    //}
-                    break;
-                }
                 case ipc_proto::packet_type::mouse_button_event:
                 {
                     auto body = pck.body<ipc_proto::packets::mouse_button_event_t>();
@@ -336,7 +252,7 @@ private:
                     //);
 
                     std::scoped_lock lk{ _ipc_lock };
-                    [[maybe_unused]] triengine::camera* const scn_camera = _scene->get_camera();
+                    [[maybe_unused]] triengine::abstract_camera* const scn_camera = _scene->get_camera();
 
                     switch (body->button) {
                     case ipc_proto::MOUSEBTN_L:
@@ -361,6 +277,77 @@ private:
                         _flag_m_mouse_pressed;
 
                     //CXLIB_TRACE("mouse dragging : {}", _flag_mouse_dragging);
+                    break;
+                }
+                case ipc_proto::packet_type::mouse_move_event:
+                {
+                    auto body = pck.body<ipc_proto::packets::mouse_move_event_t>();
+                    //CXLIB_TRACE("mouse move: {}x{}", body->x, body->y);
+
+                    std::scoped_lock lk{ _ipc_lock };
+
+                    const triengine::vec2_f32 cursor_screen_pos{
+                        static_cast<float>(body->x),
+                        static_cast<float>(body->y)
+                    };
+
+                    if (_flag_mouse_dragging)
+                    {
+                        const triengine::vec2_f32 move_offset{
+                            cursor_screen_pos.x() - _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).x(),
+                            _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
+                        };
+
+                        triengine::abstract_camera* const scn_camera = _scene->get_camera();
+
+                        if (_flag_l_mouse_pressed)
+                        {
+                            scn_camera->process_mouse_rotation(move_offset);
+                        }
+                        else if (_flag_m_mouse_pressed)
+                        {
+                            const triengine::vec2_i32 screen_size = _renderer->get_frame_size().cast<int32_t>();
+                            const triengine::view_port& screen_viewport = scn_camera->get_viewport();
+
+                            const triengine::vec2_f32 start_pos = triengine::win32_screen_pos_2_gl_viewport_pos(
+                                _begin_click_cursor_screen_pos.value_or(cursor_screen_pos),
+                                screen_size,
+                                screen_viewport
+                            );
+
+                            const triengine::vec2_f32 end_pos = triengine::win32_screen_pos_2_gl_viewport_pos(
+                                cursor_screen_pos,
+                                screen_size,
+                                screen_viewport
+                            );
+
+                            scn_camera->process_mouse_translation(
+                                start_pos,
+                                end_pos
+                            );
+                        }
+
+                        _begin_click_cursor_screen_pos = cursor_screen_pos;
+                    }
+                    else //if (!_flag_mouse_dragging)
+                    {
+                        if (_begin_click_cursor_screen_pos) {
+                            _begin_click_cursor_screen_pos.reset();
+                        }
+                    }
+                    break;
+                }
+                case ipc_proto::packet_type::mouse_scroll_event:
+                {
+                    auto body = pck.body<ipc_proto::packets::mouse_scroll_event_t>();
+                    //CXLIB_TRACE("mouse scroll: {}"
+                    //    , body->yoffset
+                    //);
+                    std::scoped_lock lk{ _ipc_lock };
+                    triengine::abstract_camera* const scn_camera = _scene->get_camera();
+                
+                    const float zoom_offset = body->yoffset;
+                    scn_camera->process_mouse_zoom(static_cast<float>(zoom_offset));
                     break;
                 }
                 default:
@@ -495,11 +482,11 @@ private:
     std::shared_ptr<triengine::geometry::triangle_mesh_object> _skull_mesh;
     std::shared_ptr<triengine::geometry::triangle_mesh_object> _skull_mesh2;
     
-    std::optional<triengine::vec2_f32> _last_clicked_mouse_screen_pos;
     bool _flag_mouse_dragging{ false };
     bool _flag_l_mouse_pressed{ false };
     bool _flag_r_mouse_pressed{ false };
     bool _flag_m_mouse_pressed{ false };
+    std::optional<triengine::vec2_f32> _begin_click_cursor_screen_pos;
 
 }; // class
 

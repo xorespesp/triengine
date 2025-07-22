@@ -25,7 +25,7 @@ namespace triengine::renderer
         mat4_f32 view{};
         mat4_f32 projection{};
         lighting_options const* light_opts{ nullptr };
-        camera const* camera{ nullptr };
+        abstract_camera const* camera{ nullptr };
         render_pass_type curr_render_pass{ renderer::render_pass_type::wboit_solid_rendering };
     };
 

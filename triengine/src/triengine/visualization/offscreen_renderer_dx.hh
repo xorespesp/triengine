@@ -60,7 +60,7 @@ namespace triengine::visualization
     private:
         void _begin_frame();
         void _end_frame();
-        void _handle_frame_resize_event(int32_t width, int32_t height);
+        void _handle_frame_resize_event(vec2_i32 new_frame_size);
 
     private:
         bool _flag_initialized{ false };
@@ -88,6 +88,9 @@ namespace triengine::visualization
 
         GLuint _main_fbo{}; // Framebuffer Object ID
         GLuint _frame_gl_interop_color_texture{}; // Texture ID
+
+        // frame time calculation
+        double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
 
     }; // class
 
