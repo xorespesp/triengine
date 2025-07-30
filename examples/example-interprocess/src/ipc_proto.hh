@@ -53,7 +53,7 @@ namespace ipc_proto
         MOUSE_M, // middle mouse button
     };
 
-    enum modifier_button_type : uint32_t
+    enum modifier_button_type : uint16_t
     {
         // key button modifiers
         MOD_KEY_SHIFT = 1u << 0,
@@ -64,9 +64,9 @@ namespace ipc_proto
         // ...
         
         // mouse button modifiers
-        MOD_MOUSE_L = 1u << 29,
-        MOD_MOUSE_R = 1u << 30,
-        MOD_MOUSE_M = 1u << 31,
+        MOD_MOUSE_L = 1u << 13,
+        MOD_MOUSE_R = 1u << 14,
+        MOD_MOUSE_M = 1u << 15,
     };
 
     // Add bitwise operators for modifier_button_type  
