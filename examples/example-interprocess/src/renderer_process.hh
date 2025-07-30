@@ -9,6 +9,7 @@
 #include "common.hh"
 #include "ipc_proto.hh"
 #include "ipc_service.hh"
+#include "task_dispatcher.hh"
 
 class renderer_process
 {
@@ -25,17 +26,13 @@ public:
     void stop();
 
 private:
-    void _post_task(std::function<void()> task);
-    void _process_pending_tasks(); // MUST be called in the main render thread
+    // Used to submit tasks that MUST be executed in the main render thread
+    std::shared_ptr<task_dispatcher> _main_task_dispatcher;
 
-private:
     std::shared_ptr<void> _process_inst_handle;
     std::atomic_bool _run_flag{ false };
 
     std::shared_ptr<ipc_server> _ipc_srv;
     impl_unique_ptr _impl;
-
-    std::deque<std::function<void()>> _task_q;
-    mutable _CXLIB utils::spin_lock _task_q_lock;
 
 }; // class

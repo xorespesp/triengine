@@ -34,7 +34,8 @@ namespace triengine::visualization
             Microsoft::WRL::ComPtr<ID3D11Device2> dx11_device2,
             Microsoft::WRL::ComPtr<ID3D11DeviceContext2> dx11_device_context2,
             int32_t frame_width,
-            int32_t frame_height
+            int32_t frame_height,
+            DXGI_FORMAT frame_format
         );
 
         void destroy_renderer();

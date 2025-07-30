@@ -66,30 +66,6 @@ namespace triengine::visualization
             wglDXUnlockObjectsNV = load_gl_extension_funptr<decltype(wglDXUnlockObjectsNV)>("wglDXUnlockObjectsNV");
         }
 
-        ComPtr<ID3D11Texture2D> create_dxgl_interop_texture(
-            const uint32_t width_pixels,
-            const uint32_t height_pixels,
-            ComPtr<ID3D11Device2> device)
-        {
-            ComPtr<ID3D11Texture2D> dxgl_interop_texture;
-
-            D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc = { 0, };
-            dxgl_interop_texture_desc.Width = width_pixels;
-            dxgl_interop_texture_desc.Height = height_pixels;
-            dxgl_interop_texture_desc.MipLevels = 1;
-            dxgl_interop_texture_desc.ArraySize = 1;
-            dxgl_interop_texture_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            dxgl_interop_texture_desc.SampleDesc.Count = 1;
-            dxgl_interop_texture_desc.SampleDesc.Quality = 0;
-            dxgl_interop_texture_desc.Usage = D3D11_USAGE_DEFAULT; // NOTE: GL Interop용 텍스처는 Usage 플래그가 반드시 D3D11_USAGE_DEFAULT여야 함 (See: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt)
-            dxgl_interop_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-            dxgl_interop_texture_desc.CPUAccessFlags = 0;
-            dxgl_interop_texture_desc.MiscFlags = 0; // GL Interop용 텍스처는 공유 속성이 필요 없음
-            ASSERT_HR(device->CreateTexture2D(&dxgl_interop_texture_desc, NULL, &dxgl_interop_texture));
-
-            return dxgl_interop_texture;
-        }
-
     } // namespace
 
     offscreen_renderer_dx::offscreen_renderer_dx()
@@ -107,11 +83,25 @@ namespace triengine::visualization
     }
 
     void offscreen_renderer_dx::create_renderer(
-        Microsoft::WRL::ComPtr<ID3D11Device2> dx11_device2,
-        Microsoft::WRL::ComPtr<ID3D11DeviceContext2> dx11_device_context2,
-        int32_t frame_width,
-        int32_t frame_height)
+        const Microsoft::WRL::ComPtr<ID3D11Device2> dx11_device2,
+        const Microsoft::WRL::ComPtr<ID3D11DeviceContext2> dx11_device_context2,
+        const int32_t frame_width,
+        const int32_t frame_height,
+        const DXGI_FORMAT frame_format)
     {
+        if (!dx11_device2 || !dx11_device_context2) {
+            TRIENGINE_PANIC("Invalid DX11 device or context");
+        }
+
+        if (frame_width <= 0 || frame_height <= 0) {
+            TRIENGINE_PANIC("Invalid frame size: %dx%d", frame_width, frame_height);
+        }
+
+        if (frame_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
+            frame_format != DXGI_FORMAT_R8G8B8A8_UNORM) {
+            TRIENGINE_WARN("Unexpected frame format (%d) specified", static_cast<int>(frame_format));
+        }
+
         if (_flag_initialized) {
             TRIENGINE_PANIC("already created");
         }
@@ -137,11 +127,26 @@ namespace triengine::visualization
         _dx11_device2 = dx11_device2;
         _dx11_device_context2 = dx11_device_context2;
 
-        _dx11_gl_interop_color_texture = create_dxgl_interop_texture(
-            frame_width,
-            frame_height,
-            _dx11_device2
-        );
+        // Create OpenGL interop color texture
+        D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
+        dxgl_interop_texture_desc.Width = static_cast<UINT>(frame_width);
+        dxgl_interop_texture_desc.Height = static_cast<UINT>(frame_height);
+        dxgl_interop_texture_desc.MipLevels = 1;
+        dxgl_interop_texture_desc.ArraySize = 1;
+        dxgl_interop_texture_desc.Format = frame_format;
+        dxgl_interop_texture_desc.SampleDesc.Count = 1;
+        dxgl_interop_texture_desc.SampleDesc.Quality = 0;
+        dxgl_interop_texture_desc.Usage = D3D11_USAGE_DEFAULT; // NOTE: GL Interop용 텍스처는 Usage 플래그가 반드시 D3D11_USAGE_DEFAULT여야 함 (See: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt)
+        dxgl_interop_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        dxgl_interop_texture_desc.CPUAccessFlags = 0;
+        dxgl_interop_texture_desc.MiscFlags = 0; // GL Interop용 텍스처는 공유 속성이 필요 없음
+        ASSERT_HR(_dx11_device2->CreateTexture2D(
+            &dxgl_interop_texture_desc, 
+            nullptr, 
+            &_dx11_gl_interop_color_texture
+        ));
+
+        TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
 
         // DX Device를 OpenGL Interop용으로 Open
         _wgl_dx11_device_handle.reset(
@@ -368,12 +373,26 @@ namespace triengine::visualization
             return; // skip resize
         }
 
+        D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
+        _dx11_gl_interop_color_texture->GetDesc(&dxgl_interop_texture_desc);
+        _dx11_gl_interop_color_texture.Reset();
+
         // Recreate gldx interop color texture
-        _dx11_gl_interop_color_texture = create_dxgl_interop_texture(
-            new_frame_size.x(), 
-            new_frame_size.y(), 
-            _dx11_device2
-        );
+        dxgl_interop_texture_desc.Width = static_cast<UINT>(new_frame_size.x());
+        dxgl_interop_texture_desc.Height = static_cast<UINT>(new_frame_size.y());
+        if (const HRESULT hr = _dx11_device2->CreateTexture2D(
+            &dxgl_interop_texture_desc,
+            nullptr,
+            &_dx11_gl_interop_color_texture);
+            FAILED(hr))
+        {
+            TRIENGINE_PANIC("Failed to re-create DXGL interop color texture with size: %dx%d (HRESULT: %08X)"
+                , new_frame_size.x()
+                , new_frame_size.y()
+                , hr
+            );
+        }
+
         TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
 
         TRIENGINE_ASSERT(_frame_gl_interop_color_texture != 0);
@@ -394,7 +413,7 @@ namespace triengine::visualization
 
         ::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
         if (GL_FRAMEBUFFER_COMPLETE != ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER)) {
-            TRIENGINE_PANIC("Framebuffer is not complete!");
+            TRIENGINE_PANIC("Failed to re-create framebuffer with size: %dx%d", new_frame_size.x(), new_frame_size.y());
         }
 
         _curr_frame_size = new_frame_size;

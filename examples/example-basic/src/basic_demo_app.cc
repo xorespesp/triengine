@@ -159,24 +159,6 @@ namespace demo
                     case GLFW_KEY_SPACE:
                         _flag_animation = !_flag_animation;
                         break;
-                    case GLFW_KEY_A:
-                        _vis->get_current_scene()->get_render_config()->light_opts.point_light.position.x() -= 0.05f; // left
-                        break;
-                    case GLFW_KEY_D:
-                        _vis->get_current_scene()->get_render_config()->light_opts.point_light.position.x() += 0.05f; // right
-                        break;
-                    case GLFW_KEY_W:
-                        _vis->get_current_scene()->get_render_config()->light_opts.point_light.position.z() += 0.05f; // forward
-                        break;
-                    case GLFW_KEY_S:
-                        _vis->get_current_scene()->get_render_config()->light_opts.point_light.position.z() -= 0.05f; // backward
-                        break;
-                    case GLFW_KEY_UP:
-                        _vis->get_current_scene()->get_render_config()->light_opts.point_light.position.y() -= 0.05f; // up
-                        break;
-                    case GLFW_KEY_DOWN:
-                        _vis->get_current_scene()->get_render_config()->light_opts.point_light.position.y() += 0.05f; // down
-                        break;
                     case GLFW_KEY_LEFT:
                         _scene_ctrl_window->switch_to_prev_scene();
                         break;

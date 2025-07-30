@@ -7,6 +7,7 @@ target_sources(${TARGET_NAME}
         "src/ipc_proto.hh"
         "src/ipc_service.cc"
         "src/ipc_service.hh"
+        "src/task_dispatcher.hh"
         "src/renderer_process.cc"
         "src/renderer_process.hh"
         "src/viewer_process.cc"
