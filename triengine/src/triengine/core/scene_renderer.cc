@@ -272,14 +272,13 @@ namespace triengine::core
             // resize WBOIT framebuffer
             if (!_wboit_fb.is_valid())
             {
-                _wboit_fb = frame_buffer::create_color_depth_stencil_buffer(
+                _wboit_fb = frame_buffer::create_color_depth_only_buffer(
                     {
                         GL_RGBA16F/* GL_COLOR_ATTACHMENT0: WBOIT opaque */,
                         GL_RGBA16F/* GL_COLOR_ATTACHMENT1: WBOIT accum */,
                         GL_R8     /* GL_COLOR_ATTACHMENT2: WBOIT reveal */
                     },
                     GL_DEPTH_COMPONENT24,
-                    GL_STENCIL_INDEX8,
                     frame_width_pixels,
                     frame_height_pixels
                 );
@@ -325,7 +324,7 @@ namespace triengine::core
                 );
 
                 // clear frame buffers
-                GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+                GLCall(::glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
                 // render solid(opaque) objects
                 _lineset_renderer.render(render_ctx, scn.get_lineset_geometries());
@@ -618,7 +617,7 @@ namespace triengine::core
 
                 // NOTE: In this pass, there is no need to clear color buffer since the entire color buffer is refreshed every time.
                 //       Therefore, we skip `glClear(GL_COLOR_BUFFER_BIT)` to improve performance.
-                GLCall(::glClear(/*GL_COLOR_BUFFER_BIT | */GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+                //GLCall(::glClear(GL_COLOR_BUFFER_BIT));
 
                 if (scn_render_config.light_opts.hdr.enabled)
                 {

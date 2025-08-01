@@ -6,6 +6,17 @@
 
 #include <iostream>
 
+/*
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" {
+    // NVIDIA Optimus
+    __declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
+    // AMD PowerXpress
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+#endif
+*/
+
 namespace triengine::core
 {
     namespace 
@@ -281,6 +292,18 @@ namespace triengine::core
                 /* const GLuint* ids */nullptr,
                 /* GLboolean enabled */GL_TRUE
             );
+        }
+
+        // Log GPU information
+        {
+            const GLubyte* version = ::glGetString(GL_VERSION);
+            const GLubyte* vendor = ::glGetString(GL_VENDOR);
+            const GLubyte* renderer = ::glGetString(GL_RENDERER);
+            TRIENGINE_ASSERT(version && vendor && renderer);
+
+            TRIENGINE_DEBUG("GL version: %s", version);
+            TRIENGINE_DEBUG("GL vendor: %s", vendor);
+            TRIENGINE_DEBUG("GL renderer: %s", renderer);
         }
 
         TRIENGINE_TRACE("V-Sync: %s", enable_vsync ? "enabled" : "disabled");

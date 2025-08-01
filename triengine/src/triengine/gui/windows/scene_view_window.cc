@@ -30,10 +30,8 @@ namespace triengine::gui
 
             if (!_fb_main.is_valid())
             {
-                _fb_main = core::frame_buffer::create_color_depth_stencil_buffer(
+                _fb_main = core::frame_buffer::create_color_only_buffer(
                     GL_RGBA16F,
-                    GL_DEPTH_COMPONENT24,
-                    GL_STENCIL_INDEX8,
                     static_cast<int32_t>(curr_content_region_size.x),
                     static_cast<int32_t>(curr_content_region_size.y)
                 );
@@ -249,6 +247,20 @@ namespace triengine::gui
 
             if (_state.flag_show_overlay_debug_info)
             {
+                {
+                    const GLubyte* version = ::glGetString(GL_VERSION);
+                    const GLubyte* vendor = ::glGetString(GL_VENDOR);
+                    const GLubyte* renderer = ::glGetString(GL_RENDERER);
+                    sb_.appendf(
+                        "\nGL Version: %s"
+                        "\nGL Vendor: %s"
+                        "\nGL Renderer: %s"
+                        , version ? reinterpret_cast<const char*>(version) : "N/A"
+                        , vendor ? reinterpret_cast<const char*>(vendor) : "N/A"
+                        , renderer ? reinterpret_cast<const char*>(renderer) : "N/A"
+                    );
+                }
+
                 const abstract_camera* const scn_camera = _vis->get_current_scene()->get_camera();
                 const auto eye_world_pos = scn_camera->get_position();
                 const auto eye_front = scn_camera->get_front();
