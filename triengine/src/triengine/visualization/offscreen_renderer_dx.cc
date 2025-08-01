@@ -252,6 +252,12 @@ namespace triengine::visualization
         device_creation_flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif // ^^^ TRIENGINE_DEBUG ^^^
 
+        if (device_creation_flags & D3D11_CREATE_DEVICE_SINGLETHREADED) {
+            TRIENGINE_WARN("D3D11_CREATE_DEVICE_SINGLETHREADED flag is set, but it is not compatible with WGL_NV_DX_interop2. removing flag...");
+            // Ref: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt
+            device_creation_flags &= ~D3D11_CREATE_DEVICE_SINGLETHREADED;
+        }
+
         if (HRESULT hr = ::D3D11CreateDevice(
             selected_adapter0.Get(),
             D3D_DRIVER_TYPE_UNKNOWN,
@@ -284,7 +290,7 @@ namespace triengine::visualization
         // NOTE: Must be called after the OpenGL rendering context has been created.
         load_wgl_nvdx_interop_functions();
 
-        _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_handle_frame_resize_event, this, 
+        _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_handle_frame_resize_event, this,
             std::placeholders::_1));
 
         _curr_frame_size = _glctx.get_window_size();
@@ -300,7 +306,7 @@ namespace triengine::visualization
         dxgl_interop_texture_desc.Format = frame_format;
         dxgl_interop_texture_desc.SampleDesc.Count = 1;
         dxgl_interop_texture_desc.SampleDesc.Quality = 0;
-        dxgl_interop_texture_desc.Usage = D3D11_USAGE_DEFAULT; // NOTE: GL Interop용 텍스처는 Usage 플래그가 반드시 D3D11_USAGE_DEFAULT여야 함 (See: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt)
+        dxgl_interop_texture_desc.Usage = D3D11_USAGE_DEFAULT; // NOTE: Usage flags must be D3D11_USAGE_DEFAULT (See: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt)
         dxgl_interop_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
         dxgl_interop_texture_desc.CPUAccessFlags = 0;
         dxgl_interop_texture_desc.MiscFlags = 0; // GL Interop용 텍스처는 공유 속성이 필요 없음
@@ -329,15 +335,16 @@ namespace triengine::visualization
             }
         }
 
-        // FBO에 붙일 컬러 텍스처를 생성하고, 이를 WGL DX Interop 텍스처(비공유 텍스처)로 등록
-        GLCall(::glCreateTextures(GL_TEXTURE_2D, 1, &_frame_gl_interop_color_texture));
+        // FBO에 붙일 컬러 렌더버퍼 생성
+        GLCall(::glCreateRenderbuffers(1, &_frame_gl_interop_color_rbo));
 
+        // 생성한 렌더버퍼를 WGL DX Interop용 텍스처(비공유 텍스처)로 등록
         {
             const HANDLE interop_texture_raw_handle{ ::wglDXRegisterObjectNV(
                 _wgl_dx11_device_handle.get()/* HANDLE hDevice; */,
                 _dx11_gl_interop_color_texture.Get()/* PVOID dxResource; */,
-                _frame_gl_interop_color_texture/* GLuint name; */,
-                GL_TEXTURE_2D/* GLenum type; */,
+                _frame_gl_interop_color_rbo/* GLuint name; */,
+                GL_RENDERBUFFER/* GLenum type; */,
                 WGL_ACCESS_READ_WRITE_NV/* GLenum access; */
             ) };
             const DWORD last_error{ ::GetLastError() };
@@ -354,9 +361,16 @@ namespace triengine::visualization
             }
         }
 
-        // DSA 방식으로 FBO 생성
+        // FBO 생성
         GLCall(::glCreateFramebuffers(1, &_main_fbo));
-        GLCall(::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0)); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
+
+        // FBO에 컬러 렌더버퍼(WGL DX Interop 텍스처) 부착
+        GLCall(::glNamedFramebufferRenderbuffer(
+            _main_fbo,                  /* GLuint framebuffer */
+            GL_COLOR_ATTACHMENT0,       /* GLenum attachment */
+            GL_RENDERBUFFER,            /* GLenum renderbuffertarget */
+            _frame_gl_interop_color_rbo /* GLuint renderbuffer */
+        ));
 
         if (const auto status = ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER);
             status != GL_FRAMEBUFFER_COMPLETE)
@@ -377,8 +391,8 @@ namespace triengine::visualization
             _wgl_dx11_gl_interop_texture_handle.reset();
             _wgl_dx11_device_handle.reset();
 
-            if (_frame_gl_interop_color_texture) {
-                ::glDeleteTextures(1, &_frame_gl_interop_color_texture);
+            if (_frame_gl_interop_color_rbo) {
+                ::glDeleteRenderbuffers(1, &_frame_gl_interop_color_rbo);
             }
 
             if (_main_fbo) {
@@ -547,14 +561,18 @@ namespace triengine::visualization
 
     void offscreen_renderer_dx::_begin_frame()
     {
-        HANDLE handle_value = _wgl_dx11_gl_interop_texture_handle.get();
-        ::wglDXLockObjectsNV(_wgl_dx11_device_handle.get(), 1, &handle_value);
+        HANDLE raw_handle = _wgl_dx11_gl_interop_texture_handle.get();
+        if (!::wglDXLockObjectsNV(_wgl_dx11_device_handle.get(), 1, &raw_handle)) {
+            TRIENGINE_PANIC("wglDXLockObjectsNV failed (last error: %u)", ::GetLastError());
+        }
     }
 
     void offscreen_renderer_dx::_end_frame()
     {
-        HANDLE handle_value = _wgl_dx11_gl_interop_texture_handle.get();
-        ::wglDXUnlockObjectsNV(_wgl_dx11_device_handle.get(), 1, &handle_value);
+        HANDLE raw_handle = _wgl_dx11_gl_interop_texture_handle.get();
+        if (!::wglDXUnlockObjectsNV(_wgl_dx11_device_handle.get(), 1, &raw_handle)) {
+            TRIENGINE_PANIC("wglDXUnlockObjectsNV failed (last error: %u)", ::GetLastError());
+        }
     }
 
     void offscreen_renderer_dx::_handle_frame_resize_event(const vec2_i32 new_frame_size)
@@ -586,17 +604,17 @@ namespace triengine::visualization
             TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
         }
 
-        // Reregister
+        // Recreate & register GL color render buffer
         {
-            TRIENGINE_ASSERT(_frame_gl_interop_color_texture != 0);
-            ::glDeleteTextures(1, &_frame_gl_interop_color_texture);
-            GLCall(::glCreateTextures(GL_TEXTURE_2D, 1, &_frame_gl_interop_color_texture));
+            TRIENGINE_ASSERT(_frame_gl_interop_color_rbo != 0);
+            ::glDeleteRenderbuffers(1, &_frame_gl_interop_color_rbo);
+            GLCall(::glCreateRenderbuffers(1, &_frame_gl_interop_color_rbo));
 
             const HANDLE interop_texture_raw_handle{ ::wglDXRegisterObjectNV(
                 _wgl_dx11_device_handle.get()/* HANDLE hDevice; */,
                 _dx11_gl_interop_color_texture.Get()/* PVOID dxResource; */,
-                _frame_gl_interop_color_texture/* GLuint name; */,
-                GL_TEXTURE_2D/* GLenum type; */,
+                _frame_gl_interop_color_rbo/* GLuint name; */,
+                GL_RENDERBUFFER/* GLenum type; */,
                 WGL_ACCESS_READ_WRITE_NV/* GLenum access; */
             ) };
             const DWORD last_error{ ::GetLastError() };
@@ -613,7 +631,13 @@ namespace triengine::visualization
             }
         }
 
-        GLCall(::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0)); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
+        // FBO에 컬러 렌더버퍼(WGL DX Interop 텍스처) 부착
+        GLCall(::glNamedFramebufferRenderbuffer(
+            _main_fbo,                  /* GLuint framebuffer */
+            GL_COLOR_ATTACHMENT0,       /* GLenum attachment */
+            GL_RENDERBUFFER,            /* GLenum renderbuffertarget */
+            _frame_gl_interop_color_rbo /* GLuint renderbuffer */
+        ));
 
         if (const auto status = ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER);
             status != GL_FRAMEBUFFER_COMPLETE)

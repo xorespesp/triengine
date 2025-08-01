@@ -72,7 +72,7 @@ namespace triengine::visualization
         core::gl_context _glctx;
 
         GLuint _main_fbo{}; // Framebuffer Object ID
-        GLuint _frame_gl_interop_color_texture{}; // Texture ID
+        GLuint _frame_gl_interop_color_rbo{}; // Color renderbuffer object ID
 
         // DX Resources
         Microsoft::WRL::ComPtr<IDXGIAdapter> _target_dxgi_adapter;
