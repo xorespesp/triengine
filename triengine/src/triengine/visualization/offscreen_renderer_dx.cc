@@ -82,16 +82,34 @@ namespace triengine::visualization
         return &_glctx;
     }
 
+    Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_target_dxgi_adapter() const noexcept
+    {
+        if (!_flag_initialized) { return nullptr; }
+        return _target_dxgi_adapter;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11Device2> offscreen_renderer_dx::get_dx11_device() const noexcept
+    {
+        if (!_flag_initialized) { return nullptr; }
+        return _dx11_device2;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext2> offscreen_renderer_dx::get_dx11_device_context() const noexcept
+    {
+        if (!_flag_initialized) { return nullptr; }
+        return _dx11_device_context2;
+    }
+
     void offscreen_renderer_dx::create_renderer(
-        const Microsoft::WRL::ComPtr<ID3D11Device2> dx11_device2,
-        const Microsoft::WRL::ComPtr<ID3D11DeviceContext2> dx11_device_context2,
         const int32_t frame_width,
         const int32_t frame_height,
         const DXGI_FORMAT frame_format)
     {
-        if (!dx11_device2 || !dx11_device_context2) {
-            TRIENGINE_PANIC("Invalid DX11 device or context");
-        }
+        TRIENGINE_DEBUG("Creating DX offscreen renderer with frame size %dx%d, dxgi frame format %d"
+            , frame_width
+            , frame_height
+            , static_cast<int>(frame_format)
+        );
 
         if (frame_width <= 0 || frame_height <= 0) {
             TRIENGINE_PANIC("Invalid frame size: %dx%d", frame_width, frame_height);
@@ -114,6 +132,155 @@ namespace triengine::visualization
             false
         );
 
+        // NOTE: 반드시 CreateDXGIFactory2 함수를 사용해서 DXGI 1.2 버전 이상의 DXGI 팩토리(`IDXGIFactory`)를 생성해줘야 함.
+        // (`ID3D11Device::CreateTexture2D: D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is only available for devices created off of Dxgi1.1 factories or later.` D3D11 오류 방지)
+        ComPtr<IDXGIFactory2> dxgi_factory2;
+        if (HRESULT hr = ::CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_factory2));
+            FAILED(hr)) {
+            TRIENGINE_PANIC("Failed to create DXGI factory (HRESULT: 0x%X)", hr);
+        }
+
+        //
+        // find DXGI adapter, based on OpenGL renderer name
+        //
+
+        const std::wstring target_adapter_name = []() -> std::wstring
+        {
+            const GLubyte* const gl_renderer_name = ::glGetString(GL_RENDERER);
+            if (!gl_renderer_name) {
+                TRIENGINE_PANIC("Failed to get OpenGL renderer name");
+            }
+
+            // Convert OpenGL renderer name to wide string use MBCS
+            const std::string gl_renderer_name_str{ reinterpret_cast<const char*>(gl_renderer_name) };
+            const int wide_str_size = ::MultiByteToWideChar(
+                CP_ACP, 
+                0, 
+                gl_renderer_name_str.c_str(), 
+                -1, 
+                nullptr, 
+                0
+            );
+            if (wide_str_size <= 0) {
+                TRIENGINE_PANIC("Failed to convert OpenGL renderer name to wide string (last error: %u)", ::GetLastError());
+            }
+
+            std::wstring target_adapter_name(wide_str_size, L'\0');
+            const int result = ::MultiByteToWideChar(
+                CP_ACP, 
+                0, 
+                gl_renderer_name_str.c_str(), 
+                -1,
+                target_adapter_name.data(), 
+                wide_str_size
+            );
+            if (result <= 0) {
+                TRIENGINE_PANIC("Failed to convert OpenGL renderer name to wide string (last error: %u)", ::GetLastError());
+            }
+
+            target_adapter_name.resize(wide_str_size - 1); // Remove null terminator
+            return target_adapter_name;
+        }();
+
+        TRIENGINE_DEBUG("Target adapter name: %.*S"
+            , static_cast<int>(target_adapter_name.size())
+            , target_adapter_name.data()
+        );
+        ComPtr<IDXGIAdapter> selected_adapter0;
+        bool found_matching_adapter = false;
+
+        TRIENGINE_DEBUG("Enumerating DXGI adapters...");
+        for (UINT curr_adapter_index = 0; ; ++curr_adapter_index)
+        {
+            ComPtr<IDXGIAdapter> curr_adapter;
+            if (HRESULT hr = dxgi_factory2->EnumAdapters(curr_adapter_index, &curr_adapter);
+                hr == DXGI_ERROR_NOT_FOUND)
+            {
+                // No more adapters available, exit the loop
+                break;
+            }
+            else if (FAILED(hr))
+            {
+                TRIENGINE_WARN("Failed to enumerate adapter #%u (HRESULT 0x%X)", curr_adapter_index, hr);
+                continue;
+            }
+
+            DXGI_ADAPTER_DESC curr_adapter_desc;
+            if (HRESULT hr = curr_adapter->GetDesc(&curr_adapter_desc);
+                FAILED(hr))
+            {
+                TRIENGINE_WARN("Failed to get description for adapter #%u (HRESULT 0x%X)", curr_adapter_index, hr);
+                continue;
+            }
+
+            std::wstring_view curr_adapter_name{ curr_adapter_desc.Description };
+            TRIENGINE_TRACE("Enumerate adapter #%u: %.*S"
+                , curr_adapter_index
+                , static_cast<int>(curr_adapter_name.size())
+                , curr_adapter_name.data()
+            );
+
+            const bool name_matches = curr_adapter_name.length() >= target_adapter_name.length() 
+                ? (curr_adapter_name.find(target_adapter_name) != std::wstring_view::npos)
+                : (target_adapter_name.find(curr_adapter_name) != std::wstring_view::npos);
+
+            if (name_matches) {
+                selected_adapter0 = curr_adapter;
+                found_matching_adapter = true;
+                TRIENGINE_DEBUG("Found matching adapter!");
+                break;
+            }
+        } // for
+
+        // 타겟 어댑터를 찾지 못한 경우 기본 어댑터(0번) 사용
+        if (!found_matching_adapter)
+        {
+            TRIENGINE_WARN("Target adapter not found, using default adapter (index 0)");
+            if (HRESULT hr = dxgi_factory2->EnumAdapters(0, &selected_adapter0);
+                FAILED(hr)) {
+                TRIENGINE_PANIC("Failed to get default adapter (HRESULT: 0x%X)", hr);
+            }
+        }
+
+        _target_dxgi_adapter = selected_adapter0;
+
+        ComPtr<ID3D11Device> dx11_device0;
+        ComPtr<ID3D11DeviceContext> dx11_device_context0;
+
+        UINT device_creation_flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#if defined(TRIENGINE_DEBUG)
+        device_creation_flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif // ^^^ TRIENGINE_DEBUG ^^^
+
+        if (HRESULT hr = ::D3D11CreateDevice(
+            selected_adapter0.Get(),
+            D3D_DRIVER_TYPE_UNKNOWN,
+            nullptr,
+            device_creation_flags,
+            nullptr,
+            0,
+            D3D11_SDK_VERSION,
+            &dx11_device0,
+            nullptr,
+            &dx11_device_context0
+        ); FAILED(hr)) {
+            TRIENGINE_PANIC("D3D11CreateDevice Failed (HRESULT: 0x%X)", hr);
+        }
+
+        // Convert `ID3D11Device` -> `ID3D11Device2` (Higher version object)
+        ASSERT_HR(dx11_device0.As(&_dx11_device2));
+
+        // Convert `ID3D11DeviceContext` -> `ID3D11DeviceContext2` (Higher version object)
+        ASSERT_HR(dx11_device_context0.As(&_dx11_device_context2));
+
+        if (!_dx11_device2) {
+            TRIENGINE_PANIC("Failed to create DX11 device2");
+        }
+
+        if (!_dx11_device_context2) {
+            TRIENGINE_PANIC("Failed to create DX11 device context2");
+        }
+
         // NOTE: Must be called after the OpenGL rendering context has been created.
         load_wgl_nvdx_interop_functions();
 
@@ -123,9 +290,6 @@ namespace triengine::visualization
         _curr_frame_size = _glctx.get_window_size();
 
         _scn_renderer.create(&_glctx);
-
-        _dx11_device2 = dx11_device2;
-        _dx11_device_context2 = dx11_device_context2;
 
         // Create OpenGL interop color texture
         D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
@@ -140,41 +304,64 @@ namespace triengine::visualization
         dxgl_interop_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
         dxgl_interop_texture_desc.CPUAccessFlags = 0;
         dxgl_interop_texture_desc.MiscFlags = 0; // GL Interop용 텍스처는 공유 속성이 필요 없음
-        ASSERT_HR(_dx11_device2->CreateTexture2D(
-            &dxgl_interop_texture_desc, 
-            nullptr, 
+        if (HRESULT hr = _dx11_device2->CreateTexture2D(
+            &dxgl_interop_texture_desc,
+            nullptr,
             &_dx11_gl_interop_color_texture
-        ));
+        ); FAILED(hr)) {
+            TRIENGINE_PANIC("Failed to create DX11 texture for GL interop (HRESULT: 0x%X)", hr);
+        }
 
         TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
 
         // DX Device를 OpenGL Interop용으로 Open
-        _wgl_dx11_device_handle.reset(
-            ::wglDXOpenDeviceNV(_dx11_device2.Get()),
-            [](HANDLE hDevice) { if (hDevice) { ::wglDXCloseDeviceNV(hDevice); } }
-        );
-        if (!_wgl_dx11_device_handle) {
-            TRIENGINE_PANIC("wglDXOpenDeviceNV failed");
+        {
+            HANDLE device_raw_handle{ ::wglDXOpenDeviceNV(_dx11_device2.Get()) };
+            const DWORD last_error{ ::GetLastError() };
+
+            _wgl_dx11_device_handle.reset(
+                device_raw_handle,
+                [](HANDLE hDevice) { if (hDevice) { ::wglDXCloseDeviceNV(hDevice); } }
+            );
+
+            if (!_wgl_dx11_device_handle) {
+                TRIENGINE_PANIC("wglDXOpenDeviceNV failed (last error: %u)", last_error);
+            }
         }
 
         // FBO에 붙일 컬러 텍스처를 생성하고, 이를 WGL DX Interop 텍스처(비공유 텍스처)로 등록
-        ::glCreateTextures(GL_TEXTURE_2D, 1, &_frame_gl_interop_color_texture);
-        _wgl_dx11_gl_interop_texture_handle.reset(
-            ::wglDXRegisterObjectNV(
+        GLCall(::glCreateTextures(GL_TEXTURE_2D, 1, &_frame_gl_interop_color_texture));
+
+        {
+            const HANDLE interop_texture_raw_handle{ ::wglDXRegisterObjectNV(
                 _wgl_dx11_device_handle.get()/* HANDLE hDevice; */,
                 _dx11_gl_interop_color_texture.Get()/* PVOID dxResource; */,
                 _frame_gl_interop_color_texture/* GLuint name; */,
                 GL_TEXTURE_2D/* GLenum type; */,
                 WGL_ACCESS_READ_WRITE_NV/* GLenum access; */
-            ),
-            [this](HANDLE hObject) { if (hObject) { ::wglDXUnregisterObjectNV(_wgl_dx11_device_handle.get(), hObject); } }
-        );
+            ) };
+            const DWORD last_error{ ::GetLastError() };
+
+            _wgl_dx11_gl_interop_texture_handle.reset(
+                interop_texture_raw_handle,
+                [this](HANDLE hObject) {
+                    if (hObject) { ::wglDXUnregisterObjectNV(_wgl_dx11_device_handle.get(), hObject); }
+                }
+            );
+
+            if (!_wgl_dx11_gl_interop_texture_handle) {
+                TRIENGINE_PANIC("wglDXRegisterObjectNV failed (last error: %u)", last_error);
+            }
+        }
 
         // DSA 방식으로 FBO 생성
-        ::glCreateFramebuffers(1, &_main_fbo);
-        ::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
-        if (GL_FRAMEBUFFER_COMPLETE != ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER)) {
-            TRIENGINE_PANIC("Framebuffer is not complete!");
+        GLCall(::glCreateFramebuffers(1, &_main_fbo));
+        GLCall(::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0)); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
+
+        if (const auto status = ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER);
+            status != GL_FRAMEBUFFER_COMPLETE)
+        {
+            TRIENGINE_PANIC("Framebuffer is not complete! (status: 0x%X)", status);
         }
 
         TRIENGINE_TRACE("%s() LEAVE", __func__);
@@ -200,6 +387,10 @@ namespace triengine::visualization
 
             _scn_renderer.destroy();
             _glctx.destroy();
+
+            _dx11_device_context2.Reset();
+            _dx11_device2.Reset();
+            _target_dxgi_adapter.Reset();
         }
     }
 
@@ -233,8 +424,7 @@ namespace triengine::visualization
                     ? _scn_list.end()
                     : _scn_list.begin();
             }
-        }
-        else {
+        } else {
             TRIENGINE_WARN("Failed to remove scene #%X (not found)", scn_id);
         }
     }
@@ -373,47 +563,66 @@ namespace triengine::visualization
             return; // skip resize
         }
 
-        D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
-        _dx11_gl_interop_color_texture->GetDesc(&dxgl_interop_texture_desc);
-        _dx11_gl_interop_color_texture.Reset();
-
         // Recreate gldx interop color texture
-        dxgl_interop_texture_desc.Width = static_cast<UINT>(new_frame_size.x());
-        dxgl_interop_texture_desc.Height = static_cast<UINT>(new_frame_size.y());
-        if (const HRESULT hr = _dx11_device2->CreateTexture2D(
-            &dxgl_interop_texture_desc,
-            nullptr,
-            &_dx11_gl_interop_color_texture);
-            FAILED(hr))
         {
-            TRIENGINE_PANIC("Failed to re-create DXGL interop color texture with size: %dx%d (HRESULT: %08X)"
-                , new_frame_size.x()
-                , new_frame_size.y()
-                , hr
-            );
+            D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
+            _dx11_gl_interop_color_texture->GetDesc(&dxgl_interop_texture_desc);
+            dxgl_interop_texture_desc.Width = static_cast<UINT>(new_frame_size.x());
+            dxgl_interop_texture_desc.Height = static_cast<UINT>(new_frame_size.y());
+
+            if (const HRESULT hr = _dx11_device2->CreateTexture2D(
+                &dxgl_interop_texture_desc,
+                nullptr,
+                &_dx11_gl_interop_color_texture);
+                FAILED(hr))
+            {
+                TRIENGINE_PANIC("Failed to re-create DXGL interop color texture with size: %dx%d (HRESULT: %08X)"
+                    , new_frame_size.x()
+                    , new_frame_size.y()
+                    , hr
+                );
+            }
+
+            TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
         }
 
-        TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
+        // Reregister
+        {
+            TRIENGINE_ASSERT(_frame_gl_interop_color_texture != 0);
+            ::glDeleteTextures(1, &_frame_gl_interop_color_texture);
+            GLCall(::glCreateTextures(GL_TEXTURE_2D, 1, &_frame_gl_interop_color_texture));
 
-        TRIENGINE_ASSERT(_frame_gl_interop_color_texture != 0);
-        ::glDeleteTextures(1, &_frame_gl_interop_color_texture);
-        ::glCreateTextures(GL_TEXTURE_2D, 1, &_frame_gl_interop_color_texture);
-
-        _wgl_dx11_gl_interop_texture_handle.reset(
-            ::wglDXRegisterObjectNV(
+            const HANDLE interop_texture_raw_handle{ ::wglDXRegisterObjectNV(
                 _wgl_dx11_device_handle.get()/* HANDLE hDevice; */,
                 _dx11_gl_interop_color_texture.Get()/* PVOID dxResource; */,
                 _frame_gl_interop_color_texture/* GLuint name; */,
                 GL_TEXTURE_2D/* GLenum type; */,
                 WGL_ACCESS_READ_WRITE_NV/* GLenum access; */
-            ),
-            [this](HANDLE hObject) { if (hObject) { ::wglDXUnregisterObjectNV(_wgl_dx11_device_handle.get(), hObject); } }
-        );
-        TRIENGINE_ASSERT(_wgl_dx11_gl_interop_texture_handle != nullptr);
+            ) };
+            const DWORD last_error{ ::GetLastError() };
 
-        ::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
-        if (GL_FRAMEBUFFER_COMPLETE != ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER)) {
-            TRIENGINE_PANIC("Failed to re-create framebuffer with size: %dx%d", new_frame_size.x(), new_frame_size.y());
+            _wgl_dx11_gl_interop_texture_handle.reset(
+                interop_texture_raw_handle,
+                [this](HANDLE hObject) {
+                    if (hObject) { ::wglDXUnregisterObjectNV(_wgl_dx11_device_handle.get(), hObject); }
+                }
+            );
+
+            if (!_wgl_dx11_gl_interop_texture_handle) {
+                TRIENGINE_PANIC("wglDXRegisterObjectNV failed (last error: %u)", last_error);
+            }
+        }
+
+        GLCall(::glNamedFramebufferTexture(_main_fbo, GL_COLOR_ATTACHMENT0, _frame_gl_interop_color_texture, 0)); // FBO에 컬러 텍스처(WGL DX Interop 텍스처) 부착
+
+        if (const auto status = ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER);
+            status != GL_FRAMEBUFFER_COMPLETE)
+        {
+            TRIENGINE_PANIC("Failed to re-create framebuffer with size: %dx%d (status: 0x%X)"
+                , new_frame_size.x()
+                , new_frame_size.y()
+                , status
+            );
         }
 
         _curr_frame_size = new_frame_size;

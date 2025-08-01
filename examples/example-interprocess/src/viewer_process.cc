@@ -1,6 +1,8 @@
 #include "viewer_process.hh"
 
 #include <windowsx.h>
+#include <conio.h>
+#include <iostream>
 #include <cxlib/utils/logger.hh>
 
 namespace
@@ -112,7 +114,9 @@ void viewer_process::_initialize(
         ::CloseHandle(pi.hThread); // Thread handle not needed
 
         // 서버 프로세스 초기화 대기
-        std::this_thread::sleep_for(2000ms);
+        std::this_thread::sleep_for(1000ms);
+        std::cout << "\nPress any key to continue..." << std::endl;
+        static_cast<void>(::_getch());
 
         CXLIB_DEBUG("Launched renderer process.");
     }
@@ -232,6 +236,7 @@ void viewer_process::_initialize(
         dxgiAdapter0->GetDesc(&desc);
         if (std::memcmp(&desc.AdapterLuid, &init_rep->target_adapter_luid, sizeof(LUID)) == 0) {
             _dxgi_adapter = dxgiAdapter0;
+            CXLIB_DEBUG(L"Found matching adapter: {:x}-{:x} ({})", desc.AdapterLuid.HighPart, desc.AdapterLuid.LowPart, desc.Description);
             break;
         }
     }

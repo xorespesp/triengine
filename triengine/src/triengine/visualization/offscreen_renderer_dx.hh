@@ -30,9 +30,11 @@ namespace triengine::visualization
         const core::gl_context* get_gl_context() const noexcept;
         core::gl_context* get_gl_context() noexcept;
 
+        Microsoft::WRL::ComPtr<IDXGIAdapter> get_target_dxgi_adapter() const noexcept;
+        Microsoft::WRL::ComPtr<ID3D11Device2> get_dx11_device() const noexcept;
+        Microsoft::WRL::ComPtr<ID3D11DeviceContext2> get_dx11_device_context() const noexcept;
+
         void create_renderer(
-            Microsoft::WRL::ComPtr<ID3D11Device2> dx11_device2,
-            Microsoft::WRL::ComPtr<ID3D11DeviceContext2> dx11_device_context2,
             int32_t frame_width,
             int32_t frame_height,
             DXGI_FORMAT frame_format
@@ -65,9 +67,22 @@ namespace triengine::visualization
 
     private:
         bool _flag_initialized{ false };
+        vec2_i32 _curr_frame_size{};
 
         core::gl_context _glctx;
-        vec2_i32 _curr_frame_size{};
+
+        GLuint _main_fbo{}; // Framebuffer Object ID
+        GLuint _frame_gl_interop_color_texture{}; // Texture ID
+
+        // DX Resources
+        Microsoft::WRL::ComPtr<IDXGIAdapter> _target_dxgi_adapter;
+        Microsoft::WRL::ComPtr<ID3D11Device2> _dx11_device2;
+        Microsoft::WRL::ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> _dx11_gl_interop_color_texture;
+
+        // WGL DX Interop Resources
+        std::shared_ptr<std::remove_pointer_t<HANDLE>> _wgl_dx11_device_handle;
+        std::shared_ptr<std::remove_pointer_t<HANDLE>> _wgl_dx11_gl_interop_texture_handle;
 
         core::scene_renderer _scn_renderer;
 
@@ -77,18 +92,6 @@ namespace triengine::visualization
             scene_id_t,
             std::list<std::shared_ptr<scene>>::iterator
         > _scn_id_map;
-
-        // DX Resources
-        Microsoft::WRL::ComPtr<ID3D11Device2> _dx11_device2;
-        Microsoft::WRL::ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
-        Microsoft::WRL::ComPtr<ID3D11Texture2D> _dx11_gl_interop_color_texture;
-
-        // WGL DX Interop Resources
-        std::shared_ptr<std::remove_pointer_t<HANDLE>> _wgl_dx11_device_handle;
-        std::shared_ptr<std::remove_pointer_t<HANDLE>> _wgl_dx11_gl_interop_texture_handle;
-
-        GLuint _main_fbo{}; // Framebuffer Object ID
-        GLuint _frame_gl_interop_color_texture{}; // Texture ID
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };

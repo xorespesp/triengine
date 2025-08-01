@@ -91,8 +91,8 @@ private:
                             this->_create_renderer_scene();
 
                             CXLIB_DEBUG("init complete. send response start (adapter: {:x}-{:x}, resource handle: {})"
-                                , _target_dxgi_adapter_luid.HighPart
-                                , _target_dxgi_adapter_luid.LowPart
+                                , _target_dxgi_adapter_desc.AdapterLuid.HighPart
+                                , _target_dxgi_adapter_desc.AdapterLuid.LowPart
                                 , _dx11_shared_texture_handle.get()
                             );
 
@@ -100,16 +100,22 @@ private:
                         });
 
                     CXLIB_TRACE("IPC thread waiting for init completion...");
-                    const bool init_res = init_future.get();
-                    if (!init_res) {
-                        CXLIB_ERROR("Failed to initialize renderer.");
+                    try {
+                        const bool init_res = init_future.get();
+                        if (!init_res) {
+                            CXLIB_ERROR("Failed to initialize renderer.");
+                            return;
+                        }
+                    }
+                    catch (const std::exception& e) {
+                        CXLIB_ERROR("Initialization task failed: {}", e.what());
                         return;
                     }
 
                     CXLIB_TRACE("Sending init response...");
                     packet_builder<ipc_proto::packets::init_response_t> rep_pck{ ipc_proto::packet_type::init_response };
                     rep_pck.body()->renderer_process_id = ::GetCurrentProcessId();
-                    rep_pck.body()->target_adapter_luid = _target_dxgi_adapter_luid;
+                    rep_pck.body()->target_adapter_luid = _target_dxgi_adapter_desc.AdapterLuid;
                     rep_pck.body()->shared_texture_handle = _dx11_shared_texture_handle.get();
                     rep_pck_data.assign(rep_pck.data(), rep_pck.data() + rep_pck.size());
                     break;
@@ -291,44 +297,17 @@ private:
             , static_cast<int>(frame_format)
         );
 
-        // NOTE: 반드시 CreateDXGIFactory2 함수를 사용해서 DXGI 1.2 버전 이상의 DXGI 팩토리(`IDXGIFactory`)를 생성해줘야 함.
-        // (`ID3D11Device::CreateTexture2D: D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is only available for devices created off of Dxgi1.1 factories or later.` D3D11 오류 방지)
-        ComPtr<IDXGIFactory2> dxgiFactory2;
-        ASSERT_HR(::CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory2)));
+        _renderer = std::make_unique<triengine::visualization::offscreen_renderer_dx>();
+        _renderer->create_renderer(
+            frame_width,
+            frame_height,
+            frame_format
+        );
 
-        ComPtr<IDXGIAdapter> dxgiAdapter0;
-        ASSERT_HR(dxgiFactory2->EnumAdapters(0, &dxgiAdapter0)); // 기본 어댑터 사용
-        _target_dxgi_adapter = dxgiAdapter0;
-
-        DXGI_ADAPTER_DESC dxgiAdapterDesc;
-        dxgiAdapter0->GetDesc(&dxgiAdapterDesc);
-        _target_dxgi_adapter_luid = dxgiAdapterDesc.AdapterLuid;
-
-        ComPtr<ID3D11Device> dx11Device0;
-        ComPtr<ID3D11DeviceContext> dx11DeviceContext0;
-
-        UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#ifdef _DEBUG
-        createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-        ASSERT_HR(::D3D11CreateDevice(
-            dxgiAdapter0.Get(),
-            D3D_DRIVER_TYPE_UNKNOWN,
-            NULL,
-            createDeviceFlags,
-            NULL,
-            0,
-            D3D11_SDK_VERSION,
-            &dx11Device0,
-            NULL,
-            &dx11DeviceContext0
-        ));
-
-        // Convert `ID3D11Device` -> `ID3D11Device2` (Higher version object)
-        ASSERT_HR(dx11Device0.As(&_dx11_device2));
-
-        // Convert `ID3D11DeviceContext` -> `ID3D11DeviceContext2` (Higher version object)
-        ASSERT_HR(dx11DeviceContext0.As(&_dx11_device_context2));
+        _dx11_device2 = _renderer->get_dx11_device();
+        _dx11_device_context2 = _renderer->get_dx11_device_context();
+        _target_dxgi_adapter = _renderer->get_target_dxgi_adapter();
+        _target_dxgi_adapter->GetDesc(&_target_dxgi_adapter_desc);
 
         // 타 프로세스로 공유할 공유 텍스처 생성 (SHARED_HANDLE + SHARED_KEYEDMUTEX)
         // (이후, KeyedMutex를 통해 렌더 타이밍 동기화 수행)
@@ -373,15 +352,6 @@ private:
             _dx11_shared_texture_handle.reset(shared_texture_handle);
         }
         CXLIB_DEBUG("Created resource handle: {}", _dx11_shared_texture_handle.get());
-
-        _renderer = std::make_unique<triengine::visualization::offscreen_renderer_dx>();
-        _renderer->create_renderer(
-            _dx11_device2,
-            _dx11_device_context2,
-            frame_width,
-            frame_height,
-            frame_format
-        );
     }
 
     void _create_renderer_scene()
@@ -536,7 +506,7 @@ private:
 
     // D3D Resources
     ComPtr<IDXGIAdapter> _target_dxgi_adapter;
-    LUID _target_dxgi_adapter_luid{};
+    DXGI_ADAPTER_DESC _target_dxgi_adapter_desc{};
 
     ComPtr<ID3D11Device2> _dx11_device2;
     ComPtr<ID3D11DeviceContext2> _dx11_device_context2;

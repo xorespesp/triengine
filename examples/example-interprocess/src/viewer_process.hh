@@ -9,7 +9,7 @@ public:
     viewer_process(
         int32_t frame_width = 640, 
         int32_t frame_height = 480, 
-        DXGI_FORMAT frame_format = DXGI_FORMAT_B8G8R8A8_UNORM
+        DXGI_FORMAT frame_format = DXGI_FORMAT_R8G8B8A8_UNORM
     );
     ~viewer_process();
 
