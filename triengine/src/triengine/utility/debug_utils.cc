@@ -1,6 +1,7 @@
 #pragma once
 #include "debug_utils.hh"
-#include <iostream>
+
+#include <triengine/global_options.hh>
 
 #if defined (_TRIENGINE_PLATFORM_WIN32)
 #  include <Windows.h>
@@ -78,7 +79,12 @@ namespace triengine::utility
             , msg_sv.data()
         );
 
-        std::cout << '\n' << msg << std::endl;
+        global_options::instance()->get_logger().print(src_loc, log_level::critical, msg);
+
+#if defined (_TRIENGINE_PLATFORM_WIN32) && defined(TRIENGINE_DEBUG_MODE)
+        show_dbgrpt_mbox(dbgrpt_mbox_type::error, msg);
+#endif // ^^^ _TRIENGINE_PLATFORM_WIN32 && TRIENGINE_DEBUG_MODE ^^^
+
         throw std::runtime_error{ msg };
     }
 
@@ -87,33 +93,35 @@ namespace triengine::utility
         const std::string_view cond_expr_sv,
         const bool cond_expr_res)
     {
-        if (!cond_expr_res) {
-#if defined (_TRIENGINE_PLATFORM_WIN32)
-            const auto src_filename = src_loc.filename();
-            const auto msg = utility::string::c_format(""
-                "Runtime assertion failed!\n\n"
-                "File: %.*s\n"
-                "Line: %d\n"
-                "Function: %.*s\n"
-                "Expression: %.*s\n"
-                "Thread: 0x%X\n\n"
-                "(Press <Retry> to debug the application)"
-                , static_cast<int>(src_filename.size())
-                , src_filename.data()
-                , src_loc.line
-                , static_cast<int>(src_loc.funcname.size())
-                , src_loc.funcname.data()
-                , static_cast<int>(cond_expr_sv.size())
-                , cond_expr_sv.data()
-                , ::GetCurrentThreadId()
-            );
+        if (cond_expr_res) {
+            return;
+        }
 
-            std::cout << '\n' << msg << std::endl;
-            show_dbgrpt_mbox(dbgrpt_mbox_type::error, msg);
+#if defined (_TRIENGINE_PLATFORM_WIN32)
+        const auto src_filename = src_loc.filename();
+        const auto msg = utility::string::c_format(""
+            "Runtime assertion failed!\n\n"
+            "File: %.*s\n"
+            "Line: %d\n"
+            "Function: %.*s\n"
+            "Expression: %.*s\n"
+            "Thread: 0x%X\n\n"
+            "(Press <Retry> to debug the application)"
+            , static_cast<int>(src_filename.size())
+            , src_filename.data()
+            , src_loc.line
+            , static_cast<int>(src_loc.funcname.size())
+            , src_loc.funcname.data()
+            , static_cast<int>(cond_expr_sv.size())
+            , cond_expr_sv.data()
+            , ::GetCurrentThreadId()
+        );
+
+        global_options::instance()->get_logger().print(src_loc, log_level::critical, msg);
+        show_dbgrpt_mbox(dbgrpt_mbox_type::error, msg);
 #else // ^^^ _TRIENGINE_PLATFORM_WIN32 ^^^ / vvv !_TRIENGINE_PLATFORM_WIN32 vvv
 #  error Not implemented
 #endif // ^^^ !_TRIENGINE_PLATFORM_WIN32 ^^^
-        }
     }
 
 } // namespace
