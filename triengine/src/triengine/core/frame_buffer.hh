@@ -31,7 +31,13 @@ namespace triengine::core
             color,
             depth,
             stencil,
-            // TODO: add `depth_stencil` (optional)
+            // combined depth and stencil attachment
+            // NOTE: This needs for driver compatibility, 
+            //       Since OpenGL explicitly requires support for combined depth/stencil images in FBOs.
+            //       (It does not explicitly require support for separate depth/stencil images in FBOs.)
+            //       https://www.khronos.org/opengl/wiki/Framebuffer_Object#Completeness_Rules
+            //       https://stackoverflow.com/q/75416403/3865427
+            depth_stencil,
         };
 
         struct attachment_info_t {  
@@ -54,6 +60,7 @@ namespace triengine::core
         std::vector<attachment_info_t> _color_attachments;
         std::optional<attachment_info_t> _depth_attachment;
         std::optional<attachment_info_t> _stencil_attachment;
+        std::optional<attachment_info_t> _depth_stencil_attachment;
 
         // FBO resolution and multisample count
         // NOTE: All attachments within an FBO must have the same multisample count.
@@ -74,6 +81,7 @@ namespace triengine::core
         const attachment_info_t* color_attachment() const noexcept;
         const attachment_info_t* depth_attachment() const noexcept;
         const attachment_info_t* stencil_attachment() const noexcept;
+        const attachment_info_t* depth_stencil_attachment() const noexcept;
 
         // ---- Framebuffer properties ----
         int32_t width_pixels() const noexcept;
@@ -84,12 +92,11 @@ namespace triengine::core
         bool has_color_attachment() const noexcept;
         bool has_depth_attachment() const noexcept;
         bool has_stencil_attachment() const noexcept;
+        bool has_depth_stencil_attachment() const noexcept;
 
         bool is_valid() const noexcept;
         bool is_multisampled() const noexcept;
         bool is_MRT() const noexcept;
-        bool is_depth_only() const noexcept;
-        bool is_stencil_only() const noexcept;
 
         /**
          * @brief Reallocates all attachments with the specified size and sample count,
@@ -137,6 +144,30 @@ namespace triengine::core
             bool blit_depth = true,
             bool blit_stencil = true,
             GLenum blit_filter = GL_NEAREST // `GL_NEAREST` or `GL_LINEAR`
+        );
+
+        /**
+         * @brief Swaps the depth attachment with another framebuffer.
+         * @param target_fb The target framebuffer to swap with.
+         */
+        void swap_depth_attachment(
+            frame_buffer& target_fb
+        );
+
+        /**
+         * @brief Swaps the stencil attachment with another framebuffer.
+         * @param target_fb The target framebuffer to swap with.
+         */
+        void swap_stencil_attachment(
+            frame_buffer& target_fb
+        );
+
+        /**
+         * @brief Swaps the depth-stencil attachment with another framebuffer.
+         * @param target_fb The target framebuffer to swap with.
+         */
+        void swap_depth_stencil_attachment(
+            frame_buffer& target_fb
         );
 
     public:
@@ -294,54 +325,46 @@ namespace triengine::core
         }
 
         /**
-         * @brief Creates a framebuffer with single color / multiple color(MRT) + depth + stencil attachments.
+         * @brief Creates a framebuffer with single color / multiple color(MRT) + depth-stencil attachments.
          * @param internal_color_formats  List of internal color format(s) (e.g. { `GL_RGBA8`, `GL_RGBA16F`, ... }).
-         * @param internal_depth_format   Internal format for depth (e.g., `GL_DEPTH_COMPONENT24`).
-         * @param internal_stencil_format Internal format for stencil (e.g., `GL_STENCIL_INDEX8`).
+         * @param internal_depth_stencil_format   Internal format for depth-stencil (e.g., `GL_DEPTH24_STENCIL8`).
          * @param width_pixels   FBO width in pixels.
          * @param height_pixels  FBO height in pixels.
          * @param sample_count   Multisample count (>1 for MSAA).
          * @param color_tex_params  Texture parameters (wrap/filter) for color attachments.
          * @param use_renderbuffer_for_color  If true, color attachment is a renderbuffer, else a texture.
-         * @param use_renderbuffer_for_depth  If true, depth attachment is a renderbuffer, else a texture.
-         * @param use_renderbuffer_for_stencil  If true, stencil attachment is a renderbuffer, else a texture.
+         * @param use_renderbuffer_for_depth_stencil  If true, depth-stencil attachment is a renderbuffer, else a texture.
          */
         static frame_buffer create_color_depth_stencil_buffer(
             std::initializer_list<GLenum> internal_color_formats,
-            GLenum internal_depth_format,
-            GLenum internal_stencil_format,
+            GLenum internal_depth_stencil_format,
             int32_t width_pixels,
             int32_t height_pixels,
             int32_t sample_count = 1,
             const frame_buffer_texture_params_t& color_tex_params = {},
             bool use_renderbuffer_for_color = false,
-            bool use_renderbuffer_for_depth = true,
-            bool use_renderbuffer_for_stencil = true
+            bool use_renderbuffer_for_depth_stencil = true
         );
 
         static frame_buffer create_color_depth_stencil_buffer(
             GLenum internal_color_format,
-            GLenum internal_depth_format,
-            GLenum internal_stencil_format,
+            GLenum internal_depth_stencil_format,
             int32_t width_pixels,
             int32_t height_pixels,
             int32_t sample_count = 1,
             const frame_buffer_texture_params_t& color_tex_params = {},
             bool use_renderbuffer_for_color = false,
-            bool use_renderbuffer_for_depth = true,
-            bool use_renderbuffer_for_stencil = true
+            bool use_renderbuffer_for_depth_stencil = true
         ) {
             return create_color_depth_stencil_buffer(
                 { internal_color_format },
-                internal_depth_format,
-                internal_stencil_format,
+                internal_depth_stencil_format,
                 width_pixels,
                 height_pixels,
                 sample_count,
                 color_tex_params,
                 use_renderbuffer_for_color,
-                use_renderbuffer_for_depth,
-                use_renderbuffer_for_stencil
+                use_renderbuffer_for_depth_stencil
             );
         }
 

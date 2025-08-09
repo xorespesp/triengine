@@ -26,6 +26,7 @@ namespace triengine::core
             std::swap(_color_attachments, rhs._color_attachments);
             std::swap(_depth_attachment, rhs._depth_attachment);
             std::swap(_stencil_attachment, rhs._stencil_attachment);
+            std::swap(_depth_stencil_attachment, rhs._depth_stencil_attachment);
             std::swap(_width_pixels, rhs._width_pixels);
             std::swap(_height_pixels, rhs._height_pixels);
             std::swap(_sample_count, rhs._sample_count);
@@ -52,6 +53,10 @@ namespace triengine::core
 
     const frame_buffer::attachment_info_t* frame_buffer::stencil_attachment() const noexcept {
         return _stencil_attachment.has_value() ? &_stencil_attachment.value() : nullptr;
+    }
+
+    const frame_buffer::attachment_info_t* frame_buffer::depth_stencil_attachment() const noexcept {
+        return _depth_stencil_attachment.has_value() ? &_depth_stencil_attachment.value() : nullptr;
     }
 
     int32_t frame_buffer::width_pixels() const noexcept {
@@ -83,6 +88,10 @@ namespace triengine::core
         return _stencil_attachment.has_value();
     }
 
+    bool frame_buffer::has_depth_stencil_attachment() const noexcept {
+        return _depth_stencil_attachment.has_value();
+    }
+
     bool frame_buffer::is_multisampled() const noexcept {
         return _sample_count > 1;
     }
@@ -93,20 +102,6 @@ namespace triengine::core
 
     bool frame_buffer::is_MRT() const noexcept {
         return _color_attachments.size() > 1;
-    }
-
-    bool frame_buffer::is_depth_only() const noexcept {
-        return 
-            _depth_attachment.has_value() && 
-            _color_attachments.empty() && 
-            !_stencil_attachment.has_value();
-    }
-
-    bool frame_buffer::is_stencil_only() const noexcept {
-        return
-            _stencil_attachment.has_value() &&
-            _color_attachments.empty() &&
-            !_depth_attachment.has_value();
     }
 
     void frame_buffer::reallocate(
@@ -195,6 +190,27 @@ namespace triengine::core
             );
         }
 
+        // 4) Reallocate and attach depth-stencil attachment
+        if (_depth_stencil_attachment.has_value())
+        {
+            auto& curr_attach_info = *_depth_stencil_attachment;
+
+            // reallocate attachment buffer
+            _allocate_attachment_buffer(
+                curr_attach_info,
+                width_pixels,
+                height_pixels,
+                sample_count
+            );
+
+            // reattach attachment to framebuffer
+            _attach_to_framebuffer(
+                _fbo_id,
+                curr_attach_info,
+                GL_DEPTH_STENCIL_ATTACHMENT
+            );
+        }
+
         // Check FBO completeness
         if (::glCheckNamedFramebufferStatus(_fbo_id, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             TRIENGINE_PANIC("Framebuffer reallocation has not been completed!");
@@ -250,6 +266,12 @@ namespace triengine::core
             _stencil_attachment.reset();
         }
 
+        // Release depth-stencil attachment
+        if (_depth_stencil_attachment.has_value()) {
+            _deallocate_attachment_buffer(_depth_stencil_attachment.value());
+            _depth_stencil_attachment.reset();
+        }
+
         _width_pixels = _height_pixels = 0;
         _sample_count = 1;
     }
@@ -294,6 +316,108 @@ namespace triengine::core
             mask,                                                    /* GLbitfield mask */
             blit_filter                                              /* GLenum filter */
         ));
+    }
+
+    void frame_buffer::swap_depth_attachment(frame_buffer& target_fb)
+    {
+        if (!this->is_valid() || !target_fb.is_valid()) {
+            TRIENGINE_PANIC("Cannot swap depth attachment with invalid framebuffer");
+        }
+
+        if (_width_pixels != target_fb._width_pixels ||
+            _height_pixels != target_fb._height_pixels ||
+            _sample_count != target_fb._sample_count)
+        {
+            TRIENGINE_PANIC("Cannot swap depth attachment between framebuffers with different sizes or sample count");
+        }
+
+        if (!_depth_attachment.has_value() || !target_fb._depth_attachment.has_value()) {
+            TRIENGINE_PANIC("Cannot swap depth attachment with framebuffer without depth attachment");
+        }
+
+        // Swap depth attachments
+        std::swap(_depth_attachment.value(), target_fb._depth_attachment.value());
+
+        // Reattach swapped depth attachments to the respective framebuffers
+        _attach_to_framebuffer(
+            _fbo_id,
+            _depth_attachment.value(),
+            GL_DEPTH_ATTACHMENT
+        );
+
+        _attach_to_framebuffer(
+            target_fb._fbo_id,
+            target_fb._depth_attachment.value(),
+            GL_DEPTH_ATTACHMENT
+        );
+    }
+
+    void frame_buffer::swap_stencil_attachment(frame_buffer& target_fb)
+    {
+        if (!this->is_valid() || !target_fb.is_valid()) {
+            TRIENGINE_PANIC("Cannot swap stencil attachment with invalid framebuffer");
+        }
+
+        if (_width_pixels != target_fb._width_pixels ||
+            _height_pixels != target_fb._height_pixels ||
+            _sample_count != target_fb._sample_count)
+        {
+            TRIENGINE_PANIC("Cannot swap stencil attachments between framebuffers with different sizes or sample count");
+        }
+
+        if (!_stencil_attachment.has_value() || !target_fb._stencil_attachment.has_value()) {
+            TRIENGINE_PANIC("Cannot swap stencil attachment with framebuffer without stencil attachment!");
+        }
+
+        // Swap stencil attachments
+        std::swap(_stencil_attachment.value(), target_fb._stencil_attachment.value());
+
+        // Reattach swapped stencil attachments to the respective framebuffers
+        _attach_to_framebuffer(
+            _fbo_id,
+            _stencil_attachment.value(),
+            GL_STENCIL_ATTACHMENT
+        );
+
+        _attach_to_framebuffer(
+            target_fb._fbo_id,
+            target_fb._stencil_attachment.value(),
+            GL_STENCIL_ATTACHMENT
+        );
+    }
+
+    void frame_buffer::swap_depth_stencil_attachment(frame_buffer& target_fb)
+    {
+        if (!this->is_valid() || !target_fb.is_valid()) {
+            TRIENGINE_PANIC("Cannot swap depth-stencil attachment with invalid framebuffer");
+        }
+
+        if (_width_pixels != target_fb._width_pixels ||
+            _height_pixels != target_fb._height_pixels ||
+            _sample_count != target_fb._sample_count)
+        {
+            TRIENGINE_PANIC("Cannot swap depth-stencil attachments with different sizes or sample count");
+        }
+
+        if (!_depth_stencil_attachment.has_value() || !target_fb._depth_stencil_attachment.has_value()) {
+            TRIENGINE_PANIC("Cannot swap depth-stencil attachment without depth-stencil attachment");
+        }
+
+        // Swap depth-stencil attachments
+        std::swap(_depth_stencil_attachment.value(), target_fb._depth_stencil_attachment.value());
+
+        // Reattach swapped depth-stencil attachments to the respective framebuffers
+        _attach_to_framebuffer(
+            _fbo_id,
+            _depth_stencil_attachment.value(),
+            GL_DEPTH_STENCIL_ATTACHMENT
+        );
+
+        _attach_to_framebuffer(
+            target_fb._fbo_id,
+            target_fb._depth_stencil_attachment.value(),
+            GL_DEPTH_STENCIL_ATTACHMENT
+        );
     }
 
     // ------------------------------
@@ -432,7 +556,7 @@ namespace triengine::core
         const bool use_renderbuffer_for_stencil)
     {
         if (!internal_color_formats.size()) {
-            throw std::runtime_error("empty internal color formats");
+            TRIENGINE_PANIC("empty internal color formats");
         }
 
         frame_buffer new_fb;
@@ -465,18 +589,21 @@ namespace triengine::core
 
     frame_buffer frame_buffer::create_color_depth_stencil_buffer(
         const std::initializer_list<GLenum> internal_color_formats,
-        const GLenum internal_depth_format,
-        const GLenum internal_stencil_format,
+        const GLenum internal_depth_stencil_format,
         const int32_t width_pixels,
         const int32_t height_pixels,
         const int32_t sample_count, 
         const frame_buffer_texture_params_t& color_tex_params,
         const bool use_renderbuffer_for_color,
-        const bool use_renderbuffer_for_depth,
-        const bool use_renderbuffer_for_stencil)
+        const bool use_renderbuffer_for_depth_stencil)
     {
         if (!internal_color_formats.size()) {
             TRIENGINE_PANIC("empty internal color formats");
+        }
+
+        if (internal_depth_stencil_format != GL_DEPTH24_STENCIL8 &&
+            internal_depth_stencil_format != GL_DEPTH32F_STENCIL8) {
+            TRIENGINE_PANIC("invalid internal depth-stencil format");
         }
 
         frame_buffer new_fb;
@@ -493,22 +620,13 @@ namespace triengine::core
             new_fb._color_attachments.push_back(std::move(ci));
         }
 
-        // Depth attachment
+        // Depth-Stencil attachment
         {
-            attachment_info_t di;
-            di.type = attachment_type::depth;
-            di.internal_format = internal_depth_format;
-            di.is_render_buffer = use_renderbuffer_for_depth;
-            new_fb._depth_attachment = std::move(di);
-        }
-
-        // Stencil attachment
-        {
-            attachment_info_t si;
-            si.type = attachment_type::stencil;
-            si.internal_format = internal_stencil_format;
-            si.is_render_buffer = use_renderbuffer_for_stencil;
-            new_fb._stencil_attachment = std::move(si);
+            attachment_info_t dsi;
+            dsi.type = attachment_type::depth_stencil;
+            dsi.internal_format = internal_depth_stencil_format;
+            dsi.is_render_buffer = use_renderbuffer_for_depth_stencil;
+            new_fb._depth_stencil_attachment = std::move(dsi);
         }
 
         // Allocate & attach
