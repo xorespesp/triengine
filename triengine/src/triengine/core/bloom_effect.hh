@@ -1,9 +1,7 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/lighting_options.hh>
-#include <triengine/core/shader.hh>
-#include <triengine/core/shader_loader.hh>
-#include <triengine/core/shader_preprocessor.hh>
+#include <triengine/core/gl_context.hh>
 
 #include <vector>
 
@@ -49,11 +47,7 @@ namespace triengine::core
         phys_bloom_effect();
         ~phys_bloom_effect();
 
-        bool create(
-            const vec2_i32 initial_window_size,
-            shader_loader& shader_ldr,
-            shader_preprocessor& shader_prep
-        );
+        bool create(const gl_context& glctx);
         void destroy();
 
         const mip_texture& get_bloom_mip(size_t index) const;

@@ -4,8 +4,6 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
-#include <triengine/shaders/shader_version.h>
-
 namespace triengine::core
 {
     namespace
@@ -167,10 +165,11 @@ namespace triengine::core
     }
 
     bool phys_bloom_effect::create(
-        const vec2_i32 initial_window_size,
-        shader_loader& shader_ldr,
-        shader_preprocessor& shader_prep)
+        const gl_context& glctx)
     {
+        const vec2_i32 initial_window_size = glctx.get_window_size();
+        const auto shader_ldr = glctx.get_shader_loader();
+
         TRIENGINE_TRACE("Creating bloom effect");
         if (_initialized) {
             TRIENGINE_WARN("already created");
@@ -223,18 +222,18 @@ namespace triengine::core
         // Shaders
         // ------------------------------------------------------------------
         _downsample_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom_downsample_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("bloom.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("bloom_downsample_pass.frag")->c_str() })
             .link();
 
         _upsample_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom_upsample_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("bloom.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("bloom_upsample_pass.frag")->c_str() })
             .link();
 
         _composite_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom_composite_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("bloom.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("bloom_composite_pass.frag")->c_str() })
             .link();
 
         return true;

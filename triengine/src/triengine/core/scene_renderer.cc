@@ -4,14 +4,8 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
-#include <triengine_generated/packed_shaders_data.h>
 #include <triengine/extern/smaa_area_texture.h>
 #include <triengine/extern/smaa_search_texture.h>
-
-#include <triengine/shaders/includes/phong_lighting_shaders.h>
-#include <triengine/shaders/includes/smaa_shaders.h>
-#include <triengine/shaders/includes/hdr_shaders.h>
-#include <triengine/shaders/shader_version.h>
 
 namespace triengine::core
 {
@@ -94,59 +88,50 @@ namespace triengine::core
         GLCall(::glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
         GLCall(::glClearDepth(1.0f));
 
-        _shader_ldr = std::make_shared<shader_loader>();
-        _shader_ldr->initialize(
-            kTrienginePackedShaderData,
-            kTrienginePackedShaderData_size
-        );
+        auto shader_ldr = glctx->get_shader_loader();
 
-        _shader_prep = std::make_shared<shader_preprocessor>();
-        _shader_prep->register_system_include_from_memory("phong_lighting", shaders::includes::kPhongLightingShader);
-        _shader_prep->register_system_include_from_memory("hdr", shaders::includes::kHDRShader);
-        _shader_prep->register_system_include_from_memory("SMAA.hlsl", shaders::includes::kSMAAShaders);
+        _inf_plane_renderer.create(*glctx);
+        _light_source_renderer.create(*glctx);
+        _mesh_renderer.create(*glctx);
+        _lineset_renderer.create(*glctx);
+        _pcd_renderer.create(*glctx);
+        _skeleton_renderer.create(*glctx);
 
-        _inf_plane_renderer.create(*glctx, *_shader_ldr, *_shader_prep);
-        _light_source_renderer.create(*glctx, *_shader_ldr, *_shader_prep);
-        _mesh_renderer.create(*glctx, *_shader_ldr, *_shader_prep);
-        _lineset_renderer.create(*glctx, *_shader_ldr, *_shader_prep);
-        _pcd_renderer.create(*glctx, *_shader_ldr, *_shader_prep);
-        _skeleton_renderer.create(*glctx, *_shader_ldr, *_shader_prep);
-
-        _bloom_effect.create(glctx->get_window_size(), *_shader_ldr, *_shader_prep);
+        _bloom_effect.create(*glctx);
 
         _wboit_composite_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("wboit_composite_pass.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("wboit_composite_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("wboit_composite_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("wboit_composite_pass.frag")->c_str() })
             .link();
 
         _screen_quad_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("screen_quad.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("screen_quad.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("screen_quad.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("screen_quad.frag")->c_str() })
             .link();
 
         _hdr_screen_quad_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("screen_quad.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("screen_quad_hdr.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("screen_quad.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("screen_quad_hdr.frag")->c_str() })
             .link();
 
         _overlay_composite_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("overlay_pass.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("overlay_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("overlay_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("overlay_pass.frag")->c_str() })
             .link();
 
         _smaa_edge_detect_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("smaa_edge_detect_pass.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("smaa_edge_detect_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("smaa_edge_detect_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("smaa_edge_detect_pass.frag")->c_str() })
             .link();
 
         _smaa_blend_weight_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("smaa_blend_weight_pass.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("smaa_blend_weight_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("smaa_blend_weight_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("smaa_blend_weight_pass.frag")->c_str() })
             .link();
 
         _smaa_neighbor_blend_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("smaa_neighbor_blend_pass.vert").value()).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, _shader_prep->process_from_memory(_shader_ldr->load("smaa_neighbor_blend_pass.frag").value()).c_str() })
+            .attach_vertex_shader({ shader_ldr->load("smaa_neighbor_blend_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("smaa_neighbor_blend_pass.frag")->c_str() })
             .link();
 
         // Create screen-quad VAO

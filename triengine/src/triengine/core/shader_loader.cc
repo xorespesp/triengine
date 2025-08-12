@@ -1,16 +1,31 @@
 #include "shader_loader.hh"
 #include <unordered_map>
 #include <triengine/extern/miniz/miniz.h>
+#include <triengine/core/shader_preprocessor.hh>
 #include <triengine/utility/debug_utils.hh>
+
+#include <triengine/shaders/includes/phong_lighting_shaders.h>
+#include <triengine/shaders/includes/smaa_shaders.h>
+#include <triengine/shaders/includes/hdr_shaders.h>
 
 namespace triengine::core
 {
+    // See: https://stackoverflow.com/questions/13872544/gcc-stringification-and-inline-glsl
+    static const char glslShaderVersion[] = "#version 450 core\n";
+
     struct shader_loader::impl
     {
-        mutable mz_zip_archive zip_archive;
+        mutable mz_zip_archive zip_archive{};
         mutable std::unordered_map<std::string, std::string> cache;
+        shader_preprocessor shader_prep;
         bool is_initialized{ false };
 
+        impl() {
+            shader_prep.register_system_include_from_memory("phong_lighting", shaders::includes::kPhongLightingShader);
+            shader_prep.register_system_include_from_memory("hdr", shaders::includes::kHDRShader);
+            shader_prep.register_system_include_from_memory("SMAA.hlsl", shaders::includes::kSMAAShaders);
+        }
+        
         ~impl() {
             if (is_initialized) {
                 ::mz_zip_reader_end(&zip_archive);
@@ -38,12 +53,18 @@ namespace triengine::core
                 return std::nullopt;
             }
 
-            std::string asset_data(static_cast<char*>(p_uncompressed_data), uncompressed_size);
+            std::string preprocessed_shader_content = shader_prep.process_from_memory(
+                std::string_view{ static_cast<const char*>(p_uncompressed_data), uncompressed_size },
+                path_in_archive
+            );
+
+            preprocessed_shader_content = glslShaderVersion + preprocessed_shader_content;
+
             ::mz_free(p_uncompressed_data);
 
-            // 캐시에 저장
-            cache[path_in_archive] = asset_data;
-            return asset_data;
+            // 전처리한 결과를 캐시에 저장
+            cache[path_in_archive] = preprocessed_shader_content;
+            return preprocessed_shader_content;
         }
     };
 
@@ -76,6 +97,11 @@ namespace triengine::core
     std::optional<std::string> shader_loader::load(const std::string& path_in_archive) const
     {
         return _impl->load_impl(path_in_archive);
+    }
+
+    std::string shader_loader::get_glsl_shader_version() const noexcept
+    {
+        return glslShaderVersion;
     }
 
 } // namespace

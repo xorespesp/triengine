@@ -1,4 +1,6 @@
 #include "gl_context.hh"
+
+#include <triengine_generated/packed_shaders_data.h>
 #include <triengine/utility/logger.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
@@ -377,6 +379,12 @@ namespace triengine::core
             }
         });
 
+        _shader_ldr = std::make_shared<shader_loader>();
+        _shader_ldr->initialize(
+            kTrienginePackedShaderData,
+            kTrienginePackedShaderData_size
+        );
+
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();
 
         _flag_initialized = true;
@@ -497,6 +505,14 @@ namespace triengine::core
 
     void gl_context::set_mouse_scroll_callback(mouse_scroll_callback_type cb) {
         _cb_mouse_scroll = std::move(cb);
+    }
+
+    std::shared_ptr<shader_loader> gl_context::get_shader_loader() noexcept {
+        return _shader_ldr;
+    }
+
+    std::shared_ptr<const shader_loader> gl_context::get_shader_loader() const noexcept {
+        return _shader_ldr;
     }
 
     std::shared_ptr<gpu_resource_manager> gl_context::get_gpu_resource_manager() noexcept {

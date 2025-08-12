@@ -1,7 +1,7 @@
 #include "gui_manager.hh"
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/visualization/visualizer.hh>
-#include <triengine/shaders/shader_version.h>
+#include <triengine/core/shader_loader.hh>
 #include <triengine/extern/fonts/Fonts.h>
 
 #include <GLFW/glfw3.h>
@@ -67,11 +67,13 @@ namespace triengine::gui
         //io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\malgun.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesKorean());
 
         // Setup Platform/Renderer backends
-        if (!::ImGui_ImplGlfw_InitForOpenGL(vis->get_gl_context()->get_glfw_window(), true)) {
+        const auto glctx = vis->get_gl_context();
+
+        if (!::ImGui_ImplGlfw_InitForOpenGL(glctx->get_glfw_window(), true)) {
             TRIENGINE_PANIC("ImGui_ImplGlfw_InitForOpenGL failed");
         }
 
-        if (!::ImGui_ImplOpenGL3_Init(shaders::glslShaderVersion)) {
+        if (!::ImGui_ImplOpenGL3_Init(glctx->get_shader_loader()->get_glsl_shader_version().c_str())) {
             TRIENGINE_PANIC("ImGui_ImplOpenGL3_Init failed");
         }
 

@@ -6,9 +6,6 @@
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/noncopyable.hh>
 #include <triengine/core/gl_context.hh>
-#include <triengine/core/shader.hh>
-#include <triengine/core/shader_loader.hh>
-#include <triengine/core/shader_preprocessor.hh>
 
 #include <list>
 
@@ -54,8 +51,8 @@ namespace triengine::renderer
             return _creation_flag;
         }
 
-        void create(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep) {
-            static_cast<_Derived*>(this)->create_impl(glctx, shader_ldr, shader_prep);
+        void create(core::gl_context& glctx) {
+            static_cast<_Derived*>(this)->create_impl(glctx);
         }
 
         void destroy() {
@@ -96,8 +93,8 @@ namespace triengine::renderer
             return _creation_flag;
         }
 
-        void create(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep) {
-            static_cast<_Derived*>(this)->create_impl(glctx, shader_ldr, shader_prep);
+        void create(core::gl_context& glctx) {
+            static_cast<_Derived*>(this)->create_impl(glctx);
         }
 
         void destroy() {

@@ -24,7 +24,7 @@ namespace triengine::renderer
         void set_options(const infinite_plane_options& options) { _options = options; }
 
         // CRTP methods
-        void create_impl(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep);
+        void create_impl(core::gl_context& glctx);
         void destroy_impl();
         void render_impl(const render_context& render_ctx);
 

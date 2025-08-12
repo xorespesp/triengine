@@ -1,11 +1,13 @@
 #pragma once
-#include <triengine/core/gpu_resource_manager.hh>
-#include <triengine/utility/noncopyable.hh>
-
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <string>
+
+#include <triengine/core/shader.hh>
+#include <triengine/core/shader_loader.hh>
+#include <triengine/core/gpu_resource_manager.hh>
+#include <triengine/utility/noncopyable.hh>
 
 namespace triengine::core
 {
@@ -66,12 +68,16 @@ namespace triengine::core
         void set_mouse_move_callback(mouse_move_callback_type cb);
         void set_mouse_scroll_callback(mouse_scroll_callback_type cb);
 
+        std::shared_ptr<shader_loader> get_shader_loader() noexcept;
+        std::shared_ptr<const shader_loader> get_shader_loader() const noexcept;
+
         std::shared_ptr<gpu_resource_manager> get_gpu_resource_manager() noexcept;
         std::shared_ptr<const gpu_resource_manager> get_gpu_resource_manager() const noexcept;
 
     private:
         std::shared_ptr<GLFWwindow> _glfw_window;
         bool _flag_initialized{ false };
+        std::shared_ptr<shader_loader> _shader_ldr;
         std::shared_ptr<gpu_resource_manager> _gpu_res_mgr;
 
         close_callback_type _cb_close;
