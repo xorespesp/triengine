@@ -4,7 +4,7 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
-#include <triengine/shaders/bloom_shaders.h>
+#include <triengine/shaders/shader_version.h>
 
 namespace triengine::core
 {
@@ -166,7 +166,10 @@ namespace triengine::core
         if (_initialized) { this->destroy(); }
     }
 
-    bool phys_bloom_effect::create(const vec2_i32 initial_window_size)
+    bool phys_bloom_effect::create(
+        const vec2_i32 initial_window_size,
+        shader_loader& shader_ldr,
+        shader_preprocessor& shader_prep)
     {
         TRIENGINE_TRACE("Creating bloom effect");
         if (_initialized) {
@@ -220,18 +223,18 @@ namespace triengine::core
         // Shaders
         // ------------------------------------------------------------------
         _downsample_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shaders::kPhysBloomVertexShader })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shaders::kPhysBloomDownsampleFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom_downsample_pass.frag").value()).c_str() })
             .link();
 
         _upsample_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shaders::kPhysBloomVertexShader })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shaders::kPhysBloomUpsampleFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom_upsample_pass.frag").value()).c_str() })
             .link();
 
         _composite_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shaders::kPhysBloomVertexShader })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shaders::kPhysBloomCompositeFragmentShader })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("bloom_composite_pass.frag").value()).c_str() })
             .link();
 
         return true;

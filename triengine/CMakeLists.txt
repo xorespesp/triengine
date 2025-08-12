@@ -1,5 +1,5 @@
-set(TRIENGINE_LIBRARY_SOURCES_DIR "src/${TRIENGINE_LIBRARY_NAME}")
-set(TRIENGINE_LIBRARY_HEADERS_DIR "src/${TRIENGINE_LIBRARY_NAME}")
+set(TRIENGINE_LIBRARY_SOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}")
+set(TRIENGINE_LIBRARY_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}")
 
 ########################################################################################
 # library sources
@@ -13,6 +13,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/frame_buffer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/shader.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/shader_preprocessor.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/shader_loader.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gpu_resource_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gpu_resources_impl.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
@@ -74,6 +75,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/frame_buffer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_preprocessor.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_loader.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/render_target.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gpu_resource_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/scene_renderer.hh"
@@ -122,22 +124,6 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/progress_reporter.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_format.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"
-
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/bloom_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/infinite_plane_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/light_source_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/lineset_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/normal_vis_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/overlay_pass_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/pcd_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/screen_quad_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/shader_version.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/smaa_pass_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/triangle_mesh_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/wboit_composite_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/phong_lighting_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/hdr_shaders.h"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/shaders/includes/smaa_shaders.h"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer.hh"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer_dx.hh"
@@ -227,6 +213,18 @@ list(APPEND TRIENGINE_LIBRARY_HEADERS_PUBLIC
 )
 ########################################################################################
 
+########################################################################################
+# miniz sources
+list(APPEND TRIENGINE_LIBRARY_SOURCES
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/miniz/miniz.c"
+)
+
+# miniz headers
+list(APPEND TRIENGINE_LIBRARY_HEADERS_PRIVATE
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/miniz/miniz.h"
+)
+########################################################################################
+
 # Library Target Definition
 add_library(${TRIENGINE_LIBRARY_NAME} STATIC
     ${TRIENGINE_LIBRARY_SOURCES}
@@ -276,6 +274,9 @@ target_include_directories(${TRIENGINE_LIBRARY_NAME}
     PRIVATE
         # Path needed for compiling this library's own sources.
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        # Build-tree root that holds the generated packed-shaders header
+        # (making it reachable as `#include <triengine_generated/packed_shaders_data.h>`)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
 
 
@@ -295,6 +296,75 @@ target_link_libraries(${TRIENGINE_LIBRARY_NAME}
 )
 
 ########################################################################################
+
+################################################################################
+# Shaders Packing & Embedding
+message(STATUS "Configuring shader packing and embedding...")
+
+set(TRIENGINE_SHADERS_BASE_DIR "${TRIENGINE_LIBRARY_SOURCES_DIR}/shaders")
+set(TRIENGINE_AUTO_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/${TRIENGINE_LIBRARY_NAME}_generated")
+set(TRIENGINE_PACKED_SHADERS_HEADER_FILE "${TRIENGINE_AUTO_GENERATED_DIR}/packed_shaders_data.h")
+set(TRIENGINE_SHADERS_BINPACK_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/binpack.py")
+
+message(STATUS "TRIENGINE_SHADERS_BASE_DIR: ${TRIENGINE_SHADERS_BASE_DIR}")
+message(STATUS "TRIENGINE_PACKED_SHADERS_HEADER_FILE: ${TRIENGINE_PACKED_SHADERS_HEADER_FILE}")
+message(STATUS "TRIENGINE_SHADERS_BINPACK_SCRIPT: ${TRIENGINE_SHADERS_BINPACK_SCRIPT}")
+
+# Ensure the parent directory of the generated header exists
+get_filename_component(TRIENGINE_PACKED_SHADERS_HEADER_DIR ${TRIENGINE_PACKED_SHADERS_HEADER_FILE} DIRECTORY)
+file(MAKE_DIRECTORY ${TRIENGINE_PACKED_SHADERS_HEADER_DIR})
+
+# GLOB the absolute-path file list of assets (shaders) to embed into the binary
+# NOTE: GLOB is evaluated at CMake configure time, NOT at build time, so newly added files are not detected automatically.
+#       Therefore, after adding a new file, re-run CMake manually to refresh the SHADER_FILES variable.
+file(GLOB_RECURSE TRIENGINE_SHADER_FILES
+    "${TRIENGINE_SHADERS_BASE_DIR}/*.vert"
+    "${TRIENGINE_SHADERS_BASE_DIR}/*.geom"
+    "${TRIENGINE_SHADERS_BASE_DIR}/*.frag"
+    "${TRIENGINE_SHADERS_BASE_DIR}/*.comp"
+    "${TRIENGINE_SHADERS_BASE_DIR}/*.glsl"
+    "${TRIENGINE_SHADERS_BASE_DIR}/*.hlsl"
+)
+
+if(NOT TRIENGINE_SHADER_FILES)
+    message(WARNING "No shader files were found. Check the patterns in file(GLOB_RECURSE).")
+else()
+    message(STATUS "Shader files found: ${TRIENGINE_SHADER_FILES}")
+endif()
+
+# NOTE: A Python3 interpreter is required to run the embed script
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+# Add a custom command that packs & embeds the asset files (shaders)
+add_custom_command(
+    # OUTPUT: the product of this command
+    OUTPUT ${TRIENGINE_PACKED_SHADERS_HEADER_FILE}
+    # COMMAND: the command to run. (python3 <script> <output header> <variable name> <base path> <file list...>)
+    COMMAND ${Python3_EXECUTABLE} ${TRIENGINE_SHADERS_BINPACK_SCRIPT} 
+            ${TRIENGINE_PACKED_SHADERS_HEADER_FILE} 
+            "kTrienginePackedShaderData" 
+            ${TRIENGINE_SHADERS_BASE_DIR} 
+            ${TRIENGINE_SHADER_FILES} # <- (CMake automatically expands the list into individual arguments)
+    # DEPENDS: the list of files this command depends on. (the command runs if any of TRIENGINE_SHADER_FILES changes)
+    #          Also add the packing script itself as a dependency, so regeneration is triggered when the script is modified too
+    DEPENDS ${TRIENGINE_SHADER_FILES} ${TRIENGINE_SHADERS_BINPACK_SCRIPT}
+    VERBATIM # Added to correctly handle special characters on the command line
+    COMMENT "Packing and embedding shaders into ${TRIENGINE_PACKED_SHADERS_HEADER_FILE}..."
+)
+
+# Create a custom target (AssetPacker) that wraps the command above
+# This target depends on TRIENGINE_PACKED_SHADERS_HEADER_FILE, the product of the command above.
+# Adding the 'ALL' keyword includes it in the default build without having to specify the target explicitly.
+add_custom_target(TriengineShadersPacker ALL
+    DEPENDS ${TRIENGINE_PACKED_SHADERS_HEADER_FILE}
+)
+
+# Make the main target depend on the custom target (AssetPacker) (this is the key part)
+# Ensure the AssetPacker target is up to date before building the main target.
+add_dependencies(${TRIENGINE_LIBRARY_NAME}
+    TriengineShadersPacker
+)
+################################################################################
 
 # Install Library Targets
 install(

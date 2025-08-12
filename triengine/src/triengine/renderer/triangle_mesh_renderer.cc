@@ -1,8 +1,7 @@
 #include "triangle_mesh_renderer.hh"
 
 #include <triengine/utility/debug_utils.hh>
-#include <triengine/shaders/triangle_mesh_shaders.h>
-#include <triengine/shaders/normal_vis_shaders.h>
+#include <triengine/shaders/shader_version.h>
 
 namespace triengine::renderer
 {
@@ -14,7 +13,7 @@ namespace triengine::renderer
         _show_object_normals = enable;
     }
 
-    void triangle_mesh_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
+    void triangle_mesh_renderer::create_impl(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -29,29 +28,29 @@ namespace triengine::renderer
 
         // Create shader program
         _vertmode_solid_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedTriangleMeshVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedSolidTriangleMeshFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("vert_shaded_mesh_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("vert_shaded_mesh_obj_opaque_pass.frag").value()).c_str() })
             .link();
 
         _vertmode_transparent_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedTriangleMeshVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kVertShadedTransparentTriangleMeshFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("vert_shaded_mesh_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("vert_shaded_mesh_obj_transparent_pass.frag").value()).c_str() })
             .link();
 
         _texmode_solid_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedTriangleMeshVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedSolidTriangleMeshFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("tex_shaded_mesh_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("tex_shaded_mesh_obj_opaque_pass.frag").value()).c_str() })
             .link();
 
         _texmode_transparent_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedTriangleMeshVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTexShadedTransparentTriangleMeshFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("tex_shaded_mesh_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("tex_shaded_mesh_obj_transparent_pass.frag").value()).c_str() })
             .link();
         
         _normal_vis_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kObjectNormalVisVertexShader).c_str() })
-            .attach_geometry_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kObjectNormalVisGeometryShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kObjectNormalVisFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("obj_normal_vis.vert").value()).c_str() })
+            .attach_geometry_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("obj_normal_vis.geom").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("obj_normal_vis.frag").value()).c_str() })
             .link();
     }
 

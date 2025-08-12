@@ -1,0 +1,18 @@
+////////////////////////////////////////////
+// shader inputs
+////////////////////////////////////////////
+layout (location = 0) in vec3 vi_vertPos;
+layout (location = 1) in vec2 vi_texCoord;
+
+////////////////////////////////////////////
+// shader outputs
+////////////////////////////////////////////
+out VS_OUT {
+    vec2 texCoord;
+} vo;
+
+void main()
+{
+    vo.texCoord = vi_texCoord;
+    gl_Position = vec4(vi_vertPos, 1.0f);
+}

@@ -1,4 +1,4 @@
-## Source: https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
+﻿## Source: https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # Vcpkg
 /dependency/vcpkg_installed/
@@ -364,3 +364,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Auto-generated packed-shaders directory (produced by triengine/scripts/binpack.py)
+triengine_generated/

@@ -6,6 +6,7 @@
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/frame_buffer.hh>
 #include <triengine/core/shader.hh>
+#include <triengine/core/shader_loader.hh>
 #include <triengine/core/shader_preprocessor.hh>
 #include <triengine/core/bloom_effect.hh>
 
@@ -15,9 +16,6 @@
 #include <triengine/renderer/lineset_renderer.hh>
 #include <triengine/renderer/pcd_renderer.hh>
 #include <triengine/renderer/skeleton_renderer.hh>
-
-#include <triengine/shaders/wboit_composite_shaders.h>
-#include <triengine/shaders/screen_quad_shaders.h>
 
 #include <memory>
 
@@ -40,7 +38,9 @@ namespace triengine::core
 
     private:
         gl_context* _glctx{ nullptr };
-        std::unique_ptr<shader_preprocessor> _shader_prep;
+
+        std::shared_ptr<shader_loader> _shader_ldr;
+        std::shared_ptr<shader_preprocessor> _shader_prep;
 
         renderer::infinite_plane_renderer _inf_plane_renderer;
         renderer::light_source_renderer _light_source_renderer;

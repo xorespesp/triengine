@@ -1,6 +1,6 @@
 #include "pcd_renderer.hh"
 
-#include <triengine/shaders/pcd_shaders.h>
+#include <triengine/shaders/shader_version.h>
 #include <triengine/utility/debug_utils.hh>
 
 namespace triengine::renderer
@@ -8,7 +8,7 @@ namespace triengine::renderer
     pcd_renderer::pcd_renderer()
     { }
 
-    void pcd_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
+    void pcd_renderer::create_impl(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -25,13 +25,13 @@ namespace triengine::renderer
 
         // Create shader program
         _solid_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kPcdVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kSolidPcdFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("pcd_obj.vert").value()).c_str()})
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("pcd_obj_opaque_pass.frag").value()).c_str() })
             .link();
 
         _transparent_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kPcdVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kTransparentPcdFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("pcd_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("pcd_obj_transparent_pass.frag").value()).c_str() })
             .link();
     }
 

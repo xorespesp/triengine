@@ -11,12 +11,12 @@ namespace triengine::renderer
         _flag_show_joint_axis = show;
     }
 
-    void skeleton_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
+    void skeleton_renderer::create_impl(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
 
-        _mesh_renderer.create(glctx, shader_prep);
+        _mesh_renderer.create(glctx, shader_ldr, shader_prep);
     }
 
     void skeleton_renderer::destroy_impl()

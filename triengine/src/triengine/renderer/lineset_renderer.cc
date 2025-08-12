@@ -1,14 +1,14 @@
 #include "lineset_renderer.hh"
 
 #include <triengine/utility/debug_utils.hh>
-#include <triengine/shaders/lineset_shaders.h>
+#include <triengine/shaders/shader_version.h>
 
 namespace triengine::renderer
 {
     lineset_renderer::lineset_renderer()
     { }
 
-    void lineset_renderer::create_impl(core::gl_context& glctx, const core::shader_preprocessor& shader_prep)
+    void lineset_renderer::create_impl(core::gl_context& glctx, const core::shader_loader& shader_ldr, const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -23,8 +23,8 @@ namespace triengine::renderer
 
         // Create shader program
         _shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLinesetVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLinesetFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("lineset_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("lineset_obj.frag").value()).c_str() })
             .link();
     }
 

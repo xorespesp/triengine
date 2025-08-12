@@ -1,7 +1,7 @@
 #include "light_source_renderer.hh"
 
 #include <triengine/math/constants.hh>
-#include <triengine/shaders/light_source_shaders.h>
+#include <triengine/shaders/shader_version.h>
 #include <triengine/utility/debug_utils.hh>
 
 namespace triengine::renderer
@@ -85,6 +85,7 @@ namespace triengine::renderer
 
     void light_source_renderer::create_impl(
         core::gl_context& glctx, 
+        const core::shader_loader& shader_ldr,
         const core::shader_preprocessor& shader_prep)
     {
         TRIENGINE_ASSERT(!this->is_created());
@@ -98,8 +99,8 @@ namespace triengine::renderer
 
         // Create shader program
         _point_light_source_shader
-            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLightSourceVertexShader).c_str() })
-            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shaders::kLightSourceFragmentShader).c_str() })
+            .attach_vertex_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("point_light_obj.vert").value()).c_str() })
+            .attach_fragment_shader({ shaders::glslShaderVersion, shader_prep.process_from_memory(shader_ldr.load("point_light_obj.frag").value()).c_str() })
             .link();
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
