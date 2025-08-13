@@ -20,18 +20,23 @@ namespace triengine::core
          * @brief Initializes the loader with embedded binary data
          * @param data Pointer to the zip binary data embedded in the binary
          * @param size Size of the data (in bytes)
+         * @param glsl_shader_version The GLSL shader version to use (e.g., "#version 450 core")
          * @return true if initialization succeeds, false if it fails
          */
-        bool initialize(const unsigned char* data, size_t size);
+        bool initialize(
+            const uint8_t* data, 
+            size_t size,
+            std::string_view glsl_shader_version
+        );
 
         /**
          * @brief Retrieves asset data using its path inside the archive
          * @param path_in_archive Full path within the archive (e.g., "shaders/pbr.frag")
          * @return std::string containing the asset data on success, or std::nullopt on failure
          */
-        std::optional<std::string> load(const std::string& path_in_archive) const;
+        std::optional<std::string> load(const std::string& path_in_archive);
 
-        std::string get_glsl_shader_version() const noexcept;
+        const std::string& get_glsl_shader_version() const noexcept;
 
     private:
         struct impl;

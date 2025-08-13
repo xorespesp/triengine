@@ -1,6 +1,6 @@
 // Texture-Shaded TriangleMesh Object Vertex Shader (for opaque rendering pass)
 
-#include <phong_lighting>
+#include "includes/phong_lighting.glsl"
 
 struct TextureShadingMaterial
 {

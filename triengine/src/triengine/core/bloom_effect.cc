@@ -165,10 +165,10 @@ namespace triengine::core
     }
 
     bool phys_bloom_effect::create(
-        const gl_context& glctx)
+        gl_context& glctx)
     {
         const vec2_i32 initial_window_size = glctx.get_window_size();
-        const auto shader_ldr = glctx.get_shader_loader();
+        auto shader_ldr = glctx.get_shader_loader();
 
         TRIENGINE_TRACE("Creating bloom effect");
         if (_initialized) {

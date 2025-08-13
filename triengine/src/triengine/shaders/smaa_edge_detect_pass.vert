@@ -25,7 +25,7 @@ uniform vec4 u_smaaRTMetrics; // `vec4(1.0 / screen_width_pixels, 1.0 / screen_h
 #define SMAA_GLSL_4 1
 #define SMAA_PRESET_ULTRA
 #define SMAA_RT_METRICS u_smaaRTMetrics
-#include <SMAA.hlsl>
+#include "includes/SMAA.hlsl"
 
 void main()
 {

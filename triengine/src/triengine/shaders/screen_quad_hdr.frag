@@ -1,4 +1,4 @@
-#include <hdr>
+#include "includes/hdr.glsl"
 
 ////////////////////////////////////////////
 // shader inputs

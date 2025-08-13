@@ -1,6 +1,5 @@
 #pragma once
 #include <filesystem>
-#include <unordered_map>
 #include <unordered_set>
 #include <functional>
 #include <string_view>
@@ -59,23 +58,23 @@ namespace triengine::core
          * and its unique, canonical path.
          */
         struct resolved_include_info_t {
-            std::string canonical_path; // A unique, normalized path. (or virtual path)
+            std::string canonical_path; // A unique, normalized file path. (or virtual path)
             std::string content;        // The content of the file.
         };
 
         /**
          * @using include_resolver_t
          * @brief A function type for a callback that resolves an #include directive.
-         * @param current_file_path The path(or virtual path) of the file containing the #include directive.
-         * @param parsed_include_type The type of the directive (quotes or angle_brackets).
+         * @param current_file_canonical_path The current canonical file path(or virtual path) of the file containing the #include directive.
+         * @param parsed_include_type The type of the #include directive (quotes or angle_brackets).
          * @param parsed_include_path The path(or virtual path) string from the #include directive (e.g., "../common.glsl").
          * @return A resolved_include_t struct if successful, otherwise std::nullopt.
          */
         using include_resolver_t = std::function<
             std::optional<resolved_include_info_t>(
-                std::string_view current_file_path,         // #include가 위치한 파일의 경로 (혹은 가상 경로)
-                include_directive_type parsed_include_type, // #include "..." 인지 #include <...> 인지 구분
-                std::string_view parsed_include_path        // #include "..." 에 있던 경로 (혹은 가상 경로)
+                std::string_view current_file_canonical_path, // #include가 위치한 파일의 경로 (혹은 가상 경로)
+                include_directive_type parsed_include_type,   // #include "..." 인지 #include <...> 인지 구분
+                std::string_view parsed_include_path          // #include "..." 에 있던 경로 (혹은 가상 경로)
             )
         >;
 
@@ -96,10 +95,10 @@ namespace triengine::core
         // Struct to track include context for better error reporting
         struct include_context_t {
             std::string file_path;
-            uint32_t line_number;
+            size_t line_number;
 
             std::string to_string() const {
-                return utility::string::c_format("\"%s\" line %lu", file_path.c_str(), line_number);
+                return utility::string::c_format("\"%s\" line %zu", file_path.c_str(), line_number);
             }
         };
 
@@ -123,35 +122,19 @@ namespace triengine::core
         void set_allow_multiple_inclusion(bool allow);
 
         /**
-         * Preprocesses shader code from disk and handles #include preprocessor directives.
-         *
-         * @param shader_file_path The path to the shader file to be loaded.
-         * @param throw_on_error Whether to throw exceptions on error (default: true)
-         * @return A preprocessed shader file content.
-         * @throws std::runtime_error if throw_on_error is true and the file cannot be opened
-         */
-        std::string process(
-            std::string_view shader_file_path,
-            bool throw_on_error = true
-        ) const;
-
-        /**
          * Preprocesses shader code directly from memory and handles #include preprocessor directives.
          *
-         * @param shader_source The shader source code in memory
-         * @param shader_name A virtual shader name to identify this shader (for include tracking)
+         * @param root_shader_source The root shader source code in memory
+         * @param root_shader_canonical_path A root shader's canonical file path (or virtual path) to identify this shader (for include tracking)
+         *                                   Note: The path parameter MUST be the canonical (fully resolved) form to avoid include cycles.
          * @param throw_on_error Whether to throw exceptions on error (default: false)
-         * @return A preprocessed shader content
+         * @return A preprocessed shader content, or std::nullopt if an error occurred
          */
-        std::string process_from_memory(
-            std::string_view shader_source,
-            std::string_view shader_name = "memory_shader",
-            bool throw_on_error = true
+        std::optional<std::string> process_from_memory(
+            std::string_view root_shader_source,
+            std::string_view root_shader_canonical_path,
+            bool throw_on_error = false
         ) const;
-
-    protected:
-        const process_options_t& _options() const noexcept { return _opts; }
-        process_options_t& _options() noexcept { return _opts; }
 
     private:
 
@@ -159,8 +142,8 @@ namespace triengine::core
          * Core include processing logic (handles includes for both file and memory versions)
          *
          * @param curr_shader_file_content The current shader source code to preprocess
-         * @param curr_shader_file_path The (real or virtual) file path of the current shader (for include cycle detection)
-         * @param curr_included_files Set of already included files to avoid cycles
+         * @param curr_shader_canonical_path The canonical file path (or virtual path) of the current shader (for include cycle detection)
+         * @param curr_included_canonical_paths Set of already included file's canonical path to avoid cycles
          * @param include_stack Stack of include contexts for error reporting
          * @param curr_depth Current include depth to prevent stack overflow
          * @return Processed shader content with all includes resolved
@@ -168,8 +151,8 @@ namespace triengine::core
          */
         std::string _preprocess_include_directives(
             const std::string& curr_shader_file_content,
-            const std::string& curr_shader_file_path,
-            std::unordered_set<std::string>& curr_included_files/* in-out */,
+            const std::string& curr_shader_canonical_path,
+            std::unordered_set<std::string>& curr_included_canonical_paths/* in-out */,
             std::stack<include_context_t>& curr_include_stack/* in-out */,
             uint32_t curr_include_depth = 0
         ) const;
@@ -198,69 +181,37 @@ namespace triengine::core
     }; // class
 
     /**
-     * @brief A convenient, file-based GLSL preprocessor with a hybrid include resolution model.
-     * @details This class extends basic_shader_preprocessor to provide a ready-to-use solution
-     * for typical file-based workflows. It internally implements an include resolver that
-     * differentiates its behavior based on the include directive type ("" vs <>).
+     * @brief A physical filesystem based GLSL `#include` preprocessor.
      *
-     * @note **Include Resolution Behavior:**
-     * - **`#include "..."` (Local Files):**
-     * Resolves paths on the physical filesystem. Paths are treated as relative
-     * to the file containing the directive. This is ideal for project-specific shaders.
+     * @note Include resolution behavior:
+     *   - `#include "..."`
+     *     Resolves paths on the physical filesystem. 
+     *     Paths are treated as relative to the file containing the directive.
+     *     This is ideal for project-specific shaders.
      *
-     * - **`#include <...>` (System Includes):**
-     * Resolves a "virtual name" against a pre-registered, in-memory library of
-     * common shaders. Use the `register_system_include()` methods to build this
-     * standard library before processing. This is ideal for shared, engine-level utilities.
+     *   - `#include <...>`
+     *     Not supported in this implementation.
      */
-    class shader_preprocessor
+    class shader_preprocessor_fs
         : public basic_shader_preprocessor
     {
-    private:
-        // Hash function for std::filesystem::path
-        struct path_hasher_t {
-            std::size_t operator()(const std::filesystem::path& path) const {
-                return std::hash<std::string>{}(path.generic_string());
-            }
-        };
-
     public:
-        shader_preprocessor();
+        shader_preprocessor_fs();
 
         /**
-         * Sets the default search directory for includes
+         * Preprocesses shader code from disk and handles #include preprocessor directives.
          *
-         * @param dir_path The directory path to use for resolving includes from memory shaders
-         * @throws std::runtime_error if the path is ill-formed
+         * @param root_shader_file_path The path to the shader file to be loaded.
+         * @param throw_on_error Whether to throw exceptions on error (default: false)
+         * @return A preprocessed shader content, or std::nullopt if an error occurred
+         * @throws std::runtime_error if throw_on_error is true and the file cannot be opened
          */
-        void set_default_search_directory(const std::filesystem::path& dir_path);
-
-        /**
-         * Registers a system include from disk.
-         *
-         * @param include_name The name of the pre-registered system include (e.g., preregistered.glsl).
-         * @param file_path The path of the pre-registered system include file.
-         * @throws std::runtime_error if the file cannot be opened
-         */
-        void register_system_include(
-            std::string_view include_name,
-            const std::filesystem::path& file_path
-        );
-
-        /**
-         * Registers a system include from memory.
-         *
-         * @param include_name The name of the pre-registered system include (e.g., preregistered.glsl).
-         * @param file_content The content of the pre-registered system include file.
-         * @throws std::runtime_error if include_name is empty
-         */
-        void register_system_include_from_memory(
-            std::string_view include_name,
-            std::string file_content
-        );
+        std::optional<std::string> process(
+            const std::filesystem::path& shader_file_path,
+            bool throw_on_error = false
+        ) const;
 
     private:
-
         /**
          * Include resolver callback, called by the basic_shader_preprocessor to resolve includes.
          */
@@ -270,49 +221,17 @@ namespace triengine::core
             std::string_view parsed_include_path
         ) const;
 
-        // --- Helper methods ---
-
-        /**
-         * Creates a virtual path for system includes
-         *
-         * @param p The path to convert to a virtual path
-         * @return A virtual path with "virtual:" prefix
-         */
-        std::filesystem::path _make_virtual_path(const std::string_view p) const;
-
-        /**
-         * Checks if a path is a virtual path
-         *
-         * @param p The path to check
-         * @return True if the path is a virtual path
-         */
-        bool _is_virtual_path(const std::filesystem::path& p) const;
-
-        /**
-         * Converts a path to a canonical absolute path and checks if it exists.
-         *
-         * @param p The path to check
-         * @return canonical absolute path
-         * @throws std::runtime_error there is a resolve error
-         */
-        std::filesystem::path _resolve_path(const std::filesystem::path& p) const;
-
         /**
          * Helper function to read a file into a string
          *
          * @param file_path Path to the file to read
-         * @return Content of the file as a string
-         * @throws std::runtime_error if the file cannot be opened or read
+         * @param file_content Reference to a string where the file content will be stored
+         * @return true if the file was read successfully, false otherwise
          */
-        std::string _read_file(const std::filesystem::path& file_path) const;
-
-    private:
-        std::filesystem::path _default_search_dir; // Default search directory for includes
-        std::unordered_map<
-            std::filesystem::path/* virtual include path */,
-            std::string/* include file content */,
-            path_hasher_t
-        > _registered_system_includes; // Pre-registered system include files
+        bool _read_shader_file_content(
+            const std::filesystem::path& file_path,
+            std::string& file_content/* out */
+        ) const;
     };
 
 } // namespace

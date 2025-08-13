@@ -1,6 +1,6 @@
 // Vertex-Shaded TriangleMesh Object Fragment Shader (for transparent rendering pass)
 
-#include <phong_lighting>
+#include "includes/phong_lighting.glsl"
 
 struct VertexShadingMaterial
 {

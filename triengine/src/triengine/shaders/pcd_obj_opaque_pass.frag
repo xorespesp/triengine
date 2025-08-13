@@ -1,7 +1,7 @@
 // Pointcloud Object Fragment Shader (for opaque object rendering pass)
 
 #define USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING 1
-#include <phong_lighting>
+#include "includes/phong_lighting.glsl"
 
 struct PcdMaterial
 {

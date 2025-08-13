@@ -24,7 +24,7 @@ uniform sampler2D u_colorTex;
 #define SMAA_GLSL_4 1
 #define SMAA_PRESET_ULTRA
 #define SMAA_RT_METRICS fsi.smaaRTMetrics
-#include <SMAA.hlsl>
+#include "includes/SMAA.hlsl"
 
 void main()
 {

@@ -25,7 +25,7 @@ uniform vec4 u_subsampleIndices;
 #define SMAA_GLSL_4 1
 #define SMAA_PRESET_ULTRA
 #define SMAA_RT_METRICS fsi.smaaRTMetrics
-#include <SMAA.hlsl>
+#include "includes/SMAA.hlsl"
 
 layout(binding = 0) uniform SMAATexture2D(u_edgesTex);
 layout(binding = 1) uniform SMAATexture2D(u_areaTex);

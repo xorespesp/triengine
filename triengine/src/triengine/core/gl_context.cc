@@ -379,10 +379,13 @@ namespace triengine::core
             }
         });
 
+        constexpr char kDefaultGLSLShaderVersion[] = "#version 450 core";
+
         _shader_ldr = std::make_shared<shader_loader>();
         _shader_ldr->initialize(
             kTrienginePackedShaderData,
-            kTrienginePackedShaderData_size
+            kTrienginePackedShaderData_size,
+            kDefaultGLSLShaderVersion
         );
 
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();

@@ -47,7 +47,7 @@ namespace triengine::core
         phys_bloom_effect();
         ~phys_bloom_effect();
 
-        bool create(const gl_context& glctx);
+        bool create(gl_context& glctx);
         void destroy();
 
         const mip_texture& get_bloom_mip(size_t index) const;

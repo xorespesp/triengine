@@ -3,6 +3,7 @@
 
 #include <optional>
 #include <fstream>
+#include <algorithm>
 
 namespace triengine::core
 {
@@ -35,28 +36,19 @@ namespace triengine::core
         _opts.allow_multiple_inclusion = allow;
     }
 
-    std::string basic_shader_preprocessor::process(
-        const std::string_view shader_file_path,
+    std::optional<std::string> basic_shader_preprocessor::process_from_memory(
+        const std::string_view root_shader_source,
+        const std::string_view root_shader_canonical_path,
         const bool throw_on_error) const
     {
         try
         {
-            // Use the include resolver to get the root shader file's content and canonical path.
-            // The current_file_path is the same as the requested path for the root file.
-            const auto root_file = _include_resolver(shader_file_path, include_directive_type::quotes, shader_file_path); // TODO: improve this
-            if (!root_file.has_value()) {
-                TRIENGINE_PANIC("Failed to resolve root shader file: %.*s"
-                    , static_cast<int>(shader_file_path.size())
-                    , shader_file_path.data()
-                );
-            }
-
-            std::unordered_set<std::string> included_files;
+            std::unordered_set<std::string> included_canonical_paths;
             std::stack<include_context_t> include_stack;
             return this->_preprocess_include_directives(
-                root_file->content,
-                root_file->canonical_path,
-                included_files,
+                std::string{ root_shader_source },
+                std::string{ root_shader_canonical_path },
+                included_canonical_paths,
                 include_stack,
                 0
             );
@@ -67,55 +59,21 @@ namespace triengine::core
                 throw;
             }
 
-            TRIENGINE_ERROR("%s(): Error processing shader file \"%.*s\": %s"
+            TRIENGINE_ERROR("%s(): Error processing root shader \"%.*s\": %s"
                 , __func__
-                , static_cast<int>(shader_file_path.size())
-                , shader_file_path.data()
+                , static_cast<int>(root_shader_canonical_path.size())
+                , root_shader_canonical_path.data()
                 , e.what()
             );
         }
 
-        return "";
-    }
-
-    std::string basic_shader_preprocessor::process_from_memory(
-        std::string_view shader_source,
-        std::string_view shader_name,
-        bool throw_on_error) const
-    {
-        try
-        {
-            std::unordered_set<std::string> included_files;
-            std::stack<include_context_t> include_stack;
-            return this->_preprocess_include_directives(
-                std::string{ shader_source },
-                std::string{ shader_name },
-                included_files,
-                include_stack,
-                0
-            );
-        }
-        catch (const std::exception& e)
-        {
-            if (throw_on_error) {
-                throw;
-            }
-
-            TRIENGINE_ERROR("%s(): Error processing memory shader \"%.*s\": %s"
-                , __func__
-                , static_cast<int>(shader_name.size())
-                , shader_name.data()
-                , e.what()
-            );
-        }
-
-        return "";
+        return std::nullopt;
     }
 
     std::string basic_shader_preprocessor::_preprocess_include_directives(
         const std::string& curr_shader_file_content,
-        const std::string& curr_shader_file_path,
-        std::unordered_set<std::string>& curr_included_files/* in-out */,
+        const std::string& curr_shader_canonical_path,
+        std::unordered_set<std::string>& curr_included_canonical_paths/* in-out */,
         std::stack<include_context_t>& curr_include_stack/* in-out */,
         const uint32_t curr_include_depth) const
     {
@@ -129,11 +87,11 @@ namespace triengine::core
 
         // If the current shader is already included, handle based on configuration
         if (!_opts.allow_multiple_inclusion &&
-            curr_included_files.find(curr_shader_file_path) != curr_included_files.end())
+            0 != curr_included_canonical_paths.count(curr_shader_canonical_path))
         {
-            TRIENGINE_WARN("%s(): Include cycle detected. skipping already included file: \"%s\"\n%s"
+            TRIENGINE_WARN("%s(): Already included file, skipping: \"%s\"\n%s"
                 , __func__
-                , curr_shader_file_path.c_str()
+                , curr_shader_canonical_path.c_str()
                 , this->_build_include_stack_trace(curr_include_stack).c_str()
             );
 
@@ -141,55 +99,69 @@ namespace triengine::core
         }
 
         // Mark this shader as included
-        curr_included_files.insert(curr_shader_file_path);
+        curr_included_canonical_paths.insert(curr_shader_canonical_path);
 
         std::string prep_result;
         prep_result.reserve(curr_shader_file_content.size() * 2); // To avoid reallocation as much as possible
 
         if (_opts.generate_debug_comments) {
-            prep_result += utility::string::c_format("/***** [%lu] BEGIN FILE: \"%s\" *****/\n"
+            prep_result += utility::string::c_format("/***** [%u] BEGIN FILE: \"%s\" *****/\n"
                 , curr_include_depth
-                , curr_shader_file_path.c_str()
+                , curr_shader_canonical_path.c_str()
             );
         }
 
-        std::istringstream stream{ curr_shader_file_content };
-        std::string curr_line;
-        uint32_t curr_line_number{ 0 };
-
-        while (std::getline(stream, curr_line))
+        for (size_t curr_line_begin_pos{ 0 }, curr_line_end_pos{ 0 }, curr_line_number{ 1 };
+             curr_line_begin_pos < curr_shader_file_content.size();
+             ++curr_line_number)
         {
-            ++curr_line_number;
+            curr_line_end_pos = curr_shader_file_content.find('\n', curr_line_begin_pos);
+            const std::string_view curr_shader_line = curr_shader_file_content.substr(
+                curr_line_begin_pos, 
+                (curr_line_end_pos != std::string_view::npos)
+                ? curr_line_end_pos - curr_line_begin_pos
+                : curr_line_end_pos
+            );
 
-            const auto parse_result = this->_try_parse_include_directive(curr_line);
+            const auto parse_result = this->_try_parse_include_directive(curr_shader_line);
             if (parse_result.has_value())
             {
                 const auto& [parsed_include_type, parsed_include_path] = *parse_result;
 
-                include_context_t curr_incl_ctx{ curr_shader_file_path, curr_line_number };
+                include_context_t curr_incl_ctx{ curr_shader_canonical_path, curr_line_number };
                 curr_include_stack.push(curr_incl_ctx);
 
                 const auto resolved_include = _include_resolver(
-                    curr_shader_file_path,
+                    curr_shader_canonical_path,
                     parsed_include_type,
                     parsed_include_path
                 );
 
                 if (!resolved_include.has_value()) {
                     // Error handling
-                    TRIENGINE_WARN("%s -> In \"%.*s\": Failed to resolve include: \"%s\""
+                    TRIENGINE_PANIC("%s -> In \"%.*s\": Failed to resolve include: \"%s\""
                         , curr_incl_ctx.to_string().c_str()
-                        , static_cast<int>(curr_shader_file_path.size()), curr_shader_file_path.data()
+                        , static_cast<int>(curr_shader_canonical_path.size()), curr_shader_canonical_path.data()
                         , parsed_include_path.c_str()
                     );
-                    //include_stack.pop();
+                }
+
+                // Handle empty file includes
+                if (!_opts.allow_empty_includes && resolved_include->content.empty()) {
+                    TRIENGINE_WARN("%s -> In \"%.*s\": Included file is empty: \"%s\""
+                        , curr_incl_ctx.to_string().c_str()
+                        , static_cast<int>(curr_shader_canonical_path.size()), curr_shader_canonical_path.data()
+                        , resolved_include->canonical_path.c_str()
+                    );
+                    curr_include_stack.pop();
+                    continue;
                 }
 
                 // Recursively process with the resolved include result(content and canonical path), provided by the resolver
-                std::string included_content = _preprocess_include_directives(
+                std::string included_content = this->_preprocess_include_directives(
                     resolved_include->content,
                     resolved_include->canonical_path,
-                    curr_included_files,
+                    curr_included_canonical_paths,
                     curr_include_stack,
                     curr_include_depth + 1
                 );
@@ -204,18 +176,24 @@ namespace triengine::core
             }
             else //if (!parse_result.has_value())
             {
-                prep_result += curr_line + '\n';
+                prep_result += curr_shader_line;
+                prep_result += '\n';
             }
-        } // while
 
-        // Note: We don't remove curr_shader_file_path from curr_included_files here
+            // move up to next line
+            curr_line_begin_pos = (curr_line_end_pos != std::string_view::npos)
+                ? curr_line_end_pos + 1
+                : curr_shader_file_content.size();
+        } // for
+
+        // Note: We don't remove curr_shader_canonical_path from curr_included_canonical_paths here
         // This is to maintain proper include guard behavior and prevent multiple inclusion
         // of the same file in different branches unless specifically allowed
 
         if (_opts.generate_debug_comments) {
-            prep_result += utility::string::c_format("/***** [%lu] END FILE: \"%s\" *****/\n"
+            prep_result += utility::string::c_format("/***** [%u] END FILE: \"%s\" *****/\n"
                 , curr_include_depth
-                , curr_shader_file_path.c_str()
+                , curr_shader_canonical_path.c_str()
             );
         }
 
@@ -226,101 +204,111 @@ namespace triengine::core
         return prep_result;
     }
 
+    // Test Cases:
+    //   [#include "file.glsl"] => quotes , path='file.glsl'
+    //   [#include <file.glsl>] => angle , path='file.glsl'
+    //   [#include"file.glsl"] => quotes , path='file.glsl'
+    //   [#include<file.glsl>] => angle , path='file.glsl'
+    //   [#  include    "path/with/spaces.glsl"] => quotes , path='path/with/spaces.glsl'
+    //   [#include "file.glsl"   // comment] => quotes , path='file.glsl'
+    //   [#include "file.glsl"   /* block comment */] = > quotes, path = 'file.glsl'
+    //   [#include "file.glsl"   /* block comment */] = > quotes, path = 'file.glsl'
+    //   [#include "file.glsl"   /* unterminated comment] => NO MATCH
+    //   [   #   include   <angle/path.glsl>   ] => angle , path='angle/path.glsl'
+    //   [#include "file.glsl" garbage] => NO MATCH
+    //   [not an include] => NO MATCH
+    //   [#include file.glsl] => NO MATCH
+    //   [#include "file with spaces.glsl"] => quotes , path='file with spaces.glsl'
     auto basic_shader_preprocessor::_try_parse_include_directive(
         std::string_view line
     ) const -> std::optional<std::pair<include_directive_type, std::string>>
     {
-        // Trim leading and trailing spaces from the line.
-        const auto trim_left = std::find_if_not(line.begin(), line.end(),
-            [](char c) { return std::isspace(static_cast<uint8_t>(c)); });
+        static const auto is_space = [](char c) {
+            // Cast to unsigned char to avoid UB
+            return std::isspace(static_cast<unsigned char>(c));
+        };
 
-        if (trim_left == line.end()) { return std::nullopt; }
+        // 1. Trim leading/trailing spaces
+        auto ltrim_it = std::find_if_not(line.begin(), line.end(),
+            [](char c) { return is_space(c); }
+        );
+        if (ltrim_it == line.end()) { return std::nullopt; }
 
-        const auto trim_right = std::find_if_not(line.rbegin(), line.rend(),
-            [](char c) { return std::isspace(static_cast<uint8_t>(c)); }).base();
+        auto rtrim_it = std::find_if_not(line.rbegin(), line.rend(),
+            [](char c) { return is_space(c); }
+        ).base();
+        line = line.substr(
+            static_cast<size_t>(ltrim_it - line.begin()),
+            static_cast<size_t>(rtrim_it - ltrim_it)
+        );
 
-        line = line.substr(size_t(trim_left - line.begin()), size_t(trim_right - trim_left));
+        // 2. Must start with '#' followed by optional spaces and 'include'
+        if (line.empty() || line.front() != '#') { return std::nullopt; }
 
-        // Check if the line contains the "#include" token.
-        constexpr std::string_view kIncludeToken = "#include";
-        const size_t token_pos = line.find(kIncludeToken);
-        if (token_pos == std::string_view::npos) {
+        size_t curr_pos = 1; // skip '#'
+        while (curr_pos < line.size() && is_space(line[curr_pos])) { ++curr_pos; }
+
+        constexpr std::string_view kIncludeToken = "include";
+        if (curr_pos + kIncludeToken.size() > line.size() ||
+            line.compare(curr_pos, kIncludeToken.size(), kIncludeToken) != 0)
+        {
+            return std::nullopt;
+        }
+        curr_pos += kIncludeToken.size();
+
+        // Skip spaces after 'include' token (if exists)
+        while (curr_pos < line.size() && is_space(line[curr_pos])) { ++curr_pos; }
+        if (curr_pos >= line.size()) {
             return std::nullopt;
         }
 
-        // Check if there is nothing but spaces before the "#include" token.
-        for (size_t i = 0; i < token_pos; ++i) {
-            if (!std::isspace(static_cast<uint8_t>(line[i]))) {
+        // 3. Detect opening delimiter
+        char first_char = line[curr_pos];
+        if (first_char != '"' && first_char != '<') { return std::nullopt; }
+        char closing_char = (first_char == '"') ? '"' : '>';
+
+        ++curr_pos; // skip opening delimiter
+        size_t start_path = curr_pos;
+
+        // Find closing delimiter
+        while (curr_pos < line.size() && line[curr_pos] != closing_char) { ++curr_pos; }
+        if (curr_pos >= line.size()) { return std::nullopt; }
+
+        std::string include_path{ line.substr(start_path, curr_pos - start_path) };
+
+        ++curr_pos; // move past closing delimiter
+
+        // 4. Skip spaces
+        while (curr_pos < line.size() && is_space(line[curr_pos])) { ++curr_pos; }
+
+        // 5. Handle optional comments
+        if (curr_pos < line.size()) {
+            if (line.compare(curr_pos, 2, "//") == 0) {
+                // rest of line is comment -> ok
+            } else if (line.compare(curr_pos, 2, "/*") == 0) {
+                curr_pos += 2;
+                // find closing */
+                size_t close_pos = line.find("*/", curr_pos);
+                if (close_pos == std::string_view::npos) {
+                    return std::nullopt; // unterminated comment
+                }
+                curr_pos = close_pos + 2;
+                // skip spaces after comment
+                while (curr_pos < line.size() && is_space(line[curr_pos])) { ++curr_pos; }
+                if (curr_pos != line.size()) {
+                    return std::nullopt; // garbage after comment
+                }
+            } else {
+                // found non-comment garbage
                 return std::nullopt;
             }
         }
 
-        // Check if there is a file path after the "#include" directive.
-        size_t search_pos = token_pos + kIncludeToken.size();
-        if (search_pos >= line.size()) {
-            return std::nullopt;
-        }
-
-        // Skip any trailing spaces after "#include".
-        while (search_pos < line.size() && std::isspace(static_cast<uint8_t>(line[search_pos]))) ++search_pos;
-
-        // Now, check if a quote ('"') or angle bracket ('<') follows, indicating a valid file path.
-        if (search_pos >= line.size()) {
-            return std::nullopt;
-        }
-
-        const char first_char = line[search_pos];
-
-        // If the character after "#include" is not a quote or angle bracket, it's invalid.
-        if (first_char != '"' && first_char != '<') {
-            return std::nullopt;
-        }
-
-        // Extract the file path enclosed by quotes or angle brackets.
-        ++search_pos; // Move past the starting quote or angle bracket.
-        const size_t start_pos = search_pos;
-
-        const char closing_char = (first_char == '"') ? '"' : '>';
-        while (search_pos < line.size() && line[search_pos] != closing_char) ++search_pos;
-
-        // If no closing quote or angle bracket is found, the line is invalid.
-        if (search_pos >= line.size()) {
-            return std::nullopt;
-        }
-
-        // Check if there's anything but comments after the closing quote/bracket
-        size_t comment_check_pos = search_pos + 1;
-        bool found_non_whitespace = false;
-        bool found_comment = false;
-
-        while (comment_check_pos < line.size())
-        {
-            if (std::isspace(static_cast<uint8_t>(line[comment_check_pos]))) {
-                // Skip whitespace
-                ++comment_check_pos;
-                continue;
-            }
-
-            if (line.substr(comment_check_pos, 2) == "//" ||
-                line.substr(comment_check_pos, 2) == "/*") {
-                // Found a comment, everything is fine
-                found_comment = true;
-                break;
-            }
-
-            // Found non-whitespace, non-comment content
-            found_non_whitespace = true;
-            break;
-        }
-
-        // If there's non-whitespace content after the include that isn't a comment, the line is invalid
-        if (found_non_whitespace && !found_comment) {
-            return std::nullopt;
-        }
-
         return std::make_pair(
-            (first_char == '"') ? basic_shader_preprocessor::include_directive_type::quotes : basic_shader_preprocessor::include_directive_type::angle_brackets,
-            std::string{ line.substr(start_pos, search_pos - start_pos) }
+            (first_char == '"')
+            ? include_directive_type::quotes
+            : include_directive_type::angle_brackets,
+            std::move(include_path)
         );
     }
 
@@ -337,141 +325,117 @@ namespace triengine::core
     }
 
     ////////////////////////////////////////////////////////////////////////////////
-    // shader_preprocessor implementation
+    // shader_preprocessor_fs implementation
     ////////////////////////////////////////////////////////////////////////////////
 
-    shader_preprocessor::shader_preprocessor()
+    shader_preprocessor_fs::shader_preprocessor_fs()
         : basic_shader_preprocessor(std::bind(
-            &shader_preprocessor::_include_resolver, this, 
+            &shader_preprocessor_fs::_include_resolver, this, 
             std::placeholders::_1, 
             std::placeholders::_2, 
             std::placeholders::_3
         ))
     { }
 
-    void shader_preprocessor::set_default_search_directory(const std::filesystem::path& dir_path) {
-        _default_search_dir = this->_resolve_path(dir_path);
-        TRIENGINE_DEBUG("Default search directory set to: \"%s\""
-            , _default_search_dir.generic_string().c_str()
-        );
-    }
-
-    void shader_preprocessor::register_system_include(
-        std::string_view include_name,
-        const std::filesystem::path& file_path)
+    std::optional<std::string> shader_preprocessor_fs::process(
+        const std::filesystem::path& root_shader_file_path,
+        const bool throw_on_error) const
     {
-        if (include_name.empty()) {
-            throw std::runtime_error{ "invalid include_name argument" };
-        }
-
-        const std::filesystem::path resolved_file_path = this->_resolve_path(file_path);
-
-        std::string file_content = this->_read_file(resolved_file_path);
-        if (file_content.empty()) {
-            if (!this->_options().allow_empty_includes) {
-                TRIENGINE_PANIC("Empty system include file: \"%s\"", resolved_file_path.generic_string().c_str());
-            }
-            TRIENGINE_WARN("Empty system include file: \"%s\"", resolved_file_path.generic_string().c_str());
-        }
-
-        _registered_system_includes[this->_make_virtual_path(std::string{ include_name })] = std::move(file_content);
-
-        TRIENGINE_DEBUG("Registered system include file: \"%s\" -> \"%.*s\""
-            , resolved_file_path.generic_string().c_str()
-            , static_cast<int>(include_name.size())
-            , include_name.data()
-        );
-    }
-
-    void shader_preprocessor::register_system_include_from_memory(
-        std::string_view include_name,
-        std::string file_content)
-    {
-        if (include_name.empty()) {
-            throw std::runtime_error{ "invalid include_name argument" };
-        }
-
-        if (file_content.empty())
+        try
         {
-            if (!this->_options().allow_empty_includes) {
-                TRIENGINE_PANIC("Empty system include content for: \"%.*s\""
-                    , static_cast<int>(include_name.size())
-                    , include_name.data()
+            std::error_code ec;
+            std::filesystem::path root_shader_canonical_path = std::filesystem::canonical(
+                root_shader_file_path, 
+                ec
+            );
+
+            if (ec) {
+                TRIENGINE_PANIC("Failed to resolve root shader path \"%.*s\" (%s)"
+                    , static_cast<int>(root_shader_file_path.string().size())
+                    , root_shader_file_path.string().data()
+                    , ec.message().c_str()
                 );
             }
 
-            TRIENGINE_WARN("Empty system include content for: \"%.*s\""
-                , static_cast<int>(include_name.size())
-                , include_name.data()
+            std::string root_shader_file_content;
+            if (!this->_read_shader_file_content(root_shader_canonical_path, root_shader_file_content)) {
+                TRIENGINE_PANIC("Failed to read root shader file content from \"%s\""
+                    , root_shader_canonical_path.generic_string().c_str()
+                );
+            }
+
+            return this->process_from_memory(
+                root_shader_file_content,
+                root_shader_canonical_path.generic_string(),
+                throw_on_error
+            );
+        }
+        catch (const std::exception& e)
+        {
+            if (throw_on_error) {
+                throw;
+            }
+
+            TRIENGINE_ERROR("%s(): Error processing shader file \"%.*s\": %s"
+                , __func__
+                , static_cast<int>(root_shader_file_path.generic_string().size())
+                , root_shader_file_path.generic_string().data()
+                , e.what()
             );
         }
 
-        _registered_system_includes[this->_make_virtual_path(std::string{ include_name })] = std::move(file_content);
-        TRIENGINE_DEBUG("Registered system include \"%.*s\" from memory"
-            , static_cast<int>(include_name.size())
-            , include_name.data()
-        );
+        return std::nullopt;
     }
 
-    std::optional<shader_preprocessor::resolved_include_info_t> shader_preprocessor::_include_resolver(
-        const std::string_view current_file_path,
+    std::optional<shader_preprocessor_fs::resolved_include_info_t> shader_preprocessor_fs::_include_resolver(
+        const std::string_view current_file_canonical_path,
         const include_directive_type parsed_include_type,
         const std::string_view parsed_include_path) const
     {
         if (parsed_include_type == include_directive_type::quotes) // Handle: `#include "path/to/file.glsl"`
         {
-            std::filesystem::path resolved_include_path;
-            try {
-                resolved_include_path = this->_resolve_path(this->_is_virtual_path(current_file_path)
-                    ? _default_search_dir / parsed_include_path
-                    : std::filesystem::path{ current_file_path }.parent_path() / parsed_include_path
+            // Normalize the include path.
+            // Note: use `weakly_canonical()` as it doesn't require the file to exist yet, which is more robust.
+            // `canonical()` can be used as well if you are sure the path is valid.
+            std::error_code ec;
+            std::filesystem::path parsed_include_canonical_path = std::filesystem::weakly_canonical(
+                std::filesystem::path{ current_file_canonical_path }.parent_path() / parsed_include_path,
+                ec
+            );
+
+            if (ec) {
+                TRIENGINE_ERROR("Failed to resolve path for \"%.*s\" relative to \"%.*s\". Reason: %s"
+                    , static_cast<int>(parsed_include_path.size()), parsed_include_path.data()
+                    , static_cast<int>(current_file_canonical_path.size()), current_file_canonical_path.data()
+                    , ec.message().c_str()
                 );
-            } catch (...) {
-                TRIENGINE_WARN("Faild to resolve include file path");
                 return std::nullopt;
             }
 
-            // Avoid including self
-            if (current_file_path == resolved_include_path) {
-                TRIENGINE_WARN("Tried to include itself");
+            // Avoid self-including
+            if (std::filesystem::path{ current_file_canonical_path } == parsed_include_canonical_path) {
+                TRIENGINE_ERROR("Self-include detected: \"%s\""
+                    , parsed_include_canonical_path.generic_string().c_str()
+                );
                 return std::nullopt;
             }
 
-            std::string file_content = this->_read_file(resolved_include_path);
+            std::string file_content;
+            if (!this->_read_shader_file_content(parsed_include_canonical_path, file_content)) {
+                TRIENGINE_ERROR("Failed to read file content from \"%s\""
+                    , parsed_include_canonical_path.generic_string().c_str()
+                );
+                return std::nullopt;
+            }
 
             return resolved_include_info_t{
-                resolved_include_path.generic_string(),
+                parsed_include_canonical_path.generic_string(),
                 std::move(file_content)
             };
         }
-        else if (parsed_include_type == include_directive_type::angle_brackets) // Handle: `#include <path/to/file.glsl>`
-        {
-            const std::filesystem::path virtual_include_path = this->_make_virtual_path(parsed_include_path);
-
-            // Avoid including self
-            if (current_file_path == virtual_include_path) {
-                TRIENGINE_WARN("Tried to include itself");
-                return std::nullopt;
-            }
-
-            if (const auto it = _registered_system_includes.find(virtual_include_path);
-                it != _registered_system_includes.end())
-            {
-                const std::string& file_content = it->second;
-
-                return resolved_include_info_t{
-                    virtual_include_path.generic_string(),
-                    file_content
-                };
-            }
-            else
-            {
-                TRIENGINE_WARN("Invalid system include file");
-            }
-        }
         else
         {
-            TRIENGINE_WARN("Unknown include directive type: %d"
+            TRIENGINE_ERROR("Unsupported include directive type: %d"
                 , static_cast<int>(parsed_include_type)
             );
         }
@@ -479,47 +443,9 @@ namespace triengine::core
         return std::nullopt;
     }
 
-    // --- Helper methods ---
-
-    std::filesystem::path shader_preprocessor::_make_virtual_path(
-        const std::string_view p) const
-    {
-        if (p.find("virtual:") == 0) {
-            return std::filesystem::path{ p };
-        }
-        else {
-            return std::filesystem::path{ "virtual:" } / p;
-        }
-    }
-
-    bool shader_preprocessor::_is_virtual_path(
-        const std::filesystem::path& p) const
-    {
-        return p.string().find("virtual:") == 0;
-    }
-
-    std::filesystem::path shader_preprocessor::_resolve_path(
-        const std::filesystem::path& p) const
-    {
-        try
-        {
-            if (!std::filesystem::exists(p)) {
-                throw std::runtime_error{ "not found" };
-            }
-
-            // Make sure the path is properly normalized
-            return std::filesystem::canonical(p);
-        }
-        catch (const std::filesystem::filesystem_error& e)
-        {
-            TRIENGINE_PANIC("Failed to resolve path \"%s\" (%s)"
-                , p.generic_string().c_str(), e.what()
-            );
-        }
-    }
-
-    std::string shader_preprocessor::_read_file(
-        const std::filesystem::path& file_path) const
+    bool shader_preprocessor_fs::_read_shader_file_content(
+        const std::filesystem::path& file_path,
+        std::string& file_content/* out */) const
     {
         try
         {
@@ -533,18 +459,29 @@ namespace triengine::core
             const auto size = static_cast<size_t>(f.tellg());
             f.seekg(0, std::ios::beg);
 
-            std::string content;
-            content.reserve(size);
-            content.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            file_content.clear();
+            file_content.reserve(size);
+            file_content.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 
-            return content;
+            // Strip UTF-8 BOM signature (optional)
+            if (file_content.size() >= 3 &&
+                static_cast<uint8_t>(file_content[0]) == 0xEF &&
+                static_cast<uint8_t>(file_content[1]) == 0xBB &&
+                static_cast<uint8_t>(file_content[2]) == 0xBF) {
+                file_content.erase(0, 3);
+            }
+
+            return true;
         }
         catch (const std::exception& e)
         {
-            TRIENGINE_PANIC("error reading file \"%s\": %s"
-                , file_path.generic_string().c_str(), e.what()
+            TRIENGINE_ERROR("Failed to read file \"%s\": %s"
+                , file_path.generic_string().c_str()
+                , e.what()
             );
         }
+
+        return false;
     }
 
 } // namespace
