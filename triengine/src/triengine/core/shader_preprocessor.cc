@@ -46,7 +46,7 @@ namespace triengine::core
             std::unordered_set<std::string> included_canonical_paths;
             std::stack<include_context_t> include_stack;
             return this->_preprocess_include_directives(
-                std::string{ root_shader_source },
+                root_shader_source,
                 std::string{ root_shader_canonical_path },
                 included_canonical_paths,
                 include_stack,
@@ -71,7 +71,7 @@ namespace triengine::core
     }
 
     std::string basic_shader_preprocessor::_preprocess_include_directives(
-        const std::string& curr_shader_file_content,
+        const std::string_view curr_shader_file_content,
         const std::string& curr_shader_canonical_path,
         std::unordered_set<std::string>& curr_included_canonical_paths/* in-out */,
         std::stack<include_context_t>& curr_include_stack/* in-out */,

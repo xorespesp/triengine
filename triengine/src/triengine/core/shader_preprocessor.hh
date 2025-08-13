@@ -150,7 +150,7 @@ namespace triengine::core
          * @throws std::runtime_error there is a processing error
          */
         std::string _preprocess_include_directives(
-            const std::string& curr_shader_file_content,
+            std::string_view curr_shader_file_content,
             const std::string& curr_shader_canonical_path,
             std::unordered_set<std::string>& curr_included_canonical_paths/* in-out */,
             std::stack<include_context_t>& curr_include_stack/* in-out */,
