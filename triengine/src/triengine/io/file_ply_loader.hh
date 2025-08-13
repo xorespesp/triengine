@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <functional>
 #include <triengine/geometry/pcd_object.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 #include <triengine/io/pointcloud_load_options.hh>
 
 namespace triengine::io

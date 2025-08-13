@@ -1,11 +1,11 @@
 #pragma once
 #include <triengine/renderer/renderer_base.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 
 namespace triengine::renderer
 {
-    class triangle_mesh_renderer
-        : public object_renderer_base<triangle_mesh_renderer, geometry::triangle_mesh_object>
+    class mesh_renderer
+        : public object_renderer_base<mesh_renderer, geometry::mesh_object>
     {
     private:
         // Render options
@@ -21,7 +21,7 @@ namespace triengine::renderer
             _normal_vis_shader;
 
     public:
-        triangle_mesh_renderer();
+        mesh_renderer();
 
         // Toggle object's normal visualization.
         void enable_object_normal_rendering(bool enable);
@@ -39,21 +39,21 @@ namespace triengine::renderer
     private:
         void _render_vertex_shading_objects(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+            const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
             pred_callback_type predicate,
             void* predicate_userdata
         );
 
         void _render_texture_shading_objects(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+            const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
             pred_callback_type predicate,
             void* predicate_userdata
         );
 
         void _render_objects_normals(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+            const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
             pred_callback_type predicate,
             void* predicate_userdata
         );

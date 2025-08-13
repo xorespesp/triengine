@@ -53,7 +53,7 @@ namespace demo::scene
         ui_state_t _state;
         gui::widgets::file_browser_widget _file_browser;
 
-        std::shared_ptr<geometry::triangle_mesh_object> _origin_axis;
+        std::shared_ptr<geometry::mesh_object> _origin_axis;
         std::shared_ptr<geometry::skeleton_object> _bvh_skeleton;
 
     public:
@@ -89,7 +89,7 @@ namespace demo::scene
                 scn->get_render_config()->inf_plane_opts.plane_option = inf_plane_opt;
             }
 
-            _origin_axis = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            _origin_axis = geometry::mesh_object::create_coordinate_frame(0.5f);
             scn->add_geometry(_origin_axis);
 
             _file_browser.register_file_filters({ "*.bvh", "*.*" });

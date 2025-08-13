@@ -2,7 +2,7 @@
 #include "../scene_wrapper.hh"
 
 #include <triengine/math/math3d.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 #include <triengine/io/file_obj_loader.hh>
 
 namespace demo::scene
@@ -12,8 +12,8 @@ namespace demo::scene
     class main_scene
         : public scene_wrapper
     {
-        std::shared_ptr<geometry::triangle_mesh_object> _skull_mesh;
-        std::shared_ptr<geometry::triangle_mesh_object> _skull_mesh2;
+        std::shared_ptr<geometry::mesh_object> _skull_mesh;
+        std::shared_ptr<geometry::mesh_object> _skull_mesh2;
 
     public:
         main_scene(
@@ -32,13 +32,13 @@ namespace demo::scene
 
             scn->switch_camera_type(triengine::camera_type::arcball);
 
-            auto mesh_axis_frame = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            auto mesh_axis_frame = geometry::mesh_object::create_coordinate_frame(0.5f);
             //mesh_axis_frame->paint_uniform_color(_get_next_color());
             //mesh_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
             scn->add_geometry(mesh_axis_frame);
 
-            _skull_mesh = std::make_shared<geometry::triangle_mesh_object>();
-            if (io::load_triangle_mesh_from_obj(
+            _skull_mesh = std::make_shared<geometry::mesh_object>();
+            if (io::load_mesh_from_obj(
                 rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
                 false,
                 *_skull_mesh
@@ -61,8 +61,8 @@ namespace demo::scene
                 scn->add_geometry(_skull_mesh);
             }
 
-            _skull_mesh2 = std::make_shared<geometry::triangle_mesh_object>();
-            if (io::load_triangle_mesh_from_obj(
+            _skull_mesh2 = std::make_shared<geometry::mesh_object>();
+            if (io::load_mesh_from_obj(
                 rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
                 false,
                 *_skull_mesh2

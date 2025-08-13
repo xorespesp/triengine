@@ -1,4 +1,4 @@
-// Vertex-Shaded TriangleMesh Object Vertex Shader
+// Vertex-Shaded Mesh Object Vertex Shader
 
 ////////////////////////////////////////////
 // shader inputs

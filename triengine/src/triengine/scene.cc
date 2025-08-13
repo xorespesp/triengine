@@ -41,8 +41,8 @@ namespace triengine
             gpu_rsrc_mgr->request_acquire_geometry_resource(object);
             break;
         }
-        case geometry::geometry_object_type::triangle_mesh: {
-            auto object = std::static_pointer_cast<geometry::triangle_mesh_object>(geometry_object);
+        case geometry::geometry_object_type::mesh: {
+            auto object = std::static_pointer_cast<geometry::mesh_object>(geometry_object);
             _mesh_geometries.push_back(object);
             gpu_rsrc_mgr->request_acquire_geometry_resource(object);
             break;
@@ -83,8 +83,8 @@ namespace triengine
             gpu_rsrc_mgr->request_release_geometry_resource(object);
             break;
         }
-        case geometry::geometry_object_type::triangle_mesh: {
-            auto object = std::static_pointer_cast<geometry::triangle_mesh_object>(geometry_object);
+        case geometry::geometry_object_type::mesh: {
+            auto object = std::static_pointer_cast<geometry::mesh_object>(geometry_object);
             object->mark_dirty();
             _mesh_geometries.remove(object);
             gpu_rsrc_mgr->request_release_geometry_resource(object);

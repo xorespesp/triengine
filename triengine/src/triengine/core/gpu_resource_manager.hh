@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/geometry/geometry_object_base.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 #include <triengine/geometry/pcd_object.hh>
 #include <triengine/geometry/lineset_object.hh>
 #include <triengine/utility/noncopyable.hh>
@@ -44,8 +44,8 @@ namespace triengine::core
         }
     };
 
-    class triangle_mesh_gpu_rsrc
-        : public core::geometry_gpu_rsrc_base<triangle_mesh_gpu_rsrc>
+    class mesh_gpu_rsrc
+        : public core::geometry_gpu_rsrc_base<mesh_gpu_rsrc>
     {
     public:
         GLuint vao{};
@@ -53,8 +53,8 @@ namespace triengine::core
         GLuint ibo{};
 
     public:
-        triangle_mesh_gpu_rsrc();
-        ~triangle_mesh_gpu_rsrc();
+        mesh_gpu_rsrc();
+        ~mesh_gpu_rsrc();
 
         // CRTP methods
         bool is_valid_impl() const;
@@ -62,7 +62,7 @@ namespace triengine::core
         
     }; // class
 
-    using triangle_mesh_gpu_rsrc_ptr = std::shared_ptr<triangle_mesh_gpu_rsrc>;
+    using mesh_gpu_rsrc_ptr = std::shared_ptr<mesh_gpu_rsrc>;
     
     class pcd_gpu_rsrc
         : public core::geometry_gpu_rsrc_base<pcd_gpu_rsrc>
@@ -297,11 +297,11 @@ namespace triengine::core
         };
 
     private:
-        gpu_resource_pooled_allocator<triangle_mesh_gpu_rsrc, kMaxPoolSize> _triangle_mesh_rsrc_pool_alloc;
+        gpu_resource_pooled_allocator<mesh_gpu_rsrc, kMaxPoolSize> _mesh_rsrc_pool_alloc;
         gpu_resource_pooled_allocator<pcd_gpu_rsrc, kMaxPoolSize> _pcd_rsrc_pool_alloc;
         gpu_resource_pooled_allocator<lineset_gpu_rsrc, kMaxPoolSize> _lineset_rsrc_pool_alloc;
 
-        geometry_resource_map<triangle_mesh_gpu_rsrc_ptr> _triangle_mesh_rsrc_map;
+        geometry_resource_map<mesh_gpu_rsrc_ptr> _mesh_rsrc_map;
         geometry_resource_map<pcd_gpu_rsrc_ptr> _pcd_rsrc_map;
         geometry_resource_map<lineset_gpu_rsrc_ptr> _lineset_rsrc_map;
 
@@ -325,8 +325,8 @@ namespace triengine::core
         void process_pending_requests();
 
         // NOTE: must be called in render thread
-        triangle_mesh_gpu_rsrc_ptr get_triangle_mesh_resource(
-            const std::shared_ptr<geometry::triangle_mesh_object>& object
+        mesh_gpu_rsrc_ptr get_mesh_resource(
+            const std::shared_ptr<geometry::mesh_object>& object
         ) const;
 
         // NOTE: must be called in render thread

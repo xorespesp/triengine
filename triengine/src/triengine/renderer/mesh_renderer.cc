@@ -1,18 +1,18 @@
-#include "triangle_mesh_renderer.hh"
+#include "mesh_renderer.hh"
 
 #include <triengine/utility/debug_utils.hh>
 
 namespace triengine::renderer
 {
-    triangle_mesh_renderer::triangle_mesh_renderer()
+    mesh_renderer::mesh_renderer()
     {}
 
-    void triangle_mesh_renderer::enable_object_normal_rendering(bool enable)
+    void mesh_renderer::enable_object_normal_rendering(bool enable)
     {
         _show_object_normals = enable;
     }
 
-    void triangle_mesh_renderer::create_impl(core::gl_context& glctx)
+    void mesh_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());
         this->set_creation_flag(true);
@@ -55,7 +55,7 @@ namespace triengine::renderer
             .link();
     }
 
-    void triangle_mesh_renderer::destroy_impl()
+    void mesh_renderer::destroy_impl()
     {
         if (this->is_created())
         {
@@ -71,7 +71,7 @@ namespace triengine::renderer
         }
     }
 
-    void triangle_mesh_renderer::render_impl(
+    void mesh_renderer::render_impl(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
         const pred_callback_type predicate,
@@ -92,9 +92,9 @@ namespace triengine::renderer
         }
     }
 
-    void triangle_mesh_renderer::_render_vertex_shading_objects(
+    void mesh_renderer::_render_vertex_shading_objects(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+        const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
         pred_callback_type const predicate,
         void* const predicate_userdata)
     {
@@ -116,7 +116,7 @@ namespace triengine::renderer
         auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
         for (const auto& object : render_objects)
         {
-            if (!object->is_visible() || object->get_shading_mode() != geometry::triangle_mesh_object::shading_mode::vertex) {
+            if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
                 continue;
             }
 
@@ -133,7 +133,7 @@ namespace triengine::renderer
                 break;
             }
 
-            const auto gpu_rsrc = gpu_rsrc_mgr->get_triangle_mesh_resource(object);
+            const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
             if (!gpu_rsrc) {
                 continue;
             }
@@ -181,9 +181,9 @@ namespace triengine::renderer
         } // for
     }
 
-    void triangle_mesh_renderer::_render_texture_shading_objects(
+    void mesh_renderer::_render_texture_shading_objects(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+        const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
         pred_callback_type const predicate,
         void* const predicate_userdata)
     {
@@ -205,7 +205,7 @@ namespace triengine::renderer
         auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
         for (const auto& object : render_objects)
         {
-            if (!object->is_visible() || object->get_shading_mode() != geometry::triangle_mesh_object::shading_mode::texture) {
+            if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
                 continue;
             }
 
@@ -222,7 +222,7 @@ namespace triengine::renderer
                 break;
             }
 
-            const auto gpu_rsrc = gpu_rsrc_mgr->get_triangle_mesh_resource(object);
+            const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
             if (!gpu_rsrc) {
                 continue;
             }
@@ -277,9 +277,9 @@ namespace triengine::renderer
         } // for
     }
 
-    void triangle_mesh_renderer::_render_objects_normals(
+    void mesh_renderer::_render_objects_normals(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<geometry::triangle_mesh_object>>& render_objects,
+        const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
         pred_callback_type const predicate,
         void* const predicate_userdata)
     {
@@ -300,7 +300,7 @@ namespace triengine::renderer
                 continue;
             }
 
-            const auto gpu_rsrc = gpu_rsrc_mgr->get_triangle_mesh_resource(object);
+            const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
             if (!gpu_rsrc) {
                 continue;
             }

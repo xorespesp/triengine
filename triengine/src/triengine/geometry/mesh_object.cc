@@ -1,4 +1,4 @@
-#include "triangle_mesh_object.hh"
+#include "mesh_object.hh"
 
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/hash_utils.hh>
@@ -6,7 +6,7 @@
 
 namespace triengine::geometry
 {
-    triangle_mesh_object& triangle_mesh_object::remove_duplicated_vertices()
+    mesh_object& mesh_object::remove_duplicated_vertices()
     {
         const bool has_vertex_normals = this->has_triangle_normals();
         const bool has_vertex_colors = this->has_triangle_colors();
@@ -75,7 +75,7 @@ namespace triengine::geometry
         return *this;
     }
 
-    triangle_mesh_object& triangle_mesh_object::remove_unreferenced_vertices()
+    mesh_object& mesh_object::remove_unreferenced_vertices()
     {
         const bool has_vertex_normals = this->has_triangle_normals();
         const bool has_vertex_colors = this->has_triangle_colors();
@@ -137,7 +137,7 @@ namespace triengine::geometry
         return *this;
     }
 
-    triangle_mesh_object& triangle_mesh_object::normalize_vertex_normals()
+    mesh_object& mesh_object::normalize_vertex_normals()
     {
         using scalar_type = decltype(vertex_normals)::value_type::Scalar;
         
@@ -152,7 +152,7 @@ namespace triengine::geometry
         return *this;
     }
 
-    triangle_mesh_object& triangle_mesh_object::compute_vertex_normals(const bool smooth_shading)
+    mesh_object& mesh_object::compute_vertex_normals(const bool smooth_shading)
     {
         /// TODO: improve this
 
@@ -209,7 +209,7 @@ namespace triengine::geometry
         return *this;
     }
 
-    triangle_mesh_object& triangle_mesh_object::operator+=(const triangle_mesh_object& rhs)
+    mesh_object& mesh_object::operator+=(const mesh_object& rhs)
     {
         // Ref: https://github.com/isl-org/Open3D/blob/db00e339c1645440dea6951c2971ffa759934112/cpp/open3d/geometry/TriangleMesh.cpp#L53
 

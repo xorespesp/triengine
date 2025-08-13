@@ -14,7 +14,7 @@ namespace triengine::geometry
     using geometry_object_id_t = uint64_t; // unique id
 
     enum class geometry_object_type {
-        triangle_mesh,
+        mesh,
         pointcloud,
         lineset,
         skeleton,

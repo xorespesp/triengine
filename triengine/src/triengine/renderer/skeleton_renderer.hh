@@ -1,7 +1,7 @@
 #pragma once
 #include <triengine/renderer/renderer_base.hh>
 #include <triengine/geometry/skeleton_object.hh>
-#include <triengine/renderer/triangle_mesh_renderer.hh>
+#include <triengine/renderer/mesh_renderer.hh>
 
 namespace triengine::renderer
 {
@@ -13,7 +13,7 @@ namespace triengine::renderer
         bool _flag_show_joint_axis{ false };
 
         // Internal renderer
-        triangle_mesh_renderer _mesh_renderer;
+        mesh_renderer _mesh_renderer;
 
     public:
         skeleton_renderer();

@@ -6,7 +6,7 @@
 #include <triengine/core/gpu_resource_manager.hh>
 #include <triengine/geometry/lineset_object.hh>
 #include <triengine/geometry/pcd_object.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 #include <triengine/geometry/skeleton_object.hh>
 #include <triengine/utility/noncopyable.hh>
 
@@ -55,7 +55,7 @@ namespace triengine
 
         std::list<std::shared_ptr<geometry::lineset_object>> _lineset_geometries;
         std::list<std::shared_ptr<geometry::pcd_object>> _pcd_geometries;
-        std::list<std::shared_ptr<geometry::triangle_mesh_object>> _mesh_geometries;
+        std::list<std::shared_ptr<geometry::mesh_object>> _mesh_geometries;
         std::list<std::shared_ptr<geometry::skeleton_object>> _skeleton_geometries;
 
         scene_render_config _render_config;

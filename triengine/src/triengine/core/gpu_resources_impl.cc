@@ -18,10 +18,10 @@ namespace triengine::core
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    triangle_mesh_gpu_rsrc::triangle_mesh_gpu_rsrc()
-        : core::geometry_gpu_rsrc_base<triangle_mesh_gpu_rsrc>{ _create_unique_gpu_resource_id() }
+    mesh_gpu_rsrc::mesh_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<mesh_gpu_rsrc>{ _create_unique_gpu_resource_id() }
     {
-        TRIENGINE_TRACE("CREATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
+        TRIENGINE_TRACE("CREATE mesh_gpu_rsrc(#%X)", this->get_id());
 
         GLCall(::glCreateVertexArrays(1, &vao));
         GLCall(::glCreateBuffers(1, &vbo));
@@ -40,9 +40,9 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    triangle_mesh_gpu_rsrc::~triangle_mesh_gpu_rsrc()
+    mesh_gpu_rsrc::~mesh_gpu_rsrc()
     {
-        TRIENGINE_TRACE("DESTROY triangle_mesh_gpu_rsrc(#%X)", this->get_id());
+        TRIENGINE_TRACE("DESTROY mesh_gpu_rsrc(#%X)", this->get_id());
 
         if (ibo) {
             ::glDeleteBuffers(1, &ibo);
@@ -60,7 +60,7 @@ namespace triengine::core
         }
     }
 
-    bool triangle_mesh_gpu_rsrc::is_valid_impl() const
+    bool mesh_gpu_rsrc::is_valid_impl() const
     { 
         return 
             vao != 0 && 
@@ -68,21 +68,21 @@ namespace triengine::core
             ibo != 0;
     }
 
-    void triangle_mesh_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
+    void mesh_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
-        //TRIENGINE_TRACE("UPDATE triangle_mesh_gpu_rsrc(#%X)", this->get_id());
+        //TRIENGINE_TRACE("UPDATE mesh_gpu_rsrc(#%X)", this->get_id());
 
         TRIENGINE_ASSERT(geometry_object != nullptr);
-        TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::triangle_mesh);
+        TRIENGINE_ASSERT(geometry_object->get_type() == geometry::geometry_object_type::mesh);
 
-        auto mesh_object = std::static_pointer_cast<geometry::triangle_mesh_object>(geometry_object);
+        auto mesh_object = std::static_pointer_cast<geometry::mesh_object>(geometry_object);
 
         /**
          * glNamedBufferStorage -> Cannot be resized. Calling it again with the same ID but a different size will result in an error.
          * glNamedBufferData    -> Can be resized. Calling it again with the same ID but a different size will result in a reallocation.
          */
         switch (mesh_object->get_shading_mode()) {
-        case geometry::triangle_mesh_object::shading_mode::vertex:
+        case geometry::mesh_object::shading_mode::vertex:
         {
             const auto& positions = mesh_object->vertex_positions;
             const auto& normals = mesh_object->vertex_normals;
@@ -142,7 +142,7 @@ namespace triengine::core
 
             break;
         }
-        case geometry::triangle_mesh_object::shading_mode::texture:
+        case geometry::mesh_object::shading_mode::texture:
         {
             const auto& positions = mesh_object->vertex_positions;
             const auto& normals = mesh_object->vertex_normals;

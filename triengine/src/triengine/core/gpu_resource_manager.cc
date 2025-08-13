@@ -38,7 +38,7 @@ namespace triengine::core
             cmd_q.swap(_cmd_q); // swap queue (minimize lock time)
         }
         
-        _triangle_mesh_rsrc_pool_alloc.collect_available_objects();
+        _mesh_rsrc_pool_alloc.collect_available_objects();
         _pcd_rsrc_pool_alloc.collect_available_objects();
         _lineset_rsrc_pool_alloc.collect_available_objects();
 
@@ -56,12 +56,12 @@ namespace triengine::core
     }
 
     // NOTE: must be called in render thread
-    triangle_mesh_gpu_rsrc_ptr gpu_resource_manager::get_triangle_mesh_resource(
-        const std::shared_ptr<geometry::triangle_mesh_object>& object) const
+    mesh_gpu_rsrc_ptr gpu_resource_manager::get_mesh_resource(
+        const std::shared_ptr<geometry::mesh_object>& object) const
     {
-        auto it = _triangle_mesh_rsrc_map.find(object->get_id());
-        if (it == _triangle_mesh_rsrc_map.end()) {
-            TRIENGINE_ERROR("Failed to get triangle mesh gpu resource: %s", object->get_name().c_str());
+        auto it = _mesh_rsrc_map.find(object->get_id());
+        if (it == _mesh_rsrc_map.end()) {
+            TRIENGINE_ERROR("Failed to get mesh gpu resource: %s", object->get_name().c_str());
             return nullptr; // No resources or not yet updated
         }
         return it->second;
@@ -97,19 +97,19 @@ namespace triengine::core
         const geometry::geometry_object_id_t obj_id)
     {
         switch (obj_type) {
-        case geometry::geometry_object_type::triangle_mesh: {
-            const auto new_gpu_rsrc = _triangle_mesh_rsrc_pool_alloc.allocate();
-            const auto [insert_it, success] = _triangle_mesh_rsrc_map.insert(
+        case geometry::geometry_object_type::mesh: {
+            const auto new_gpu_rsrc = _mesh_rsrc_pool_alloc.allocate();
+            const auto [insert_it, success] = _mesh_rsrc_map.insert(
                 { obj_id, new_gpu_rsrc }
             );
 
             if (success) {
-                //TRIENGINE_TRACE("triangle_mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
+                //TRIENGINE_TRACE("mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
                 //    , new_gpu_rsrc->get_id()
                 //    , obj_id
                 //);
             } else {
-                TRIENGINE_ERROR("Failed to bind triangle_mesh_gpu_rsrc to geometry object #%llX", obj_id);
+                TRIENGINE_ERROR("Failed to bind mesh_gpu_rsrc to geometry object #%llX", obj_id);
             }
 
             break;
@@ -163,15 +163,15 @@ namespace triengine::core
         const geometry::geometry_object_id_t obj_id)
     {
         switch (obj_type) {
-        case geometry::geometry_object_type::triangle_mesh: {
-            if (const auto it = _triangle_mesh_rsrc_map.find(obj_id);
-                it != _triangle_mesh_rsrc_map.end()) {
-                //TRIENGINE_TRACE("Releasing triangle_mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
+        case geometry::geometry_object_type::mesh: {
+            if (const auto it = _mesh_rsrc_map.find(obj_id);
+                it != _mesh_rsrc_map.end()) {
+                //TRIENGINE_TRACE("Releasing mesh_gpu_rsrc(#%llX) bound to geometry object #%llX"
                 //    , it->second->get_id()
                 //    , obj_id
                 //);
-                _triangle_mesh_rsrc_pool_alloc.deallocate(it->second);
-                _triangle_mesh_rsrc_map.erase(it);
+                _mesh_rsrc_pool_alloc.deallocate(it->second);
+                _mesh_rsrc_map.erase(it);
             }    
             break;
         }

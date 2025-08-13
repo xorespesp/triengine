@@ -9,7 +9,7 @@
 
 #include <triengine/renderer/infinite_plane_renderer.hh>
 #include <triengine/renderer/light_source_renderer.hh>
-#include <triengine/renderer/triangle_mesh_renderer.hh>
+#include <triengine/renderer/mesh_renderer.hh>
 #include <triengine/renderer/lineset_renderer.hh>
 #include <triengine/renderer/pcd_renderer.hh>
 #include <triengine/renderer/skeleton_renderer.hh>
@@ -38,7 +38,7 @@ namespace triengine::core
 
         renderer::infinite_plane_renderer _inf_plane_renderer;
         renderer::light_source_renderer _light_source_renderer;
-        renderer::triangle_mesh_renderer _mesh_renderer;
+        renderer::mesh_renderer _mesh_renderer;
         renderer::lineset_renderer _lineset_renderer;
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;

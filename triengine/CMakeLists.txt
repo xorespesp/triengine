@@ -23,15 +23,15 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/pcd_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/skeleton_object.cc"
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/triangle_mesh_object.cc"
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/triangle_mesh_object_factory.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/mesh_object.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/mesh_object_factory.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/infinite_plane_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/light_source_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/lineset_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/pcd_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/skeleton_renderer.cc"
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/triangle_mesh_renderer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/mesh_renderer.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_ctrl_window.cc"
@@ -85,7 +85,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/lineset_object.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/pcd_object.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/skeleton_object.hh"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/triangle_mesh_object.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/mesh_object.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/infinite_plane_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/light_source_renderer.hh"
@@ -93,7 +93,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/pcd_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/renderer_base.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/skeleton_renderer.hh"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/triangle_mesh_renderer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/mesh_renderer.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"

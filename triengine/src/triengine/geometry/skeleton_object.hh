@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/geometry/geometry_object_base.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 
 #include <list>
 #include <memory>
@@ -66,7 +66,7 @@ namespace triengine::geometry
         : public geometry_object_base
     {
     private:
-        std::list<std::shared_ptr<geometry::triangle_mesh_object>>
+        std::list<std::shared_ptr<geometry::mesh_object>>
             _joint_objects,
             _bone_objects;
 
@@ -134,7 +134,7 @@ namespace triengine::geometry
         }
 
     private:
-        // NOTE: In the current implementation, the number of `triangle_mesh_object`s 
+        // NOTE: In the current implementation, the number of `mesh_object`s 
         // internally added to a `skeleton_object` must NOT change after object creation.
         // (The `gpu_resource_manager` does not automatically track these changes.)
 

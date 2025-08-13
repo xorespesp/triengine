@@ -372,13 +372,13 @@ private:
         scn->switch_camera_type(triengine::camera_type::arcball);
         scn->get_camera()->as<triengine::arcball_camera>()->get_options().damping_factor = 11.0f;
 
-        auto mesh_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+        auto mesh_axis_frame = triengine::geometry::mesh_object::create_coordinate_frame(0.5f);
         //mesh_axis_frame->paint_uniform_color(_get_next_color());
         //mesh_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
         scn->add_geometry(mesh_axis_frame);
 
-        _skull_mesh = std::make_shared<triengine::geometry::triangle_mesh_object>();
-        if (triengine::io::load_triangle_mesh_from_obj(
+        _skull_mesh = std::make_shared<triengine::geometry::mesh_object>();
+        if (triengine::io::load_mesh_from_obj(
             rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
             false,
             *_skull_mesh
@@ -401,8 +401,8 @@ private:
             scn->add_geometry(_skull_mesh);
         }
 
-        _skull_mesh2 = std::make_shared<triengine::geometry::triangle_mesh_object>();
-        if (triengine::io::load_triangle_mesh_from_obj(
+        _skull_mesh2 = std::make_shared<triengine::geometry::mesh_object>();
+        if (triengine::io::load_mesh_from_obj(
             rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
             false,
             *_skull_mesh2
@@ -518,8 +518,8 @@ private:
     // GL Renderer
     std::unique_ptr<triengine::visualization::offscreen_renderer_dx> _renderer;
     std::shared_ptr<triengine::scene> _scene;
-    std::shared_ptr<triengine::geometry::triangle_mesh_object> _skull_mesh;
-    std::shared_ptr<triengine::geometry::triangle_mesh_object> _skull_mesh2;
+    std::shared_ptr<triengine::geometry::mesh_object> _skull_mesh;
+    std::shared_ptr<triengine::geometry::mesh_object> _skull_mesh2;
     
     bool _flag_mouse_dragging{ false };
     bool _flag_l_mouse_pressed{ false };

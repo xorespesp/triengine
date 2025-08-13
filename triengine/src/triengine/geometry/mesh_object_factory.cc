@@ -1,4 +1,4 @@
-#include "triangle_mesh_object.hh"
+#include "mesh_object.hh"
 #include <triengine/math/constants.hh>
 #include <triengine/utility/debug_utils.hh>
 
@@ -9,7 +9,7 @@ namespace triengine::geometry
      * https://github.com/isl-org/Open3D/blob/db00e339c1645440dea6951c2971ffa759934112/cpp/open3d/geometry/TriangleMeshFactory.cpp
      */
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_box(
+    std::shared_ptr<mesh_object> mesh_object::create_box(
         const float width,
         const float height,
         const float depth)
@@ -18,7 +18,7 @@ namespace triengine::geometry
         TRIENGINE_ASSERT(height > 0);
         TRIENGINE_ASSERT(depth > 0);
 
-        auto mesh = std::make_shared<triangle_mesh_object>();
+        auto mesh = std::make_shared<mesh_object>();
         auto& vertex_positions = mesh->vertex_positions;
         auto& vertex_normals = mesh->vertex_normals;
         auto& triangle_indices = mesh->triangle_indices;
@@ -82,14 +82,14 @@ namespace triengine::geometry
         return mesh;
     }
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_sphere(
+    std::shared_ptr<mesh_object> mesh_object::create_sphere(
         const float radius,
         const int resolution)
     {
         TRIENGINE_ASSERT(radius > 0);
         TRIENGINE_ASSERT(resolution > 0);
 
-        auto mesh = std::make_shared<triangle_mesh_object>();
+        auto mesh = std::make_shared<mesh_object>();
         auto& vertex_positions = mesh->vertex_positions;
         auto& vertex_normals = mesh->vertex_normals;
         auto& triangle_indices = mesh->triangle_indices;
@@ -155,7 +155,7 @@ namespace triengine::geometry
     }
 
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_cylinder(
+    std::shared_ptr<mesh_object> mesh_object::create_cylinder(
         const float radius,
         const float height,
         const int resolution,
@@ -166,7 +166,7 @@ namespace triengine::geometry
         TRIENGINE_ASSERT(resolution > 0);
         TRIENGINE_ASSERT(split > 0);
 
-        auto mesh = std::make_shared<triangle_mesh_object>();
+        auto mesh = std::make_shared<mesh_object>();
         auto& vertex_positions = mesh->vertex_positions;
         auto& vertex_normals = mesh->vertex_normals;
         auto& triangle_indices = mesh->triangle_indices;
@@ -221,7 +221,7 @@ namespace triengine::geometry
         return mesh;
     }
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_cone(
+    std::shared_ptr<mesh_object> mesh_object::create_cone(
         const float base_radius,
         const float height,
         const int resolution,
@@ -279,7 +279,7 @@ namespace triengine::geometry
             }
         }
 
-        auto mesh = std::make_shared<triangle_mesh_object>(); {
+        auto mesh = std::make_shared<mesh_object>(); {
             auto& vertex_positions = mesh->vertex_positions;
             auto& vertex_normals = mesh->vertex_normals;
             auto& triangle_indices = mesh->triangle_indices;
@@ -322,7 +322,7 @@ namespace triengine::geometry
         return mesh;
     }
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_frustum(
+    std::shared_ptr<mesh_object> mesh_object::create_frustum(
         const float base_radius, 
         const float top_radius, 
         const float height,
@@ -401,7 +401,7 @@ namespace triengine::geometry
             }
         }
 
-        auto mesh = std::make_shared<triangle_mesh_object>();
+        auto mesh = std::make_shared<mesh_object>();
         {
             auto& vertex_positions = mesh->vertex_positions;
             auto& vertex_normals = mesh->vertex_normals;
@@ -445,7 +445,7 @@ namespace triengine::geometry
         return mesh;
     }
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_bifrustum(
+    std::shared_ptr<mesh_object> mesh_object::create_bifrustum(
         const float middle_radius, 
         const float bottom_cap_radius, 
         const float top_cap_radius, 
@@ -584,7 +584,7 @@ namespace triengine::geometry
             }
         }
 
-        auto mesh = std::make_shared<triangle_mesh_object>();
+        auto mesh = std::make_shared<mesh_object>();
         {
             // This part implements flat shading by duplicating vertices for each triangle face.
             // Performance consideration: This increases vertex count significantly but is simple for flat shading.
@@ -630,7 +630,7 @@ namespace triengine::geometry
         return mesh;
     }
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_arrow(
+    std::shared_ptr<mesh_object> mesh_object::create_arrow(
         const float cylinder_radius, 
         const float cone_radius, 
         const float cylinder_height, 
@@ -668,7 +668,7 @@ namespace triengine::geometry
         return mesh_frame;
     }
 
-    std::shared_ptr<triangle_mesh_object> triangle_mesh_object::create_coordinate_frame(
+    std::shared_ptr<mesh_object> mesh_object::create_coordinate_frame(
         const float size,
         const vec3_f32 origin_point)
     {
@@ -697,7 +697,7 @@ namespace triengine::geometry
         auto mesh_frame = create_sphere(sphere_radius, kSphereResolution);
         mesh_frame->paint_uniform_color(color3_f32(0.5f, 0.5f, 0.5f));
 
-        std::shared_ptr<triangle_mesh_object> mesh_arrow;
+        std::shared_ptr<mesh_object> mesh_arrow;
 
         // X-Axis
         mesh_arrow = create_arrow(

@@ -2,7 +2,7 @@
 #include "../scene_wrapper.hh"
 
 #include <triengine/math/math3d.hh>
-#include <triengine/geometry/triangle_mesh_object.hh>
+#include <triengine/geometry/mesh_object.hh>
 #include <triengine/io/file_obj_loader.hh>
 
 namespace demo::scene
@@ -12,7 +12,7 @@ namespace demo::scene
     class engine_scene
         : public scene_wrapper
     {
-        std::shared_ptr<geometry::triangle_mesh_object> _engine_mesh;
+        std::shared_ptr<geometry::mesh_object> _engine_mesh;
 
     public:
         engine_scene(
@@ -35,9 +35,9 @@ namespace demo::scene
             fly_cam->set_position(vec3_f32{ 0.0f, 1.0f, -9.5f });
             fly_cam->set_direction(vec3_f32{ 0.0f, 0.0f, 1.0f });
 
-            _engine_mesh = std::make_shared<geometry::triangle_mesh_object>();
+            _engine_mesh = std::make_shared<geometry::mesh_object>();
 
-            if (io::load_triangle_mesh_from_obj(
+            if (io::load_mesh_from_obj(
                 rsrc_dir_path / "objects/car_engine/car_engine.obj",
                 false,
                 *_engine_mesh

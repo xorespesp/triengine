@@ -184,7 +184,7 @@ namespace demo::scene
         : public scene_wrapper
     {
         std::shared_ptr<geometry::pcd_object> _pcd;
-        std::shared_ptr<geometry::triangle_mesh_object> _pcd_axis_frame;
+        std::shared_ptr<geometry::mesh_object> _pcd_axis_frame;
         std::unique_ptr<pcd_noise_generator> _pcd_gen;
         bool _inplace_update{ true };
 
@@ -220,7 +220,7 @@ namespace demo::scene
                 scn->add_geometry(_pcd);
             }
 
-            _pcd_axis_frame = geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            _pcd_axis_frame = geometry::mesh_object::create_coordinate_frame(0.5f);
             _pcd_axis_frame->transform(offset_Tr, true);
             scn->add_geometry(_pcd_axis_frame);
 

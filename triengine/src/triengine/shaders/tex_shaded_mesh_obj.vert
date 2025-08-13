@@ -1,4 +1,4 @@
-// Texture-Shaded TriangleMesh Object Vertex Shader
+// Texture-Shaded Mesh Object Vertex Shader
 
 ////////////////////////////////////////////
 // shader inputs

@@ -53,11 +53,11 @@ namespace demo
             arcball_cam.set_pitch(0.0f);
             arcball_cam.set_zoom_distance(2.0f);
 
-            auto mesh_axis_frame = triengine::geometry::triangle_mesh_object::create_coordinate_frame(0.5f);
+            auto mesh_axis_frame = triengine::geometry::mesh_object::create_coordinate_frame(0.5f);
             scn->add_geometry(mesh_axis_frame);
 
-            if (auto new_obj = std::make_shared<triengine::geometry::triangle_mesh_object>();
-                triengine::io::load_triangle_mesh_from_obj(
+            if (auto new_obj = std::make_shared<triengine::geometry::mesh_object>();
+                triengine::io::load_mesh_from_obj(
                     rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
                     false,
                     *new_obj
@@ -233,7 +233,7 @@ namespace demo
     private:
         std::unique_ptr<triengine::visualization::offscreen_renderer> _renderer;
         std::shared_ptr<triengine::scene> _scene;
-        std::shared_ptr<triengine::geometry::triangle_mesh_object> _obj_texcolor_mesh;
+        std::shared_ptr<triengine::geometry::mesh_object> _obj_texcolor_mesh;
 
     }; // class
 

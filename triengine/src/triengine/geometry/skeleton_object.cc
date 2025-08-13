@@ -141,7 +141,7 @@ namespace triengine::geometry
         const float joint_radius,
         const int joint_resolution)
     {
-        auto mesh = geometry::triangle_mesh_object::create_sphere(
+        auto mesh = geometry::mesh_object::create_sphere(
             joint_radius, 
             joint_resolution
         );
@@ -171,7 +171,7 @@ namespace triengine::geometry
             to_joint_pos
         );
 
-        auto mesh = geometry::triangle_mesh_object::create_bifrustum(
+        auto mesh = geometry::mesh_object::create_bifrustum(
             bone_middle_radius,
             bone_parent_cap_radius,
             bone_child_cap_radius,

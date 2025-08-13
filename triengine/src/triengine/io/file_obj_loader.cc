@@ -7,10 +7,10 @@
 
 namespace triengine::io
 {
-    bool load_triangle_mesh_from_obj(
+    bool load_mesh_from_obj(
         const std::filesystem::path& file_path,
         const bool apply_gamma_correction,
-        geometry::triangle_mesh_object& mesh /* out */)
+        geometry::mesh_object& mesh /* out */)
     {
         TRIENGINE_DEBUG("Load obj file: %s", file_path.string().c_str());
 
@@ -219,7 +219,7 @@ namespace triengine::io
 
         if (!tinyobj_materials.empty())
         {
-            mesh.set_shading_mode(geometry::triangle_mesh_object::shading_mode::texture);
+            mesh.set_shading_mode(geometry::mesh_object::shading_mode::texture);
 
             auto* const curr_mesh_material = mesh.get_texture_shading_material();
             for (size_t i = 0; i < tinyobj_materials.size(); ++i)

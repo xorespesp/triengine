@@ -1,4 +1,4 @@
-// Texture-Shaded TriangleMesh Object Vertex Shader (for transparent rendering pass)
+// Texture-Shaded Mesh Object Vertex Shader (for transparent rendering pass)
 
 #include "includes/phong_lighting.glsl"
 

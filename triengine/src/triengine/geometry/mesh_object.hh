@@ -12,7 +12,7 @@ namespace triengine::geometry
 {
     // Ref: https://github.com/isl-org/Open3D/blob/db00e339c1645440dea6951c2971ffa759934112/cpp/open3d/geometry/TriangleMesh.h
 
-    class triangle_mesh_object
+    class mesh_object
         : public geometry_object_base
     {
     public:
@@ -85,20 +85,20 @@ namespace triengine::geometry
         }
 
     public:
-        triangle_mesh_object()
-            : geometry_object_base{ geometry_object_type::triangle_mesh }
+        mesh_object()
+            : geometry_object_base{ geometry_object_type::mesh }
         {
             this->set_shading_mode(_shading_mode);
         }
 
-        triangle_mesh_object(shading_mode mode)
-            : geometry_object_base{ geometry_object_type::triangle_mesh }
+        mesh_object(shading_mode mode)
+            : geometry_object_base{ geometry_object_type::mesh }
         {
             this->set_shading_mode(mode);
         }
 
-        std::shared_ptr<triangle_mesh_object> clone() const {
-            return std::static_pointer_cast<triangle_mesh_object>(this->clone_impl());
+        std::shared_ptr<mesh_object> clone() const {
+            return std::static_pointer_cast<mesh_object>(this->clone_impl());
         }
 
         shading_mode get_shading_mode() const noexcept {
@@ -173,17 +173,17 @@ namespace triengine::geometry
         //}
 
         /// Removes duplicated vertieces.
-        triangle_mesh_object& remove_duplicated_vertices();
+        mesh_object& remove_duplicated_vertices();
 
         /// Removes vertices from the triangle mesh that are 
         /// not referenced in any triangle of the mesh.
-        triangle_mesh_object& remove_unreferenced_vertices();
+        mesh_object& remove_unreferenced_vertices();
 
         /// Normalize vertex normals to length 1.
-        triangle_mesh_object& normalize_vertex_normals();
+        mesh_object& normalize_vertex_normals();
 
         /// compute vertex normals. (usually called before rendering)
-        triangle_mesh_object& compute_vertex_normals(bool smooth_shading = false);
+        mesh_object& compute_vertex_normals(bool smooth_shading = false);
 
         void paint_uniform_color(const color3_f32& color) {
             vertex_colors.clear();
@@ -239,8 +239,8 @@ namespace triengine::geometry
         }
 
         // concat operator
-        triangle_mesh_object& operator+=(
-            const triangle_mesh_object& rhs
+        mesh_object& operator+=(
+            const mesh_object& rhs
         );
 
     public:
@@ -248,7 +248,7 @@ namespace triengine::geometry
         /// \param width is x-directional length.
         /// \param height is y-directional length.
         /// \param depth is z-directional length.
-        static std::shared_ptr<triangle_mesh_object> create_box(
+        static std::shared_ptr<mesh_object> create_box(
             float width = 1.0f,
             float height = 1.0f,
             float depth = 1.0f
@@ -259,7 +259,7 @@ namespace triengine::geometry
         /// Its axis is aligned with z-axis.
         /// \param radius defines radius of the sphere.
         /// \param resolution defines the resolution of the sphere.
-        static std::shared_ptr<triangle_mesh_object> create_sphere(
+        static std::shared_ptr<mesh_object> create_sphere(
             float radius = 1.0f, /// radius of the sphere
             int resolution = 20 /// defines that the sphere will be split into resolution segments.
         );
@@ -272,7 +272,7 @@ namespace triengine::geometry
         /// \param height defines the height of the cylinder.
         /// \param resolution defines that the circle will be split into resolution segments.
         /// \param split defines that the height will be split into split segments.
-        static std::shared_ptr<triangle_mesh_object> create_cylinder(
+        static std::shared_ptr<mesh_object> create_cylinder(
             float radius = 0.1f,
             float height = 1.0f,
             int resolution = 20,
@@ -287,7 +287,7 @@ namespace triengine::geometry
         /// \param height defines the height of the cone.
         /// \param resolution defines that the circle will be split into resolution segments.
         /// \param split defines that the height will be split into split segments.
-        static std::shared_ptr<triangle_mesh_object> create_cone(
+        static std::shared_ptr<mesh_object> create_cone(
             float base_radius = 0.25,
             float height = 1.0, 
             int resolution = 20,
@@ -304,7 +304,7 @@ namespace triengine::geometry
         /// \param height defines the height of the cone.
         /// \param resolution defines that the circle will be split into resolution segments.
         /// \param split defines that the height will be split into split segments.
-        static std::shared_ptr<triangle_mesh_object> create_frustum(
+        static std::shared_ptr<mesh_object> create_frustum(
             float base_radius = 0.15,
             float top_radius = 0.05,
             float height = 1.0,
@@ -326,7 +326,7 @@ namespace triengine::geometry
         /// \param resolution defines that circles will be split into resolution segments.
         /// \param split_bottom defines the number of height segments for the bottom frustum.
         /// \param split_top defines the number of height segments for the top frustum.
-        static std::shared_ptr<triangle_mesh_object> create_bifrustum(
+        static std::shared_ptr<mesh_object> create_bifrustum(
             float middle_radius = 0.10f,
             float bottom_cap_radius = 0.05f,
             float top_cap_radius = 0.05f,
@@ -350,7 +350,7 @@ namespace triengine::geometry
         /// radial direction.
         /// \param tubular_resolution defines the number of segments along the
         /// tubular direction.
-        //static std::shared_ptr<triangle_mesh_object> create_torus(
+        //static std::shared_ptr<mesh_object> create_torus(
         //    double torus_radius = 1.0,
         //    double tube_radius = 0.5,
         //    int radial_resolution = 30,
@@ -362,7 +362,7 @@ namespace triengine::geometry
         /// the mesh centroid will be at (0,0,0) and \p radius defines the
         /// distance from the center to the mesh vertices.
         /// \param radius defines the distance from centroid to mesh vetices.
-        //static std::shared_ptr<triangle_mesh_object> create_tetrahedron(
+        //static std::shared_ptr<mesh_object> create_tetrahedron(
         //    double radius = 1.0
         //);
 
@@ -371,7 +371,7 @@ namespace triengine::geometry
         /// the mesh centroid will be at (0,0,0) and \p radius defines the
         /// distance from the center to the mesh vertices.
         /// \param radius defines the distance from centroid to mesh vetices.
-        //static std::shared_ptr<triangle_mesh_object> create_octahedron(
+        //static std::shared_ptr<mesh_object> create_octahedron(
         //    double radius = 1.0
         //);
 
@@ -379,7 +379,7 @@ namespace triengine::geometry
         /// https://en.wikipedia.org/wiki/Icosahedron
         /// (trianglemeshfactory.cpp). The mesh centroid will be at (0,0,0) and
         /// \param radius defines the distance from the center to the mesh vertices.
-        //static std::shared_ptr<triangle_mesh_object> create_icosahedron(
+        //static std::shared_ptr<mesh_object> create_icosahedron(
         //    double radius = 1.0
         //);
 
@@ -399,7 +399,7 @@ namespace triengine::geometry
         /// \param resolution defines the cone will be split into resolution segments.
         /// \param cylinder_split defines the cylinder_height will be split into cylinder_split segments.
         /// \param cone_split defines the cone_height will be split into cone_split segments.
-        static std::shared_ptr<triangle_mesh_object> create_arrow(
+        static std::shared_ptr<mesh_object> create_arrow(
             float cylinder_radius = 0.1f,
             float cone_radius = 0.15f,
             float cylinder_height = 1.0f,
@@ -413,7 +413,7 @@ namespace triengine::geometry
         /// \p size is the length of the axes.
         /// \param size defines the size of the coordinate frame.
         /// \param origin defines the origin of the coordinate frame.
-        static std::shared_ptr<triangle_mesh_object> create_coordinate_frame(
+        static std::shared_ptr<mesh_object> create_coordinate_frame(
             float size = 1.0f,
             vec3_f32 origin_point = math::vec3_all(0.0f)
         );

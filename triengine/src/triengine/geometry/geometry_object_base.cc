@@ -21,7 +21,7 @@ namespace triengine::geometry
     {
         const std::string type_str = [type]() -> std::string {
             switch (type) {
-            case geometry_object_type::triangle_mesh: return "triangle_mesh";
+            case geometry_object_type::mesh: return "mesh";
             case geometry_object_type::pointcloud: return "pointcloud";
             case geometry_object_type::lineset: return "lineset";
             case geometry_object_type::skeleton: return "skeleton";
