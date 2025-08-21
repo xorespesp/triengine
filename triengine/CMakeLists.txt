@@ -249,6 +249,12 @@ target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
     NOMINMAX
 )
 
+if (TRIENGINE_FORCE_DISCRETE_GPU)
+    target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
+        TRIENGINE_FORCE_DISCRETE_GPU
+    )
+endif()
+
 if (MSVC)
     message(STATUS "Adding _CRT_SECURE_NO_WARNINGS compile definition to ${TRIENGINE_LIBRARY_NAME} ...")
     target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PRIVATE

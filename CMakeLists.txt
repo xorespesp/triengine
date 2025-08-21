@@ -54,18 +54,20 @@ set(TRIENGINE_PROJECT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 ########################################################################################
 # Library Configure Options
 
+option(TRIENGINE_FORCE_DISCRETE_GPU "Force usage of discrete GPU (NVIDIA Optimus, AMD PowerXpress)" ON)
+option(TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG "Enable dynamic-debugging compile option (MSVC only)" ON)
 option(TRIENGINE_BUILD_EXAMPLES "Build examples" ON)
 option(TRIENGINE_BUILD_EXTERNAL_EXAMPLES "Build external examples" OFF)
-option(TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG "Enable dynamic-debugging compile option (MSVC only)" ON)
 
 message(STATUS "--------------------------------------------------")
 message(STATUS "TRIENGINE_LIBRARY_NAME: ${TRIENGINE_LIBRARY_NAME}")
 message(STATUS "TRIENGINE_TARGETS_EXPORT_NAME: ${TRIENGINE_TARGETS_EXPORT_NAME}")
 message(STATUS "TRIENGINE_CONFIG_INSTALL_DIR: ${TRIENGINE_CONFIG_INSTALL_DIR}")
 message(STATUS "TRIENGINE_PROJECT_ROOT_DIR: ${TRIENGINE_PROJECT_ROOT_DIR}")
+message(STATUS "TRIENGINE_FORCE_DISCRETE_GPU: ${TRIENGINE_FORCE_DISCRETE_GPU}")
+message(STATUS "TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG: ${TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG}")
 message(STATUS "TRIENGINE_BUILD_EXAMPLES: ${TRIENGINE_BUILD_EXAMPLES}")
 message(STATUS "TRIENGINE_BUILD_EXTERNAL_EXAMPLES: ${TRIENGINE_BUILD_EXTERNAL_EXAMPLES}")
-message(STATUS "TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG: ${TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG}")
 message(STATUS "--------------------------------------------------")
 
 ########################################################################################

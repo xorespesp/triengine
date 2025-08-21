@@ -8,16 +8,16 @@
 
 #include <iostream>
 
-/*
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(TRIENGINE_FORCE_DISCRETE_GPU)
+#  if defined(_WIN32) || defined(_WIN64)
 extern "C" {
     // NVIDIA Optimus
     __declspec(dllexport) uint32_t NvOptimusEnablement = 0x00000001;
     // AMD PowerXpress
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
-#endif
-*/
+#  endif // ^^^ _WIN32 || _WIN64 ^^^
+#endif // ^^^ TRIENGINE_FORCE_DISCRETE_GPU ^^^
 
 namespace triengine::core
 {
