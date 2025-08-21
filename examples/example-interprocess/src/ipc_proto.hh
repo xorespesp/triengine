@@ -138,14 +138,13 @@ namespace ipc_proto
         {
             int32_t frame_width;
             int32_t frame_height;
-            DXGI_FORMAT frame_format;
         };
 
         struct init_response_t
         {
             DWORD renderer_process_id;
             LUID target_adapter_luid;
-            HANDLE shared_texture_handle;
+            HANDLE surface_handle;
         };
 
         struct frame_resize_request_t
@@ -156,7 +155,7 @@ namespace ipc_proto
 
         struct frame_resize_response_t
         {
-            HANDLE shared_texture_handle;
+            HANDLE surface_handle;
         };
 
         // packet_type::mouse_move_event

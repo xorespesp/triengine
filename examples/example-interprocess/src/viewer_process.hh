@@ -7,33 +7,34 @@ class viewer_process
 {
 public:
     viewer_process(
-        int32_t frame_width = 640, 
-        int32_t frame_height = 480, 
-        DXGI_FORMAT frame_format = DXGI_FORMAT_R8G8B8A8_UNORM
+        SIZE initial_frame_size = { 640, 480 },
+        DXGI_FORMAT target_frame_format = DXGI_FORMAT_R8G8B8A8_UNORM
     );
     ~viewer_process();
 
     void run();
 
 private:
-    void _initialize(int32_t frame_width, int32_t frame_height, DXGI_FORMAT frame_format);
-    LRESULT _wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void _initialize(SIZE initial_frame_size, DXGI_FORMAT target_frame_format);
+    void _resize_frame(SIZE new_frame_size);
     void _render_frame();
+    LRESULT _wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
+    bool _fl_initialized{ false };
+    bool _fl_render_interop_texture{ true }; // Whether to render using the interop texture or not
+
     // Process/IPC
     std::shared_ptr<ipc_client> _ipc_cli;
     utils::unique_handle _renderer_process_handle;
 
-    // D3D Window
-    utils::unique_hwnd _viewer_hwnd;
-
     // D3D Resources (DX11.2)
+    utils::unique_hwnd _viewer_hwnd; // D3D window handle
     ComPtr<IDXGIAdapter> _dxgi_adapter;
     ComPtr<ID3D11Device2> _dx11_device2;
     ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
     ComPtr<ID3D11Texture2D> _dx11_shared_texture;
-    ComPtr<ID3D11Texture2D> _dx11_screen_texture;
+    ComPtr<ID3D11Texture2D> _dx11_shared_texture_copy; // copy of the shared texture (non-shared)
     ComPtr<IDXGIKeyedMutex> _dxgi_keyed_mutex;
 
     // D3D Pipeline Resources
@@ -43,6 +44,5 @@ private:
     ComPtr<ID3D11RenderTargetView> _dx11_rtv;
     ComPtr<ID3D11ShaderResourceView> _dx11_srv;
     ComPtr<ID3D11SamplerState> _dx11_sampler_state;
-
-    bool _initialized{ false };
+    D3D11_VIEWPORT _viewport{};
 };

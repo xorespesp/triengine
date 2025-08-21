@@ -1,5 +1,6 @@
 #include "renderer_process.hh"
 
+#include <cxlib/utils/spin_lock.hh>
 #include <cxlib/utils/logger.hh>
 
 class renderer_process::impl
@@ -27,27 +28,16 @@ public:
     {
         _main_task_dispatcher->dispatch_pending_tasks();
 
-        std::unique_lock lk{ _ipc_lock };
-        if (!_renderer) { return; }
-        this->_update_scene();
-        ID3D11Texture2D* const dx11_gl_interop_texture = _renderer->render();
-        lk.unlock();
-
-        // OpenGL 렌더링 결과(GL interop texture)를 공유 텍스처로 복사(서버 프로세스로 공유)
-        // 이 때, KeyedMutex를 이용하여 렌더링 타이밍을 적절히 맞춘다.
-        if (const HRESULT sync_hr = _dxgi_keyed_mutex->AcquireSync( // Key '0'을 사용하여 KeyedMutex 잠금 시도
-                0/* Key */,
-                0/* Wait Timeout */
-            ); SUCCEEDED(sync_hr))
+        if (_fl_initialized)
         {
-            // 잠금 획득에 성공했다면, GL interop 텍스처를 공유 텍스처로 복사
-            _dx11_device_context2->CopyResource(
-                _dx11_shared_texture.Get(),
-                dx11_gl_interop_texture
-            );
+            std::unique_lock lk{ _ipc_lock };
+            if (!_renderer) { return; }
+            this->_update_scene();
 
-            // 작업을 완료했으면 KeyedMutex 잠금 해제
-            _dxgi_keyed_mutex->ReleaseSync(0/* Key */);
+            // Render with frame synchronization
+            constexpr uint64_t mutex_key = 0;
+            CXLIB_ASSERT(_renderer->render(mutex_key));
+            lk.unlock();
         }
     }
 
@@ -70,10 +60,9 @@ private:
                 case ipc_proto::packet_type::init_request:
                 {
                     auto body = pck.body<ipc_proto::packets::init_request_t>();
-                    CXLIB_TRACE("----- recv init request: {}x{}, format: {}"
+                    CXLIB_TRACE("----- recv init request: {}x{}"
                         , body->frame_width
                         , body->frame_height
-                        , static_cast<int>(body->frame_format)
                     );
 
                     // init 작업은 ipc 스레드에서 직접 수행하지 않고, 메인 렌더 스레드에 위임
@@ -84,18 +73,12 @@ private:
 
                             this->_create_renderer(
                                 init_req.frame_width,
-                                init_req.frame_height,
-                                init_req.frame_format
+                                init_req.frame_height
                             );
 
                             this->_create_renderer_scene();
 
-                            CXLIB_DEBUG("init complete. send response start (adapter: {:x}-{:x}, resource handle: {})"
-                                , _target_dxgi_adapter_desc.AdapterLuid.HighPart
-                                , _target_dxgi_adapter_desc.AdapterLuid.LowPart
-                                , _dx11_shared_texture_handle.get()
-                            );
-
+                            CXLIB_DEBUG("initialize complete");
                             return true;
                         });
 
@@ -106,18 +89,29 @@ private:
                             CXLIB_ERROR("Failed to initialize renderer.");
                             return;
                         }
-                    }
-                    catch (const std::exception& e) {
+                    } catch (const std::exception& e) {
                         CXLIB_ERROR("Initialization task failed: {}", e.what());
                         return;
                     }
 
+                    DXGI_ADAPTER_DESC target_adapter_desc{};
+                    _renderer->get_dxgi_adapter()->GetDesc(&target_adapter_desc);
+                    auto surface_handle = _renderer->get_surface_handle();
+
                     CXLIB_TRACE("Sending init response...");
                     packet_builder<ipc_proto::packets::init_response_t> rep_pck{ ipc_proto::packet_type::init_response };
                     rep_pck.body()->renderer_process_id = ::GetCurrentProcessId();
-                    rep_pck.body()->target_adapter_luid = _target_dxgi_adapter_desc.AdapterLuid;
-                    rep_pck.body()->shared_texture_handle = _dx11_shared_texture_handle.get();
+                    rep_pck.body()->target_adapter_luid = target_adapter_desc.AdapterLuid;
+                    rep_pck.body()->surface_handle = surface_handle.get();
+                    CXLIB_TRACE("target adapter: {:x}-{:x}, surface handle: {:p}"
+                        , target_adapter_desc.AdapterLuid.HighPart
+                        , target_adapter_desc.AdapterLuid.LowPart
+                        , surface_handle.get()
+                    );
                     rep_pck_data.assign(rep_pck.data(), rep_pck.data() + rep_pck.size());
+
+                    CXLIB_TRACE("Initialization complete!");
+                    _fl_initialized = true;
                     break;
                 }
                 case ipc_proto::packet_type::frame_resize_request:
@@ -127,30 +121,21 @@ private:
 
                     // resize 작업은 ipc 스레드에서 직접 수행하지 않고, 메인 렌더 스레드에 위임
                     auto resize_future = _main_task_dispatcher->submit_task(
-                        [this, new_frame_size]() -> bool
+                        [this, new_frame_size]() -> triengine::shared_win32_handle
                         {
-                            if (new_frame_size.x() > 0 &&
-                                new_frame_size.y() > 0 &&
-                                _renderer->get_frame_size() != new_frame_size)
-                            {
-                                CXLIB_TRACE("----- frame resize start: {}x{}", new_frame_size.x(), new_frame_size.y());
-                                this->_handle_frame_resize_request(new_frame_size.x(), new_frame_size.y());
-                                CXLIB_TRACE("----- frame resize complete");
-                            }
-
-                            return true;
+                            return this->_handle_frame_resize_request(new_frame_size);
                         });
 
                     CXLIB_TRACE("IPC thread waiting for resize completion...");
-                    const bool resize_res = resize_future.get();
-                    if (!resize_res) {
+                    const auto new_surface_handle = resize_future.get();
+                    if (!new_surface_handle) {
                         CXLIB_ERROR("Failed to resize frame");
                         return;
                     }
 
                     CXLIB_TRACE("Sending resize response...");
                     packet_builder<ipc_proto::packets::frame_resize_response_t> rep_pck{ ipc_proto::packet_type::frame_resize_response };
-                    rep_pck.body()->shared_texture_handle = _dx11_shared_texture_handle.get();
+                    rep_pck.body()->surface_handle = new_surface_handle.get();
                     rep_pck_data.assign(rep_pck.data(), rep_pck.data() + rep_pck.size());
                     break;
                 }
@@ -288,75 +273,25 @@ private:
 
     void _create_renderer(
         const int32_t frame_width,
-        const int32_t frame_height,
-        const DXGI_FORMAT frame_format)
+        const int32_t frame_height)
     {
-        CXLIB_TRACE("initialize renderer... (frame size: {}x{}, format: {})"
+        CXLIB_TRACE("initialize renderer... (frame size: {}x{})"
             , frame_width
             , frame_height
-            , static_cast<int>(frame_format)
         );
 
         _renderer = std::make_unique<triengine::visualization::offscreen_renderer_dx>();
-        _renderer->create_renderer(
-            frame_width,
-            frame_height,
-            frame_format
-        );
+        _renderer->create_renderer(triengine::vec2_i32{ 
+            frame_width, 
+            frame_height 
+        });
 
-        _dx11_device2 = _renderer->get_dx11_device();
-        _dx11_device_context2 = _renderer->get_dx11_device_context();
-        _target_dxgi_adapter = _renderer->get_target_dxgi_adapter();
-        _target_dxgi_adapter->GetDesc(&_target_dxgi_adapter_desc);
-
-        // 타 프로세스로 공유할 공유 텍스처 생성 (SHARED_HANDLE + SHARED_KEYEDMUTEX)
-        // (이후, KeyedMutex를 통해 렌더 타이밍 동기화 수행)
-        // 
-        // NOTE: You can't modify the texture surface owned by the DXGI swapchain to add the share flags like you tried to do above.
-        //       Your best bet is going to require copying the backbuffer to a sharable texture.
-        //       (Ref: https://stackoverflow.com/a/70164789)
-        D3D11_TEXTURE2D_DESC dx11_shared_texture_desc{};
-        dx11_shared_texture_desc.Width = static_cast<UINT>(frame_width);
-        dx11_shared_texture_desc.Height = static_cast<UINT>(frame_height);
-        dx11_shared_texture_desc.MipLevels = 1;
-        dx11_shared_texture_desc.ArraySize = 1;
-        dx11_shared_texture_desc.Format = frame_format;
-        dx11_shared_texture_desc.SampleDesc.Count = 1;
-        dx11_shared_texture_desc.SampleDesc.Quality = 0;
-        dx11_shared_texture_desc.Usage = D3D11_USAGE_DEFAULT;
-        dx11_shared_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-        dx11_shared_texture_desc.CPUAccessFlags = 0;
-        dx11_shared_texture_desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_NTHANDLE | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX; // <- 핵심: NtHandle + KeyedMutex 플래그 설정 필요
-        ASSERT_HR(_dx11_device2->CreateTexture2D(
-            &dx11_shared_texture_desc,
-            nullptr,
-            &_dx11_shared_texture
-        ));
-
-        // 생성한 공유 텍스처로부터 KeyedMutex 인터페이스 획득
-        ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
-
-        // 공유 텍스처의 핸들(Shared NT Handle) 획득
-        // IDXGIResource1 인터페이스의 CreateSharedHandle 메서드로 핸들을 생성한다.
-        // (이후 Viewer 측에서 OpenSharedResource1/OpenSharedResourceByName 함수를 통해 접근)
-        {
-            HANDLE shared_texture_handle{ nullptr };
-            ComPtr<IDXGIResource1> dxgiResource1;
-            ASSERT_HR(_dx11_shared_texture.As(&dxgiResource1));
-            ASSERT_HR(dxgiResource1->CreateSharedHandle(
-                nullptr,
-                DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE,
-                nullptr, // NOTE: Name 지정 시 OpenSharedResourceByName 함수로 접근해야 함
-                &shared_texture_handle
-            ));
-            _dx11_shared_texture_handle.reset(shared_texture_handle);
-        }
-        CXLIB_DEBUG("Created resource handle: {}", _dx11_shared_texture_handle.get());
+        CXLIB_TRACE("Renderer created successfully.");
     }
 
     void _create_renderer_scene()
     {
-        CXLIB_TRACE("initialize renderer scene...");
+        CXLIB_TRACE("Create renderer scene...");
 
         const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
 
@@ -426,59 +361,21 @@ private:
         }
 
         _scene = scn;
+        CXLIB_TRACE("Renderer scene created successfully.");
     }
 
-    void _handle_frame_resize_request(
-        const int32_t frame_width,
-        const int32_t frame_height)
+    triengine::shared_win32_handle _handle_frame_resize_request(
+        const triengine::vec2_i32 new_window_size)
     {
-        CXLIB_TRACE("frame resize start... (target size: {}x{})", frame_width, frame_height);
+        CXLIB_TRACE("frame resize start... (target size: {}x{})", new_window_size.x(), new_window_size.y());
 
-        // 렌더러의 프레임 사이즈 업데이트  
-        _renderer->resize_frame(frame_width, frame_height);
+        auto new_surface_handle = _renderer->resize_frame(new_window_size);
 
-        // 공유 텍스처, 공유 텍스처 핸들, KeyedMutex 재생성
-        ComPtr<ID3D11Texture2D> new_dx11_shared_texture;
-        ComPtr<IDXGIKeyedMutex> new_dxgi_keyed_mutex;
-        utils::unique_handle new_dx11_shared_texture_handle;
-        
-        D3D11_TEXTURE2D_DESC dx11_shared_texture_desc{};
-        _dx11_shared_texture->GetDesc(&dx11_shared_texture_desc); // 기존 공유 텍스처의 속성 복사
-        dx11_shared_texture_desc.Width = static_cast<UINT>(frame_width);
-        dx11_shared_texture_desc.Height = static_cast<UINT>(frame_height);
-        ASSERT_HR(_dx11_device2->CreateTexture2D(
-            &dx11_shared_texture_desc,
-            nullptr,
-            &new_dx11_shared_texture
-        ));
-
-        // 생성한 공유 텍스처로부터 KeyedMutex 인터페이스 획득
-        ASSERT_HR(new_dx11_shared_texture.As(&new_dxgi_keyed_mutex));
-
-        // 공유 텍스처의 핸들(Shared NT Handle) 획득
-        // IDXGIResource1 인터페이스의 CreateSharedHandle 메서드로 핸들을 생성한다.
-        // (이후 Viewer 측에서 OpenSharedResource1/OpenSharedResourceByName 함수를 통해 접근)
-        {
-            HANDLE shared_texture_handle{ nullptr };
-            ComPtr<IDXGIResource1> dxgiResource1;
-            ASSERT_HR(new_dx11_shared_texture.As(&dxgiResource1));
-            ASSERT_HR(dxgiResource1->CreateSharedHandle(
-                nullptr,
-                DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE,
-                nullptr, // NOTE: Name 지정 시 OpenSharedResourceByName 함수로 접근해야 함
-                &shared_texture_handle
-            ));
-            new_dx11_shared_texture_handle.reset(shared_texture_handle);
-        }
-
-        // 모든 리사이즈가 성공적으로 완료됐을 경우, 최종적으로 상태 업데이트 (스왑)
-        _dx11_shared_texture.Swap(new_dx11_shared_texture);
-        _dxgi_keyed_mutex.Swap(new_dxgi_keyed_mutex);
-        _dx11_shared_texture_handle.swap(new_dx11_shared_texture_handle);
-
-        CXLIB_TRACE("frame resize complete! (update resource handle: {})"
-            , _dx11_shared_texture_handle.get()
+        CXLIB_TRACE("frame resize complete! (update surface handle: 0x{:X})"
+            , new_surface_handle.get()
         );
+
+        return new_surface_handle;
     }
 
     void _update_scene()
@@ -500,20 +397,11 @@ private:
     }
 
 private:
-    std::shared_ptr<ipc_session> _ipc_session;
-    _CXLIB utils::spin_lock _ipc_lock;
+    bool _fl_initialized{ false };
     std::shared_ptr<task_dispatcher> _main_task_dispatcher;
 
-    // D3D Resources
-    ComPtr<IDXGIAdapter> _target_dxgi_adapter;
-    DXGI_ADAPTER_DESC _target_dxgi_adapter_desc{};
-
-    ComPtr<ID3D11Device2> _dx11_device2;
-    ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
-
-    ComPtr<ID3D11Texture2D> _dx11_shared_texture; // 타 프로세스로 공유할 "공유 텍스처" (KeyedMutex로 렌더 타이밍 동기화 수행)
-    ComPtr<IDXGIKeyedMutex> _dxgi_keyed_mutex; // 공유 텍스처로부터 획득한 KeyedMutex
-    utils::unique_handle _dx11_shared_texture_handle;
+    std::shared_ptr<ipc_session> _ipc_session;
+    _CXLIB utils::spin_lock _ipc_lock;
 
     // GL Renderer
     std::unique_ptr<triengine::visualization::offscreen_renderer_dx> _renderer;

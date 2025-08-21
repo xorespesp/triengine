@@ -3,9 +3,6 @@
 #include <triengine/math/math3d.hh>
 #include <triengine/io/file_obj_loader.hh>
 
-#include <deque>
-#include <cxlib/utils/spin_lock.hh>
-
 #include "common.hh"
 #include "ipc_proto.hh"
 #include "ipc_service.hh"

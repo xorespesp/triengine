@@ -1,8 +1,6 @@
 #include "offscreen_renderer_dx.hh"
 
-// https://www.opengl.org/registry/api/GL/wglext.h
-#include <triengine/extern/wglext.h>
-
+#include <d3dcompiler.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -16,16 +14,19 @@
 #include <iostream>
 #include <memory>
 
-#define ASSERT_HR(EXPR) assert_hr_impl(EXPR, _TRIENGINE_CURRENT_SOURCE_LOC())
+#define ASSERT_HR(EXPR) \
+    assert_hr_impl(EXPR, _TRIENGINE_CURRENT_SOURCE_LOC())
+
+#define THROW_IF_FAILED(hr_expr) \
+    if (const HRESULT __expr_hr__{ hr_expr }; FAILED(__expr_hr__)) { \
+        ::triengine::utility::panicf_impl( \
+            _TRIENGINE_CURRENT_SOURCE_LOC(), \
+            "HRESULT failed with code 0x{:X}", \
+            static_cast<uint32_t>(__expr_hr__) \
+        ); \
+    }
 
 using Microsoft::WRL::ComPtr;
-
-static PFNWGLDXOPENDEVICENVPROC wglDXOpenDeviceNV{ nullptr };
-static PFNWGLDXCLOSEDEVICENVPROC wglDXCloseDeviceNV{ nullptr };
-static PFNWGLDXREGISTEROBJECTNVPROC wglDXRegisterObjectNV{ nullptr };
-static PFNWGLDXUNREGISTEROBJECTNVPROC wglDXUnregisterObjectNV{ nullptr };
-static PFNWGLDXLOCKOBJECTSNVPROC wglDXLockObjectsNV{ nullptr };
-static PFNWGLDXUNLOCKOBJECTSNVPROC wglDXUnlockObjectsNV{ nullptr };
 
 namespace triengine::visualization
 {
@@ -46,31 +47,13 @@ namespace triengine::visualization
             }
         }
 
-        template <typename _FunPtr>
-        _FunPtr load_gl_extension_funptr(const char* const func_name)
-        {
-            static_assert(std::is_pointer_v<_FunPtr> && std::is_function_v<std::remove_pointer_t<_FunPtr>>, "!!");
-            // NOTE: When no current rendering context exists or the function fails, the return value is NULL.
-            const PROC funptr{ ::wglGetProcAddress(func_name) };
-            if (!funptr) { TRIENGINE_PANIC("Failed to load GL extension funptr: %s (last error: %u)", func_name, ::GetLastError()); }
-            return utility::bit_cast<_FunPtr>(funptr);
-        }
-
-        void load_wgl_nvdx_interop_functions()
-        {
-            wglDXOpenDeviceNV = load_gl_extension_funptr<decltype(wglDXOpenDeviceNV)>("wglDXOpenDeviceNV");
-            wglDXCloseDeviceNV = load_gl_extension_funptr<decltype(wglDXCloseDeviceNV)>("wglDXCloseDeviceNV");
-            wglDXRegisterObjectNV = load_gl_extension_funptr<decltype(wglDXRegisterObjectNV)>("wglDXRegisterObjectNV");
-            wglDXUnregisterObjectNV = load_gl_extension_funptr<decltype(wglDXUnregisterObjectNV)>("wglDXUnregisterObjectNV");
-            wglDXLockObjectsNV = load_gl_extension_funptr<decltype(wglDXLockObjectsNV)>("wglDXLockObjectsNV");
-            wglDXUnlockObjectsNV = load_gl_extension_funptr<decltype(wglDXUnlockObjectsNV)>("wglDXUnlockObjectsNV");
-        }
-
     } // namespace
 
     offscreen_renderer_dx::offscreen_renderer_dx()
-    {
-    }
+    { }
+
+    offscreen_renderer_dx::~offscreen_renderer_dx()
+    { }
 
     const core::gl_context* offscreen_renderer_dx::get_gl_context() const noexcept
     {
@@ -82,42 +65,49 @@ namespace triengine::visualization
         return &_glctx;
     }
 
-    Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_target_dxgi_adapter() const noexcept
+    Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_dxgi_adapter() const noexcept
     {
-        if (!_flag_initialized) { return nullptr; }
-        return _target_dxgi_adapter;
+        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_dxgi_adapter != nullptr);
+        return _dxgi_adapter;
     }
 
     Microsoft::WRL::ComPtr<ID3D11Device2> offscreen_renderer_dx::get_dx11_device() const noexcept
     {
-        if (!_flag_initialized) { return nullptr; }
+        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_dx11_device2 != nullptr);
         return _dx11_device2;
     }
 
     Microsoft::WRL::ComPtr<ID3D11DeviceContext2> offscreen_renderer_dx::get_dx11_device_context() const noexcept
     {
-        if (!_flag_initialized) { return nullptr; }
+        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_dx11_device_context2 != nullptr);
         return _dx11_device_context2;
     }
 
-    void offscreen_renderer_dx::create_renderer(
-        const int32_t frame_width,
-        const int32_t frame_height,
-        const DXGI_FORMAT frame_format)
+    vec2_i32 offscreen_renderer_dx::get_frame_size() const noexcept
     {
-        TRIENGINE_DEBUG("Creating DX offscreen renderer with frame size %dx%d, dxgi frame format %d"
-            , frame_width
-            , frame_height
-            , static_cast<int>(frame_format)
+        TRIENGINE_ASSERT(_flag_initialized);
+        return _curr_frame_size;
+    }
+
+    shared_win32_handle offscreen_renderer_dx::get_surface_handle() const
+    {
+        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_dx11_interop_color_tex_handle != nullptr);
+        return _dx11_interop_color_tex_handle;
+    }
+
+    void offscreen_renderer_dx::create_renderer(const vec2_i32 initial_frame_size)
+    {
+        TRIENGINE_DEBUG("Creating DX offscreen renderer with frame size %dx%d"
+            , initial_frame_size.x()
+            , initial_frame_size.y()
         );
 
-        if (frame_width <= 0 || frame_height <= 0) {
-            TRIENGINE_PANIC("Invalid frame size: %dx%d", frame_width, frame_height);
-        }
-
-        if (frame_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
-            frame_format != DXGI_FORMAT_R8G8B8A8_UNORM) {
-            TRIENGINE_WARN("Unexpected frame format (%d) specified", static_cast<int>(frame_format));
+        if (initial_frame_size.x() <= 0 || initial_frame_size.y() <= 0) {
+            TRIENGINE_PANIC("Invalid frame size: %dx%d", initial_frame_size.x(), initial_frame_size.y());
         }
 
         if (_flag_initialized) {
@@ -126,12 +116,57 @@ namespace triengine::visualization
 
         _glctx.create(
             "",
-            false,
-            frame_width,
-            frame_height,
-            false
+            false, // Disable window visibility
+            initial_frame_size.x(),
+            initial_frame_size.y(),
+            false, // Disable fullscreen
+            false // Disable VSync
         );
 
+        TRIENGINE_DEBUG("Checking OpenGL compatibility...");
+
+        const std::string_view
+            gl_version{ reinterpret_cast<const char*>(::glGetString(GL_VERSION)) },
+            gl_vendor_name{ reinterpret_cast<const char*>(::glGetString(GL_VENDOR)) },
+            gl_renderer_name{ reinterpret_cast<const char*>(::glGetString(GL_RENDERER)) };
+
+        TRIENGINE_TRACE("GL Version: %.*s", static_cast<int>(gl_version.size()), gl_version.data());
+        TRIENGINE_TRACE("GL Vendor: %.*s", static_cast<int>(gl_vendor_name.size()), gl_vendor_name.data());
+        TRIENGINE_TRACE("GL Renderer: %.*s", static_cast<int>(gl_renderer_name.size()), gl_renderer_name.data());
+
+        bool hasExternalObjects = false;
+        bool hasExternalObjectsWin32 = false;
+        bool hasWin32KeyedMutex = false;
+        
+        GLint numExtensions{};
+        ::glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+        for (GLint i = 0; i < numExtensions; ++i) {
+            const std::string_view gl_extension{ reinterpret_cast<const char*>(::glGetStringi(GL_EXTENSIONS, i)) };
+            if (gl_extension == "GL_EXT_memory_object") {
+                hasExternalObjects = true;
+            } else if (gl_extension == "GL_EXT_memory_object_win32") {
+                hasExternalObjectsWin32 = true;
+            } else if (gl_extension == "GL_EXT_win32_keyed_mutex") {
+                hasWin32KeyedMutex = true;
+            }
+        }
+
+        TRIENGINE_TRACE("GL_EXT_memory_object: %s", hasExternalObjects ? "Y" : "N");
+        TRIENGINE_TRACE("GL_EXT_memory_object_win32: %s", hasExternalObjectsWin32 ? "Y" : "N");
+        TRIENGINE_TRACE("GL_EXT_win32_keyed_mutex: %s", hasWin32KeyedMutex ? "Y" : "N");
+
+        if (!hasExternalObjects || !hasExternalObjectsWin32 || !hasWin32KeyedMutex) {
+            TRIENGINE_PANIC(
+                "Required OpenGL extensions are not supported by this GPU/driver. "
+                "EXT_memory_object, EXT_memory_object_win32, GL_EXT_win32_keyed_mutex support is required. "
+                "Please use a modern GPU with updated drivers that support these extensions."
+            );
+        }
+
+        //
+        // Initialize DX11 context
+        //
+        
         // NOTE: 반드시 CreateDXGIFactory2 함수를 사용해서 DXGI 1.2 버전 이상의 DXGI 팩토리(`IDXGIFactory`)를 생성해줘야 함.
         // (`ID3D11Device::CreateTexture2D: D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is only available for devices created off of Dxgi1.1 factories or later.` D3D11 오류 방지)
         ComPtr<IDXGIFactory2> dxgi_factory2;
@@ -242,21 +277,15 @@ namespace triengine::visualization
             }
         }
 
-        _target_dxgi_adapter = selected_adapter0;
+        _dxgi_adapter = selected_adapter0;
 
         ComPtr<ID3D11Device> dx11_device0;
         ComPtr<ID3D11DeviceContext> dx11_device_context0;
 
-        UINT device_creation_flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+        UINT device_creation_flags = 0;
 #if defined(TRIENGINE_DEBUG)
         device_creation_flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif // ^^^ TRIENGINE_DEBUG ^^^
-
-        if (device_creation_flags & D3D11_CREATE_DEVICE_SINGLETHREADED) {
-            TRIENGINE_WARN("D3D11_CREATE_DEVICE_SINGLETHREADED flag is set, but it is not compatible with WGL_NV_DX_interop2. removing flag...");
-            // Ref: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt
-            device_creation_flags &= ~D3D11_CREATE_DEVICE_SINGLETHREADED;
-        }
 
         if (HRESULT hr = ::D3D11CreateDevice(
             selected_adapter0.Get(),
@@ -287,96 +316,16 @@ namespace triengine::visualization
             TRIENGINE_PANIC("Failed to create DX11 device context2");
         }
 
-        // NOTE: Must be called after the OpenGL rendering context has been created.
-        load_wgl_nvdx_interop_functions();
+        // Create FBO
+        ::glCreateFramebuffers(1, &_gl_fbo);
 
-        _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_handle_frame_resize_event, this,
+        _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_resize_frame, this,
             std::placeholders::_1));
 
-        _curr_frame_size = _glctx.get_window_size();
+        // Initil resize to create rest...
+        this->_resize_frame(initial_frame_size);
 
         _scn_renderer.create(&_glctx);
-
-        // Create OpenGL interop color texture
-        D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
-        dxgl_interop_texture_desc.Width = static_cast<UINT>(frame_width);
-        dxgl_interop_texture_desc.Height = static_cast<UINT>(frame_height);
-        dxgl_interop_texture_desc.MipLevels = 1;
-        dxgl_interop_texture_desc.ArraySize = 1;
-        dxgl_interop_texture_desc.Format = frame_format;
-        dxgl_interop_texture_desc.SampleDesc.Count = 1;
-        dxgl_interop_texture_desc.SampleDesc.Quality = 0;
-        dxgl_interop_texture_desc.Usage = D3D11_USAGE_DEFAULT; // NOTE: Usage flags must be D3D11_USAGE_DEFAULT (See: https://registry.khronos.org/OpenGL/extensions/NV/WGL_NV_DX_interop2.txt)
-        dxgl_interop_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-        dxgl_interop_texture_desc.CPUAccessFlags = 0;
-        dxgl_interop_texture_desc.MiscFlags = 0; // GL Interop용 텍스처는 공유 속성이 필요 없음
-        if (HRESULT hr = _dx11_device2->CreateTexture2D(
-            &dxgl_interop_texture_desc,
-            nullptr,
-            &_dx11_gl_interop_color_texture
-        ); FAILED(hr)) {
-            TRIENGINE_PANIC("Failed to create DX11 texture for GL interop (HRESULT: 0x%X)", hr);
-        }
-
-        TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
-
-        // DX Device를 OpenGL Interop용으로 Open
-        {
-            HANDLE device_raw_handle{ ::wglDXOpenDeviceNV(_dx11_device2.Get()) };
-            const DWORD last_error{ ::GetLastError() };
-
-            _wgl_dx11_device_handle.reset(
-                device_raw_handle,
-                [](HANDLE hDevice) { if (hDevice) { ::wglDXCloseDeviceNV(hDevice); } }
-            );
-
-            if (!_wgl_dx11_device_handle) {
-                TRIENGINE_PANIC("wglDXOpenDeviceNV failed (last error: %u)", last_error);
-            }
-        }
-
-        // FBO에 붙일 컬러 렌더버퍼 생성
-        GLCall(::glCreateRenderbuffers(1, &_frame_gl_interop_color_rbo));
-
-        // 생성한 렌더버퍼를 WGL DX Interop용 텍스처(비공유 텍스처)로 등록
-        {
-            const HANDLE interop_texture_raw_handle{ ::wglDXRegisterObjectNV(
-                _wgl_dx11_device_handle.get()/* HANDLE hDevice; */,
-                _dx11_gl_interop_color_texture.Get()/* PVOID dxResource; */,
-                _frame_gl_interop_color_rbo/* GLuint name; */,
-                GL_RENDERBUFFER/* GLenum type; */,
-                WGL_ACCESS_READ_WRITE_NV/* GLenum access; */
-            ) };
-            const DWORD last_error{ ::GetLastError() };
-
-            _wgl_dx11_gl_interop_texture_handle.reset(
-                interop_texture_raw_handle,
-                [this](HANDLE hObject) {
-                    if (hObject) { ::wglDXUnregisterObjectNV(_wgl_dx11_device_handle.get(), hObject); }
-                }
-            );
-
-            if (!_wgl_dx11_gl_interop_texture_handle) {
-                TRIENGINE_PANIC("wglDXRegisterObjectNV failed (last error: %u)", last_error);
-            }
-        }
-
-        // FBO 생성
-        GLCall(::glCreateFramebuffers(1, &_main_fbo));
-
-        // FBO에 컬러 렌더버퍼(WGL DX Interop 텍스처) 부착
-        GLCall(::glNamedFramebufferRenderbuffer(
-            _main_fbo,                  /* GLuint framebuffer */
-            GL_COLOR_ATTACHMENT0,       /* GLenum attachment */
-            GL_RENDERBUFFER,            /* GLenum renderbuffertarget */
-            _frame_gl_interop_color_rbo /* GLuint renderbuffer */
-        ));
-
-        if (const auto status = ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER);
-            status != GL_FRAMEBUFFER_COMPLETE)
-        {
-            TRIENGINE_PANIC("Framebuffer is not complete! (status: 0x%X)", status);
-        }
 
         TRIENGINE_TRACE("%s() LEAVE", __func__);
         _flag_initialized = true;
@@ -388,23 +337,40 @@ namespace triengine::visualization
         {
             _flag_initialized = false;
 
-            _wgl_dx11_gl_interop_texture_handle.reset();
-            _wgl_dx11_device_handle.reset();
-
-            if (_frame_gl_interop_color_rbo) {
-                ::glDeleteRenderbuffers(1, &_frame_gl_interop_color_rbo);
+            // Clear D3D11 device context state if available
+            if (_dx11_device_context2) {
+                _dx11_device_context2->ClearState();
+                _dx11_device_context2->Flush();
             }
 
-            if (_main_fbo) {
-                ::glDeleteFramebuffers(1, &_main_fbo);
+            // Clean up EXT_external_objects resources first
+            if (_gl_interop_color_tex_mem_object) {
+                ::glDeleteMemoryObjectsEXT(1, &_gl_interop_color_tex_mem_object);
+                _gl_interop_color_tex_mem_object = 0;
             }
+
+            // Clean up shared texture handle
+            _dx11_interop_color_tex_handle.reset();
+
+            // Clean up OpenGL resources
+            if (_gl_fbo) {
+                ::glDeleteFramebuffers(1, &_gl_fbo);
+                _gl_fbo = 0;
+            }
+
+            if (_gl_interop_color_tex) {
+                ::glDeleteTextures(1, &_gl_interop_color_tex);
+                _gl_interop_color_tex = 0;
+            }
+
+            // Clean up D3D11 resources (COM objects will auto-release)
+            _dx11_interop_color_tex.Reset();
+            _dx11_device_context2.Reset();
+            _dx11_device2.Reset();
+            _dxgi_adapter.Reset();
 
             _scn_renderer.destroy();
             _glctx.destroy();
-
-            _dx11_device_context2.Reset();
-            _dx11_device2.Reset();
-            _target_dxgi_adapter.Reset();
         }
     }
 
@@ -502,31 +468,24 @@ namespace triengine::visualization
             : nullptr;
     }
 
-    vec2_i32 offscreen_renderer_dx::get_frame_size() const noexcept
+    shared_win32_handle offscreen_renderer_dx::resize_frame(const vec2_i32 new_frame_size)
     {
-        return _curr_frame_size;
+        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
+
+        ::glfwSetWindowSize(
+            _glctx.get_glfw_window(),
+            new_frame_size.x(),
+            new_frame_size.y()
+        );
+
+        return _dx11_interop_color_tex_handle;
     }
 
-    void offscreen_renderer_dx::resize_frame(
-        const int32_t width,
-        const int32_t height)
+    bool offscreen_renderer_dx::render(const uint64_t mutex_key)
     {
-        if (width <= 0 || height <= 0) {
-            TRIENGINE_PANIC("Invalid frame size (%d, %d)", width, height);
-        }
+        TRIENGINE_ASSERT(_flag_initialized);
 
-        if (_curr_frame_size != vec2_i32{ width, height })
-        {
-            ::glfwSetWindowSize(
-                _glctx.get_glfw_window(),
-                width,
-                height
-            );
-        }
-    }
-
-    ID3D11Texture2D* offscreen_renderer_dx::render()
-    {
         if (_curr_scn_it == _scn_list.end()) {
             TRIENGINE_PANIC("No scenes added");
         }
@@ -537,9 +496,6 @@ namespace triengine::visualization
         _last_frame_time = curr_frame_time;
         const float frame_delta_f32 = static_cast<float>(_frame_time_delta);
 
-        _glctx.swap_buffers();
-        _glctx.poll_window_events();
-
         scene& target_scn = *(_curr_scn_it->get());
         abstract_camera& target_scn_camera = *target_scn.get_camera();
         target_scn_camera.set_viewport(view_port{ 0, 0, _curr_frame_size.x(), _curr_frame_size.y() });
@@ -547,109 +503,168 @@ namespace triengine::visualization
         // Process camera input
         target_scn_camera.update_animation(frame_delta_f32);
 
-        this->_begin_frame();
+        // https://registry.khronos.org/OpenGL/extensions/EXT/EXT_win32_keyed_mutex.txt
+        // Acquire KeyedMutex for the interop texture
+        // TRUE is returned if the wait succeeded.
+        // FALSE is returned if the acquire operation timed out or failed.
+        // No error is generated if the operation failed because it timed out.
+        constexpr uint32_t mutex_wait_timeout = UINT32_MAX; // Wait infinitely for the mutex to become available
+        if (const GLboolean mutex_acquired = ::glAcquireKeyedMutexWin32EXT(
+            _gl_interop_color_tex_mem_object, // GLuint64 handle
+            mutex_key, // Key
+            mutex_wait_timeout// GLuint64 timeout
+        ); !mutex_acquired) {
+            // Failed to acquire the mutex - check if it's a timeout or error
+            const GLenum gl_error = ::glGetError();
+            if (gl_error == GL_NO_ERROR) {
+                // Timeout - this is normal, just skip this frame
+                //LOG_TRACE("KeyedMutex acquire timeout - skipping frame");
+                return true; // Continue rendering next frame
+            } else {
+                // Actual error occurred
+                TRIENGINE_ERROR("Failed to acquire keyed mutex - GL error: 0x%X", gl_error);
+                return false;
+            }
+        }
+
+        // Render scene directly to the shared interop texture
         _scn_renderer.render(
-            _main_fbo,
+            _gl_fbo,
             _curr_frame_size.x(),
             _curr_frame_size.y(),
             target_scn
         );
-        this->_end_frame();
 
-        return _dx11_gl_interop_color_texture.Get();
-    }
-
-    void offscreen_renderer_dx::_begin_frame()
-    {
-        HANDLE raw_handle = _wgl_dx11_gl_interop_texture_handle.get();
-        if (!::wglDXLockObjectsNV(_wgl_dx11_device_handle.get(), 1, &raw_handle)) {
-            TRIENGINE_PANIC("wglDXLockObjectsNV failed (last error: %u)", ::GetLastError());
-        }
-    }
-
-    void offscreen_renderer_dx::_end_frame()
-    {
-        HANDLE raw_handle = _wgl_dx11_gl_interop_texture_handle.get();
-        if (!::wglDXUnlockObjectsNV(_wgl_dx11_device_handle.get(), 1, &raw_handle)) {
-            TRIENGINE_PANIC("wglDXUnlockObjectsNV failed (last error: %u)", ::GetLastError());
-        }
-    }
-
-    void offscreen_renderer_dx::_handle_frame_resize_event(const vec2_i32 new_frame_size)
-    {
-        if (_curr_frame_size == new_frame_size) {
-            return; // skip resize
-        }
-
-        // Recreate gldx interop color texture
-        {
-            D3D11_TEXTURE2D_DESC dxgl_interop_texture_desc{};
-            _dx11_gl_interop_color_texture->GetDesc(&dxgl_interop_texture_desc);
-            dxgl_interop_texture_desc.Width = static_cast<UINT>(new_frame_size.x());
-            dxgl_interop_texture_desc.Height = static_cast<UINT>(new_frame_size.y());
-
-            if (const HRESULT hr = _dx11_device2->CreateTexture2D(
-                &dxgl_interop_texture_desc,
-                nullptr,
-                &_dx11_gl_interop_color_texture);
-                FAILED(hr))
-            {
-                TRIENGINE_PANIC("Failed to re-create DXGL interop color texture with size: %dx%d (HRESULT: %08X)"
-                    , new_frame_size.x()
-                    , new_frame_size.y()
-                    , hr
-                );
-            }
-
-            TRIENGINE_ASSERT(_dx11_gl_interop_color_texture != nullptr);
-        }
-
-        // Recreate & register GL color render buffer
-        {
-            TRIENGINE_ASSERT(_frame_gl_interop_color_rbo != 0);
-            ::glDeleteRenderbuffers(1, &_frame_gl_interop_color_rbo);
-            GLCall(::glCreateRenderbuffers(1, &_frame_gl_interop_color_rbo));
-
-            const HANDLE interop_texture_raw_handle{ ::wglDXRegisterObjectNV(
-                _wgl_dx11_device_handle.get()/* HANDLE hDevice; */,
-                _dx11_gl_interop_color_texture.Get()/* PVOID dxResource; */,
-                _frame_gl_interop_color_rbo/* GLuint name; */,
-                GL_RENDERBUFFER/* GLenum type; */,
-                WGL_ACCESS_READ_WRITE_NV/* GLenum access; */
-            ) };
-            const DWORD last_error{ ::GetLastError() };
-
-            _wgl_dx11_gl_interop_texture_handle.reset(
-                interop_texture_raw_handle,
-                [this](HANDLE hObject) {
-                    if (hObject) { ::wglDXUnregisterObjectNV(_wgl_dx11_device_handle.get(), hObject); }
-                }
+        // Release KeyedMutex for the interop texture
+        // TRUE is returned if the release operation succeeded.
+        // FALSE is returned if the release operation failed.
+        if (const GLboolean mutex_released = ::glReleaseKeyedMutexWin32EXT(
+            _gl_interop_color_tex_mem_object,
+            mutex_key
+        ); !mutex_released) {
+            // Failed to release the mutex
+            TRIENGINE_ERROR("Failed to release keyed mutex for OpenGL interop texture (key: %llu, last error: %u)"
+                , mutex_key
+                , ::GetLastError()
             );
-
-            if (!_wgl_dx11_gl_interop_texture_handle) {
-                TRIENGINE_PANIC("wglDXRegisterObjectNV failed (last error: %u)", last_error);
-            }
+            return false;
         }
 
-        // FBO에 컬러 렌더버퍼(WGL DX Interop 텍스처) 부착
-        GLCall(::glNamedFramebufferRenderbuffer(
-            _main_fbo,                  /* GLuint framebuffer */
-            GL_COLOR_ATTACHMENT0,       /* GLenum attachment */
-            GL_RENDERBUFFER,            /* GLenum renderbuffertarget */
-            _frame_gl_interop_color_rbo /* GLuint renderbuffer */
-        ));
+        _glctx.swap_buffers();
+        _glctx.poll_window_events();
+        return true;
+    }
 
-        if (const auto status = ::glCheckNamedFramebufferStatus(_main_fbo, GL_FRAMEBUFFER);
-            status != GL_FRAMEBUFFER_COMPLETE)
-        {
-            TRIENGINE_PANIC("Failed to re-create framebuffer with size: %dx%d (status: 0x%X)"
-                , new_frame_size.x()
-                , new_frame_size.y()
-                , status
-            );
+    void offscreen_renderer_dx::_resize_frame(const vec2_i32 new_frame_size)
+    {
+        TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
+
+        if (_flag_initialized && _curr_frame_size == new_frame_size) {
+            return; // No need to resize if the size is the same
         }
 
         _curr_frame_size = new_frame_size;
+
+        // Recreate dx11 interop color texture
+        {
+            D3D11_TEXTURE2D_DESC dx11_interop_texture_desc = { 0, };
+            dx11_interop_texture_desc.Width = static_cast<UINT>(new_frame_size.x());
+            dx11_interop_texture_desc.Height = static_cast<UINT>(new_frame_size.y());
+            dx11_interop_texture_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Always RGBA format
+            dx11_interop_texture_desc.MipLevels = 1;
+            dx11_interop_texture_desc.ArraySize = 1;
+            dx11_interop_texture_desc.SampleDesc.Count = 1;
+            dx11_interop_texture_desc.SampleDesc.Quality = 0;
+            dx11_interop_texture_desc.Usage = D3D11_USAGE_DEFAULT;
+            dx11_interop_texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+            dx11_interop_texture_desc.CPUAccessFlags = 0;
+            dx11_interop_texture_desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
+
+            THROW_IF_FAILED(_dx11_device2->CreateTexture2D(
+                &dx11_interop_texture_desc,
+                nullptr,
+                &_dx11_interop_color_tex
+            ));
+        }
+
+        // Get the native handle of the new dx11 interop color texture
+        {
+            ComPtr<IDXGIResource1> dxgiResource1;
+            ASSERT_HR(_dx11_interop_color_tex.As(&dxgiResource1));
+            HANDLE new_shared_handle{};
+            THROW_IF_FAILED(dxgiResource1->CreateSharedHandle(
+                nullptr, // SECURITY_ATTRIBUTES
+                DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE,
+                nullptr, // Name; Name is optional, but if specified, it should be unique across processes, can be accessed via `OpenSharedResourceByName`
+                &new_shared_handle
+            ));
+            _dx11_interop_color_tex_handle.reset(
+                new_shared_handle,
+                ::CloseHandle
+            );
+
+            TRIENGINE_ASSERT(_dx11_interop_color_tex_handle != nullptr);
+        }
+
+        // Recreate OpenGL interop memory object
+        // and import the D3D11 texture into OpenGL memory object
+        if (_gl_interop_color_tex_mem_object) {
+            // Wait for all OpenGL commands to complete before deleting the memory object
+            ::glFinish();
+            ::glDeleteMemoryObjectsEXT(1, &_gl_interop_color_tex_mem_object);
+        }
+        ::glCreateMemoryObjectsEXT(1, &_gl_interop_color_tex_mem_object);
+        ::glImportMemoryWin32HandleEXT( // Reimport
+            _gl_interop_color_tex_mem_object,
+            0, // texture memory size; Pass 0 to let OpenGL query it from D3D11 resource
+            GL_HANDLE_TYPE_D3D11_IMAGE_EXT,
+            _dx11_interop_color_tex_handle.get()
+        );
+
+        // Check for reimport errors
+        const GLenum import_error = ::glGetError();
+        if (import_error != GL_NO_ERROR) {
+            TRIENGINE_PANIC("Failed to import D3D11 texture into OpenGL memory object (GL error: 0x%X)", import_error);
+        }
+
+        // Recreate gl interop color texture using the imported memory
+        if (_gl_interop_color_tex) {
+            ::glDeleteTextures(1, &_gl_interop_color_tex);
+        }
+        ::glCreateTextures(GL_TEXTURE_2D, 1, &_gl_interop_color_tex);
+        ::glTextureStorageMem2DEXT(
+            _gl_interop_color_tex, // GLuint texture
+            1, // GLsizei levels
+            GL_RGBA8, // GLenum internalformat - Use RGBA8 as internal format (matching DirectX side)
+            static_cast<GLsizei>(new_frame_size.x()), // GLsizei width
+            static_cast<GLsizei>(new_frame_size.y()), // GLsizei height
+            _gl_interop_color_tex_mem_object, // GLuint memory
+            0 // GLuint64 offset
+        );
+
+        // Set texture parameters for interop texture
+        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        //::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_TILING_EXT, GL_OPTIMAL_TILING_EXT); // D3D11 side is D3D11_TEXTURE_LAYOUT_UNDEFINED
+
+        // Attach the shared interop texture directly to the FBO for rendering
+        ::glNamedFramebufferTexture(
+            _gl_fbo, 
+            GL_COLOR_ATTACHMENT0, 
+            _gl_interop_color_tex, 
+            0
+        );
+
+        // Check FBO completeness
+        if (const auto status = ::glCheckNamedFramebufferStatus(_gl_fbo, GL_FRAMEBUFFER);
+            status != GL_FRAMEBUFFER_COMPLETE) {
+            TRIENGINE_PANIC("Framebuffer is not complete (status: 0x%X)", static_cast<uint32_t>(status));
+        }
+
+        // Resize viewport
+        ::glViewport(0, 0, _curr_frame_size.x(), _curr_frame_size.y());
     }
 
 } // namespace

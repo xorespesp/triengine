@@ -45,16 +45,49 @@ namespace
 
 } // namespace
 
-viewer_process::viewer_process(int32_t frame_width, int32_t frame_height, DXGI_FORMAT frame_format)
+viewer_process::viewer_process(const SIZE initial_frame_size, const DXGI_FORMAT target_frame_format)
 {
     CXLIB_INFO("DX viewer process spawned (PID: {})", ::GetCurrentProcessId());
-    this->_initialize(frame_width, frame_height, frame_format);
+    this->_initialize(initial_frame_size, target_frame_format);
 }
 
 viewer_process::~viewer_process()
 {
-    CXLIB_DEBUG("Cleaning up DX viewer resources...");
-    // RAII handles most cleanup...
+    CXLIB_DEBUG("Cleaning up viewer process resources...");
+    
+    // Clean up D3D11 device context state
+    if (_dx11_device_context2) {
+        _dx11_device_context2->ClearState();
+        _dx11_device_context2->Flush();
+    }
+
+    // Clean up D3D11 resources (COM objects will auto-release)
+    _dx11_rtv.Reset();
+    _dx11_srv.Reset();
+    _dx11_pixel_shader.Reset();
+    _dx11_vertex_shader.Reset();
+    _dx11_sampler_state.Reset();
+    _dx11_shared_texture_copy.Reset();
+    _dxgi_keyed_mutex.Reset();
+    _dx11_shared_texture.Reset();
+    _dx11_swapchain1.Reset();
+    _dx11_device_context2.Reset();
+    _dx11_device2.Reset();
+    _dxgi_adapter.Reset();
+
+    // Clean up window handle
+    _viewer_hwnd.reset();
+
+    // Clean up IPC client
+    if (_ipc_cli) {
+        _ipc_cli->disconnect();
+        _ipc_cli.reset();
+    }
+
+    // Close renderer process handle
+    _renderer_process_handle.reset();
+
+    CXLIB_DEBUG("Viewer process cleanup complete.");
 }
 
 void viewer_process::run()
@@ -64,7 +97,7 @@ void viewer_process::run()
     MSG msg = {};
     while (msg.message != WM_QUIT)
     {
-        if (::PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE))
+        if (::PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
         {
             ::TranslateMessage(&msg);
             ::DispatchMessageA(&msg);
@@ -77,9 +110,8 @@ void viewer_process::run()
 }
 
 void viewer_process::_initialize(
-    const int32_t frame_width,
-    const int32_t frame_height,
-    const DXGI_FORMAT frame_format)
+    const SIZE initial_frame_size,
+    const DXGI_FORMAT target_frame_format)
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     CXLIB_DEBUG("Connecting to IPC server...");
@@ -91,31 +123,30 @@ void viewer_process::_initialize(
     {
         CXLIB_DEBUG("No existing renderer process found. Launching new renderer...");
 
-        // 자식 프로세스(GL 렌더러)를 별도의 콘솔 창으로 실행
         std::array<char, MAX_PATH + 20> currExePathBuff{};
-        ::GetModuleFileNameA(NULL, currExePathBuff.data(), static_cast<DWORD>(currExePathBuff.size()));
+        ::GetModuleFileNameA(nullptr, currExePathBuff.data(), static_cast<DWORD>(currExePathBuff.size()));
         std::string cmdLine = fmt::format("\"{}\" --renderer-mode", currExePathBuff.data());
 
         STARTUPINFOA si = { sizeof(si) };
         PROCESS_INFORMATION pi = {};
         CXLIB_ASSERT(::CreateProcessA(
-            NULL,
+            nullptr,
             cmdLine.data(),
-            NULL,
-            NULL,
-            FALSE, // 핸들 상속 여부
+            nullptr,
+            nullptr,
+            FALSE, // Handle inheritance
             CREATE_NEW_CONSOLE,
-            NULL,
-            NULL,
+            nullptr,
+            nullptr,
             &si, &pi
         ));
 
         _renderer_process_handle.reset(pi.hProcess);
         ::CloseHandle(pi.hThread); // Thread handle not needed
 
-        // 서버 프로세스 초기화 대기
+        // Wait for the renderer process to be ready
         std::this_thread::sleep_for(1000ms);
-        std::cout << "\nPress any key to continue..." << std::endl;
+        std::cout << "\nPress any key to connect..." << std::endl;
         static_cast<void>(::_getch());
 
         CXLIB_DEBUG("Launched renderer process.");
@@ -142,9 +173,8 @@ void viewer_process::_initialize(
     // 초기화 요청 전송
 
     packet_builder<ipc_proto::packets::init_request_t> init_req{ ipc_proto::packet_type::init_request };
-    init_req.body()->frame_width = frame_width;
-    init_req.body()->frame_height = frame_height;
-    init_req.body()->frame_format = frame_format;
+    init_req.body()->frame_width = static_cast<int32_t>(initial_frame_size.cx);
+    init_req.body()->frame_height = static_cast<int32_t>(initial_frame_size.cy);
 
     std::vector<uint8_t> init_rep_bytes;
     if (std::errc{} != _ipc_cli->send_request_sync(
@@ -157,11 +187,11 @@ void viewer_process::_initialize(
 
     packet_view init_rep_pck_view{ init_rep_bytes.data(), init_rep_bytes.size() };
     const auto init_rep = init_rep_pck_view.body<ipc_proto::packets::init_response_t>();
-    CXLIB_DEBUG("Received init response. (pid: {}, adapter: {:x}-{:x}, resource handle: {})"
+    CXLIB_DEBUG("Received init response. (pid: {}, adapter: {:x}-{:x}, surface handle: {})"
         , init_rep->renderer_process_id
         , init_rep->target_adapter_luid.HighPart
         , init_rep->target_adapter_luid.LowPart
-        , init_rep->shared_texture_handle
+        , init_rep->surface_handle
     );
 
     if (!_renderer_process_handle) {
@@ -184,12 +214,11 @@ void viewer_process::_initialize(
             CREATESTRUCT* pCreate = _CXLIB utils::bit_cast<CREATESTRUCT*>(lParam);
             pThis = _CXLIB utils::bit_cast<viewer_process*>(pCreate->lpCreateParams);
             ::SetWindowLongPtrA(hWnd, GWLP_USERDATA, _CXLIB utils::bit_cast<LONG_PTR>(pThis));
-        }
-        else {
+        } else {
             pThis = _CXLIB utils::bit_cast<viewer_process*>(::GetWindowLongPtrA(hWnd, GWLP_USERDATA));
         }
 
-        return (pThis && pThis->_initialized)
+        return (pThis && pThis->_fl_initialized)
             ? pThis->_wnd_proc(hWnd, message, wParam, lParam)
             : ::DefWindowProcA(hWnd, message, wParam, lParam);
     };
@@ -199,10 +228,10 @@ void viewer_process::_initialize(
     WNDCLASSA wc = { 0, };
     wc.lpfnWndProc = pfnNativeWndProc;
     wc.lpszClassName = "MyDX11ViewerWndClass";
-    wc.hCursor = LoadCursorA(NULL, IDC_ARROW);
+    wc.hCursor = ::LoadCursorA(nullptr, IDC_ARROW);
     ::RegisterClassA(&wc);
 
-    RECT windowRect = { 0, 0, frame_width, frame_height };
+    RECT windowRect = { 0, 0, initial_frame_size.cx, initial_frame_size.cy };
     const DWORD windowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
     ::AdjustWindowRect(&windowRect, windowStyle, FALSE);
 
@@ -215,9 +244,9 @@ void viewer_process::_initialize(
         CW_USEDEFAULT,
         windowRect.right - windowRect.left,
         windowRect.bottom - windowRect.top,
-        NULL,
-        NULL,
-        NULL,
+        nullptr,
+        nullptr,
+        nullptr,
         this // Pass 'this' to WndProc
     ));
     CXLIB_ASSERT(_viewer_hwnd.get());
@@ -245,100 +274,117 @@ void viewer_process::_initialize(
         throw std::runtime_error{ "Matching adapter not found" };
     }
 
-    UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    // Create D3D11 device and device context
+    {
+        UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #ifdef _DEBUG
-    deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+        deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-    ComPtr<ID3D11Device> dx11Device0;
-    ComPtr<ID3D11DeviceContext> dx11DeviceContext0;
+        ComPtr<ID3D11Device> dx11Device0;
+        ComPtr<ID3D11DeviceContext> dx11DeviceContext0;
 
-    ASSERT_HR(::D3D11CreateDevice(
-        _dxgi_adapter.Get(),
-        D3D_DRIVER_TYPE_UNKNOWN,
-        NULL,
-        deviceFlags,
-        NULL,
-        0,
-        D3D11_SDK_VERSION,
-        &dx11Device0,
-        NULL,
-        &dx11DeviceContext0
-    ));
+        ASSERT_HR(::D3D11CreateDevice(
+            _dxgi_adapter.Get(),
+            D3D_DRIVER_TYPE_UNKNOWN,
+            nullptr,
+            deviceFlags,
+            nullptr,
+            0,
+            D3D11_SDK_VERSION,
+            &dx11Device0,
+            nullptr,
+            &dx11DeviceContext0
+        ));
 
-    // Convert `ID3D11Device` -> `ID3D11Device2` (Higher version object)
-    ASSERT_HR(dx11Device0.As(&_dx11_device2));
+        // Convert `ID3D11Device` -> `ID3D11Device2` (Higher version object)
+        ASSERT_HR(dx11Device0.As(&_dx11_device2));
 
-    // Convert `ID3D11DeviceContext` -> `ID3D11DeviceContext2` (Higher version object)
-    ASSERT_HR(dx11DeviceContext0.As(&_dx11_device_context2));
-
-    _dx11_shared_texture = open_shared_texture_from_native_handle(
-        _dx11_device2,
-        init_rep->shared_texture_handle,
-        _renderer_process_handle.get()
-    );
-    if (_dx11_shared_texture) {
-        CXLIB_DEBUG("Successfully opened shared texture from native handle. (handle: {})", init_rep->shared_texture_handle);
-    } else {
-        throw std::runtime_error{ "Failed to open shared texture from native handle" };
+        // Convert `ID3D11DeviceContext` -> `ID3D11DeviceContext2` (Higher version object)
+        ASSERT_HR(dx11DeviceContext0.As(&_dx11_device_context2));
     }
 
-    // 획득한 공유 텍스처에서 KeyedMutex 인터페이스 획득
-    ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
+    // Open shared interop texture from native handle
+    {
+        _dx11_shared_texture = open_shared_texture_from_native_handle(
+            _dx11_device2,
+            init_rep->surface_handle,
+            _renderer_process_handle.get()
+        );
+        if (_dx11_shared_texture) {
+            CXLIB_DEBUG("Successfully opened surface handle: {})", init_rep->surface_handle);
+        } else {
+            throw std::runtime_error{ fmt::format(
+                "Failed to open surface handle: {}"
+                , init_rep->surface_handle
+            )};
+        }
 
-    // 화면 렌더링용 screen 텍스처 생성
-    D3D11_TEXTURE2D_DESC screenTexDesc{};
-    screenTexDesc.Width = static_cast<UINT>(frame_width);
-    screenTexDesc.Height = static_cast<UINT>(frame_height);
-    screenTexDesc.MipLevels = 1;
-    screenTexDesc.ArraySize = 1;
-    screenTexDesc.Format = frame_format;
-    screenTexDesc.SampleDesc.Count = 1;
-    screenTexDesc.SampleDesc.Quality = 0;
-    screenTexDesc.Usage = D3D11_USAGE_DEFAULT;
-    screenTexDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    screenTexDesc.CPUAccessFlags = 0;
-    screenTexDesc.MiscFlags = 0;
-    ASSERT_HR(_dx11_device2->CreateTexture2D(
-        &screenTexDesc,
-        nullptr,
-        &_dx11_screen_texture
-    ));
+        // Get the KeyedMutex interface from the shared texture
+        ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
+    }
 
-    // DXGI 1.2 스왑 체인 디스크립션(DXGI_SWAP_CHAIN_DESC1) 설정
-    DXGI_SWAP_CHAIN_DESC1 swapchainDesc1{};
-    swapchainDesc1.Width = swapchainDesc1.Height = 0; // NOTE: 0으로 설정 시 창 크기로 자동 맞춤
-    swapchainDesc1.Format = frame_format;
-    swapchainDesc1.Stereo = FALSE;
-    swapchainDesc1.SampleDesc.Count = 1;
-    swapchainDesc1.SampleDesc.Quality = 0;
-    swapchainDesc1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapchainDesc1.BufferCount = 2; // 더블 버퍼링 사용
-    swapchainDesc1.Scaling = DXGI_SCALING_STRETCH;
-    swapchainDesc1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // NOTE: 현대적인 플립 모델 사용
-    swapchainDesc1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    swapchainDesc1.Flags = 0;
+    // Create copy of the shared texture (non-shared)
+    // (This texture will be sampled to present to the swap chain)
+    {
+        D3D11_TEXTURE2D_DESC sharedTexCopyDesc{};
+        _dx11_shared_texture->GetDesc(&sharedTexCopyDesc); // frame size & format will be same as shared texture
+        sharedTexCopyDesc.MipLevels = 1;
+        sharedTexCopyDesc.ArraySize = 1;
+        sharedTexCopyDesc.SampleDesc.Count = 1;
+        sharedTexCopyDesc.SampleDesc.Quality = 0;
+        sharedTexCopyDesc.Usage = D3D11_USAGE_DEFAULT;
+        sharedTexCopyDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+        sharedTexCopyDesc.CPUAccessFlags = 0;
+        sharedTexCopyDesc.MiscFlags = 0;
+        ASSERT_HR(_dx11_device2->CreateTexture2D(
+            &sharedTexCopyDesc,
+            nullptr,
+            &_dx11_shared_texture_copy
+        ));
+    }
 
-    // 스왑 체인 생성 (CreateSwapChainForHwnd 사용)
-    ASSERT_HR(dxgiFactory2->CreateSwapChainForHwnd(
-        _dx11_device2.Get(),
-        _viewer_hwnd.get(),
-        &swapchainDesc1,
-        nullptr, // 전체화면 디스크립션 (사용 X)
-        nullptr, // 출력 제한 없음
-        &_dx11_swapchain1
-    ));
+    // Create Sampler State
+    {
+        D3D11_SAMPLER_DESC sampDesc{};
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        sampDesc.MinLOD = 0;
+        sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        ASSERT_HR(_dx11_device2->CreateSamplerState(&sampDesc, &_dx11_sampler_state));
+    }
 
-    // 스왑 체인의 백 버퍼를 렌더 타겟 뷰로 설정
-    ComPtr<ID3D11Texture2D> backBuffer;
-    ASSERT_HR(_dx11_swapchain1->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
-    ASSERT_HR(_dx11_device2->CreateRenderTargetView(backBuffer.Get(), NULL, &_dx11_rtv));
+    // Create the swap chain for the viewer window (Use CreateSwapChainForHwnd instead)
+    {
+        DXGI_SWAP_CHAIN_DESC1 swapchainDesc1{};
+        swapchainDesc1.Width = swapchainDesc1.Height = 0; // NOTE: 0 means automatically set to the window's size
+        swapchainDesc1.Format = target_frame_format;
+        swapchainDesc1.Stereo = FALSE; // Disable stereo (3D) mode
+        swapchainDesc1.SampleDesc.Count = 1; // No multi-sampling (MSAA off)
+        swapchainDesc1.SampleDesc.Quality = 0; // Default quality
+        swapchainDesc1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        swapchainDesc1.BufferCount = 2; // Double buffering
+        swapchainDesc1.Scaling = DXGI_SCALING_STRETCH;
+        swapchainDesc1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+        swapchainDesc1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // Use Modern flip model `DXGI_SWAP_EFFECT_FLIP_DISCARD` -> faster than blt
+        swapchainDesc1.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; // Allow tearing for VSync off
+        ASSERT_HR(dxgiFactory2->CreateSwapChainForHwnd(
+            _dx11_device2.Get(),
+            _viewer_hwnd.get(),
+            &swapchainDesc1,
+            nullptr, // Do not use fullscreen
+            nullptr, // No restrictions to output
+            &_dx11_swapchain1
+        ));
+    }
 
-    // Full-screen Quad 렌더링을 위한 셰이더 및 리소스 생성
-    // OpenGL의 공유 텍스처를 y축 기준으로 뒤집어서 렌더링하기 위한 screen quad 셰이더 코드
-    static const std::string shaderCode = R"hlsl(
-        Texture2D tx : register(t0);
-        SamplerState smp : register(s0);
+    // Base full-screen quad rendering shader template with preprocessor conditionals
+    static const std::string shaderTemplate = R"hlsl(
+        Texture2D g_texture : register(t0);
+        SamplerState g_sampler : register(s0);
 
         struct VS_OUT {
             float4 pos : SV_POSITION;
@@ -357,181 +403,324 @@ void viewer_process::_initialize(
         }
 
         float4 PS(VS_OUT input) : SV_TARGET {
-            return tx.Sample(smp, float2(input.uv.x, 1.0 - input.uv.y)); // flip Y-axis
-            // return tx.Sample(smp, input.uv);
+            float2 uv = input.uv;
+            
+        #ifdef FLIP_Y_AXIS
+            // Flip Y-axis (if needed)
+            uv.y = 1.0 - uv.y;
+        #endif
+            
+            float4 color = g_texture.Sample(g_sampler, uv);
+            
+        #ifdef CONVERT_RGBA_TO_BGRA
+            color = float4(color.b, color.g, color.r, color.a); // Swap R and B channels
+        #endif
+            
+            return color;
         }
     )hlsl";
 
-    ComPtr<ID3DBlob> vsBlob, psBlob, errBlob;
-    HRESULT hr = ::D3DCompile(
-        shaderCode.c_str(), shaderCode.size(),
-        nullptr, nullptr, nullptr,
-        "VS",
-        "vs_5_0",
-        0, 0,
-        &vsBlob, &errBlob
-    );
-    if (FAILED(hr)) {
-        throw std::runtime_error{ fmt::format(
-            "Failed to compile vertex shader({}): {}"
-            , hr
-            , static_cast<char*>(errBlob->GetBufferPointer())
-        ) };
+    // Helper to compile shader with specific defines
+    constexpr auto compileShader =
+        [](const std::string& shader_template,
+            const std::string& entry_point,
+            const std::string& target,
+            const D3D_SHADER_MACRO* defines = nullptr) -> ComPtr<ID3DBlob>
+        {
+            ComPtr<ID3DBlob> psBlob, errBlob;
+            HRESULT hr = ::D3DCompile(
+                shader_template.c_str(), shader_template.size(),
+                nullptr, defines, nullptr,
+                entry_point.c_str(), target.c_str(),
+                0, 0,
+                &psBlob, &errBlob
+            );
+            if (FAILED(hr)) {
+                throw std::runtime_error{ fmt::format(
+                    "Failed to compile {} shader({:08X}): {}"
+                    , target.c_str()
+                    , hr
+                    , static_cast<const char*>(errBlob->GetBufferPointer())
+                ) };
+            }
+            return psBlob;
+        };
+
+    // Compile vertex shader
+    {
+        auto vsBlob = compileShader(shaderTemplate, "VS", "vs_5_0");
+        ASSERT_HR(_dx11_device2->CreateVertexShader(
+            vsBlob->GetBufferPointer(),
+            vsBlob->GetBufferSize(),
+            nullptr,
+            &_dx11_vertex_shader
+        ));
     }
 
-    hr = ::D3DCompile(
-        shaderCode.c_str(), shaderCode.size(),
-        nullptr, nullptr, nullptr,
-        "PS",
-        "ps_5_0",
-        0, 0,
-        &psBlob,
-        &errBlob
-    );
-    if (FAILED(hr)) {
-        throw std::runtime_error{ fmt::format(
-            "Failed to compile pixel shader({}): {}"
-            , hr
-            , static_cast<char*>(errBlob->GetBufferPointer())
-        ) };
+    // Compile pixel shader
+    {
+        std::vector<D3D_SHADER_MACRO> defines;
+
+        // Need Y-flip because OpenGL uses bottom-left origin while DirectX uses top-left
+        defines.push_back(D3D_SHADER_MACRO{ "FLIP_Y_AXIS", "1" });
+
+        // NOTE: No manual color-conversion needed when rendering RGBA texture (OpenGL) to BGRA render target (Flutter),
+        // GPU handles the conversion automatically.
+        // when you load the texture, it gets 'swizzled' if needed to the standard Red, Green, and Blue channels
+        // and when you write to the render target the same thing happens depending on the format.
+        // so manual pixel shader conversion would cause double-swapping and corrupt colors.
+        // Ref: https://stackoverflow.com/a/46369577/3865427
+        // if (target_frame_format == DXGI_FORMAT_B8G8R8A8_UNORM) {
+        //     defines.push_back(D3D_SHADER_MACRO{ "CONVERT_RGBA_TO_BGRA", "1" }); 
+        // }
+
+        // Add a null terminator to the defines array
+        if (!defines.empty()) {
+            defines.push_back(D3D_SHADER_MACRO{ nullptr, nullptr });
+        }
+
+        auto psBlob = compileShader(shaderTemplate, "PS", "ps_5_0", defines.data());
+        ASSERT_HR(_dx11_device2->CreatePixelShader(
+            psBlob->GetBufferPointer(),
+            psBlob->GetBufferSize(),
+            nullptr,
+            &_dx11_pixel_shader
+        ));
     }
 
-    ASSERT_HR(_dx11_device2->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &_dx11_vertex_shader));
-    ASSERT_HR(_dx11_device2->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &_dx11_pixel_shader));
-    ASSERT_HR(_dx11_device2->CreateShaderResourceView(_dx11_screen_texture.Get(), NULL, &_dx11_srv)); // Equivalent of: `glBindTexture`+ `sampler2D`
+    // Get the back buffer of the swap chain
+    ComPtr<ID3D11Texture2D> backBuffer;
+    ASSERT_HR(_dx11_swapchain1->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
 
-    D3D11_SAMPLER_DESC sampDesc{};
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sampDesc.MinLOD = 0;
-    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    ASSERT_HR(_dx11_device2->CreateSamplerState(&sampDesc, &_dx11_sampler_state));
+    // Create Shader Resource View (SRV)
+    // Equivalent of: `glBindTexture`+ `sampler2D`
+    ASSERT_HR(_dx11_device2->CreateShaderResourceView(
+        _dx11_shared_texture_copy.Get(),
+        nullptr,
+        &_dx11_srv
+    ));
 
-    _initialized = true;
+    // Create Render Target View (RTV)
+    ASSERT_HR(_dx11_device2->CreateRenderTargetView(
+        backBuffer.Get(),
+        nullptr,
+        &_dx11_rtv
+    ));
+
+    // Setup viewport
+    {
+        _viewport.TopLeftX = 0.0f;
+        _viewport.TopLeftY = 0.0f;
+        _viewport.Width = static_cast<float>(initial_frame_size.cx);
+        _viewport.Height = static_cast<float>(initial_frame_size.cy);
+        _viewport.MinDepth = 0.0f;
+        _viewport.MaxDepth = 1.0f;
+    }
+
+    _fl_initialized = true;
     CXLIB_INFO("Initialization complete.");
+}
+
+void viewer_process::_resize_frame(const SIZE new_frame_size)
+{
+    CXLIB_TRACE("frame resize request: {}x{}", new_frame_size.cx, new_frame_size.cy);
+
+    packet_builder<ipc_proto::packets::frame_resize_request_t> req{ ipc_proto::packet_type::frame_resize_request };
+    req.body()->width = static_cast<int32_t>(new_frame_size.cx);
+    req.body()->height = static_cast<int32_t>(new_frame_size.cy);
+
+    std::vector<uint8_t> rep_bytes;
+    if (std::errc{} != _ipc_cli->send_request_sync(
+        req.data(),
+        req.size(),
+        rep_bytes))
+    {
+        throw std::runtime_error("frame resize request failed.");
+    }
+
+    packet_view pck_view{ rep_bytes.data(), rep_bytes.size() };
+    const auto resize_rep = pck_view.body<ipc_proto::packets::frame_resize_response_t>();
+    CXLIB_TRACE("frame resize response -> surface handle: {}"
+        , resize_rep->surface_handle
+    );
+
+    D3D11_TEXTURE2D_DESC sharedTexCopyDesc{};
+    _dx11_shared_texture_copy->GetDesc(&sharedTexCopyDesc);
+
+    // First, need to clear the render target and shader resource views
+    // before resizing the swap chain and shared texture.
+    _dx11_device_context2->OMSetRenderTargets(0, nullptr, nullptr);
+    ID3D11ShaderResourceView* nullSRV = nullptr;
+    _dx11_device_context2->PSSetShaderResources(0, 1, &nullSRV);
+    _dx11_device_context2->Flush(); // Wait for GPU to finish processing
+
+    //
+    // 렌더링 리소스 해제 (해제 순서에 유의; 뷰 -> 텍스처 순서)
+    //
+
+    _dx11_rtv.Reset();
+    _dx11_srv.Reset();
+    _dxgi_keyed_mutex.Reset();
+    _dx11_shared_texture.Reset();
+    _dx11_shared_texture_copy.Reset();
+
+    //
+    // 렌더링 리소스 리사이즈(재생성) 시작
+    // (모든 버퍼 참조(RTV 등)가 해제된 후 수행되어야 함)
+    //
+
+    // 스왑체인 리사이즈
+    DXGI_SWAP_CHAIN_DESC1 swapchainDesc1{};
+    _dx11_swapchain1->GetDesc1(&swapchainDesc1);
+    HRESULT hr = _dx11_swapchain1->ResizeBuffers(
+        swapchainDesc1.BufferCount,
+        new_frame_size.cx,
+        new_frame_size.cy,
+        swapchainDesc1.Format,
+        swapchainDesc1.Flags
+    );
+    ASSERT_HR(hr);
+
+    // 공유 텍스처 재생성
+    _dx11_shared_texture = open_shared_texture_from_native_handle(
+        _dx11_device2,
+        resize_rep->surface_handle, // IPC로 받은 새로운 핸들
+        _renderer_process_handle.get()
+    );
+    if (_dx11_shared_texture) {
+        CXLIB_DEBUG("Successfully opened surface handle: {}"
+            , resize_rep->surface_handle
+        );
+    } else {
+        throw std::runtime_error{ "Failed to open surface handle" };
+    }
+
+    // KeyedMutex 재생성
+    ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
+
+    // 로컬 Screen 텍스처 재생성
+    sharedTexCopyDesc.Width = static_cast<UINT>(new_frame_size.cx);
+    sharedTexCopyDesc.Height = static_cast<UINT>(new_frame_size.cy);
+    ASSERT_HR(_dx11_device2->CreateTexture2D(
+        &sharedTexCopyDesc,
+        nullptr,
+        &_dx11_shared_texture_copy
+    ));
+
+    // 새로운 Screen 텍스처에 대한 SRV 재생성
+    ASSERT_HR(_dx11_device2->CreateShaderResourceView(
+        _dx11_shared_texture_copy.Get(),
+        nullptr,
+        &_dx11_srv
+    ));
+
+    // 리사이즈된 스왑체인의 백버퍼에 대한 RTV 재생성
+    ComPtr<ID3D11Texture2D> backBuffer;
+    ASSERT_HR(_dx11_swapchain1->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
+    ASSERT_HR(_dx11_device2->CreateRenderTargetView(
+        backBuffer.Get(),
+        nullptr,
+        &_dx11_rtv
+    ));
+
+    // Update viewport to new frame size
+    _viewport.Width = static_cast<float>(new_frame_size.cx);
+    _viewport.Height = static_cast<float>(new_frame_size.cy);
+
+    CXLIB_DEBUG("All DX resources have been successfully synchronized.");
+}
+
+void viewer_process::_render_frame()
+{
+    if (_fl_render_interop_texture)
+    {
+        // 렌더링 전, 획득해둔 KeyedMutex를 사용하여 GL 렌더러가 텍스처 쓰기를 완료할 때까지 대기
+        // (뮤텍스를 즉시 얻지 못한 경우, GL 렌더러 측에서 아직 작업 중이거나 렌더링된 프레임이 없음을 의미)
+        // 
+        // AcquireSync은 다음과 같은 DWORD 상수들을 반환할 수 있음.
+        // (단순 성공 여부 판단을 위해 SUCCEEDED 매크로만 사용할 경우, WAIT_OBJECT_0 반환값을 제외한 나머지 반환 상태값을 제대로 감지하지 못할 수 있음에 유의)
+        //     - WAIT_OBJECT_0  : keyed mutex를 성공적으로 획득했음. 이 경우, 렌더링 작업을 계속 진행할 수 있음. (S_OK 와 동일한 값)
+        //     - WAIT_TIMEOUT   : 지정된 키가 해제되기 전에 타임아웃 간격이 경과했음을 의미.
+        //     - WAIT_ABANDONED : SharedSurface와 KeyedMutex가 더 이상 일관된 상태가 아님. 이 경우, KeyedMutex와 SharedSurface 둘 다 해제한 후 재생성해야 함.
+        // https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgikeyedmutex-acquiresync
+
+        constexpr uint64_t kMutexKey = 0;
+        constexpr uint32_t kMaxWaitTimeoutInMs = 1; // Use a small timeout to prevent blocking the viewer while allowing smooth frame updates
+        switch (
+            const HRESULT sync_hr = _dxgi_keyed_mutex->AcquireSync(kMutexKey, kMaxWaitTimeoutInMs);
+        sync_hr
+            ) {
+        case WAIT_OBJECT_0: // KeyedMutex를 성공적으로 획득했으므로 렌더링 작업 진행 가능
+            // Shared 텍스처를 복사본 텍스처로 복사 (락 점유 시간을 최소화하기 위해 별도 텍스처로 데이터를 복사한 뒤 렌더링 수행)
+            _dx11_device_context2->CopyResource(_dx11_shared_texture_copy.Get(), _dx11_shared_texture.Get());
+            _dxgi_keyed_mutex->ReleaseSync(kMutexKey); // 텍스처 사용이 끝났으므로 KeyedMutex 잠금 해제
+            break;
+        case WAIT_TIMEOUT: // KeyedMutex를 획득하지 못했으므로 렌더링 작업을 건너뜀
+            break; // Continue rendering with the previous frame to maintain smooth presentation
+        case WAIT_ABANDONED: // KeyedMutex가 더 이상 일관된 상태가 아님. 이 경우, KeyedMutex와 SharedSurface 둘 다 해제한 후 재생성해야 함.
+            CXLIB_ERROR("Keyed mutex abandoned - renderer process may have crashed");
+            return;
+        default:
+            CXLIB_ERROR("Unexpected AcquireSync result: 0x{:X}", sync_hr);
+            return;
+        }
+
+        _dx11_device_context2->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        _dx11_device_context2->IASetInputLayout(nullptr); // No input buffer needed for this VS trick
+
+        _dx11_device_context2->VSSetShader(_dx11_vertex_shader.Get(), nullptr, 0);
+        _dx11_device_context2->PSSetShader(_dx11_pixel_shader.Get(), nullptr, 0);
+        _dx11_device_context2->PSSetShaderResources(0, 1, _dx11_srv.GetAddressOf());
+        _dx11_device_context2->PSSetSamplers(0, 1, _dx11_sampler_state.GetAddressOf());
+
+        _dx11_device_context2->RSSetViewports(1, &_viewport);
+        _dx11_device_context2->OMSetRenderTargets(1, _dx11_rtv.GetAddressOf(), nullptr);
+
+        _dx11_device_context2->Draw(3, 0); // 화면을 덮는 하나의 삼각형을 그림
+    }
+    else
+    {
+        const std::array<float, 4> clearColor{ 0.5f, 0.5f, 0.5f, 1.0f };
+        _dx11_device_context2->ClearRenderTargetView(_dx11_rtv.Get(), clearColor.data());
+    }
+
+    _dx11_swapchain1->Present(0, DXGI_PRESENT_ALLOW_TEARING); // Present(0, DXGI_PRESENT_ALLOW_TEARING) : VSync Off
+
+    // log fps
+    //static int frameCount = 0;
+    //++frameCount;
+    //static auto lastTime = std::chrono::steady_clock::now();
+    //const auto currentTime = std::chrono::steady_clock::now();
+    //if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s)
+    //{
+    //    CXLIB_DEBUG("Render FPS: {}", frameCount);
+    //    lastTime = currentTime;
+    //    frameCount = 0;
+    //}
 }
 
 LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
-    case WM_CLOSE: {
+    case WM_CLOSE:
         CXLIB_DEBUG("Closing viewer window...");
         break;
-    }
-    case WM_DESTROY: {
+    case WM_DESTROY:
         ::PostQuitMessage(0);
         return 0;
-    }
-    case WM_ERASEBKGND: {
+    case WM_ERASEBKGND:
         return 1; // Prevent flickering
-    }
     case WM_SIZE:
     {
-        const int32_t
-            width = static_cast<int32_t>(LOWORD(lParam)),
-            height = static_cast<int32_t>(HIWORD(lParam));
+        const SIZE new_frame_size{
+            static_cast<LONG>(LOWORD(lParam)),
+            static_cast<LONG>(HIWORD(lParam))
+        };
 
-        if (width <= 0 || height <= 0) {
-            break;
+        if (new_frame_size.cx > 0 && new_frame_size.cy > 0) {
+            this->_resize_frame(new_frame_size);
         }
 
-        CXLIB_TRACE("frame resize request: {}x{}", width, height);
-
-        packet_builder<ipc_proto::packets::frame_resize_request_t> req{ ipc_proto::packet_type::frame_resize_request };
-        req.body()->width = width;
-        req.body()->height = height;
-
-        std::vector<uint8_t> rep_bytes;
-        if (std::errc{} != _ipc_cli->send_request_sync(
-            req.data(),
-            req.size(),
-            rep_bytes))
-        {
-            CXLIB_ERROR("frame resize request failed.");
-            return 0;
-        }
-
-        packet_view pck_view{ rep_bytes.data(), rep_bytes.size() };
-        const auto resize_rep = pck_view.body<ipc_proto::packets::frame_resize_response_t>();
-        CXLIB_TRACE("frame resize response -> resource handle: {}", resize_rep->shared_texture_handle);
-
-        D3D11_TEXTURE2D_DESC screenTexDesc{};
-        _dx11_screen_texture->GetDesc(&screenTexDesc);
-        
-        // 렌더 타겟을 파이프라인에서 분리해야 스왑체인 리사이즈 가능
-        _dx11_device_context2->OMSetRenderTargets(0, nullptr, nullptr);
-
-        //
-        // 렌더링 리소스 해제 (해제 순서에 유의)
-        //
-
-        _dx11_rtv.Reset();
-        _dx11_srv.Reset();
-        _dxgi_keyed_mutex.Reset();
-        _dx11_shared_texture.Reset();
-        _dx11_screen_texture.Reset();
-
-        //
-        // 렌더링 리소스 리사이즈(재생성) 시작
-        // (모든 버퍼 참조(RTV 등)가 해제된 후 수행되어야 함)
-        //
-
-        // 스왑체인 리사이즈
-        DXGI_SWAP_CHAIN_DESC1 swapchainDesc1{};
-        _dx11_swapchain1->GetDesc1(&swapchainDesc1);
-        HRESULT hr = _dx11_swapchain1->ResizeBuffers(
-            swapchainDesc1.BufferCount,
-            width,
-            height,
-            swapchainDesc1.Format,
-            swapchainDesc1.Flags
-        );
-        ASSERT_HR(hr);
-
-        // 공유 텍스처 재생성
-        _dx11_shared_texture = open_shared_texture_from_native_handle(
-            _dx11_device2,
-            resize_rep->shared_texture_handle, // IPC로 받은 새로운 핸들
-            _renderer_process_handle.get()
-        );
-        if (_dx11_shared_texture) {
-            CXLIB_DEBUG("Successfully opened shared texture from native handle. (handle: {})", resize_rep->shared_texture_handle);
-        } else {
-            throw std::runtime_error{ "Failed to open shared texture from native handle" };
-        }
-
-        // KeyedMutex 재생성
-        ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
-
-        // 로컬 Screen 텍스처 재생성
-        screenTexDesc.Width = static_cast<UINT>(width);
-        screenTexDesc.Height = static_cast<UINT>(height);
-        ASSERT_HR(_dx11_device2->CreateTexture2D(
-            &screenTexDesc, 
-            nullptr, 
-            &_dx11_screen_texture
-        ));
-
-        // 새로운 Screen 텍스처에 대한 SRV 재생성
-        ASSERT_HR(_dx11_device2->CreateShaderResourceView(
-            _dx11_screen_texture.Get(), 
-            nullptr, 
-            &_dx11_srv
-        ));
-
-        // 리사이즈된 스왑체인의 백버퍼에 대한 RTV 재생성
-        ComPtr<ID3D11Texture2D> backBuffer;
-        ASSERT_HR(_dx11_swapchain1->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
-        ASSERT_HR(_dx11_device2->CreateRenderTargetView(
-            backBuffer.Get(), 
-            nullptr, 
-            &_dx11_rtv
-        ));
-
-        CXLIB_DEBUG("All DX resources have been successfully synchronized.");
         return 0;
     }
     case WM_KEYDOWN:
@@ -564,6 +753,18 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
                 , static_cast<int>(action)
                 , static_cast<std::underlying_type_t<ipc_proto::modifier_button_type>>(mods)
             );
+
+            if (action == ipc_proto::ACTION_RELEASE)
+            {
+                switch (key) {
+                case ipc_proto::KEY_F1:
+                    _fl_render_interop_texture = !_fl_render_interop_texture;
+                    CXLIB_DEBUG("Toggled interop texture rendering: {}", _fl_render_interop_texture ? "enabled" : "disabled");
+                    break;
+                default:
+                    break;
+                }
+            }
         }
 
         return 0;
@@ -677,70 +878,4 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
     } // switch
 
     return ::DefWindowProcA(hWnd, msg, wParam, lParam);
-}
-
-void viewer_process::_render_frame()
-{
-    // 획득해둔 KeyedMutex를 사용하여 렌더링 타이밍 동기화 수행
-    // (매 프레임 렌더링 전, GL 렌더러 측이 텍스처 쓰기를 완료할 때까지 대기)
-    // -> 뮤텍스를 즉시 얻지 못한 경우, GL 렌더러 측에서 아직 작업 중이거나 렌더링된 프레임이 없음을 의미
-    // 
-    // NOTE: AcquireSync 함수 사용 시 단순 성공 여부 판단을 위해 SUCCEEDED 매크로만 사용할 경우, 
-    //       WAIT_OBJECT_0 반환값을 제외한 나머지 반환 상태값을 제대로 감지하지 못할 수 있음에 유의.
-    //       AcquireSync 함수는 다음과 같은 DWORD 상수들을 반환할 수 있다:
-    //         - WAIT_OBJECT_0  : KeyedMutex를 성공적으로 획득 -> 렌더링 작업을 계속 진행할 수 있음. (S_OK와 동일한 값)
-    //         - WAIT_TIMEOUT   : 지정된 키가 해제되기 전에 타임아웃 간격이 경과했음을 의미.
-    //         - WAIT_ABANDONED : SharedSurface와 KeyedMutex가 더 이상 일관된 상태가 아님. 
-    //                            이 경우, KeyedMutex와 SharedSurface 둘 다 해제한 후 재생성해야 함.
-    //       Ref: https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgikeyedmutex-acquiresync
-    switch (
-        const HRESULT sync_hr = _dxgi_keyed_mutex->AcquireSync(0/* Key */, 10/* Wait Timeout */);
-        sync_hr
-    ) {
-    case WAIT_OBJECT_0: // KeyedMutex를 성공적으로 획득했으므로 렌더링 작업 진행 가능
-        // Shared 텍스처를 Screen 텍스처로 복사 (락 점유 시간을 최소화하기 위해 별도 텍스처로 데이터를 복사한 뒤 렌더링 수행)
-        _dx11_device_context2->CopyResource(_dx11_screen_texture.Get(), _dx11_shared_texture.Get());
-        _dxgi_keyed_mutex->ReleaseSync(0/* Key */); // 텍스처 사용이 끝났으므로 KeyedMutex 잠금 해제
-        break;
-    case WAIT_TIMEOUT: // KeyedMutex를 획득하지 못했으므로 렌더링 작업을 건너뜀
-        return;
-    case WAIT_ABANDONED: // KeyedMutex가 더 이상 일관된 상태가 아님. 이 경우, KeyedMutex와 SharedSurface 둘 다 해제한 후 재생성해야 함.
-        throw std::runtime_error{ "Failed to acquire keyed mutex. (keyed mutex is no longer in a consistent state)" };
-        return;
-    }
-
-    RECT clientRect;
-    ::GetClientRect(_viewer_hwnd.get(), &clientRect);
-    D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(clientRect.right), static_cast<float>(clientRect.bottom), 0.0f, 1.0f };
-
-    const std::array<float, 4> clearColor{ 0.5f, 0.5f, 0.5f, 1.0f };
-    _dx11_device_context2->ClearRenderTargetView(_dx11_rtv.Get(), clearColor.data());
-
-    _dx11_device_context2->OMSetRenderTargets(1, _dx11_rtv.GetAddressOf(), NULL);
-    _dx11_device_context2->RSSetViewports(1, &viewport);
-
-    _dx11_device_context2->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    _dx11_device_context2->IASetInputLayout(NULL); // No input buffer needed for this VS trick
-
-    _dx11_device_context2->VSSetShader(_dx11_vertex_shader.Get(), NULL, 0);
-    _dx11_device_context2->PSSetShader(_dx11_pixel_shader.Get(), NULL, 0);
-    _dx11_device_context2->PSSetShaderResources(0, 1, _dx11_srv.GetAddressOf());
-    _dx11_device_context2->PSSetSamplers(0, 1, _dx11_sampler_state.GetAddressOf());
-
-    _dx11_device_context2->Draw(3, 0); // full-screen quad 렌더링 시작 (3 vertices)
-
-    // Alternative: Use IDXGISwapChain1::Present1
-    _dx11_swapchain1->Present(1, 0); // VSync On
-
-    // log fps
-    //static int frameCount = 0;
-    //++frameCount;
-    //static auto lastTime = std::chrono::steady_clock::now();
-    //const auto currentTime = std::chrono::steady_clock::now();
-    //if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s)
-    //{
-    //    CXLIB_DEBUG("Render FPS: {}", frameCount);
-    //    lastTime = currentTime;
-    //    frameCount = 0;
-    //}
 }

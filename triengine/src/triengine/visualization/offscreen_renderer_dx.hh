@@ -7,7 +7,6 @@
 #include <windows.h>
 #include <dxgi1_2.h> // DXGI 1.2 API header
 #include <d3d11_2.h> // DX11.2 API header
-#include <d3dcompiler.h>
 #include <wrl/client.h> // Microsoft::WRL::ComPtr
 
 #include <triengine/core/gl_context.hh>
@@ -16,7 +15,15 @@
 
 #include <functional>
 #include <unordered_map>
+#include <memory>
 #include <array>
+#include <list>
+
+namespace triengine
+{
+    using shared_win32_handle = std::shared_ptr<std::remove_pointer_t<HANDLE>>;
+
+} // namespace
 
 namespace triengine::visualization
 {
@@ -25,21 +32,18 @@ namespace triengine::visualization
     {
     public:
         offscreen_renderer_dx();
-        virtual ~offscreen_renderer_dx() = default;
+        virtual ~offscreen_renderer_dx();
 
         const core::gl_context* get_gl_context() const noexcept;
         core::gl_context* get_gl_context() noexcept;
 
-        Microsoft::WRL::ComPtr<IDXGIAdapter> get_target_dxgi_adapter() const noexcept;
+        Microsoft::WRL::ComPtr<IDXGIAdapter> get_dxgi_adapter() const noexcept;
         Microsoft::WRL::ComPtr<ID3D11Device2> get_dx11_device() const noexcept;
         Microsoft::WRL::ComPtr<ID3D11DeviceContext2> get_dx11_device_context() const noexcept;
+        vec2_i32 get_frame_size() const noexcept;
+        shared_win32_handle get_surface_handle() const;
 
-        void create_renderer(
-            int32_t frame_width,
-            int32_t frame_height,
-            DXGI_FORMAT frame_format
-        );
-
+        void create_renderer(vec2_i32 initial_frame_size);
         void destroy_renderer();
 
         std::shared_ptr<scene> add_scene();
@@ -55,37 +59,31 @@ namespace triengine::visualization
         std::shared_ptr<const scene> get_current_scene() const;
         std::shared_ptr<scene> get_current_scene();
 
-        vec2_i32 get_frame_size() const noexcept;
-        void resize_frame(int32_t width, int32_t height);
-
-        ID3D11Texture2D* render();
+        bool render(uint64_t mutex_key);
+        shared_win32_handle resize_frame(vec2_i32 new_frame_size);
 
     private:
         void _begin_frame();
         void _end_frame();
-        void _handle_frame_resize_event(vec2_i32 new_frame_size);
+        void _resize_frame(vec2_i32 new_frame_size);
 
     private:
         bool _flag_initialized{ false };
         vec2_i32 _curr_frame_size{};
 
-        core::gl_context _glctx;
-
-        GLuint _main_fbo{}; // Framebuffer Object ID
-        GLuint _frame_gl_interop_color_rbo{}; // Color renderbuffer object ID
-
         // DX Resources
-        Microsoft::WRL::ComPtr<IDXGIAdapter> _target_dxgi_adapter;
+        Microsoft::WRL::ComPtr<IDXGIAdapter> _dxgi_adapter; // Target DXGI Adapter for OpenGL Interop
         Microsoft::WRL::ComPtr<ID3D11Device2> _dx11_device2;
         Microsoft::WRL::ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
-        Microsoft::WRL::ComPtr<ID3D11Texture2D> _dx11_gl_interop_color_texture;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> _dx11_interop_color_tex; // Shared texture for OpenGL Interop (RGBA format)
+        shared_win32_handle _dx11_interop_color_tex_handle; // Shared texture NT Handle for OpenGL Interop texture
 
-        // WGL DX Interop Resources
-        std::shared_ptr<std::remove_pointer_t<HANDLE>> _wgl_dx11_device_handle;
-        std::shared_ptr<std::remove_pointer_t<HANDLE>> _wgl_dx11_gl_interop_texture_handle;
-
+        // GL Resources
+        core::gl_context _glctx;
+        GLuint _gl_fbo{}; // Main FBO
+        GLuint _gl_interop_color_tex{}; // OpenGL - DirectX11 interop texture (shared texture, RGBA format)
+        GLuint _gl_interop_color_tex_mem_object{}; // GL EXT_external_objects variables
         core::scene_renderer _scn_renderer;
-
         std::list<std::shared_ptr<scene>> _scn_list;
         std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
         std::unordered_map<
