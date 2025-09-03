@@ -63,8 +63,6 @@ namespace triengine::visualization
         shared_win32_handle resize_frame(vec2_i32 new_frame_size);
 
     private:
-        void _begin_frame();
-        void _end_frame();
         void _resize_frame(vec2_i32 new_frame_size);
 
     private:

@@ -284,7 +284,7 @@ namespace utils
             logger_ptr->log(
                 static_cast<spdlog::source_loc>(src_loc),
                 static_cast<spdlog::level::level_enum>(lv),
-                fmt::runtime(msg_sv)
+                msg_sv
             );
         }
 
@@ -334,7 +334,7 @@ namespace utils
             logger_ptr->log(
                 static_cast<spdlog::source_loc>(src_loc),
                 static_cast<spdlog::level::level_enum>(lv),
-                fmt::runtime(wmsg_sv)
+                wmsg_sv
             );
         }
 
