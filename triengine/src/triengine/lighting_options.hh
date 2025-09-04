@@ -13,13 +13,15 @@ namespace triengine
         vec3_f32 direction{ 0.0f, -1.0f, 0.0f }; // world-space light direction
         color3_f32 color{ color3_f32::all(1.0f) }; // light color
 
-        float ambientIntensity{ 0.2f }; // ambient intensity
-        float diffuseIntensity{ 0.2f }; // diffuse intensity
-        float specularIntensity{ 0.2f }; // specular intensity
+        float ambient_intensity{ 0.2f }; // ambient intensity (global intensity)
+        float diffuse_intensity{ 0.2f }; // diffuse intensity (global intensity)
+        float specular_intensity{ 0.2f }; // specular intensity (global intensity)
 
         directional_light_options() = default;
 
-        void apply_to_shader(core::shader_program& shader) const
+        void apply_to_shader(
+            core::shader_program& shader,
+            const mat4_f32& view_mat) const
         {
 #if defined (TRIENGINE_DEBUG_MODE)
             //{
@@ -34,10 +36,18 @@ namespace triengine
             if (!enabled) { return; }
 
             shader.set_uniform_vec3("u_dirLight.color", color.to_eigen());
-            shader.set_uniform_vec3("u_dirLight.direction", direction);
-            shader.set_uniform_float("u_dirLight.ambientIntensity", ambientIntensity);
-            shader.set_uniform_float("u_dirLight.diffuseIntensity", diffuseIntensity);
-            shader.set_uniform_float("u_dirLight.specularIntensity", specularIntensity);
+
+            // Transform world-space light direction to view-space light direction
+            // NOTE: `w = 0.0` is used for the direction vector (translation is ignored)
+            const vec3_f32 light_dir_in_view = 
+                (view_mat * (vec4_f32{} << (-direction).normalized(), 0.0f).finished())
+                .head<3>()
+                .normalized(); // `normalize(vec3(viewMat * vec4(normalize(-light.direction), 0.0)))`
+
+            shader.set_uniform_vec3("u_dirLight.directionInView", light_dir_in_view);
+            shader.set_uniform_float("u_dirLight.ambientIntensity", ambient_intensity);
+            shader.set_uniform_float("u_dirLight.diffuseIntensity", diffuse_intensity);
+            shader.set_uniform_float("u_dirLight.specularIntensity", specular_intensity);
         }
     };
 
@@ -56,13 +66,15 @@ namespace triengine
         float Kl{ 0.14f }; // attenuation (linear term)
         float Kq{ 0.07f }; // attenuation (quadraatic term)
 
-        float ambientIntensity{ 0.0f }; // ambient intensity
-        float diffuseIntensity{ 0.85f }; // diffuse intensity
-        float specularIntensity{ 0.7f }; // specular intensity
+        float ambient_intensity{ 0.0f }; // ambient intensity (global intensity)
+        float diffuse_intensity{ 0.85f }; // diffuse intensity (global intensity)
+        float specular_intensity{ 0.7f }; // specular intensity (global intensity)
 
         point_light_options() = default;
 
-        void apply_to_shader(core::shader_program& shader) const
+        void apply_to_shader(
+            core::shader_program& shader,
+            const mat4_f32& view_mat) const
         {
 #if defined (TRIENGINE_DEBUG_MODE)
             //{
@@ -77,13 +89,20 @@ namespace triengine
             if (!enabled) { return; }
 
             shader.set_uniform_vec3("u_pointLight.color", color.to_eigen());
-            shader.set_uniform_vec3("u_pointLight.position", position);
+
+            // Transform world-space light position to view-space light position
+            // NOTE: `w = 1.0` is used for the position vector (translation is applied)
+            const vec3_f32 light_pos_in_view = 
+                (view_mat * position.homogeneous())
+                .head<3>(); // `vec3(viewMat * vec4(light.position, 1.0))`
+
+            shader.set_uniform_vec3("u_pointLight.positionInView", light_pos_in_view);
             shader.set_uniform_float("u_pointLight.Kc", Kc);
             shader.set_uniform_float("u_pointLight.Kl", Kl);
             shader.set_uniform_float("u_pointLight.Kq", Kq);
-            shader.set_uniform_float("u_pointLight.ambientIntensity", ambientIntensity);
-            shader.set_uniform_float("u_pointLight.diffuseIntensity", diffuseIntensity);
-            shader.set_uniform_float("u_pointLight.specularIntensity", specularIntensity);
+            shader.set_uniform_float("u_pointLight.ambientIntensity", ambient_intensity);
+            shader.set_uniform_float("u_pointLight.diffuseIntensity", diffuse_intensity);
+            shader.set_uniform_float("u_pointLight.specularIntensity", specular_intensity);
         }
     };
 

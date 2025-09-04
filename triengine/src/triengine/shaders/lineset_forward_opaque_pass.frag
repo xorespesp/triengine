@@ -1,4 +1,4 @@
-// Lineset Object Fragment Shader
+// Lineset Object Fragment Shader (forward opaque pass)
 
 ////////////////////////////////////////////
 // shader inputs

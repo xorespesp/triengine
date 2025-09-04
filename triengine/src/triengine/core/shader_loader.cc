@@ -100,6 +100,8 @@ namespace triengine::core
 
         std::optional<std::string> load(const std::string& path_in_archive)
         {
+            TRIENGINE_TRACE("Loading shader: '%s' ...", path_in_archive.c_str());
+
             if (!_is_initialized) {
                 TRIENGINE_ERROR("Attempted to access shader_loader before initialization.");
                 return std::nullopt;
@@ -108,6 +110,9 @@ namespace triengine::core
             // Check if the shader is already cached
             if (auto cache_it = _shader_cache.find(path_in_archive); 
                 cache_it != _shader_cache.end()) {
+                //TRIENGINE_TRACE("Using cached content:\n%s"
+                //    , cache_it->second.c_str()
+                //);
                 return cache_it->second;
             }
 
@@ -141,6 +146,10 @@ namespace triengine::core
 
             // store in cache
             _shader_cache[path_in_archive] = loaded_shader_content;
+
+            //TRIENGINE_TRACE("Loaded content:\n%s"
+            //    , loaded_shader_content.c_str()
+            //);
             return loaded_shader_content;
         }
 

@@ -1,4 +1,4 @@
-// Lineset Object Vertex Shader
+// Lineset Object Vertex Shader (forward opaque pass)
 
 ////////////////////////////////////////////
 // shader inputs

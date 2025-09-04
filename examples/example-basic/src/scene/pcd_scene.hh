@@ -198,9 +198,9 @@ namespace demo::scene
             scn->set_name("pointcloud");
             scn->get_render_config()->pcd_point_size = 5.0f;
             scn->get_render_config()->show_origin_xz_grid = false;
-            scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.1f;
-            scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 1.5f;
-            scn->get_render_config()->light_opts.dir_light.specularIntensity = 2.5f;
+            scn->get_render_config()->light_opts.dir_light.ambient_intensity = 0.1f;
+            scn->get_render_config()->light_opts.dir_light.diffuse_intensity = 1.5f;
+            scn->get_render_config()->light_opts.dir_light.specular_intensity = 1.5f;
             scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, 1.5f, -1.5f };
 
             Eigen::Matrix4f offset_Tr{ Eigen::Matrix4f::Identity() }; {

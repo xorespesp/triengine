@@ -12,16 +12,21 @@ namespace triengine::geometry
     public:
         struct material_t
         {
-            float ambient{ 1.0f }; /// ambient intensity; [0.0...1.0]
-            float diffuse{ 1.0f }; /// diffuse intensity; [0.0...1.0]
-            float specular{ 0.3f }; /// specular intensity; [0.0...1.0]
-            uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
-            float alpha{ 1.0f }; /// object transparency (WBOIT); [0.0...1.0]
+            float ambient_intensity{ 1.0f }; /// ambient intensity; must be `>= 0`
+            float diffuse_intensity{ 1.0f }; /// diffuse intensity; must be `>= 0`
+            float specular_intensity{ 0.25f }; /// specular intensity; must be `>= 0`
+            uint16_t shininess{ 128 }; /// object surface shininess scalar (must be `> 0`)
+            float alpha{ 1.0f }; /// object transparency (WBOIT); must be `[0.0...1.0]`
 
             material_t() = default;
 
             bool is_valid() const noexcept {
-                return shininess > 0;
+                return
+                    0.0f <= ambient_intensity &&
+                    0.0f <= diffuse_intensity &&
+                    0.0f <= specular_intensity &&
+                    0 < shininess &&
+                    0.0f <= alpha && alpha <= 1.0f;
             }
         };
 

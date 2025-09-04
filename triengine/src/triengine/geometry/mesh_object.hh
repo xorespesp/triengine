@@ -25,16 +25,21 @@ namespace triengine::geometry
         /// NOTE: Only used in vertex-shading mode
         struct vertex_shading_material
         {
-            float ambient{ 1.0f }; /// ambient intensity; [0.0...1.0]
-            float diffuse{ 1.0f }; /// diffuse intensity; [0.0...1.0]
-            float specular{ 1.0f }; /// specular intensity; [0.0...1.0]
-            uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
-            float alpha{ 1.0f }; /// object transparency (WBOIT); [0.0...1.0]
+            float ambient_intensity{ 1.0f }; /// ambient intensity; must be `>= 0`
+            float diffuse_intensity{ 1.0f }; /// diffuse intensity; must be `>= 0`
+            float specular_intensity{ 0.25f }; /// specular intensity; must be `>= 0`
+            uint16_t shininess{ 128 }; /// object surface shininess scalar (must be `> 0`)
+            float alpha{ 1.0f }; /// object transparency (WBOIT); must be `[0.0...1.0]`
 
             vertex_shading_material() = default;
 
             bool is_valid() const noexcept {
-                return shininess > 0;
+                return 
+                    0.0f <= ambient_intensity &&
+                    0.0f <= diffuse_intensity &&
+                    0.0f <= specular_intensity &&
+                    0 < shininess &&
+                    0.0f <= alpha && alpha <= 1.0f;
             }
         };
 
@@ -43,8 +48,11 @@ namespace triengine::geometry
         {
             texture_2d diffuse_map; /// diffuse-map texture. (TODO: replace texture_2d -> pure image object)
             texture_2d specular_map; /// specular-map texture (TODO: replace texture_2d -> pure image object)
-            uint16_t shininess{ 128 }; /// surface shininess scalar (must be `> 0`)
-            float alpha{ 1.0f }; /// object transparency (WBOIT); [0.0...1.0]
+            float ambient_intensity{ 1.0f }; /// ambient intensity; must be `>= 0`
+            float diffuse_intensity{ 1.0f }; /// diffuse intensity; must be `>= 0`
+            float specular_intensity{ 1.0f }; /// specular intensity; must be `>= 0`
+            uint16_t shininess{ 128 }; /// object surface shininess scalar (must be `> 0`)
+            float alpha{ 1.0f }; /// object transparency (WBOIT); must be `[0.0...1.0]`
 
             texture_shading_material() = default;
 
@@ -52,7 +60,11 @@ namespace triengine::geometry
                 return
                     diffuse_map.is_valid() &&
                     specular_map.is_valid() &&
-                    shininess > 0;
+                    0.0f <= ambient_intensity &&
+                    0.0f <= diffuse_intensity &&
+                    0.0f <= specular_intensity &&
+                    0 < shininess &&
+                    0.0f <= alpha && alpha <= 1.0f;
             }
         };
 

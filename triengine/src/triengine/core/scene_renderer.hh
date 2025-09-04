@@ -46,12 +46,16 @@ namespace triengine::core
         phys_bloom_effect _bloom_effect;
 
         frame_buffer _wboit_fb;
+        frame_buffer _gbuffer_fb;
         frame_buffer _overlay_fb;
         frame_buffer _smaa_fb;
 
+        shader_program _deferred_lighting_shader;
         shader_program _wboit_composite_shader;
         shader_program _overlay_composite_shader;
-        shader_program _screen_quad_shader, _hdr_screen_quad_shader;
+        shader_program _screen_quad_shader;
+        shader_program _hdr_screen_quad_shader;
+        shader_program _clear_color_screen_quad_shader;
 
         // SMAA pass shaders
         shader_program _smaa_edge_detect_shader;

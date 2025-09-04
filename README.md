@@ -15,9 +15,10 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Offscreen rendering support  
 - Inter-process rendering support (currently, supports Windows OS only)  
 - Blinn-Phong lighting model  
+- Deferred shading
 - Order-independent transparency  
 - HDR tone-mapping  
-- Bloom effect  
+- Bloom  
 - SMAA anti-aliasing  
 - OBJ file visualization  
 - PLY file visualization  

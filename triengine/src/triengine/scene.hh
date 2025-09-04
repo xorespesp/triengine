@@ -25,7 +25,6 @@ namespace triengine
 
     struct scene_render_config
     {
-        bool show_wireframe{ false };
         bool show_object_normals{ false };
         bool show_origin_xz_grid{ false };
         bool enable_anti_aliasing{ true };

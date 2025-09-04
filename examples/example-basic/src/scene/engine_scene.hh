@@ -26,9 +26,9 @@ namespace demo::scene
             scn->get_render_config()->show_origin_xz_grid = false;
             scn->get_render_config()->bg_color = color4_f32{ 1.0f, 1.0f, 1.0f, 1.0f };
             scn->get_render_config()->light_opts.point_light.enabled = false;
-            scn->get_render_config()->light_opts.dir_light.ambientIntensity = 0.1f;
-            scn->get_render_config()->light_opts.dir_light.diffuseIntensity = 0.45f;
-            scn->get_render_config()->light_opts.dir_light.specularIntensity = 3.0f;
+            scn->get_render_config()->light_opts.dir_light.ambient_intensity = 0.1f;
+            scn->get_render_config()->light_opts.dir_light.diffuse_intensity = 0.45f;
+            scn->get_render_config()->light_opts.dir_light.specular_intensity = 2.0f;
 
             scn->switch_camera_type(triengine::camera_type::fly);
             auto fly_cam = scn->get_camera()->as<triengine::fly_camera>();
@@ -50,6 +50,7 @@ namespace demo::scene
 
                 _engine_mesh->apply_model_in_place();
                 _engine_mesh->translate(vec3_f32(0.0f, 0.5f, 0.0f), true);
+                _engine_mesh->get_vertex_shading_material()->specular_intensity = 1.0f;
 
                 scn->add_geometry(_engine_mesh);
             }

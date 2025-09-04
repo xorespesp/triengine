@@ -1,4 +1,4 @@
-// Point-Light Source Object Fragment Shader
+// Point-Light Source Object Fragment Shader (forward opaque pass)
 
 ////////////////////////////////////////////
 // shader outputs

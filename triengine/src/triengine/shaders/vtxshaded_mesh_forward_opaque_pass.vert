@@ -1,4 +1,4 @@
-// Vertex-Shaded Mesh Object Vertex Shader
+// Vertex-Shaded Mesh Object Vertex Shader (forward opaque pass)
 
 ////////////////////////////////////////////
 // shader inputs
@@ -12,7 +12,6 @@ layout(location = 2) in vec3 vsi_vertColor; // vertex color
 ////////////////////////////////////////////
 out VS_OUT
 {
-    mat4 view; // view matrix (for view-space light calculation)
     vec3 fragPosInView; // view-space fragment position
     vec3 fragNormalInView; // view-space fragment normal
     vec3 fragColor; // fragment color
@@ -28,7 +27,6 @@ uniform mat3 u_nmv; // normal matrix in view-space; `mat3(transpose(inverse(u_vi
 
 void main()
 {
-    vso.view = u_view;
     vso.fragPosInView = vec3(u_view * u_model * vec4(vsi_vertPos, 1.0));
     vso.fragNormalInView = u_nmv * vsi_vertNormal;
     vso.fragColor = vsi_vertColor;

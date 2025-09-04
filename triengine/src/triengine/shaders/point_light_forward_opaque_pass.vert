@@ -1,4 +1,4 @@
-// Point-Light Source Object Vertex Shader
+// Point-Light Source Object Vertex Shader (forward opaque pass)
 
 ////////////////////////////////////////////
 // shader inputs

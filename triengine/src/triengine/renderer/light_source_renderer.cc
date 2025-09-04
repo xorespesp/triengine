@@ -97,8 +97,8 @@ namespace triengine::renderer
 
         // Create shader program
         _point_light_source_shader
-            .attach_vertex_shader({ shader_ldr->load("point_light_obj.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("point_light_obj.frag")->c_str() })
+            .attach_vertex_shader({ shader_ldr->load("point_light_forward_opaque_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("point_light_forward_opaque_pass.frag")->c_str() })
             .link();
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,7 +188,7 @@ namespace triengine::renderer
     void light_source_renderer::render_impl(
         const render_context& render_ctx)
     {
-        if (render_ctx.curr_render_pass != render_pass_type::wboit_solid_rendering) {
+        if (render_ctx.curr_render_pass != render_pass_type::forward_opaque_pass) {
             return;
         }
 

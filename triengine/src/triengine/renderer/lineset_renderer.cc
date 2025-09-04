@@ -24,8 +24,8 @@ namespace triengine::renderer
 
         // Create shader program
         _shader
-            .attach_vertex_shader({ shader_ldr->load("lineset_obj.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("lineset_obj.frag")->c_str() })
+            .attach_vertex_shader({ shader_ldr->load("lineset_forward_opaque_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lineset_forward_opaque_pass.frag")->c_str() })
             .link();
     }
 
@@ -46,7 +46,7 @@ namespace triengine::renderer
         pred_callback_type const predicate,
         void* const predicate_userdata)
     {
-        if (render_ctx.curr_render_pass == render_pass_type::wboit_transparent_rendering) {
+        if (render_ctx.curr_render_pass != render_pass_type::forward_opaque_pass) {
             return;
         }
 

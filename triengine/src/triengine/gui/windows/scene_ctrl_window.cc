@@ -24,7 +24,6 @@ namespace triengine::gui
             {
                 ImGui::Checkbox("Anti-Aliasing", &scn_config.enable_anti_aliasing);
                 ImGui::Checkbox("Show Object Normals", &scn_config.show_object_normals);
-                ImGui::Checkbox("Show Wireframe", &scn_config.show_wireframe);
                 ImGui::ColorEdit4("BG Color", scn_config.bg_color.data());
 
                 {
@@ -218,9 +217,9 @@ namespace triengine::gui
                             dir_light_opts.follow_camera ? ImGuiSliderFlags_ReadOnly : ImGuiSliderFlags_None
                         );
                         ImGui::ColorEdit3("Light Color##DirLight", dir_light_opts.color.data());
-                        ImGui::DragFloat("Ambient Intensity##DirLight", &dir_light_opts.ambientIntensity, 0.001f, 0.0f, 10.0f);
-                        ImGui::DragFloat("Diffuse Intensity##DirLight", &dir_light_opts.diffuseIntensity, 0.001f, 0.0f, 10.0f);
-                        ImGui::DragFloat("Specular Intensity##DirLight", &dir_light_opts.specularIntensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Ambient Intensity##DirLight", &dir_light_opts.ambient_intensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Diffuse Intensity##DirLight", &dir_light_opts.diffuse_intensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Specular Intensity##DirLight", &dir_light_opts.specular_intensity, 0.001f, 0.0f, 10.0f);
                         if (!dir_light_opts.enabled) { ImGui::EndDisabled(); }
                     }
 
@@ -234,9 +233,9 @@ namespace triengine::gui
                         ImGui::DragFloat("Light Source Scale##Bloom", &point_light_opts.light_source_color_intensity, 0.1f, 1.0f, 200.0f);
                         ImGui::DragFloat3("Light Position##PointLight", point_light_opts.position.data(), 0.05f, -FLT_MAX / INT_MAX, FLT_MAX / INT_MAX);
                         ImGui::ColorEdit3("Light Color##PointLight", point_light_opts.color.data());
-                        ImGui::DragFloat("Ambient Intensity##PointLight", &point_light_opts.ambientIntensity, 0.001f, 0.0f, 10.0f);
-                        ImGui::DragFloat("Diffuse Intensity##PointLight", &point_light_opts.diffuseIntensity, 0.001f, 0.0f, 10.0f);
-                        ImGui::DragFloat("Specular Intensity##PointLight", &point_light_opts.specularIntensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Ambient Intensity##PointLight", &point_light_opts.ambient_intensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Diffuse Intensity##PointLight", &point_light_opts.diffuse_intensity, 0.001f, 0.0f, 10.0f);
+                        ImGui::DragFloat("Specular Intensity##PointLight", &point_light_opts.specular_intensity, 0.001f, 0.0f, 10.0f);
                         if (!point_light_opts.enabled) { ImGui::EndDisabled(); }
                     }
 

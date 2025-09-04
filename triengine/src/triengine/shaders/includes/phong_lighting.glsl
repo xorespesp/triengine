@@ -113,7 +113,7 @@ struct DirLight
     bool enabled; // enable flag
 
     vec3 color; // light color
-    vec3 direction; // world-space light direction
+    vec3 directionInView; // view-space light direction: `normalize(vec3(viewMat * vec4(normalize(-light.direction), 0.0)))`
 
     float ambientIntensity; // ambient intensity
     float diffuseIntensity; // diffuse intensity
@@ -122,7 +122,6 @@ struct DirLight
 
 // calculates the directional light in view-space
 vec3 calcDirLightInViewSpace(
-    in mat4 viewMat,
     in vec3 eyeDirInView,
     in vec3 fragNormalInView,
     in DirLight light,
@@ -131,9 +130,8 @@ vec3 calcDirLightInViewSpace(
     in vec3 specularColor,
     in float shininess)
 {
-    // Transform world-space light direction to view-space light direction
-    // NOTE: `w = 0.0` is used for the direction vector (translation is ignored)
-    const vec3 lightDirInView = normalize(vec3(viewMat * vec4(normalize(-light.direction), 0.0)));
+    // Get view-space light direction
+    const vec3 lightDirInView = normalize(light.directionInView);
 
 #if defined(USE_BLINN_PHONG_SHADING)
     return calcBlinnPhongLightInViewSpace(
@@ -171,7 +169,7 @@ struct PointLight
     bool enabled; // enable flag
 
     vec3 color; // light color
-    vec3 position; // world-space light position
+    vec3 positionInView; // view-space light position: `vec3(viewMat * vec4(light.position, 1.0))`
 
     float Kc; // attenuation (constant term)
     float Kl; // attenuation (linear term)
@@ -184,7 +182,6 @@ struct PointLight
 
 // calculates the point light in view-space
 vec3 calcPointLightInViewSpace(
-    in mat4 viewMat,
     in vec3 eyeDirInView,
     in vec3 fragPosInView,
     in vec3 fragNormalInView,
@@ -194,9 +191,8 @@ vec3 calcPointLightInViewSpace(
     in vec3 specularColor,
     in float shininess)
 {
-    // Transform world-space light position to view-space light position
-    // NOTE: `w = 1.0` is used for the position vector (translation is applied)
-    const vec3 lightPosInView = vec3(viewMat * vec4(light.position, 1.0));
+    // Get view-space light position
+    const vec3 lightPosInView = light.positionInView;
 
     // Calculate view-space light direction
     const vec3 lightDirInView = normalize(lightPosInView - fragPosInView);

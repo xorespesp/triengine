@@ -13,9 +13,9 @@ namespace triengine::renderer
 {
     enum class render_pass_type
     {
-        wboit_solid_rendering = 0,
-        wboit_transparent_rendering,
-        wireframe_rendering,
+        deferred_opaque_pass = 0, // deferred rendering(geometry + lighting) pass (WBOIT opaque rendering pass)
+        forward_opaque_pass, // forward opaque rendering pass (this is also used in final overlay rendering pass)
+        forward_transparent_pass, // forward transparent rendering pass (WBOIT transparent rendering pass)
     };
 
     struct render_context
@@ -24,7 +24,7 @@ namespace triengine::renderer
         mat4_f32 projection{};
         lighting_options const* light_opts{ nullptr };
         abstract_camera const* camera{ nullptr };
-        render_pass_type curr_render_pass{ renderer::render_pass_type::wboit_solid_rendering };
+        render_pass_type curr_render_pass{};
     };
 
     template <typename _Derived>

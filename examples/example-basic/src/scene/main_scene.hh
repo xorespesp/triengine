@@ -26,9 +26,9 @@ namespace demo::scene
 
             scn->get_render_config()->show_origin_xz_grid = true;
             scn->get_render_config()->light_opts.point_light.position = vec3_f32{ 0.0f, 1.5f, -1.5f };
-            scn->get_render_config()->light_opts.point_light.ambientIntensity = 0.0f;
-            scn->get_render_config()->light_opts.point_light.diffuseIntensity = 2.5f;
-            scn->get_render_config()->light_opts.point_light.specularIntensity = 1.35f;
+            scn->get_render_config()->light_opts.point_light.ambient_intensity = 0.0f;
+            scn->get_render_config()->light_opts.point_light.diffuse_intensity = 2.5f;
+            scn->get_render_config()->light_opts.point_light.specular_intensity = 1.35f;
 
             scn->switch_camera_type(triengine::camera_type::arcball);
 

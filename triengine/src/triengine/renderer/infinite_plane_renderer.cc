@@ -55,7 +55,7 @@ namespace triengine::renderer
 
     void infinite_plane_renderer::render_impl(const render_context& render_ctx)
     {
-        if (render_ctx.curr_render_pass != render_pass_type::wboit_transparent_rendering) {
+        if (render_ctx.curr_render_pass != render_pass_type::forward_transparent_pass) {
             return;
         }
 

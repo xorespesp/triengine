@@ -1,6 +1,7 @@
 // Infinite Box-filtered Grid Fragment Shader
 
 #define WBOIT_ENABLED 1
+#include "includes/WBOIT.glsl"
 
 /**
  * Refs:
@@ -112,11 +113,9 @@ void main()
     ////////////////////////////////////////////////////////////////////
 
 	const vec4 blendColor = resultColor;
-            
-	// weight function
-	const float weight =
-		max(min(1.0, max(max(blendColor.r, blendColor.g), blendColor.b) * blendColor.a), blendColor.a) *
-		clamp(0.03 / (1e-5 + pow(gl_FragCoord.z / 200, 4.0)), 1e-2, 3e3);
+
+	// calculate weight
+    const float weight = computeWBOITWeight(blendColor, gl_FragCoord.z);
                 
 	// store pixel color accumulation
 	fso_accum = vec4(blendColor.rgb * blendColor.a, blendColor.a) * weight;

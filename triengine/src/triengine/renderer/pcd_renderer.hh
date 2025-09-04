@@ -16,8 +16,8 @@ namespace triengine::renderer
         // OpenGL resources
         core::gl_context* _glctx{ nullptr };
         core::shader_program 
-            _solid_shader, 
-            _transparent_shader;
+            _deferred_opaque_pass_shader, 
+            _forward_trans_pass_shader;
 
     public:
         pcd_renderer();
