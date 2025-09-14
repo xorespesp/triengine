@@ -19,7 +19,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/bloom_effect.cc"
 
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/geometry_object_base.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/pcd_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/skeleton_object.cc"
@@ -126,7 +126,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer.hh"
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer_dx.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer_dx.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/visualizer.hh"
 )
 
@@ -207,9 +207,9 @@ list(APPEND TRIENGINE_LIBRARY_SOURCES
 )
 
 # RPly headers
-list(APPEND TRIENGINE_LIBRARY_HEADERS_PUBLIC
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/rply/rply.h"
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/rply/rplyfile.h"
+list(APPEND TRIENGINE_LIBRARY_HEADERS_PRIVATE
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/rply/rply.h"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/rply/rplyfile.h"
 )
 ########################################################################################
 
@@ -221,20 +221,28 @@ list(APPEND TRIENGINE_LIBRARY_SOURCES
 
 # miniz headers
 list(APPEND TRIENGINE_LIBRARY_HEADERS_PRIVATE
-    "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/miniz/miniz.h"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/miniz/miniz.h"
 )
 ########################################################################################
 
 # Library Target Definition
-add_library(${TRIENGINE_LIBRARY_NAME} STATIC
-    ${TRIENGINE_LIBRARY_SOURCES}
-    ${TRIENGINE_LIBRARY_HEADERS_PUBLIC}
-    ${TRIENGINE_LIBRARY_HEADERS_PRIVATE}
-)
+add_library(${TRIENGINE_LIBRARY_NAME} STATIC)
 
 # Library Target Alias Definition
 #   - <TRIENGINE_PROJECT_NAME>::<TRIENGINE_LIBRARY_NAME> is alias of: <TRIENGINE_LIBRARY_NAME>
 add_library(${TRIENGINE_PROJECT_NAME}::${TRIENGINE_LIBRARY_NAME} ALIAS ${TRIENGINE_LIBRARY_NAME})
+
+# Add sources and headers to the library target
+target_sources(${TRIENGINE_LIBRARY_NAME}
+    PRIVATE
+        ${TRIENGINE_LIBRARY_SOURCES}
+        ${TRIENGINE_LIBRARY_HEADERS_PRIVATE}
+    PUBLIC
+        FILE_SET triengine_public_headers
+            TYPE HEADERS
+            FILES ${TRIENGINE_LIBRARY_HEADERS_PUBLIC}
+            BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
 
 target_compile_features(${TRIENGINE_LIBRARY_NAME} PUBLIC cxx_std_17)
 
@@ -242,11 +250,13 @@ target_compile_features(${TRIENGINE_LIBRARY_NAME} PUBLIC cxx_std_17)
 target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
   "${TRIENGINE_PROJECT_NAME_UPPERCASE}_DEBUG_MODE=$<CONFIG:Debug>")
 
-target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
-    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
-    STB_IMAGE_IMPLEMENTATION
-    TINYOBJLOADER_IMPLEMENTATION
-    NOMINMAX
+target_compile_definitions(${TRIENGINE_LIBRARY_NAME}
+    PUBLIC
+        NOMINMAX
+        SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
+    PRIVATE
+        STB_IMAGE_IMPLEMENTATION
+        TINYOBJLOADER_IMPLEMENTATION
 )
 
 if (TRIENGINE_FORCE_DISCRETE_GPU)
@@ -382,23 +392,9 @@ install(
     # INCLUDES: Specifies the base directory for <INSTALL_INTERFACE:...> used above.
     # Tells consuming projects that include paths are relative to <prefix>/${CMAKE_INSTALL_INCLUDEDIR}
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-)
-
-# Install Library Public Headers
-#   - src/<TRIENGINE_LIBRARY_NAME>/*.h,*.hh,*.hpp -> <prefix>/include/<TRIENGINE_LIBRARY_NAME>/*.h,*.hh,*.hpp
-set(TRIENGINE_INSTALL_HEADER_EXCLUDE_PATTERNS "")
-foreach(PRIVATE_HEADER ${TRIENGINE_LIBRARY_HEADERS_PRIVATE})
-    list(APPEND TRIENGINE_INSTALL_HEADER_EXCLUDE_PATTERNS PATTERN ${PRIVATE_HEADER} EXCLUDE)
-endforeach()
-message(STATUS "TRIENGINE_INSTALL_HEADER_EXCLUDE_PATTERNS : ${TRIENGINE_INSTALL_HEADER_EXCLUDE_PATTERNS}")
-install(
-    DIRECTORY "src/${TRIENGINE_LIBRARY_NAME}/" # The trailing '/' copies the *contents* of "src/<TRIENGINE_LIBRARY_NAME>"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${TRIENGINE_LIBRARY_NAME}" # Target: <prefix>/include/<TRIENGINE_LIBRARY_NAME>
-    FILES_MATCHING # Only install matched files
-    PATTERN "*.hpp"
-    PATTERN "*.hh"
-    PATTERN "*.h"
-    ${TRIENGINE_INSTALL_HEADER_EXCLUDE_PATTERNS} # Exclude private headers
+    # Install the public headers registered in a `FILE_SET` via `target_sources()`.
+    # (The directory structure relative to `BASE_DIRS` is preserved under the installation destination.)
+    FILE_SET triengine_public_headers DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
 # Install Library Resources

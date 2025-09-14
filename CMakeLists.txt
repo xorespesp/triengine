@@ -2,7 +2,7 @@
 ##### Top-level CMake project file #####
 ########################################
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 ########################################################################################
 # Library Root Includes / Policies
