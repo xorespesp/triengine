@@ -1,6 +1,6 @@
 
 //#define USE_BLINN_PHONG_SHADING
-//#define USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING
+//#define DISABLE_TWO_SIDED_LIGHTING
 
 vec3 calcPhongLightInViewSpace(
     in vec3 eyeDirInView/* eye direction in view space */,
@@ -16,9 +16,21 @@ vec3 calcPhongLightInViewSpace(
     in float specularIntensity/* specular intensity multiplier */)
 {
     // Normalize all vectors
-    const vec3 N = normalize(fragNormalInView);
+    
     const vec3 L = normalize(lightDirInView);
     const vec3 V = normalize(eyeDirInView);
+
+#if !defined(DISABLE_TWO_SIDED_LIGHTING)
+    // Handle two-sided lighting for geometry without thickness (e.g., pointcloud, plane mesh).
+    // If the normal is facing away from the view direction (V), flip it.
+    // This ensures that both diffuse (N.L) and specular (N.H or V.R)
+    // components are calculated correctly, as if the surface were front-facing.
+    // NOTE: Back-face culling must be disabled for this trick to work.
+    const vec3 N_orig = normalize(fragNormalInView); // Original normal
+    const vec3 N = (dot(N_orig, V) < 0.0) ? -N_orig : N_orig; // If the normal is facing away from the viewer(dot(N_orig, V) < 0.0), then flip the normal.
+#else // ^^^ !DISABLE_TWO_SIDED_LIGHTING ^^^ / vvv DISABLE_TWO_SIDED_LIGHTING vvv
+    const vec3 N = normalize(fragNormalInView);
+#endif // ^^^ DISABLE_TWO_SIDED_LIGHTING ^^^
 
     //
     // ambient component
@@ -30,15 +42,7 @@ vec3 calcPhongLightInViewSpace(
     // diffuse component
     //
 
-    const float diff =
-#if defined(USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING)
-        // NOTE: To handle the case where the light source is behind a point 
-        //       in the opposite direction of the point's normal vector, we use `abs()` instead of `max()`.
-        abs(dot(N, L));
-#else  // ^^^ USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^ / vvv !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING vvv
-        // Standard Lambertian diffuse
-        max(dot(N, L), 0.0);
-#endif // ^^^ !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^
+    const float diff = max(dot(N, L), 0.0); // Standard Lambertian diffuse
     const vec3 diffuse = diffuseColor * diff * lightColor;
 
     //
@@ -69,9 +73,21 @@ vec3 calcBlinnPhongLightInViewSpace(
     in float specularIntensity/* Specular intensity multiplier */)
 {
     // Normalize all vectors
-    const vec3 N = normalize(fragNormalInView);
+
     const vec3 L = normalize(lightDirInView);
     const vec3 V = normalize(eyeDirInView);
+
+#if !defined(DISABLE_TWO_SIDED_LIGHTING)
+    // Handle two-sided lighting for geometry without thickness (e.g., pointcloud, plane mesh).
+    // If the normal is facing away from the view direction (V), flip it.
+    // This ensures that both diffuse (N.L) and specular (N.H or V.R)
+    // components are calculated correctly, as if the surface were front-facing.
+    // NOTE: Back-face culling must be disabled for this trick to work.
+    const vec3 N_orig = normalize(fragNormalInView); // Original normal
+    const vec3 N = (dot(N_orig, V) < 0.0) ? -N_orig : N_orig; // If the normal is facing away from the viewer(dot(N_orig, V) < 0.0), then flip the normal.
+#else // ^^^ !DISABLE_TWO_SIDED_LIGHTING ^^^ / vvv DISABLE_TWO_SIDED_LIGHTING vvv
+    const vec3 N = normalize(fragNormalInView);
+#endif // ^^^ DISABLE_TWO_SIDED_LIGHTING ^^^
 
     //
     // ambient component
@@ -83,15 +99,7 @@ vec3 calcBlinnPhongLightInViewSpace(
     // diffuse component
     //
 
-    const float diff =
-#if defined(USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING)
-        // NOTE: To handle the case where the light source is behind a point 
-        //       in the opposite direction of the point's normal vector, we use `abs()` instead of `max()`.
-        abs(dot(N, L));
-#else  // ^^^ USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^ / vvv !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING vvv
-        // Standard Lambertian diffuse
-        max(dot(N, L), 0.0);
-#endif // ^^^ !USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING ^^^
+    const float diff = max(dot(N, L), 0.0); // Standard Lambertian diffuse
     const vec3 diffuse = diffuseColor * diff * lightColor;
 
     //

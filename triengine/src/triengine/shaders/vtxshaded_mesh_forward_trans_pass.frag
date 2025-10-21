@@ -1,7 +1,7 @@
 // Vertex-Shaded Mesh Object Fragment Shader (forward transparent pass)
 
 #define USE_BLINN_PHONG_SHADING 1
-//#define USE_ABSOLUTE_DIFFUSE_IN_PHONG_SHADING 1
+//#define DISABLE_TWO_SIDED_LIGHTING 1
 #include "includes/phong_lighting.glsl"
 #include "includes/phong_material.glsl"
 #include "includes/WBOIT.glsl"
