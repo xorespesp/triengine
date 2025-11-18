@@ -32,7 +32,7 @@ namespace triengine::gui::widgets
             bool matches(const std::filesystem::path& path) const {
                 if (!path.has_filename()) { return false; }
                 try {
-                    return std::regex_match(path.filename().u8string(), _regex);
+                    return std::regex_match(reinterpret_cast<const char*>(path.filename().u8string().c_str()), _regex);
                 } catch (const std::regex_error&) {
                     return false;
                 }
