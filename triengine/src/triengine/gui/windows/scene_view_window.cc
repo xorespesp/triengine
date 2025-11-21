@@ -134,8 +134,8 @@ namespace triengine::gui
             ImGui::IsMouseDragging(ImGuiMouseButton_Left);
 
         _state.flag_window_focused =
-            ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows | ImGuiFocusedFlags_DockHierarchy) &&
-            ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows | ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_DockHierarchy);
+            ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy) &&
+            ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_DockHierarchy/* | ImGuiHoveredFlags_AnyWindow*/);
 
         if (!flag_window_resizing)
         {
@@ -289,6 +289,11 @@ namespace triengine::gui
                 } else {
                     sb_.append("\nCursor Viewport Pos: N/A");
                 }
+
+                sb_.appendf(
+                    "\nflag_window_focused: %d"
+                    , _state.flag_window_focused
+                );
             }
             
             {
