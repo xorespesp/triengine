@@ -11,11 +11,12 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Point cloud rendering  
 - Line set rendering  
 - Skeletal motion rendering  
-- Smoothed Arcball / Fly camera system support
+- Text rendering support (3D & 2D space)  
+- Smoothed Arcball / Fly camera system support  
 - Offscreen rendering support  
 - Inter-process rendering support (currently, supports Windows OS only)  
 - Blinn-Phong lighting model  
-- Deferred shading
+- Deferred shading  
 - Order-independent transparency  
 - HDR tone-mapping  
 - Bloom  

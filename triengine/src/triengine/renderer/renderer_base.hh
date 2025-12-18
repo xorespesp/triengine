@@ -27,6 +27,9 @@ namespace triengine::renderer
         render_pass_type curr_render_pass{};
     };
 
+    template<typename _RenderObject>
+    using pred_callback_type = bool(*)(const _RenderObject& obj, void* userdata);
+
     template <typename _Derived>
     class renderer_base
         : utility::noncopyable
@@ -51,68 +54,18 @@ namespace triengine::renderer
             return _creation_flag;
         }
 
-        void create(core::gl_context& glctx) {
-            static_cast<_Derived*>(this)->create_impl(glctx);
+        template <typename... _Args>
+        void create(core::gl_context& glctx, _Args&&... create_args) {
+            static_cast<_Derived*>(this)->create_impl(glctx, std::forward<_Args>(create_args)...);
         }
 
         void destroy() {
             static_cast<_Derived*>(this)->destroy_impl();
         }
 
-        void render(const render_context& render_ctx) {
-            static_cast<_Derived*>(this)->render_impl(render_ctx);
-        }
-
-    }; // class
-
-    template <typename _Derived, typename _RenderObject>
-    class object_renderer_base
-        : utility::noncopyable
-    {
-    public:
-        using render_object_type = _RenderObject;
-        using pred_callback_type = bool(*)(const render_object_type& obj, void* userdata);
-
-    private:
-        bool _creation_flag{ false };
-
-    protected:
-        void set_creation_flag(bool created) {
-            _creation_flag = created;
-        }
-
-    public:
-        object_renderer_base() = default;
-        virtual ~object_renderer_base() {
-            if (this->is_created()) {
-                this->destroy();
-            }
-        }
-
-        bool is_created() const noexcept {
-            return _creation_flag;
-        }
-
-        void create(core::gl_context& glctx) {
-            static_cast<_Derived*>(this)->create_impl(glctx);
-        }
-
-        void destroy() {
-            static_cast<_Derived*>(this)->destroy_impl();
-        }
-
-        void render(
-            const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-            pred_callback_type const predicate = nullptr,
-            void* const predicate_userdata = nullptr
-        ) {
-            static_cast<_Derived*>(this)->render_impl(
-                render_ctx,
-                render_obj_list,
-                predicate,
-                predicate_userdata
-            );
+        template <typename... _Args>
+        void render(const render_context& render_ctx, _Args&&... render_args) {
+            static_cast<_Derived*>(this)->render_impl(render_ctx, std::forward<_Args>(render_args)...);
         }
 
     }; // class

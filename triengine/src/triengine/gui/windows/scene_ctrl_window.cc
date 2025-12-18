@@ -55,6 +55,8 @@ namespace triengine::gui
 
                 if (ImGui::CollapsingHeader("Camera"))
                 {
+                    ImGui::Indent();
+
                     static constexpr std::array<const char*, 2> kCameraTypeNamesMap = {
                         "Fly",
                         "Arcball"
@@ -196,6 +198,8 @@ namespace triengine::gui
                     {
                         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "ERROR: Unknown Camera Type");
                     }
+
+                    ImGui::Unindent();
                 } // Camera Options
 
                 if (ImGui::CollapsingHeader("Lighting"))
@@ -341,6 +345,125 @@ namespace triengine::gui
                     ImGui::Unindent();
                 } // Infinite Grid Options
 
+                if (ImGui::CollapsingHeader("Text Render"))
+                {
+                    ImGui::Indent();
+                    ImGui::Checkbox("Enable##TextRenderOption", &scn_config.text_render_opts.enabled);
+
+	                {
+		                ImGui::SeparatorText("Distance Scaling Options");
+
+                        auto& scale_opts = scn_config.text_render_opts.dist_scale_opts;
+
+		                // Enable/Disable distance scaling
+		                ImGui::Checkbox("Enable##TextDistanceScalingOption", &scale_opts.enabled);
+
+		                if (scale_opts.enabled)
+		                {
+			                ImGui::Separator();
+
+			                // Scaling type selection
+			                const char* scaling_type_names[] = { "Fade Out", "Perspective" };
+			                int current_type = static_cast<int>(scale_opts.scale_mode);
+			
+			                if (ImGui::Combo("Scaling Type", &current_type, scaling_type_names, IM_ARRAYSIZE(scaling_type_names))) {
+				                scale_opts.scale_mode = static_cast<text_render_options::dist_scale_mode_type>(current_type);
+			                }
+
+			                // Show description based on scaling type
+			                if (scale_opts.scale_mode == text_render_options::dist_scale_mode_type::fade_out) {
+				                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), 
+					                "Fade Out: Text maintains original size, fades with distance");
+			                } else {
+				                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), 
+					                "Perspective: Text scales inversely with distance (3D effect)");
+			                }
+
+			                ImGui::Separator();
+
+			                // Reference distance
+			                if (ImGui::DragFloat("Reference Distance", &scale_opts.ref_distance, 
+				                0.1f, 0.1f, 100.0f, "%.2f")) {
+			                }
+			                ImGui::SameLine();
+			                ImGui::TextDisabled("(?)");
+			                if (ImGui::IsItemHovered()) {
+				                ImGui::SetTooltip("Distance where text appears at scale 1.0");
+			                }
+
+			                // Max distance
+			                if (ImGui::DragFloat("Max Distance", &scale_opts.max_distance, 
+				                0.1f, scale_opts.ref_distance + 0.1f, 200.0f, "%.2f")) {
+			                }
+			                ImGui::SameLine();
+			                ImGui::TextDisabled("(?)");
+			                if (ImGui::IsItemHovered()) {
+				                ImGui::SetTooltip("Distance where text completely disappears");
+			                }
+
+			                // Ensure max_distance is always greater than ref_distance
+			                if (scale_opts.max_distance <= scale_opts.ref_distance) {
+				                scale_opts.max_distance = scale_opts.ref_distance + 0.1f;
+			                }
+
+			                ImGui::Separator();
+		                }
+	                }
+
+                    {
+                        ImGui::SeparatorText("Depth Testing Options");
+
+                        auto& depth_test_opts = scn_config.text_render_opts.depth_test_opts;
+
+                        // Enable/Disable depth testing
+                        ImGui::Checkbox("Enable##TextDepthTestOption", &depth_test_opts.enabled);
+                        ImGui::SameLine();
+                        ImGui::TextDisabled("(?)");
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::SetTooltip("Enable occlusion testing for 3D labels using scene depth buffer");
+                        }
+
+                        if (depth_test_opts.enabled)
+                        {
+                            ImGui::Separator();
+
+                            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+                                "3D labels will be made semi-transparent when occluded by scene geometry");
+
+                            ImGui::Separator();
+
+                            // Depth bias
+                            if (ImGui::DragFloat("Depth Bias", &depth_test_opts.depth_bias,
+                                0.0001f, 0.0f, 0.1f, "%.4f")) {
+                            }
+                            ImGui::SameLine();
+                            ImGui::TextDisabled("(?)");
+                            if (ImGui::IsItemHovered()) {
+                                ImGui::SetTooltip("Small offset to prevent z-fighting artifacts");
+                            }
+
+                            // Occlusion alpha
+                            if (ImGui::DragFloat("Occlusion Alpha", &depth_test_opts.occlusion_alpha,
+                                0.01f, 0.0f, 1.0f, "%.2f")) {
+                            }
+                            ImGui::SameLine();
+                            ImGui::TextDisabled("(?)");
+                            if (ImGui::IsItemHovered()) {
+                                ImGui::SetTooltip("Alpha multiplier when text is occluded (0.0 = invisible, 1.0 = no change)");
+                            }
+
+                            ImGui::Separator();
+
+                            // Debug info
+                            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
+                                "Camera: Near=%.2f, Far=%.2f",
+                                triengine::camera_constants::kNearPlane,
+                                triengine::camera_constants::kFarPlane);
+                        }
+                    }
+
+                    ImGui::Unindent();
+                } // Text Render Options
             } // Render Options
 
         }

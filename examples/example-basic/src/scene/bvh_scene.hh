@@ -47,6 +47,11 @@ namespace demo::scene
             std::optional<io::bvh_joint_id_t> selected_joint_id;
             bool fl_update_scene{ true };
 
+            bool fl_visualize_joint_names{ true };
+            triengine::color3_f32 joint_label_color{ 0.0f, 1.0f, 0.0f };
+            float joint_label_scale{ 0.1f };
+            triengine::color3_f32 selected_highlight_color{ 1.0f, 0.0f, 1.0f }; // magenta
+
             ui_state_t() = default;
         };
 
@@ -55,6 +60,7 @@ namespace demo::scene
 
         std::shared_ptr<geometry::mesh_object> _origin_axis;
         std::shared_ptr<geometry::skeleton_object> _bvh_skeleton;
+        std::vector<std::shared_ptr<text_3d_object>> _joint_labels;
 
     public:
         bvh_scene(
@@ -77,6 +83,7 @@ namespace demo::scene
             scn->get_render_config()->light_opts.bloom.strength = 0.05f;
             scn->get_render_config()->light_opts.hdr.exposure = 0.3f;
             scn->get_render_config()->inf_plane_opts.max_view_distance = 35.0f;
+            scn->get_render_config()->text_render_opts.depth_test_opts.enabled = false;
 
             {
                 scn->get_render_config()->show_origin_xz_grid = true;
@@ -88,6 +95,10 @@ namespace demo::scene
                 inf_plane_opt.grid_cell_color = math::vec3_all(40.0f / 255.0f);
                 scn->get_render_config()->inf_plane_opts.plane_option = inf_plane_opt;
             }
+
+            scn->add_label_3d("+X", { 0.6f, 0.0f, 0.0f }, 0.4f, color3_f32(1.0f, 0.0f, 0.0f));
+            scn->add_label_3d("+Y", { 0.0f, 0.6f, 0.0f }, 0.4f, color3_f32(0.0f, 1.0f, 0.0f));
+            scn->add_label_3d("+Z", { 0.0f, 0.0f, 0.6f }, 0.4f, color3_f32(0.0f, 0.0f, 1.0f));
 
             _origin_axis = geometry::mesh_object::create_coordinate_frame(0.5f);
             scn->add_geometry(_origin_axis);
@@ -147,6 +158,9 @@ namespace demo::scene
                     }
 
                     this->get_scene()->add_geometry(_bvh_skeleton);
+
+                    // Update joint name labels
+                    this->_update_joint_labels(bvh_data, bvh_data.frames[_state.current_frame_index]);
                 }
                 else
                 {
@@ -154,6 +168,9 @@ namespace demo::scene
                         this->get_scene()->remove_geometry(_bvh_skeleton);
                     }
                     _bvh_skeleton.reset();
+
+                    // Clear joint labels
+                    this->_clear_joint_labels();
                 }
 
                 _state.fl_update_scene = false;
@@ -269,6 +286,22 @@ namespace demo::scene
                         _state.fl_update_scene = true;
                     }
 
+                    ImGui::Separator();
+
+                    if (ImGui::Checkbox("Show Joint Names", &_state.fl_visualize_joint_names)) {
+                        _state.fl_update_scene = true;
+                    }
+
+                    if (_state.fl_visualize_joint_names) {
+                        if (ImGui::ColorEdit3("Joint Label Color", _state.joint_label_color.data(), ImGuiColorEditFlags_NoAlpha)) {
+                            _state.fl_update_scene = true;
+                        }
+
+                        if (ImGui::DragFloat("Joint Label Scale", &_state.joint_label_scale, 0.01f, 0.05f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) {
+                            _state.fl_update_scene = true;
+                        }
+                    }
+
                     ImGui::Unindent();
                 }
 
@@ -377,6 +410,57 @@ namespace demo::scene
         }
 
     private:
+        void _clear_joint_labels()
+        {
+            for (auto& label : _joint_labels) {
+                this->get_scene()->remove_label_3d(label->get_id());
+            }
+            _joint_labels.clear();
+        }
+
+        void _update_joint_labels(
+            const io::bvh_file_t& bvh_file,
+            const io::bvh_motion_frame_t& bvh_frame)
+        {
+            // Clear existing labels
+            this->_clear_joint_labels();
+
+            if (!_state.fl_visualize_joint_names) {
+                return;
+            }
+
+            constexpr double kScaleCM2M = 0.01;
+
+            // Create labels for each joint
+            for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
+            {
+                const io::bvh_joint_info_t& bvh_jinfo = bvh_file.joints[bvh_jid];
+                
+                vec3_f32 world_pos = (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval();
+                
+                // Apply offset transform if exists
+                if (_state.offset_transform) {
+                    vec4_f32 transformed = _state.offset_transform.value() * world_pos.homogeneous();
+                    world_pos = transformed.head<3>();
+                }
+
+                // Use highlight color if this joint is selected
+                const bool is_selected = _state.selected_joint_id.has_value() && _state.selected_joint_id.value() == bvh_jid;
+                const auto& label_color = is_selected ? _state.selected_highlight_color : _state.joint_label_color;
+
+                auto label = this->get_scene()->add_label_3d(
+                    bvh_jinfo.name,
+                    world_pos,
+                    _state.joint_label_scale,
+                    label_color,
+                    text_alignment_type::center,
+                    true
+                );
+
+                _joint_labels.push_back(label);
+            }
+        }
+
         void _render_hierarchy_tree(
             const io::bvh_joint_id_t bvh_jid)
         {
@@ -401,6 +485,7 @@ namespace demo::scene
 
             if (ImGui::IsItemClicked()) {
                 _state.selected_joint_id = bvh_jid; // update selected jid
+                _state.fl_update_scene = true; // refresh scene to show highlight
             }
 
             if (open_tree_node && has_children) {
@@ -421,10 +506,14 @@ namespace demo::scene
             skeleton_joints.resize(bvh_frame.skeleton.size());
             for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
             {
+                // Use highlight color if this joint is selected
+                const bool is_selected = _state.selected_joint_id.has_value() && _state.selected_joint_id.value() == bvh_jid;
+                const auto& joint_color = is_selected ? _state.selected_highlight_color : _state.joint_color;
+
                 skeleton_joints.at(static_cast<size_t>(bvh_jid)) = geometry::skeleton_joint_info_t{
                     (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval(),
                     bvh_jdata.world_rotation.cast<float>().eval(),
-                    _state.joint_color,
+                    joint_color,
                     _state.joint_radius
                 };
             }

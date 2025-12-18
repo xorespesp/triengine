@@ -3,14 +3,17 @@
 #include <triengine/camera.hh>
 #include <triengine/infinite_plane_options.hh>
 #include <triengine/lighting_options.hh>
-#include <triengine/core/gpu_resource_manager.hh>
+#include <triengine/text_render_options.hh>
+#include <triengine/text_object.hh>
 #include <triengine/geometry/lineset_object.hh>
 #include <triengine/geometry/pcd_object.hh>
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/geometry/skeleton_object.hh>
 #include <triengine/utility/noncopyable.hh>
+#include <triengine/core/gpu_resource_manager.hh>
 
 #include <optional>
+#include <unordered_map>
 #include <memory>
 #include <list>
 
@@ -31,6 +34,7 @@ namespace triengine
 
         infinite_plane_options inf_plane_opts;
         lighting_options light_opts;
+        text_render_options text_render_opts;
         color4_f32 bg_color{ 0.020f, 0.020f, 0.020f, 1.0f };
         std::optional<float> pcd_point_size;
         skeleton_render_mode skeleton_mode{ skeleton_render_mode::skeleton_default };
@@ -56,6 +60,12 @@ namespace triengine
         std::list<std::shared_ptr<geometry::pcd_object>> _pcd_geometries;
         std::list<std::shared_ptr<geometry::mesh_object>> _mesh_geometries;
         std::list<std::shared_ptr<geometry::skeleton_object>> _skeleton_geometries;
+
+        std::list<std::shared_ptr<text_3d_object>> _text_3d_objects;
+        std::unordered_map<text_object_id_type, std::list<std::shared_ptr<text_3d_object>>::iterator> _text_3d_objects_id_map;
+
+        std::list<std::shared_ptr<text_2d_object>> _text_2d_objects;
+        std::unordered_map<text_object_id_type, std::list<std::shared_ptr<text_2d_object>>::iterator> _text_2d_objects_id_map;
 
         scene_render_config _render_config;
 
@@ -103,14 +113,39 @@ namespace triengine
         const auto& get_skeleton_geometries() const noexcept { return _skeleton_geometries; }
         auto& get_skeleton_geometries() noexcept { return _skeleton_geometries; }
 
+        void add_geometry(std::shared_ptr<geometry::geometry_object_base> geometry_object); 
+        void remove_geometry(std::shared_ptr<geometry::geometry_object_base> geometry_object);
+        void clear_geometries();
+
+        const auto& get_text_3d_objects() const noexcept { return _text_3d_objects; }
+        const auto& get_text_2d_objects() const noexcept { return _text_2d_objects; }
+
+        std::shared_ptr<text_3d_object> add_label_3d(
+            std::string_view text,
+            const vec3_f32& world_space_pos,
+            float scale,
+            const color3_f32& color,
+            text_alignment_type text_align = text_alignment_type::center,
+            bool make_visible = true
+        );
+        void remove_label_3d(text_object_id_type label_id);
+        void clear_label_3d();
+
+        std::shared_ptr<text_2d_object> add_label_2d(
+            std::string_view text,
+            vec2_f32 screen_space_pos,
+            float scale,
+            const color3_f32& color,
+            text_alignment_type text_align = text_alignment_type::center,
+            bool make_visible = true
+        );
+        void remove_label_2d(text_object_id_type label_id);
+        void clear_label_2d();
+
         /*
         texture_handle_t register_texture(...);
         texture_handle_t unregister_texture(...);
         */
-
-        void add_geometry(std::shared_ptr<geometry::geometry_object_base> geometry_object); 
-        void remove_geometry(std::shared_ptr<geometry::geometry_object_base> geometry_object);
-        void clear_geometries();
 
     }; // class
 

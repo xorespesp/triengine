@@ -7,13 +7,13 @@
 namespace triengine::renderer
 {
     class pcd_renderer
-        : public object_renderer_base<pcd_renderer, geometry::pcd_object>
+        : public renderer_base<pcd_renderer>
     {
     private:
         // Render options
         std::optional<float> _point_size;
 
-        // OpenGL resources
+        // Renderer resources
         core::gl_context* _glctx{ nullptr };
         core::shader_program 
             _deferred_opaque_pass_shader, 
@@ -29,9 +29,9 @@ namespace triengine::renderer
         void destroy_impl();
         void render_impl(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-            pred_callback_type predicate,
-            void* predicate_userdata);
+            const std::list<std::shared_ptr<geometry::pcd_object>>& render_obj_list,
+            pred_callback_type<geometry::pcd_object> predicate = nullptr,
+            void* predicate_userdata = nullptr);
 
     };
 

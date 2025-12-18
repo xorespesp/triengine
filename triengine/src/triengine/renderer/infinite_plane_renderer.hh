@@ -11,7 +11,7 @@ namespace triengine::renderer
         // Render options
         infinite_plane_options _options;
 
-        // OpenGL resources
+        // Renderer resources
         core::shader_program _transparent_grid_shader;
         core::shader_program _box_filtered_grid_shader;
         core::shader_program _box_filtered_chess_shader;

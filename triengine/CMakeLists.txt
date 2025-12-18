@@ -7,6 +7,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/camera.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/texture.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/scene.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/text_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/global_options.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gl_context.cc"
@@ -32,6 +33,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/pcd_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/skeleton_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/mesh_renderer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/text_renderer.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_ctrl_window.cc"
@@ -69,6 +71,8 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/scene.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/lighting_options.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/infinite_plane_options.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/text_object.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/text_render_options.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/global_options.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gl_context.hh"
@@ -94,6 +98,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/renderer_base.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/skeleton_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/mesh_renderer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/text_renderer.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"
@@ -303,12 +308,15 @@ find_package(OpenGL REQUIRED)
 
 include(FetchEigen)
 include(FetchGlfw)
+include(FetchFreeType)
 
 target_link_libraries(${TRIENGINE_LIBRARY_NAME}
     PUBLIC
         OpenGL::GL
         glfw
         Eigen3::Eigen
+    PRIVATE
+        freetype
 )
 
 ########################################################################################

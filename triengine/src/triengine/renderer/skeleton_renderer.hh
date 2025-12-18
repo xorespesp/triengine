@@ -6,7 +6,7 @@
 namespace triengine::renderer
 {
     class skeleton_renderer
-        : public object_renderer_base<skeleton_renderer, geometry::skeleton_object>
+        : public renderer_base<skeleton_renderer>
     {
     private:
         // Render options
@@ -25,8 +25,8 @@ namespace triengine::renderer
         void destroy_impl();
         void render_impl(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-            pred_callback_type predicate,
-            void* predicate_userdata);
+            const std::list<std::shared_ptr<geometry::skeleton_object>>& render_obj_list,
+            pred_callback_type<geometry::skeleton_object> predicate = nullptr,
+            void* predicate_userdata = nullptr);
     };
 }

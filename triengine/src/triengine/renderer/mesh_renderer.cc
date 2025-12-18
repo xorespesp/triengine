@@ -87,8 +87,8 @@ namespace triengine::renderer
 
     void mesh_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-        const pred_callback_type predicate,
+        const std::list<std::shared_ptr<geometry::mesh_object>>& render_obj_list,
+        const pred_callback_type<geometry::mesh_object> predicate,
         void* const predicate_userdata)
     {
         if (render_obj_list.empty()) {
@@ -117,7 +117,7 @@ namespace triengine::renderer
     void mesh_renderer::_render_vertex_shaded_objects(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
-        pred_callback_type const predicate,
+        pred_callback_type<geometry::mesh_object> const predicate,
         void* const predicate_userdata)
     {
         switch (render_ctx.curr_render_pass) {
@@ -351,7 +351,7 @@ namespace triengine::renderer
     void mesh_renderer::_render_texture_shaded_objects(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
-        pred_callback_type const predicate,
+        pred_callback_type<geometry::mesh_object> const predicate,
         void* const predicate_userdata)
     {
         switch (render_ctx.curr_render_pass) {
@@ -599,7 +599,7 @@ namespace triengine::renderer
     void mesh_renderer::_render_objects_normals(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
-        pred_callback_type const predicate,
+        pred_callback_type<geometry::mesh_object> const predicate,
         void* const predicate_userdata)
     {
         if (render_ctx.curr_render_pass != render_pass_type::forward_opaque_pass) {

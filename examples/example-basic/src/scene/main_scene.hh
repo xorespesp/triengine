@@ -32,6 +32,10 @@ namespace demo::scene
 
             scn->switch_camera_type(triengine::camera_type::arcball);
 
+            scn->add_label_3d("+X", { 0.6f, 0.0f, 0.0f }, 0.4f, color3_f32(1.0f, 0.0f, 0.0f));
+            scn->add_label_3d("+Y", { 0.0f, 0.6f, 0.0f }, 0.4f, color3_f32(0.0f, 1.0f, 0.0f));
+            scn->add_label_3d("+Z", { 0.0f, 0.0f, 0.6f }, 0.4f, color3_f32(0.0f, 0.0f, 1.0f));
+
             auto mesh_axis_frame = geometry::mesh_object::create_coordinate_frame(0.5f);
             //mesh_axis_frame->paint_uniform_color(_get_next_color());
             //mesh_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
@@ -45,19 +49,19 @@ namespace demo::scene
             ))
             {
                 //_skull_mesh->compute_vertex_normals();
+
                 _skull_mesh->set_model(
                     math::scale(_skull_mesh->get_model(), vec3_f32(0.0125f, 0.0125f, 0.0125f))
                 );
-
-                _skull_mesh->apply_model_in_place();
-
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
                 R = Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                     * Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
                     * Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
-
                 _skull_mesh->rotate(R, true);
-                _skull_mesh->translate(vec3_f32(0.0f, 0.5f, 0.0f), true);
+                _skull_mesh->apply_model_in_place();
+
+                _skull_mesh->translate(vec3_f32(0.4f, 0.8f, 0.0f), true);
+
                 scn->add_geometry(_skull_mesh);
             }
 
@@ -72,15 +76,14 @@ namespace demo::scene
                 _skull_mesh2->set_model(
                     math::scale(_skull_mesh2->get_model(), vec3_f32(0.0125f, 0.0125f, 0.0125f))
                 );
-                _skull_mesh2->get_texture_shading_material()->alpha = 0.5f;
-                _skull_mesh2->apply_model_in_place();
-
                 Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
                 R = Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
                     * Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
                     * Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
                 _skull_mesh2->rotate(R, true);
-                _skull_mesh2->translate(vec3_f32(0.0f, 0.6f, 0.0f), true);
+                _skull_mesh2->apply_model_in_place();
+                _skull_mesh2->translate(vec3_f32(0.0f, 0.8f, 0.0f), true);
+                _skull_mesh2->get_texture_shading_material()->alpha = 0.5f;
 
                 scn->add_geometry(_skull_mesh2);
             }
@@ -91,17 +94,12 @@ namespace demo::scene
             constexpr float rotSpeed = math::pi<float>() / 8.0f;
             const float dT = static_cast<float>(::glfwGetTime());
 
-            Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-            //R = Eigen::AngleAxisf(rotSpeed * dT * 0.1f, Eigen::Vector3f::UnitZ()) *
-            //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
-            //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
+            Eigen::Matrix3f R1, R2;
+            R1 = Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY());
+            R2 = Eigen::AngleAxisf(rotSpeed * dT + math::deg2rad(90.0f), Eigen::Vector3f::UnitY());
 
-            R = Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
-                Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
-
-            if (_skull_mesh) {
-                _skull_mesh->rotate(R);
-            }
+            if (_skull_mesh) { _skull_mesh->rotate(R1); }
+            if (_skull_mesh2) { _skull_mesh2->rotate(R2); }
         }
 
         void render_gui([[maybe_unused]] const gui::window_render_context& render_ctx) override

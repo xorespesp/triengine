@@ -5,10 +5,10 @@
 namespace triengine::renderer
 {
     class lineset_renderer
-        : public object_renderer_base<lineset_renderer, geometry::lineset_object>
+        : public renderer_base<lineset_renderer>
     {
     private:
-        // OpenGL resources
+        // Renderer resources
         core::gl_context* _glctx{ nullptr };
         core::shader_program _shader;
 
@@ -20,9 +20,9 @@ namespace triengine::renderer
         void destroy_impl();
         void render_impl(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-            pred_callback_type predicate,
-            void* predicate_userdata);
+            const std::list<std::shared_ptr<geometry::lineset_object>>& render_obj_list,
+            pred_callback_type<geometry::lineset_object> predicate = nullptr,
+            void* predicate_userdata = nullptr);
 
     };
 

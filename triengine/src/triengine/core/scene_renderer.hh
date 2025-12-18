@@ -13,6 +13,7 @@
 #include <triengine/renderer/lineset_renderer.hh>
 #include <triengine/renderer/pcd_renderer.hh>
 #include <triengine/renderer/skeleton_renderer.hh>
+#include <triengine/renderer/text_renderer.hh>
 
 #include <memory>
 
@@ -42,6 +43,7 @@ namespace triengine::core
         renderer::lineset_renderer _lineset_renderer;
         renderer::pcd_renderer _pcd_renderer;
         renderer::skeleton_renderer _skeleton_renderer;
+        renderer::text_renderer _text_renderer;
 
         phys_bloom_effect _bloom_effect;
 

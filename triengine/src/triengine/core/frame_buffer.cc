@@ -690,6 +690,19 @@ namespace triengine::core
                     GL_TRUE                      /* GLboolean fixedsamplelocations */
                 ));
             }
+
+            /** 
+             * For combined depth-stencil formats, ensure that sampling operations
+             * in shaders retrieve depth data by default. Although `GL_DEPTH_COMPONENT`
+             * is the standard initial state, we explicitly set it here to guarantee
+             * consistent behavior when the texture is accessed via a sampler.
+             */
+            switch (attach_info.internal_format) {
+            case GL_DEPTH24_STENCIL8:
+            case GL_DEPTH32F_STENCIL8:
+                GLCall(::glTextureParameteri(attach_info.buffer_id, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_DEPTH_COMPONENT));
+                break;
+            }
         }
         else
         {

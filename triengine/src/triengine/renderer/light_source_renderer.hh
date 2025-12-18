@@ -7,7 +7,7 @@ namespace triengine::renderer
         : public renderer_base<light_source_renderer>
     {
     private:
-        // OpenGL resources
+        // Renderer resources
         core::shader_program _point_light_source_shader;
         GLuint _vao{};
         GLuint _vbo{};

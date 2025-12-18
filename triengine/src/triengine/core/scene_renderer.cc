@@ -6,6 +6,7 @@
 
 #include <triengine/extern/smaa_area_texture.h>
 #include <triengine/extern/smaa_search_texture.h>
+#include <triengine/extern/fonts/Fonts.h>
 
 namespace triengine::core
 {
@@ -100,6 +101,11 @@ namespace triengine::core
         _lineset_renderer.create(*glctx);
         _pcd_renderer.create(*glctx);
         _skeleton_renderer.create(*glctx);
+        _text_renderer.create(*glctx,
+            Roboto_Regular_ttf,
+            Roboto_Regular_ttf_len,
+            64/* font size */
+        );
 
         _bloom_effect.create(*glctx);
 
@@ -213,6 +219,7 @@ namespace triengine::core
         _lineset_renderer.destroy();
         _pcd_renderer.destroy();
         _skeleton_renderer.destroy();
+        _text_renderer.destroy();
 
         _bloom_effect.destroy();
 
@@ -275,7 +282,7 @@ namespace triengine::core
         const bool overlay_render_pass_required =
             !scn.get_skeleton_geometries().empty() &&
             (scn_render_config.skeleton_mode == skeleton_render_mode::skeleton_overlay ||
-                scn_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
+             scn_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
 
         // resize WBOIT framebuffer
         if (!_wboit_fb.is_valid())
@@ -288,7 +295,11 @@ namespace triengine::core
                 },
                 GL_DEPTH24_STENCIL8,
                 frame_width_pixels,
-                frame_height_pixels
+                frame_height_pixels,
+                1/* sample_count */,
+                {}/* color_tex_params */,
+                false/* use_renderbuffer_for_color */,
+                false/* use_renderbuffer_for_depth_stencil */
             );
         }
         else
@@ -313,7 +324,11 @@ namespace triengine::core
                 },
                 GL_DEPTH24_STENCIL8,
                 frame_width_pixels,
-                frame_height_pixels
+                frame_height_pixels,
+                1/* sample_count */,
+                {}/* color_tex_params */,
+                false/* use_renderbuffer_for_color */,
+                false/* use_renderbuffer_for_depth_stencil */
             );
         }
         else
@@ -722,7 +737,7 @@ namespace triengine::core
                 // NOTE: At this point, the stencil buffer is set to 1 for "edge" regions, and remains 0 for "non-edge" regions.
                 // from now on, process only pixels where stencil == 1 (edge region pixels).
                 // (otherwise, discard and do not run the fragment shader)
-                GLCall(::glStencilFunc(GL_EQUAL, 1/* ref */, 0xFF/* mask */)); 
+                GLCall(::glStencilFunc(GL_EQUAL, 1/* ref */, 0xFF/* mask */));
 
                 // From now on, keep the stencil buffer values unchanged.
                 GLCall(::glStencilOp(
@@ -776,6 +791,22 @@ namespace triengine::core
                 GLCall(::glBindVertexArray(_vao_screen_quad));
                 GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
             }
+        }
+
+        // ---------------------------------------------------------------------------------
+        // Text Rendering Pass
+        // ---------------------------------------------------------------------------------
+        if (scn_render_config.text_render_opts.enabled)
+        {
+            const auto depth_stencil_attachment = _wboit_fb.depth_stencil_attachment();
+            TRIENGINE_ASSERT(depth_stencil_attachment != nullptr);
+            _text_renderer.render(
+                render_ctx,
+                scn_render_config.text_render_opts,
+                depth_stencil_attachment->buffer_id,
+                scn.get_text_2d_objects(),
+                scn.get_text_3d_objects()
+            );
         }
 
         // ---------------------------------------------------------------------------------

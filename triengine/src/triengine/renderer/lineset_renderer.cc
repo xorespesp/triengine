@@ -42,8 +42,8 @@ namespace triengine::renderer
 
     void lineset_renderer::render_impl(
         const render_context& render_ctx,
-        const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-        pred_callback_type const predicate,
+        const std::list<std::shared_ptr<geometry::lineset_object>>& render_obj_list,
+        pred_callback_type<geometry::lineset_object> const predicate,
         void* const predicate_userdata)
     {
         if (render_ctx.curr_render_pass != render_pass_type::forward_opaque_pass) {

@@ -144,4 +144,72 @@ namespace triengine
         _skeleton_geometries.clear();
     }
 
+    std::shared_ptr<text_3d_object> scene::add_label_3d(
+        const std::string_view text, 
+        const vec3_f32& world_space_pos, 
+        const float scale, 
+        const color3_f32& color, 
+        const text_alignment_type text_align, 
+        const bool make_visible)
+    {
+        auto new_label = std::make_shared<text_3d_object>();
+        new_label->set_text(text);
+        new_label->set_text_alignment(text_align);
+        new_label->set_position(world_space_pos);
+        new_label->set_scale(scale);
+        new_label->set_color(color);
+        new_label->set_visible(make_visible);
+
+        auto it = _text_3d_objects.insert(_text_3d_objects.end(), new_label);
+        _text_3d_objects_id_map[new_label->get_id()] = it;
+
+        return new_label;
+    }
+
+    void scene::remove_label_3d(text_object_id_type label_id)
+    {
+        auto it = _text_3d_objects_id_map.at(label_id);
+        _text_3d_objects.erase(it);
+    }
+
+    void scene::clear_label_3d()
+    {
+        _text_3d_objects_id_map.clear();
+        _text_3d_objects.clear();
+    }
+
+    std::shared_ptr<text_2d_object> scene::add_label_2d(
+        const std::string_view text, 
+        const vec2_f32 screen_space_pos, 
+        const float scale, 
+        const color3_f32& color, 
+        const text_alignment_type text_align, 
+        const bool make_visible)
+    {
+        auto new_label = std::make_shared<text_2d_object>();
+        new_label->set_text(text);
+        new_label->set_text_alignment(text_align);
+        new_label->set_position(screen_space_pos);
+        new_label->set_scale(scale);
+        new_label->set_color(color);
+        new_label->set_visible(make_visible);
+
+        auto it = _text_2d_objects.insert(_text_2d_objects.end(), new_label);
+        _text_2d_objects_id_map[new_label->get_id()] = it;
+
+        return new_label;
+    }
+
+    void scene::remove_label_2d(text_object_id_type label_id)
+    {
+        auto it = _text_2d_objects_id_map.at(label_id);
+        _text_2d_objects.erase(it);
+    }
+
+    void scene::clear_label_2d()
+    {
+        _text_2d_objects_id_map.clear();
+        _text_2d_objects.clear();
+    }
+
 } // namespace

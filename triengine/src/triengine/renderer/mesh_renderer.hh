@@ -5,7 +5,7 @@
 namespace triengine::renderer
 {
     class mesh_renderer
-        : public object_renderer_base<mesh_renderer, geometry::mesh_object>
+        : public renderer_base<mesh_renderer>
     {
     public:
         enum class render_mode_type
@@ -25,7 +25,7 @@ namespace triengine::renderer
         // Render options
         render_mode_type _curr_render_mode{ render_mode_type::shaded_surfaces };
 
-        // OpenGL resources
+        // Renderer resources
         core::gl_context* _glctx{ nullptr };
         core::shader_program 
             _vtxshaded_deferred_opaque_pass_shader,
@@ -47,30 +47,30 @@ namespace triengine::renderer
         void destroy_impl();
         void render_impl(
             const render_context& render_ctx,
-            const std::list<std::shared_ptr<render_object_type>>& render_obj_list,
-            pred_callback_type predicate,
-            void* predicate_userdata
+            const std::list<std::shared_ptr<geometry::mesh_object>>& render_obj_list,
+            pred_callback_type<geometry::mesh_object> predicate = nullptr,
+            void* predicate_userdata = nullptr
         );
 
     private:
         void _render_vertex_shaded_objects(
             const render_context& render_ctx,
             const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
-            pred_callback_type predicate,
+            pred_callback_type<geometry::mesh_object> predicate,
             void* predicate_userdata
         );
 
         void _render_texture_shaded_objects(
             const render_context& render_ctx,
             const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
-            pred_callback_type predicate,
+            pred_callback_type<geometry::mesh_object> predicate,
             void* predicate_userdata
         );
 
         void _render_objects_normals(
             const render_context& render_ctx,
             const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
-            pred_callback_type predicate,
+            pred_callback_type<geometry::mesh_object> predicate,
             void* predicate_userdata
         );
 

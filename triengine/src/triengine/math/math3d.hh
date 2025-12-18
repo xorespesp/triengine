@@ -76,10 +76,10 @@ namespace triengine::math
 	 * @return The extended 4x4 matrix.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
-		const Eigen::Matrix<_Scalar, 3, 3>& rotationScalePart) {
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
+		const Eigen::Matrix3<_Scalar>& rotationScalePart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 3>(0, 0) = rotationScalePart;
 		return mat4;
 	}
@@ -93,10 +93,10 @@ namespace triengine::math
 	 * @return The 4x4 matrix representing only the translation.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
-		const Eigen::Vector<_Scalar, 3>& translationPart) {
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
+		const Eigen::Vector3<_Scalar>& translationPart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 1>(0, 3) = translationPart;
 		return mat4;
 	}
@@ -110,11 +110,11 @@ namespace triengine::math
 	 * @return The resulting 4x4 transformation matrix.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
-		const Eigen::Matrix<_Scalar, 3, 3>& rotationScalePart,
-		const Eigen::Vector<_Scalar, 3>& translationPart) {
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
+		const Eigen::Matrix3<_Scalar>& rotationScalePart,
+		const Eigen::Vector3<_Scalar>& translationPart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 3>(0, 0) = rotationScalePart;
 		mat4.template block<3, 1>(0, 3) = translationPart;
 		return mat4;
@@ -127,10 +127,10 @@ namespace triengine::math
 	 * @return The 4x4 matrix representing the rotation.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
 		const Eigen::AngleAxis<_Scalar>& rotationPart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
 		return mat4;
 	}
@@ -144,11 +144,11 @@ namespace triengine::math
 	 * @return The resulting 4x4 transformation matrix.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
 		const Eigen::AngleAxis<_Scalar>& rotationPart,
-		const Eigen::Vector<_Scalar, 3>& translationPart) {
+		const Eigen::Vector3<_Scalar>& translationPart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
 		mat4.template block<3, 1>(0, 3) = translationPart;
 		return mat4;
@@ -161,10 +161,10 @@ namespace triengine::math
 	 * @return The 4x4 matrix representing the rotation.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
 		const Eigen::Quaternion<_Scalar>& rotationPart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
 		return mat4;
 	}
@@ -178,11 +178,11 @@ namespace triengine::math
 	 * @return The resulting 4x4 transformation matrix.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> extend_to_mat4(
+	static inline Eigen::Matrix4<_Scalar> extend_to_mat4(
 		const Eigen::Quaternion<_Scalar>& rotationPart,
-		const Eigen::Vector<_Scalar, 3>& translationPart) {
+		const Eigen::Vector3<_Scalar>& translationPart) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
-		Eigen::Matrix<_Scalar, 4, 4> mat4 = Eigen::Matrix<_Scalar, 4, 4>::Identity();
+		Eigen::Matrix4<_Scalar> mat4 = Eigen::Matrix4<_Scalar>::Identity();
 		mat4.template block<3, 3>(0, 0) = rotationPart.toRotationMatrix();
 		mat4.template block<3, 1>(0, 3) = translationPart;
 		return mat4;
@@ -552,7 +552,7 @@ namespace triengine::math
 			eye_right{ eye_front.cross(world_up).normalized() },
 			eye_up{ eye_right.cross(eye_front) };
 
-		Eigen::Matrix4f result{ Eigen::Matrix4f::Identity() };
+		Eigen::Matrix4<_Scalar> result{ Eigen::Matrix4<_Scalar>::Identity() };
 		result(0, 0) = eye_right.x();
 		result(0, 1) = eye_right.y();
 		result(0, 2) = eye_right.z();
@@ -576,7 +576,7 @@ namespace triengine::math
 	 * glm/ext/matrix_clip_space.inl
 	 */
 	template<typename _Scalar>
-	static inline Eigen::Matrix4f perspective(
+	static inline Eigen::Matrix4<_Scalar> perspective(
 		const _Scalar fovy,
 		const _Scalar aspect,
 		const _Scalar zNear,
@@ -601,6 +601,31 @@ namespace triengine::math
 	}
 
 	/**
+	 * Equivalent of: `glm::ortho`
+	 * 
+	 * Ref:
+	 * glm/ext/matrix_clip_space.inl
+	 */
+	template<typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> ortho(
+		const _Scalar left,
+		const _Scalar right,
+		const _Scalar bottom,
+		const _Scalar top)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		Eigen::Matrix4<_Scalar> result = Eigen::Matrix4<_Scalar>::Identity();
+		result(0, 0) = static_cast<_Scalar>(2) / (right - left);
+		result(1, 1) = static_cast<_Scalar>(2) / (top - bottom);
+		result(2, 2) = -static_cast<_Scalar>(1);
+		result(0, 3) = -(right + left) / (right - left);
+		result(1, 3) = -(top + bottom) / (top - bottom);
+
+		return result;
+	}
+
+	/**
 	 * @brief Translates a 4x4 matrix 'm' by directly adding a 3D vector 'v'
 	 * to its existing translation components (the first three elements of the last column).
 	 *
@@ -619,9 +644,9 @@ namespace triengine::math
 	 * @return The 4x4 matrix with 'v' added to its translation part.
 	 */
 	template <typename _Scalar>
-	static inline Eigen::Matrix<_Scalar, 4, 4> translate_offset(
-		Eigen::Matrix<_Scalar, 4, 4> m, // Pass by value, as it's modified and returned
-		const Eigen::Vector<_Scalar, 3>& v) {
+	static inline Eigen::Matrix4<_Scalar> translate_offset(
+		Eigen::Matrix4<_Scalar> m, // Pass by value, as it's modified and returned
+		const Eigen::Vector3<_Scalar>& v) {
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
 
 		// Directly add the vector 'v' to the translation part of matrix 'm':
@@ -656,7 +681,7 @@ namespace triengine::math
 	{
 		static_assert(std::is_floating_point_v<_Scalar>, "!!");
 
-		Eigen::Matrix<_Scalar, 4, 4> result = m; // Start with a copy of the input matrix
+		Eigen::Matrix4<_Scalar> result = m; // Start with a copy of the input matrix
 
 		result.col(3) =
 			m.col(0) * v.x() +
@@ -706,7 +731,7 @@ namespace triengine::math
 		const _Scalar ky = axis_normalized.y();
 		const _Scalar kz = axis_normalized.z();
 
-		Eigen::Matrix<_Scalar, 3, 3> Rotate;
+		Eigen::Matrix3<_Scalar> Rotate;
 
 		// Rodrigues' rotation formula elements (R_ij = element at row i, col j)
 		Rotate(0, 0) = c + kx * kx * one_minus_c;
