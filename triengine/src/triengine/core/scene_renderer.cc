@@ -263,6 +263,12 @@ namespace triengine::core
         renderer::render_context render_ctx; {
             scn_camera.get_view_projection(render_ctx.view, render_ctx.projection);
             render_ctx.light_opts = &scn_render_config.light_opts;
+            
+            // set fog color same as background clear color
+            render_ctx.simple_fog_color.r() = scn_render_config.bg_color.r();
+            render_ctx.simple_fog_color.g() = scn_render_config.bg_color.g();
+            render_ctx.simple_fog_color.b() = scn_render_config.bg_color.b();
+
             render_ctx.camera = &scn_camera;
         }
 
@@ -458,6 +464,7 @@ namespace triengine::core
             // Update light options in shader
             render_ctx.light_opts->dir_light.apply_to_shader(draw_shader, render_ctx.view);
             render_ctx.light_opts->point_light.apply_to_shader(draw_shader, render_ctx.view);
+            render_ctx.light_opts->simple_fog.apply_to_shader(draw_shader, render_ctx.simple_fog_color);
 
             GLCall(::glBindTextureUnit(0, _gbuffer_fb.color_attachment(0)->buffer_id));
             GLCall(::glBindTextureUnit(1, _gbuffer_fb.color_attachment(1)->buffer_id));

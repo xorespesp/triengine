@@ -3,6 +3,7 @@
 #define USE_BLINN_PHONG_SHADING 1
 //#define DISABLE_TWO_SIDED_LIGHTING 1
 #include "includes/phong_lighting.glsl"
+#include "includes/simple_fog.glsl"
 
 ////////////////////////////////////////////
 // shader inputs
@@ -29,6 +30,9 @@ layout(binding = 3) uniform sampler2D u_gBufferMaterial;   // [3]: material buff
 // --- lights ---
 uniform DirLight u_dirLight;
 uniform PointLight u_pointLight;
+
+// --- simple fog ---
+uniform SimpleFogOptions u_simpleFog;
 
 void main()
 {
@@ -80,6 +84,27 @@ void main()
     // If no any lights, fallback to base color
     if (!u_dirLight.enabled && !u_pointLight.enabled) {
         resultColor = albedoSpecColor.rgb; // albedo color
+    }
+    
+    // --- simple fog ---
+    if (u_simpleFog.enabled)
+    {
+        ////////////////////////////////////////////////////////////////////
+        // 1. calculate distance between vertex position and camera position(origin)
+        const vec3 eyePosInView = vec3(0.0, 0.0, 0.0); // camera position in view space
+        const float distToCamera = distance(eyePosInView, fragPosInView);
+        
+        // 2. calculate fog factor
+        const float fogFactor = simpleFogExp2WithMinDist(
+            distToCamera,
+            u_simpleFog.density,
+            u_simpleFog.startDist
+        );
+
+        // 3. apply fog (before tone mapping)
+        // fog color is already in LDR, so blend with linear HDR color
+        resultColor.rgb = mix(u_simpleFog.color, resultColor.rgb, fogFactor);
+        ////////////////////////////////////////////////////////////////////
     }
 
 	fso_frag = vec4(resultColor, 1.0f);

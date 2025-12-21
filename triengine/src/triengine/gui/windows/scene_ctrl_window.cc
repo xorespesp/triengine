@@ -206,7 +206,7 @@ namespace triengine::gui
                 {
                     ImGui::Indent();
 
-                    if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
+                    ImGui::SeparatorText("Directional Light");
                     {
                         auto& dir_light_opts = scn_config.light_opts.dir_light;
                         ImGui::Checkbox("Enable##DirLight", &dir_light_opts.enabled);
@@ -227,7 +227,7 @@ namespace triengine::gui
                         if (!dir_light_opts.enabled) { ImGui::EndDisabled(); }
                     }
 
-                    if (ImGui::CollapsingHeader("Point Light", ImGuiTreeNodeFlags_DefaultOpen))
+                    ImGui::SeparatorText("Point Light");
                     {
                         auto& point_light_opts = scn_config.light_opts.point_light;
                         ImGui::Checkbox("Enable##PointLight", &point_light_opts.enabled);
@@ -243,7 +243,25 @@ namespace triengine::gui
                         if (!point_light_opts.enabled) { ImGui::EndDisabled(); }
                     }
 
-                    if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+                    // Simple Fog Options
+                    ImGui::SeparatorText("Fog");
+                    {
+                        auto& simple_fog_opts = scn_config.light_opts.simple_fog;
+
+                        ImGui::Checkbox("Enabled", &simple_fog_opts.enabled);
+                        ImGui::DragFloat("Fog Density", &simple_fog_opts.fog_density,
+                            0.001f, 0.0f, 100.0f,
+                            "%.3f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+                        ImGui::DragFloat("Fog Start Distance", &simple_fog_opts.fog_start_dist,
+                            0.1f, 0.0f, 100.0f,
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+                    }
+
+                    ImGui::SeparatorText("Bloom");
                     {
                         auto& bloom_opts = scn_config.light_opts.bloom;
                         ImGui::Checkbox("Enable##Bloom", &bloom_opts.enabled);
@@ -254,7 +272,7 @@ namespace triengine::gui
                         if (!bloom_opts.enabled) { ImGui::EndDisabled(); }
                     }
 
-                    if (ImGui::CollapsingHeader("HDR", ImGuiTreeNodeFlags_DefaultOpen))
+                    ImGui::SeparatorText("HDR");
                     {
                         using enum_type = triengine::tone_mapping_curve_type;
                         static const std::unordered_map<enum_type, std::string> item_names = {

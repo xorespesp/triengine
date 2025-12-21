@@ -106,6 +106,23 @@ namespace triengine
         }
     };
 
+    struct simple_fog_options
+    {
+        bool enabled{ true };
+        float fog_density{ 0.045f };
+        float fog_start_dist{ 6.0f };
+
+        void apply_to_shader(
+            const core::shader_program& shader,
+            const color3_f32& fog_color/* NOTE: must be the same as background color */) const
+        {
+            shader.set_uniform_bool("u_simpleFog.enabled", enabled);
+            shader.set_uniform_vec3("u_simpleFog.color", fog_color.to_eigen());
+            shader.set_uniform_float("u_simpleFog.density", fog_density);
+            shader.set_uniform_float("u_simpleFog.startDist", fog_start_dist);
+        }
+    };
+
     struct bloom_options
     {
         bool enabled{ true }; // enable flag
@@ -135,6 +152,7 @@ namespace triengine
     {
         directional_light_options dir_light;
         point_light_options point_light;
+        simple_fog_options simple_fog;
         bloom_options bloom;
         hdr_options hdr;
 

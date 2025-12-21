@@ -204,6 +204,7 @@ namespace triengine::renderer
             // Update light options in shader
             render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
             render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
+            render_ctx.light_opts->simple_fog.apply_to_shader(*draw_shader, render_ctx.simple_fog_color);
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_objects)
@@ -277,6 +278,7 @@ namespace triengine::renderer
             // Update light options in shader
             render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
             render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
+            render_ctx.light_opts->simple_fog.apply_to_shader(*draw_shader, render_ctx.simple_fog_color);
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_objects)
@@ -442,6 +444,7 @@ namespace triengine::renderer
             // Update light options in shader
             render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
             render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
+            render_ctx.light_opts->simple_fog.apply_to_shader(*draw_shader, render_ctx.simple_fog_color);
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_objects)
@@ -520,6 +523,7 @@ namespace triengine::renderer
             // Update light options in shader
             render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
             render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
+            render_ctx.light_opts->simple_fog.apply_to_shader(*draw_shader, render_ctx.simple_fog_color);
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_objects)
