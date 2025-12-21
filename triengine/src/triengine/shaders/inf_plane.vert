@@ -17,8 +17,9 @@ const int g_vertexIndices[6] = int[6](
 ////////////////////////////////////////////
 out VS_OUT
 {
-    vec3 vertPos; // vertex position in world space
-    vec3 vertNormal; // vertex normal in world space
+    vec3 vertPosInWorld; // vertex position in world space (for pattern calculation and falloff)
+    vec3 fragPosInView; // fragment position in view space (for lighting)
+    vec3 fragNormalInView; // fragment normal in view space (for lighting)
 } vso;
 
 ////////////////////////////////////////////
@@ -40,6 +41,10 @@ void main()
     currVertexPos.z += u_eyePosInWorld.z;
 
     gl_Position = u_proj * u_view * vec4(currVertexPos, 1.0);
-    vso.vertPos = currVertexPos;
-    vso.vertNormal = vec3(0.0, 1.0, 0.0); // XZ-plane's normal (points up in Y direction)
+    
+    vso.vertPosInWorld = currVertexPos;
+    vso.fragPosInView = vec3(u_view * vec4(currVertexPos, 1.0));
+
+    // For XZ-plane, normal is (0, 1, 0) in world space
+    vso.fragNormalInView = normalize(mat3(u_view) * vec3(0.0, 1.0, 0.0));
 }

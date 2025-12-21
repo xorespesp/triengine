@@ -319,9 +319,9 @@ namespace triengine::gui
                     if (disabled) { ImGui::BeginDisabled(); }
 
                     static constexpr std::array<const char*, 3> kInfPlanePatternTypeNamesMap = {
-                        "Transparent Grid",
-                        "Box-Filtered Grid",
-                        "Box-Filtered Chess"
+                        "Box-Filtered Chess", // 0
+                        "Box-Filtered Grid", // 1
+                        "Transparent Grid" // 2
                     };
 
                     if (int combo_idx = static_cast<int>(scn_config.inf_plane_opts.plane_option.index());
@@ -333,9 +333,9 @@ namespace triengine::gui
                         ))
                     {
                         switch (combo_idx) {
-                        case 0: scn_config.inf_plane_opts.plane_option = transparent_grid_plane_option_t{}; break;
+                        case 0: scn_config.inf_plane_opts.plane_option = box_filtered_chess_plane_option_t{}; break;
                         case 1: scn_config.inf_plane_opts.plane_option = box_filtered_grid_plane_option_t{}; break;
-                        case 2: scn_config.inf_plane_opts.plane_option = box_filtered_chess_plane_option_t{}; break;
+                        case 2: scn_config.inf_plane_opts.plane_option = transparent_grid_plane_option_t{}; break;
                         default: TRIENGINE_ASSERT(false); break;
                         }
                     }
@@ -344,15 +344,26 @@ namespace triengine::gui
                     ImGui::DragFloat("Grid Cell Size##InfPlane", &scn_config.inf_plane_opts.grid_cell_size, 0.001f, 0.025f, FLT_MAX);
 
                     std::visit([](auto& pattern_opt) {
+                        constexpr uint16_t kMinShininess{ 1 }, kMaxShininess{ 256 };
                         using T = std::decay_t<decltype(pattern_opt)>;
                         if constexpr (std::is_same_v<T, transparent_grid_plane_option_t>) {
                             ImGui::ColorEdit3("Grid Line Color##InfPlane", pattern_opt.grid_line_color.data());
                         } else if constexpr (std::is_same_v<T, box_filtered_grid_plane_option_t>) {
                             ImGui::ColorEdit3("Grid Line Color##InfPlane", pattern_opt.grid_line_color.data());
                             ImGui::ColorEdit3("Grid Cell Color##InfPlane", pattern_opt.grid_cell_color.data());
+                            ImGui::DragFloat("Ambient Intensity##InfPlane", &pattern_opt.material.ambient_intensity, 0.001f, 0.0f, 10.0f);
+                            ImGui::DragFloat("Diffuse Intensity##InfPlane", &pattern_opt.material.diffuse_intensity, 0.001f, 0.0f, 10.0f);
+                            ImGui::DragFloat("Specular Intensity##InfPlane", &pattern_opt.material.specular_intensity, 0.001f, 0.0f, 10.0f);
+                            ImGui::DragScalar("Shininess##InfPlane", ImGuiDataType_U16, &pattern_opt.material.shininess, 
+                                1.0f, &kMinShininess, &kMaxShininess);
                         } else if constexpr (std::is_same_v<T, box_filtered_chess_plane_option_t>) {
                             ImGui::ColorEdit3("Grid Cell Color1##InfPlane", pattern_opt.grid_cell_color1.data());
                             ImGui::ColorEdit3("Grid Cell Color2##InfPlane", pattern_opt.grid_cell_color2.data());
+                            ImGui::DragFloat("Ambient Intensity##InfPlane", &pattern_opt.material.ambient_intensity, 0.001f, 0.0f, 10.0f);
+                            ImGui::DragFloat("Diffuse Intensity##InfPlane", &pattern_opt.material.diffuse_intensity, 0.001f, 0.0f, 10.0f);
+                            ImGui::DragFloat("Specular Intensity##InfPlane", &pattern_opt.material.specular_intensity, 0.001f, 0.0f, 10.0f);
+                            ImGui::DragScalar("Shininess##InfPlane", ImGuiDataType_U16, &pattern_opt.material.shininess,
+                                1.0f, &kMinShininess, &kMaxShininess);
                         } else {
                             TRIENGINE_ASSERT(false);
                         }

@@ -2,14 +2,16 @@
 
 #define WBOIT_ENABLED 1
 #include "includes/WBOIT.glsl"
+#include "includes/simple_fog.glsl"
 
 ////////////////////////////////////////////
 // shader inputs
 ////////////////////////////////////////////
 in VS_OUT
 {
-    vec3 vertPos; // vertex position in world space
-    vec3 vertNormal; // vertex normal in world space
+    vec3 vertPosInWorld; // vertex position in world space (for pattern calculation and falloff)
+    vec3 fragPosInView; // fragment position in view space (for lighting)
+    vec3 fragNormalInView; // fragment normal in view space (for lighting)
 } fsi;
 
 ////////////////////////////////////////////
@@ -29,8 +31,12 @@ uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in 
 uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
 uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
 
+// --- pattern options ---
 uniform float u_gridMinPixelsBetweenCells = 2.0;
 uniform vec3  u_gridLineColor = vec3(0.0, 1.0, 0.0);
+
+// --- simple fog ---
+uniform SimpleFogOptions u_simpleFog;
 
 // modulo function; returns the value of x modulo y.
 // (equivalent of: https://registry.khronos.org/OpenGL-Refpages/gl4/html/mod.xhtml)
@@ -54,11 +60,11 @@ float calcGridPixelOpacity_v1(float ldx, float ldz, float gridCellSize)
 	const float thickness = 2.0; // grid line thickness
 
     // vertical grid line opacity (world x-axis)
-	const float modDivX = mod_f32(fsi.vertPos.x, gridCellSize) / (thickness * ldx);
+	const float modDivX = mod_f32(fsi.vertPosInWorld.x, gridCellSize) / (thickness * ldx);
     const float gridOpacityX = 1.0 - abs(sat_f32(modDivX) * 2.0 - 1.0);
 
     // horizontal grid line opacity (world z-axis)
-	const float modDivZ = mod_f32(fsi.vertPos.z, gridCellSize) / (thickness * ldz);
+	const float modDivZ = mod_f32(fsi.vertPosInWorld.z, gridCellSize) / (thickness * ldz);
     const float gridOpacityZ = 1.0 - abs(sat_f32(modDivZ) * 2.0 - 1.0);
 
     // 수직선 opacity, 수평선 opacity 값 중 더 큰 값을 grid opacity 값으로 사용
@@ -69,17 +75,17 @@ float calcGridPixelOpacity_v1(float ldx, float ldz, float gridCellSize)
 float calcGridPixelOpacity_v2(vec2 dvx, vec2 dvz, float gridCellSize)
 {
     // 거리 계산: 그리드 라인으로부터의 최소 거리
-    float gridX = mod_f32(fsi.vertPos.x, gridCellSize);
+    float gridX = mod_f32(fsi.vertPosInWorld.x, gridCellSize);
     gridX = min(gridX, gridCellSize - gridX); // 그리드 라인까지의 최소 거리
 
-    float gridZ = mod_f32(fsi.vertPos.z, gridCellSize);
+    float gridZ = mod_f32(fsi.vertPosInWorld.z, gridCellSize);
     gridZ = min(gridZ, gridCellSize - gridZ); // 그리드 라인까지의 최소 거리
 
     // `fwidth`를 사용하여 엣지의 두께를 결정하고 부드러운 그라데이션 적용
     // NOTE: `fwidth(p)` is equivalent to `abs(dFdx(p)) + abs(dFdy(p))`
     // https://registry.khronos.org/OpenGL-Refpages/gl4/html/fwidth.xhtml
-    float lineWidthX = abs(dvx.x) + abs(dvx.y); //fwidth(fsi.vertPos.x);
-    float lineWidthZ = abs(dvz.x) + abs(dvz.y); //fwidth(fsi.vertPos.z);
+    float lineWidthX = abs(dvx.x) + abs(dvx.y); //fwidth(fsi.vertPosInWorld.x);
+    float lineWidthZ = abs(dvz.x) + abs(dvz.y); //fwidth(fsi.vertPosInWorld.z);
 
     // line의 두께 조절
     const float thickness = 1.25; // grid line thickness
@@ -96,8 +102,8 @@ float calcGridPixelOpacity_v2(vec2 dvx, vec2 dvz, float gridCellSize)
 
 void main()
 {
-    const vec2 dvx = vec2( dFdx(fsi.vertPos.x), dFdy(fsi.vertPos.x) );
-    const vec2 dvz = vec2( dFdx(fsi.vertPos.z), dFdy(fsi.vertPos.z) );
+    const vec2 dvx = vec2( dFdx(fsi.vertPosInWorld.x), dFdy(fsi.vertPosInWorld.x) );
+    const vec2 dvz = vec2( dFdx(fsi.vertPosInWorld.z), dFdy(fsi.vertPosInWorld.z) );
 
     const float ldx = length(dvx);
     const float ldz = length(dvz);
@@ -128,9 +134,30 @@ void main()
         }
     }
 
-    const float distanceToCamera = length(fsi.vertPos.xz - u_eyePosInWorld.xz);
+    const float distanceToCamera = length(fsi.vertPosInWorld.xz - u_eyePosInWorld.xz);
     const float falloffOpacity = smoothstep(1.0, 0.0, sat_f32(distanceToCamera / u_planeHalfSize));
     resultColor.a *= falloffOpacity;
+    
+    // --- simple fog ---
+    if (u_simpleFog.enabled)
+    {
+        ////////////////////////////////////////////////////////////////////
+        // 1. calculate distance between vertex position and camera position(origin)
+        const vec3 eyePosInView = vec3(0.0, 0.0, 0.0); // camera position in view space
+        const float distToCamera = distance(eyePosInView, fsi.fragPosInView);
+        
+        // 2. calculate fog factor
+        const float fogFactor = simpleFogExp2WithMinDist(
+            distToCamera,
+            u_simpleFog.density,
+            u_simpleFog.startDist
+        );
+
+        // 3. apply fog (before tone mapping)
+        // fog color is already in LDR, so blend with linear HDR color
+        resultColor.rgb = mix(u_simpleFog.color, resultColor.rgb, fogFactor);
+        ////////////////////////////////////////////////////////////////////
+    }
 
 #if WBOIT_ENABLED
 

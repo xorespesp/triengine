@@ -14,21 +14,33 @@ namespace triengine
         box_filtered_chess_grid,
     };
 
-    struct transparent_grid_plane_option_t
+    struct box_filtered_chess_plane_option_t
     {
-        vec3_f32 grid_line_color{ 0.0f, 1.0f, 0.0f };
+        vec3_f32 grid_cell_color1{ 0.74f, 0.74f, 0.74f };
+        vec3_f32 grid_cell_color2{ 0.90f, 0.90f, 0.90f };
+        struct material_t {
+            float ambient_intensity{ 0.3f }; /// ambient intensity; must be `>= 0`
+            float diffuse_intensity{ 0.9f }; /// diffuse intensity; must be `>= 0`
+            float specular_intensity{ 0.4f }; /// specular intensity; must be `>= 0`
+            uint16_t shininess{ 64 }; /// object surface shininess scalar (must be `> 0`)
+        } material;
     };
 
     struct box_filtered_grid_plane_option_t
     {
         vec3_f32 grid_line_color{ 0.74f, 0.74f, 0.74f };
         vec3_f32 grid_cell_color{ 0.90f, 0.90f, 0.90f };
+        struct material_t {
+            float ambient_intensity{ 0.3f }; /// ambient intensity; must be `>= 0`
+            float diffuse_intensity{ 0.9f }; /// diffuse intensity; must be `>= 0`
+            float specular_intensity{ 0.4f }; /// specular intensity; must be `>= 0`
+            uint16_t shininess{ 64 }; /// object surface shininess scalar (must be `> 0`)
+        } material;
     };
 
-    struct box_filtered_chess_plane_option_t
+    struct transparent_grid_plane_option_t
     {
-        vec3_f32 grid_cell_color1{ 0.74f, 0.74f, 0.74f };
-        vec3_f32 grid_cell_color2{ 0.90f, 0.90f, 0.90f };
+        vec3_f32 grid_line_color{ 0.0f, 1.0f, 0.0f };
     };
 
     struct infinite_plane_options
@@ -36,9 +48,9 @@ namespace triengine
         float max_view_distance{ 50.0f }; // Unit: [m]
         float grid_cell_size{ 0.50f }; // Unit: [m]
         std::variant<
-            transparent_grid_plane_option_t,
+            box_filtered_chess_plane_option_t,
             box_filtered_grid_plane_option_t,
-            box_filtered_chess_plane_option_t
+            transparent_grid_plane_option_t
         > plane_option;
     };
 

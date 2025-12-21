@@ -1,21 +1,27 @@
 // Infinite Box-filtered Chess Grid Fragment Shader
 
 #define WBOIT_ENABLED 1
+#define USE_BLINN_PHONG_SHADING 1
+//#define DISABLE_TWO_SIDED_LIGHTING 1
 #include "includes/WBOIT.glsl"
+#include "includes/phong_lighting.glsl"
+#include "includes/phong_material.glsl"
+#include "includes/simple_fog.glsl"
 
 /**
-    * Refs:
-    * https://iquilezles.org/articles/filterableprocedurals/
-    * https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders
-    */
+ * Refs:
+ * https://iquilezles.org/articles/filterableprocedurals/
+ * https://github.com/martin-pr/possumwood/wiki/Infinite-ground-plane-using-GLSL-shaders
+ */
 
 ////////////////////////////////////////////
 // shader inputs
 ////////////////////////////////////////////
 in VS_OUT
 {
-    vec3 vertPos; // vertex position in world space
-    vec3 vertNormal; // vertex normal in world space
+    vec3 vertPosInWorld; // vertex position in world space (for pattern calculation and falloff)
+    vec3 fragPosInView; // fragment position in view space (for lighting)
+    vec3 fragNormalInView; // fragment normal in view space (for lighting)
 } fsi;
 
 ////////////////////////////////////////////
@@ -35,8 +41,19 @@ uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in 
 uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
 uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
 
+// --- pattern options ---
 uniform vec3  u_gridCellColor1 = vec3(0.82, 0.82, 0.82); // 체스보드 색상 1 (vec4 형태로 RGBA)
 uniform vec3  u_gridCellColor2 = vec3(0.90, 0.90, 0.90); // 체스보드 색상 2 (vec4 형태로 RGBA)
+
+// --- lights ---
+uniform DirLight u_dirLight;
+uniform PointLight u_pointLight;
+
+// --- materials ---
+uniform PhongShadedObjectMaterial u_phongMaterial;
+
+// --- simple fog ---
+uniform SimpleFogOptions u_simpleFog;
 
 // saturation function
 float sat_f32(float x) {
@@ -58,7 +75,7 @@ vec4 box_filtered_chessboard(
     // w : 픽셀의 영향 범위(필터 너비).
     const vec2 w = max(abs(dpdx), abs(dpdy)) + 0.0001/* 매우 작은 epsilon 추가 (0으로 나누기 방지) */;
 
-    // i는 각 차원에서 현재 픽셀이 얼마나 특정 색상 영역에 걸쳐 있는지 계산.
+    // i는 각 차원에서 현재 픽셀이 얼마나 특정 색상 영역에 걸쳐있는지 계산.
     // (scaled_pos - 0.5 * w) / 2.0 와 (scaled_pos + 0.5 * w) / 2.0 는 필터 박스의 경계를 나타냄.
     // fract 함수와 abs 함수 조합은 삼각파 형태를 만들며, 이를 통해 부드러운 전환을 구현.
     const vec2 i = 2.0 * (abs(fract((scaled_pos - 0.5 * w) / 2.0) - 0.5) - 
@@ -75,24 +92,88 @@ vec4 box_filtered_chessboard(
 void main()
 {
     // 체스보드 함수에 사용할 스케일링된 좌표 계산
-    // (fsi.vertPos.xz는 월드 좌표. fsi.gridCellSize로 나누어 한 칸이 1.0x1.0 크기가 되도록 스케일링)
-    const vec2 scaledPos = fsi.vertPos.xz / u_gridCellSize;
+    // (fsi.vertPosInWorld.xz는 월드 좌표. fsi.gridCellSize로 나누어 한 칸이 1.0x1.0 크기가 되도록 스케일링)
+    const vec2 scaledPos = fsi.vertPosInWorld.xz / u_gridCellSize;
 
     // Inigo Quilez의 함수를 사용하여 필터링된 체스보드 색상 계산
-    vec4 resultColor = box_filtered_chessboard(
+    vec4 patternColor = box_filtered_chessboard(
         vec4(u_gridCellColor1, 0.85), 
         vec4(u_gridCellColor2, 0.85), 
         scaledPos);
 
     // 카메라로부터의 거리에 따른 페이드 아웃 처리
-    const float distanceToCenterOfQuad = length(fsi.vertPos.xz - u_eyePosInWorld.xz);
+    const float distanceToCenterOfQuad = length(fsi.vertPosInWorld.xz - u_eyePosInWorld.xz);
     const float normalizedDistance = sat_f32(distanceToCenterOfQuad / u_planeHalfSize);
     const float falloffOpacity = smoothstep(1.0, 0.0, normalizedDistance);
-    resultColor.a *= falloffOpacity; // 체스보드 함수에서 계산된 알파 값에 falloffOpacity 적용
+    patternColor.a *= falloffOpacity; // 체스보드 함수에서 계산된 알파 값에 falloffOpacity 적용
     
     // 결과 색상이 완전히 투명한 경우는 폐기 (optional)
-    if (resultColor.a < 0.01) {
+    if (patternColor.a < 0.01) {
         discard;
+    }
+
+    // --- lighting (view space) ---
+    // Eye direction in view space: from fragment to camera (which is at origin in view space)
+    const vec3 eyeDirInView = normalize(-fsi.fragPosInView);
+    const vec3 fragNormalInView = normalize(fsi.fragNormalInView);
+
+    const vec3 ambientColor = patternColor.rgb * u_phongMaterial.ambientIntensity;
+    const vec3 diffuseColor = patternColor.rgb * u_phongMaterial.diffuseIntensity;
+    const vec3 specularColor = vec3(1.0) * u_phongMaterial.specularIntensity;
+
+    vec4 resultColor = vec4(vec3(0.0), patternColor.a);
+
+    // Apply directional light
+    if (u_dirLight.enabled) {
+        resultColor.rgb += calcDirLightInViewSpace(
+            eyeDirInView,
+            fragNormalInView, 
+            u_dirLight,
+            ambientColor,
+            diffuseColor,
+            specularColor,
+            u_phongMaterial.shininess 
+        );
+    }
+
+    // Apply point light
+    if (u_pointLight.enabled) {
+        resultColor.rgb += calcPointLightInViewSpace(
+            eyeDirInView,
+            fsi.fragPosInView,
+            fragNormalInView, 
+            u_pointLight,
+            ambientColor,
+            diffuseColor,
+            specularColor,
+            u_phongMaterial.shininess
+        );
+    }
+    
+    // If no any lights, fallback to base color
+    if (!u_dirLight.enabled && !u_pointLight.enabled) {
+        resultColor.rgb = patternColor.rgb;
+    }
+    
+    // --- simple fog ---
+    if (u_simpleFog.enabled)
+    {
+        ////////////////////////////////////////////////////////////////////
+        // 1. calculate distance between vertex position and camera position(origin)
+        const vec3 eyePosInView = vec3(0.0, 0.0, 0.0); // camera position in view space
+        const float distToCamera = distance(eyePosInView, fsi.fragPosInView);
+        
+        // 2. calculate fog factor
+        const float fogFactor = simpleFogExp2WithMinDist(
+            distToCamera,
+            u_simpleFog.density,
+            u_simpleFog.startDist
+        );
+
+        // 3. apply fog (before tone mapping)
+        // fog color is already in LDR, so blend with linear HDR color
+        resultColor.rgb = mix(u_simpleFog.color, resultColor.rgb, fogFactor);
+        ////////////////////////////////////////////////////////////////////
     }
 
     // 계산된 색상 (RGBA)을 최종 출력 색상으로 설정...

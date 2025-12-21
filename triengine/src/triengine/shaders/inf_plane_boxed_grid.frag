@@ -1,7 +1,12 @@
 // Infinite Box-filtered Grid Fragment Shader
 
 #define WBOIT_ENABLED 1
+#define USE_BLINN_PHONG_SHADING 1
+//#define DISABLE_TWO_SIDED_LIGHTING 1
 #include "includes/WBOIT.glsl"
+#include "includes/phong_lighting.glsl"
+#include "includes/phong_material.glsl"
+#include "includes/simple_fog.glsl"
 
 /**
  * Refs:
@@ -14,8 +19,9 @@
 ////////////////////////////////////////////
 in VS_OUT
 {
-    vec3 vertPos; // vertex position in world space
-    vec3 vertNormal; // vertex normal in world space
+    vec3 vertPosInWorld; // vertex position in world space (for pattern calculation and falloff)
+    vec3 fragPosInView; // fragment position in view space (for lighting)
+    vec3 fragNormalInView; // fragment normal in view space (for lighting)
 } fsi;
 
 ////////////////////////////////////////////
@@ -35,8 +41,19 @@ uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in 
 uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
 uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
 
-uniform vec3  u_gridLineColor = vec3(0.82, 0.82, 0.82); // 체스보드 색상 1 (vec4 형태로 RGBA)
-uniform vec3  u_gridCellColor = vec3(0.90, 0.90, 0.90); // 체스보드 색상 2 (vec4 형태로 RGBA)
+// --- pattern options ---
+uniform vec3  u_gridLineColor = vec3(0.82, 0.82, 0.82); // Chessboard color 1
+uniform vec3  u_gridCellColor = vec3(0.90, 0.90, 0.90); // Chessboard color 2
+
+// --- lights ---
+uniform DirLight u_dirLight;
+uniform PointLight u_pointLight;
+
+// --- materials ---
+uniform PhongShadedObjectMaterial u_phongMaterial;
+
+// --- simple fog ---
+uniform SimpleFogOptions u_simpleFog;
 
 // saturation function
 float sat_f32(float x) {
@@ -87,24 +104,88 @@ vec4 box_filtered_grid(
 void main()
 {
     // 그리드 함수에 사용할 스케일링된 좌표 계산
-    // (fsi.vertPos.xz는 월드 좌표. fsi.gridCellSize로 나누어 그리드 선이 정수 좌표에 오도록 스케일링)
-    const vec2 scaledPos = fsi.vertPos.xz / u_gridCellSize;
+    // (fsi.vertPosInWorld.xz는 월드 좌표. fsi.gridCellSize로 나누어 그리드 선이 정수 좌표에 오도록 스케일링)
+    const vec2 scaledPos = fsi.vertPosInWorld.xz / u_gridCellSize;
     
     // Inigo Quilez의 함수를 사용하여 필터링된 그리드 라인/셀 색상 계산
-    vec4 resultColor = box_filtered_grid(
+    vec4 patternColor = box_filtered_grid(
         vec4(u_gridLineColor, 0.85),
         vec4(u_gridCellColor, 0.85),
         scaledPos);
 
     // 카메라로부터의 거리에 따른 페이드 아웃 처리
-    const float distanceToCenterOfQuad = length(fsi.vertPos.xz - u_eyePosInWorld.xz);
+    const float distanceToCenterOfQuad = length(fsi.vertPosInWorld.xz - u_eyePosInWorld.xz);
     const float normalizedDistance = sat_f32(distanceToCenterOfQuad / u_planeHalfSize);
     const float falloffOpacity = smoothstep(1.0, 0.0, normalizedDistance);
-    resultColor.a *= falloffOpacity; // 그리드 함수에서 계산된 알파 값에 falloffOpacity 적용
+    patternColor.a *= falloffOpacity; // 그리드 함수에서 계산된 알파 값에 falloffOpacity 적용
 
     // 결과 색상이 완전히 투명한 경우는 폐기 (optional)
-    if (resultColor.a < 0.01) {
+    if (patternColor.a < 0.01) {
         discard;
+    }
+
+    // --- lighting (view space) ---
+    // Eye direction in view space: from fragment to camera (which is at origin in view space)
+    const vec3 eyeDirInView = normalize(-fsi.fragPosInView);
+    const vec3 fragNormalInView = normalize(fsi.fragNormalInView);
+
+    const vec3 ambientColor = patternColor.rgb * u_phongMaterial.ambientIntensity;
+    const vec3 diffuseColor = patternColor.rgb * u_phongMaterial.diffuseIntensity;
+    const vec3 specularColor = vec3(1.0) * u_phongMaterial.specularIntensity;
+
+    vec4 resultColor = vec4(vec3(0.0), patternColor.a);
+
+    // Apply directional light
+    if (u_dirLight.enabled) {
+        resultColor.rgb += calcDirLightInViewSpace(
+            eyeDirInView,
+            fragNormalInView, 
+            u_dirLight,
+            ambientColor,
+            diffuseColor,
+            specularColor,
+            u_phongMaterial.shininess 
+        );
+    }
+
+    // Apply point light
+    if (u_pointLight.enabled) {
+        resultColor.rgb += calcPointLightInViewSpace(
+            eyeDirInView,
+            fsi.fragPosInView,
+            fragNormalInView, 
+            u_pointLight,
+            ambientColor,
+            diffuseColor,
+            specularColor,
+            u_phongMaterial.shininess
+        );
+    }
+    
+    // If no any lights, fallback to base color
+    if (!u_dirLight.enabled && !u_pointLight.enabled) {
+        resultColor.rgb = patternColor.rgb;
+    }
+    
+    // --- simple fog ---
+    if (u_simpleFog.enabled)
+    {
+        ////////////////////////////////////////////////////////////////////
+        // 1. calculate distance between vertex position and camera position(origin)
+        const vec3 eyePosInView = vec3(0.0, 0.0, 0.0); // camera position in view space
+        const float distToCamera = distance(eyePosInView, fsi.fragPosInView);
+        
+        // 2. calculate fog factor
+        const float fogFactor = simpleFogExp2WithMinDist(
+            distToCamera,
+            u_simpleFog.density,
+            u_simpleFog.startDist
+        );
+
+        // 3. apply fog (before tone mapping)
+        // fog color is already in LDR, so blend with linear HDR color
+        resultColor.rgb = mix(u_simpleFog.color, resultColor.rgb, fogFactor);
+        ////////////////////////////////////////////////////////////////////
     }
 
     // 계산된 색상 (RGBA)을 최종 출력 색상으로 설정...

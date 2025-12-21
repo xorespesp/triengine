@@ -114,11 +114,33 @@ namespace triengine::renderer
                     draw_shader->use();
                     draw_shader->set_uniform_vec3("u_gridLineColor", pattern_opt.grid_line_color);
                     draw_shader->set_uniform_vec3("u_gridCellColor", pattern_opt.grid_cell_color);
+
+                    // Update light options in shader
+                    render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
+                    render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
+
+                    // Update materials
+                    auto* material = &pattern_opt.material;
+                    draw_shader->set_uniform_float("u_phongMaterial.ambientIntensity", material->ambient_intensity);
+                    draw_shader->set_uniform_float("u_phongMaterial.diffuseIntensity", material->diffuse_intensity);
+                    draw_shader->set_uniform_float("u_phongMaterial.specularIntensity", material->specular_intensity);
+                    draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material->shininess));
                 } else if constexpr (std::is_same_v<T, box_filtered_chess_plane_option_t>) {
                     draw_shader = &_box_filtered_chess_shader;
                     draw_shader->use();
                     draw_shader->set_uniform_vec3("u_gridCellColor1", pattern_opt.grid_cell_color1);
                     draw_shader->set_uniform_vec3("u_gridCellColor2", pattern_opt.grid_cell_color2);
+
+                    // Update light options in shader
+                    render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
+                    render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
+
+                    // Update materials
+                    auto* material = &pattern_opt.material;
+                    draw_shader->set_uniform_float("u_phongMaterial.ambientIntensity", material->ambient_intensity);
+                    draw_shader->set_uniform_float("u_phongMaterial.diffuseIntensity", material->diffuse_intensity);
+                    draw_shader->set_uniform_float("u_phongMaterial.specularIntensity", material->specular_intensity);
+                    draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material->shininess));
                 } else {
                     TRIENGINE_ASSERT(false);
                 }
@@ -128,6 +150,14 @@ namespace triengine::renderer
                 draw_shader->set_uniform_vec3("u_eyePosInWorld", render_ctx.camera->get_position());
                 draw_shader->set_uniform_float("u_planeHalfSize", _options.max_view_distance);
                 draw_shader->set_uniform_float("u_gridCellSize", _options.grid_cell_size);
+
+                // --- simple fog ---
+                draw_shader->set_uniform_bool("u_simpleFog.enabled", render_ctx.light_opts->simple_fog.enabled);
+                if (render_ctx.light_opts->simple_fog.enabled) {
+                    draw_shader->set_uniform_vec3("u_simpleFog.color", render_ctx.simple_fog_color.to_eigen());
+                    draw_shader->set_uniform_float("u_simpleFog.density", render_ctx.light_opts->simple_fog.fog_density);
+                    draw_shader->set_uniform_float("u_simpleFog.startDist", render_ctx.light_opts->simple_fog.fog_start_dist);
+                }
             }, _options.plane_option);
 
         // Render grid
