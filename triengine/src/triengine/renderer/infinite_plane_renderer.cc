@@ -125,8 +125,8 @@ namespace triengine::renderer
 
                 draw_shader->set_uniform_mat4("u_view", render_ctx.view);
                 draw_shader->set_uniform_mat4("u_proj", render_ctx.projection);
-                draw_shader->set_uniform_vec3("u_eyePos", render_ctx.camera->get_position());
-                draw_shader->set_uniform_float("u_maxViewDist", _options.max_view_distance);
+                draw_shader->set_uniform_vec3("u_eyePosInWorld", render_ctx.camera->get_position());
+                draw_shader->set_uniform_float("u_planeHalfSize", _options.max_view_distance);
                 draw_shader->set_uniform_float("u_gridCellSize", _options.grid_cell_size);
             }, _options.plane_option);
 

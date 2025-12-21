@@ -14,10 +14,8 @@
 ////////////////////////////////////////////
 in VS_OUT
 {
-    vec3 vertPos; // vertex position in world space (보간된 값)
-    vec3 eyePos; // camera position in world-space
-    float planeHalfSize; // half-size of the entire plane in world space (unit: [m])
-    float gridCellSize; // plane grid cell size in world space (unit: [m])
+    vec3 vertPos; // vertex position in world space
+    vec3 vertNormal; // vertex normal in world space
 } fsi;
 
 ////////////////////////////////////////////
@@ -33,6 +31,10 @@ out vec4 fso_fragColor;
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
+uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in vertex shader)
+uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
+uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
+
 uniform vec3  u_gridLineColor = vec3(0.82, 0.82, 0.82); // 체스보드 색상 1 (vec4 형태로 RGBA)
 uniform vec3  u_gridCellColor = vec3(0.90, 0.90, 0.90); // 체스보드 색상 2 (vec4 형태로 RGBA)
 
@@ -86,7 +88,7 @@ void main()
 {
     // 그리드 함수에 사용할 스케일링된 좌표 계산
     // (fsi.vertPos.xz는 월드 좌표. fsi.gridCellSize로 나누어 그리드 선이 정수 좌표에 오도록 스케일링)
-    const vec2 scaledPos = fsi.vertPos.xz / fsi.gridCellSize;
+    const vec2 scaledPos = fsi.vertPos.xz / u_gridCellSize;
     
     // Inigo Quilez의 함수를 사용하여 필터링된 그리드 라인/셀 색상 계산
     vec4 resultColor = box_filtered_grid(
@@ -95,8 +97,8 @@ void main()
         scaledPos);
 
     // 카메라로부터의 거리에 따른 페이드 아웃 처리
-    const float distanceToCenterOfQuad = length(fsi.vertPos.xz - fsi.eyePos.xz);
-    const float normalizedDistance = sat_f32(distanceToCenterOfQuad / fsi.planeHalfSize);
+    const float distanceToCenterOfQuad = length(fsi.vertPos.xz - u_eyePosInWorld.xz);
+    const float normalizedDistance = sat_f32(distanceToCenterOfQuad / u_planeHalfSize);
     const float falloffOpacity = smoothstep(1.0, 0.0, normalizedDistance);
     resultColor.a *= falloffOpacity; // 그리드 함수에서 계산된 알파 값에 falloffOpacity 적용
 

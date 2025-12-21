@@ -9,9 +9,7 @@
 in VS_OUT
 {
     vec3 vertPos; // vertex position in world space
-    vec3 eyePos; // camera position in world-space
-    float planeHalfSize; // half-size of the entire plane in world space (unit: [m])
-    float gridCellSize; // plane grid cell size in world space (unit: [m])
+    vec3 vertNormal; // vertex normal in world space
 } fsi;
 
 ////////////////////////////////////////////
@@ -27,6 +25,10 @@ out vec4 fso_fragColor;
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
+uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in vertex shader)
+uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
+uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
+
 uniform float u_gridMinPixelsBetweenCells = 2.0;
 uniform vec3  u_gridLineColor = vec3(0.0, 1.0, 0.0);
 
@@ -100,8 +102,8 @@ void main()
     const float ldx = length(dvx);
     const float ldz = length(dvz);
 
-    const float LOD = max(0.0, log10_f32( length(vec2(ldx, ldz)) * u_gridMinPixelsBetweenCells / fsi.gridCellSize) + 1.0 );
-    const float gridCellSize_Lod0 = fsi.gridCellSize * pow(10.0, floor(LOD));
+    const float LOD = max(0.0, log10_f32( length(vec2(ldx, ldz)) * u_gridMinPixelsBetweenCells / u_gridCellSize) + 1.0 );
+    const float gridCellSize_Lod0 = u_gridCellSize * pow(10.0, floor(LOD));
     const float gridCellSize_Lod1 = gridCellSize_Lod0 * 10;
     const float gridCellSize_Lod2 = gridCellSize_Lod1 * 10;
 
@@ -126,8 +128,8 @@ void main()
         }
     }
 
-    const float distanceToCamera = length(fsi.vertPos.xz - fsi.eyePos.xz);
-    const float falloffOpacity = smoothstep(1.0, 0.0, sat_f32(distanceToCamera / fsi.planeHalfSize));
+    const float distanceToCamera = length(fsi.vertPos.xz - u_eyePosInWorld.xz);
+    const float falloffOpacity = smoothstep(1.0, 0.0, sat_f32(distanceToCamera / u_planeHalfSize));
     resultColor.a *= falloffOpacity;
 
 #if WBOIT_ENABLED

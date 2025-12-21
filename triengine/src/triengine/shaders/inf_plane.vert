@@ -18,9 +18,7 @@ const int g_vertexIndices[6] = int[6](
 out VS_OUT
 {
     vec3 vertPos; // vertex position in world space
-    vec3 eyePos; // camera position in world-space
-    float planeHalfSize; // half-size of the entire plane in world space (unit: [m])
-    float gridCellSize; // plane grid cell size in world space (unit: [m])
+    vec3 vertNormal; // vertex normal in world space
 } vso;
 
 ////////////////////////////////////////////
@@ -28,22 +26,20 @@ out VS_OUT
 ////////////////////////////////////////////
 uniform mat4 u_view; // view matrix
 uniform mat4 u_proj; // projection matrix
-uniform vec3 u_eyePos; // camera position in world-space
-uniform float u_maxViewDist = 100.0; // half-size of the entire plane in world space (max view distance; unit: [m])
-uniform float u_gridCellSize = 1.0;
+uniform vec3 u_eyePosInWorld; // camera position in world-space
+uniform float u_planeHalfSize = 100.0; // half-size of the entire plane in world space (max view distance; unit: [m])
+uniform float u_gridCellSize = 1.0; // plane grid cell size in world space (unit: [m])
 
 void main()
 {
     const int currVertexIndex = g_vertexIndices[gl_VertexID];
             
     vec3 currVertexPos = g_vertexPositions[currVertexIndex];
-    currVertexPos *= u_maxViewDist;
-    currVertexPos.x += u_eyePos.x;
-    currVertexPos.z += u_eyePos.z;
+    currVertexPos *= u_planeHalfSize;
+    currVertexPos.x += u_eyePosInWorld.x;
+    currVertexPos.z += u_eyePosInWorld.z;
 
     gl_Position = u_proj * u_view * vec4(currVertexPos, 1.0);
     vso.vertPos = currVertexPos;
-    vso.eyePos = u_eyePos;
-    vso.planeHalfSize = u_maxViewDist;
-    vso.gridCellSize = u_gridCellSize;
+    vso.vertNormal = vec3(0.0, 1.0, 0.0); // XZ-plane's normal (points up in Y direction)
 }
