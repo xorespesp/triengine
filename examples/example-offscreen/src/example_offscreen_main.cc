@@ -200,7 +200,7 @@ namespace demo
                 }
 #else // ^^^ EXAMPLE_HAS_OPENCV ^^^ / vvv !EXAMPLE_HAS_OPENCV vvv
                 viewer.set_image(
-                    render_frame.data(),
+                    render_frame.buffer(),
                     render_frame.width_pixels(),
                     render_frame.height_pixels(),
                     tiny_viewer::image_format::bgra

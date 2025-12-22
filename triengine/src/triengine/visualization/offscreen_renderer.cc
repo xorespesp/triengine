@@ -202,7 +202,7 @@ namespace triengine::visualization
             0,                     /* GLint level */
             frame_image_gl_format, /* GLenum format */
             GL_UNSIGNED_BYTE,      /* GLenum type */
-            frame_image.data()     /* void* pixels */
+            frame_image.buffer()   /* void* pixels */
         ));
 
         GLCall(::glBindTexture(GL_TEXTURE_2D, 0));
