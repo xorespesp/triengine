@@ -21,6 +21,9 @@ namespace triengine
         GLint mag_filter{ GL_LINEAR };
     };
 
+    // for now, `texture_2d` class is thread-unsafe
+    // MUST be created, used, and destroyed in the same thread where the OpenGL context is current
+    // TODO: add thread-safety if needed in the future
     class texture_2d
         : utility::noncopyable
     {
@@ -55,14 +58,14 @@ namespace triengine
         }
 
         texture_2d(
-            const std::filesystem::path& path,
+            const std::filesystem::path& image_path,
             bool apply_gamma_correction,
             const texture_params_t& params = {},
             bool generate_mipmap = true,
             bool flip_image = true)
         {
             this->create_from_file(
-                path,
+                image_path,
                 apply_gamma_correction,
                 params,
                 generate_mipmap,
@@ -99,7 +102,7 @@ namespace triengine
 
         // Create texture from file
         void create_from_file(
-            const std::filesystem::path& path,
+            const std::filesystem::path& image_path,
             bool apply_gamma_correction,
             const texture_params_t& params = {},
             bool generate_mipmap = true,
