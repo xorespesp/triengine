@@ -26,6 +26,7 @@ namespace triengine::geometry
             clone_to.line_colors = this->line_colors;
             clone_to.set_visible(this->is_visible());
             clone_to.set_model(this->get_model());
+            clone_to.mark_dirty();
         }
 
     public:
