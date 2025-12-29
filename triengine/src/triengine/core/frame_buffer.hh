@@ -1,17 +1,26 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/texture.hh>
 #include <triengine/utility/noncopyable.hh>
 
+#include <glad/gl.h>
 #include <optional>
 
 namespace triengine::core
 {
     struct frame_buffer_texture_params_t
-        : public texture_params_t
     {
+        // Wrapping mode for S and T axes
+        GLint wrap_s{ GL_CLAMP_TO_EDGE };
+        GLint wrap_t{ GL_CLAMP_TO_EDGE };
+
+        // Filtering mode for minification and magnification
+        GLint min_filter{ GL_LINEAR };
+        GLint mag_filter{ GL_LINEAR };
+
         // TODO: add more options..
     };
+
+    static constexpr GLuint kInvalidGLFrameBufferID{ 0u };
 
     /**
      * @brief A simple Modern OpenGL framebuffer wrapper class
@@ -24,8 +33,6 @@ namespace triengine::core
         : utility::noncopyable
     {
     public:
-        static constexpr GLuint kInvalidBufferID{ 0u };
-
         enum class attachment_type {
             invalid = 0,
             color,
@@ -42,7 +49,7 @@ namespace triengine::core
 
         struct attachment_info_t {  
             attachment_type type{ attachment_type::invalid }; // attachment type  
-            GLuint buffer_id{ kInvalidBufferID }; // texture / renderbuffer id  
+            GLuint buffer_id{ kInvalidGLFrameBufferID }; // texture / renderbuffer id  
             GLenum internal_format{ 0 }; // texture / renderbuffer internal format  
             bool is_render_buffer{ false }; // is texture or renderbuffer  
             frame_buffer_texture_params_t tex_params{}; // used only if `is_render_buffer == false`  
@@ -56,7 +63,7 @@ namespace triengine::core
         };
 
     private:
-        GLuint _fbo_id{ kInvalidBufferID };
+        GLuint _fbo_id{ kInvalidGLFrameBufferID };
         std::vector<attachment_info_t> _color_attachments;
         std::optional<attachment_info_t> _depth_attachment;
         std::optional<attachment_info_t> _stencil_attachment;

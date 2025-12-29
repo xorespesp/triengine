@@ -60,6 +60,7 @@ namespace demo
                 triengine::io::load_mesh_from_obj(
                     rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
                     false,
+                    *scn,
                     *new_obj
                 ))
             {
@@ -151,7 +152,7 @@ namespace demo
 
 #endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
 
-            triengine::image render_frame;
+            triengine::image_buffer render_frame;
             for(bool flag_stop{ false }; !flag_stop;)
             {
                 // for testing
@@ -200,7 +201,7 @@ namespace demo
                 }
 #else // ^^^ EXAMPLE_HAS_OPENCV ^^^ / vvv !EXAMPLE_HAS_OPENCV vvv
                 viewer.set_image(
-                    render_frame.buffer(),
+                    render_frame.data(),
                     render_frame.width_pixels(),
                     render_frame.height_pixels(),
                     tiny_viewer::image_format::bgra

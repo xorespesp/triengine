@@ -110,7 +110,7 @@ namespace triengine::core
 
             _type = rhs._type;
             _shader_id = rhs._shader_id;
-            rhs._shader_id = kInvalidShaderID;
+            rhs._shader_id = kInvalidGLShaderObjectID;
         }
         return *this;
     }
@@ -124,7 +124,7 @@ namespace triengine::core
     }
 
     constexpr bool shader_program::shader_object::is_valid() const noexcept {
-        return _shader_id != kInvalidShaderID;
+        return _shader_id != kInvalidGLShaderObjectID;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////
@@ -169,7 +169,7 @@ namespace triengine::core
     }
 
     bool shader_program::is_valid() const noexcept {
-        return _program_id != kInvalidProgramID;
+        return _program_id != kInvalidGLShaderProgramID;
     }
 
     shader_program::this_type& shader_program::attach_vertex_shader(std::initializer_list<const GLchar*> shader_sources)
@@ -262,7 +262,7 @@ namespace triengine::core
             ::glDeleteProgram(_program_id);
         }
 
-        _program_id = kInvalidProgramID;
+        _program_id = kInvalidGLShaderProgramID;
         _attached_shaders.clear();
         _uniforms_location_map.clear();
         _subroutine_function_indices_vector_map.clear();

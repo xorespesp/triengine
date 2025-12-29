@@ -20,22 +20,23 @@ namespace triengine::core
         compute = GL_COMPUTE_SHADER,
     };
 
+    static constexpr GLuint kInvalidGLShaderProgramID{ 0u };
+    static constexpr GLuint kInvalidGLShaderObjectID{ 0u };
+
     class shader_program final
         : utility::noncopyable
     {
     private:
         using this_type = shader_program;
-        static constexpr GLuint kInvalidProgramID{ 0u };
 
         class shader_object final
             : utility::noncopyable
         {
         private:
-            static constexpr GLuint kInvalidShaderID{ 0u };
 
         private:
             shader_object_type _type;
-            GLuint _shader_id{ kInvalidShaderID }; // shader object id
+            GLuint _shader_id{ kInvalidGLShaderObjectID }; // shader object id
 
         public:
             shader_object(
@@ -129,7 +130,7 @@ namespace triengine::core
         void _build_subroutine_uniforms_cache();
 
     private:
-        GLuint _program_id{ kInvalidProgramID }; // program id
+        GLuint _program_id{ kInvalidGLShaderProgramID }; // program id
         std::vector<shader_object> _attached_shaders;
         std::unordered_map<std::string, GLint/* uniform location */> _uniforms_location_map;
 

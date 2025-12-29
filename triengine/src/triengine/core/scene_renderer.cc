@@ -159,52 +159,58 @@ namespace triengine::core
 
         // Load SMAA textures
         {
-            texture_params_t texparams;
-            texparams.wrap_s = GL_CLAMP_TO_EDGE;
-            texparams.wrap_t = GL_CLAMP_TO_EDGE;
-            texparams.min_filter = GL_LINEAR;
-            texparams.mag_filter = GL_LINEAR;
-
-            std::vector<uint8_t> areaTexBuffer(AREATEX_SIZE);
+            // Load SMAA area texture
+            image_buffer smaa_area_tex_image;
+            smaa_area_tex_image.prepare(AREATEX_WIDTH, AREATEX_HEIGHT, image_format_type::rg);
+            TRIENGINE_ASSERT(AREATEX_PITCH == static_cast<uint32_t>(smaa_area_tex_image.stride_bytes()));
             for (uint32_t y = 0; y < AREATEX_HEIGHT; y++) {
                 //uint32_t srcY = AREATEX_HEIGHT - 1 - y; // flip image
                 uint32_t srcY = y;
                 std::memcpy(
-                    &areaTexBuffer[y * AREATEX_PITCH], 
+                    &smaa_area_tex_image.data()[y * AREATEX_PITCH], 
                     areaTexBytes + srcY * AREATEX_PITCH, 
                     AREATEX_PITCH
                 );
             }
 
-            _smaa_area_tex.create_from_memory(
-                areaTexBuffer.data(),
-                image_format_type::rg,
-                false,
-                AREATEX_WIDTH,
-                AREATEX_HEIGHT,
-                texparams,
-                false
+            texture_params_t smaa_area_tex_params{};
+            smaa_area_tex_params.wrap_s = GL_CLAMP_TO_EDGE;
+            smaa_area_tex_params.wrap_t = GL_CLAMP_TO_EDGE;
+            smaa_area_tex_params.min_filter = GL_LINEAR;
+            smaa_area_tex_params.mag_filter = GL_LINEAR;
+            smaa_area_tex_params.gamma_correction = false;
+            smaa_area_tex_params.generate_mipmap = false;
+
+            _smaa_area_tex = texture_2d(
+                smaa_area_tex_image,
+                smaa_area_tex_params
             );
 
-            std::vector<uint8_t> searchTexBuffer(SEARCHTEX_SIZE);
+            // Load SMAA search texture
+            image_buffer smaa_search_tex_image;
+            smaa_search_tex_image.prepare(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT, image_format_type::greyscale);
+            TRIENGINE_ASSERT(SEARCHTEX_PITCH == static_cast<uint32_t>(smaa_search_tex_image.stride_bytes()));
             for (uint32_t y = 0; y < SEARCHTEX_HEIGHT; y++) {
                 //uint32_t srcY = SEARCHTEX_HEIGHT - 1 - y; // flip image
                 uint32_t srcY = y;
                 std::memcpy(
-                    &searchTexBuffer[y * SEARCHTEX_PITCH], 
+                    &smaa_search_tex_image.data()[y * SEARCHTEX_PITCH], 
                     searchTexBytes + srcY * SEARCHTEX_PITCH, 
                     SEARCHTEX_PITCH
                 );
             }
 
-            _smaa_search_tex.create_from_memory(
-                searchTexBuffer.data(),
-                image_format_type::greyscale,
-                false,
-                SEARCHTEX_WIDTH,
-                SEARCHTEX_HEIGHT,
-                texparams,
-                false
+            texture_params_t smaa_search_tex_params{};
+            smaa_search_tex_params.wrap_s = GL_CLAMP_TO_EDGE;
+            smaa_search_tex_params.wrap_t = GL_CLAMP_TO_EDGE;
+            smaa_search_tex_params.min_filter = GL_LINEAR;
+            smaa_search_tex_params.mag_filter = GL_LINEAR;
+            smaa_search_tex_params.gamma_correction = false;
+            smaa_search_tex_params.generate_mipmap = false;
+
+            _smaa_search_tex = texture_2d(
+                smaa_search_tex_image,
+                smaa_search_tex_params
             );
         }
     }

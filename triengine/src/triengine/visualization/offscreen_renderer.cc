@@ -161,7 +161,7 @@ namespace triengine::visualization
     }
 
     void offscreen_renderer::render(
-        image& frame_image,
+        image_buffer& frame_image,
         const image_format_type frame_image_format)
     {
         if (_curr_scn_it == _scn_list.end()) {
@@ -202,7 +202,7 @@ namespace triengine::visualization
             0,                     /* GLint level */
             frame_image_gl_format, /* GLenum format */
             GL_UNSIGNED_BYTE,      /* GLenum type */
-            frame_image.buffer()   /* void* pixels */
+            frame_image.data()   /* void* pixels */
         ));
 
         GLCall(::glBindTexture(GL_TEXTURE_2D, 0));

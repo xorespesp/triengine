@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/geometry/geometry_object_base.hh>
-#include <triengine/texture.hh>
+#include <triengine/texture_params.hh>
 
 #include <unordered_map>
 #include <vector>
@@ -58,8 +58,8 @@ namespace triengine::geometry
         /// NOTE: Only used in texture-shading mode
         struct texture_shading_material
         {
-            texture_2d diffuse_map; /// diffuse-map texture. (TODO: replace texture_2d -> pure image object)
-            texture_2d specular_map; /// specular-map texture (TODO: replace texture_2d -> pure image object)
+            texture_handle_t diffuse_map{ kInvalidTextureHandle }; /// diffuse-map texture. (TODO: replace texture_2d -> pure image object)
+            texture_handle_t specular_map{ kInvalidTextureHandle }; /// specular-map texture (TODO: replace texture_2d -> pure image object)
             float ambient_intensity{ 1.0f }; /// ambient intensity; must be `>= 0`
             float diffuse_intensity{ 1.0f }; /// diffuse intensity; must be `>= 0`
             float specular_intensity{ 1.0f }; /// specular intensity; must be `>= 0`
@@ -68,15 +68,15 @@ namespace triengine::geometry
 
             texture_shading_material() = default;
             texture_shading_material(
-                texture_2d diffuse_map_,
-                texture_2d specular_map_,
+                texture_handle_t diffuse_map_,
+                texture_handle_t specular_map_,
                 float ambient_intensity_,
                 float diffuse_intensity_,
                 float specular_intensity_,
                 uint16_t shininess_,
                 float alpha_)
-                : diffuse_map{ std::move(diffuse_map_) }
-                , specular_map{ std::move(specular_map_) }
+                : diffuse_map{ diffuse_map_ }
+                , specular_map{ specular_map_ }
                 , ambient_intensity{ ambient_intensity_ }
                 , diffuse_intensity{ diffuse_intensity_ }
                 , specular_intensity{ specular_intensity_ }
@@ -86,8 +86,8 @@ namespace triengine::geometry
 
             bool is_valid() const noexcept {
                 return
-                    diffuse_map.is_valid() &&
-                    specular_map.is_valid() &&
+                    diffuse_map != kInvalidTextureHandle &&
+                    specular_map != kInvalidTextureHandle &&
                     0.0f <= ambient_intensity &&
                     0.0f <= diffuse_intensity &&
                     0.0f <= specular_intensity &&

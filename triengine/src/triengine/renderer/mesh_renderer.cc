@@ -146,8 +146,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -173,12 +173,12 @@ namespace triengine::renderer
 
                 // Update VAO
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render triangles
-                GLCall(::glBindVertexArray(gpu_rsrc->vao)); // Bind VAO
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
                 GLCall(::glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
@@ -221,8 +221,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -247,12 +247,12 @@ namespace triengine::renderer
 
                 // Update VAO
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render triangles
-                GLCall(::glBindVertexArray(gpu_rsrc->vao)); // Bind VAO
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
                 GLCall(::glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
@@ -295,8 +295,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -324,12 +324,12 @@ namespace triengine::renderer
 
                 // Update VAO
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render triangles
-                GLCall(::glBindVertexArray(gpu_rsrc->vao)); // Bind VAO
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
                 GLCall(::glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
@@ -382,8 +382,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -408,17 +408,23 @@ namespace triengine::renderer
                 draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material->shininess));
 
                 // Update material diffuse, specular color map
-                ::glBindTextureUnit(0, material->diffuse_map.id());
-                ::glBindTextureUnit(1, material->specular_map.id());
+                auto diffuse_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->diffuse_map);
+                TRIENGINE_ASSERT(diffuse_tex2d_gpu_rsrc != nullptr && diffuse_tex2d_gpu_rsrc->is_valid());
+
+                auto specular_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->specular_map);
+                TRIENGINE_ASSERT(specular_tex2d_gpu_rsrc != nullptr && specular_tex2d_gpu_rsrc->is_valid());
+
+                ::glBindTextureUnit(0, diffuse_tex2d_gpu_rsrc->id());
+                ::glBindTextureUnit(1, specular_tex2d_gpu_rsrc->id());
 
                 // Update VAO
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render triangles
-                GLCall(::glBindVertexArray(gpu_rsrc->vao)); // Bind VAO
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
                 GLCall(::glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
@@ -461,8 +467,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -487,17 +493,23 @@ namespace triengine::renderer
                 draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material->shininess));
 
                 // Update material diffuse, specular color map
-                ::glBindTextureUnit(0, material->diffuse_map.id());
-                ::glBindTextureUnit(1, material->specular_map.id());
+                auto diffuse_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->diffuse_map);
+                TRIENGINE_ASSERT(diffuse_tex2d_gpu_rsrc != nullptr && diffuse_tex2d_gpu_rsrc->is_valid());
+
+                auto specular_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->specular_map);
+                TRIENGINE_ASSERT(specular_tex2d_gpu_rsrc != nullptr && specular_tex2d_gpu_rsrc->is_valid());
+
+                ::glBindTextureUnit(0, diffuse_tex2d_gpu_rsrc->id());
+                ::glBindTextureUnit(1, specular_tex2d_gpu_rsrc->id());
 
                 // Update VAO
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render triangles
-                GLCall(::glBindVertexArray(gpu_rsrc->vao)); // Bind VAO
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
                 GLCall(::glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
@@ -540,8 +552,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -566,20 +578,26 @@ namespace triengine::renderer
                 draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material->shininess));
 
                 // Update material diffuse, specular color map
-                ::glBindTextureUnit(0, material->diffuse_map.id());
-                ::glBindTextureUnit(1, material->specular_map.id());
+                auto diffuse_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->diffuse_map);
+                TRIENGINE_ASSERT(diffuse_tex2d_gpu_rsrc != nullptr && diffuse_tex2d_gpu_rsrc->is_valid());
+
+                auto specular_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->specular_map);
+                TRIENGINE_ASSERT(specular_tex2d_gpu_rsrc != nullptr && specular_tex2d_gpu_rsrc->is_valid());
+
+                ::glBindTextureUnit(0, diffuse_tex2d_gpu_rsrc->id());
+                ::glBindTextureUnit(1, specular_tex2d_gpu_rsrc->id());
 
                 // Update alpha material (WBOIT)
                 draw_shader->set_uniform_float("u_alpha", material->alpha);
 
                 // Update VAO
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render triangles
-                GLCall(::glBindVertexArray(gpu_rsrc->vao)); // Bind VAO
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
                 GLCall(::glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
@@ -630,8 +648,8 @@ namespace triengine::renderer
                 continue;
             }
 
-            const auto gpu_rsrc = gpu_rsrc_mgr->get_mesh_resource(object);
-            if (!gpu_rsrc) {
+            const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+            if (!object_gpu_rsrc) {
                 continue;
             }
 
@@ -648,12 +666,12 @@ namespace triengine::renderer
 
             // Update VAO (if needed)
             if (object->is_dirty()) {
-                gpu_rsrc->update(object); 
+                object_gpu_rsrc->update(object); 
                 object->clear_dirty();
             }
 
             // Render triangle mesh
-            GLCall(::glBindVertexArray(gpu_rsrc->vao));
+            GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
             GLCall(::glDrawElementsBaseVertex(
                 GL_TRIANGLES,
                 static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),

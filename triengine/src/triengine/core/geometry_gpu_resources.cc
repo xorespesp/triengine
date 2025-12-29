@@ -1,4 +1,4 @@
-#include "gpu_resource_manager.hh"
+#include "geometry_gpu_resources.hh"
 
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
@@ -9,8 +9,8 @@ namespace triengine::core
 {
     namespace
     {
-        gpu_resource_id_t _create_unique_gpu_resource_id() {
-            static std::atomic<gpu_resource_id_t> cnt_ = 0;
+        geometry_gpu_resource_id_t _create_unique_geometry_gpu_resource_id() {
+            static std::atomic<geometry_gpu_resource_id_t> cnt_ = 0;
             return cnt_++; // TODO: overflow check?
         }
 
@@ -18,8 +18,8 @@ namespace triengine::core
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    mesh_gpu_rsrc::mesh_gpu_rsrc()
-        : core::geometry_gpu_rsrc_base<mesh_gpu_rsrc>{ _create_unique_gpu_resource_id() }
+    mesh_geometry_gpu_rsrc::mesh_geometry_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<mesh_geometry_gpu_rsrc>{ _create_unique_geometry_gpu_resource_id() }
     {
         TRIENGINE_TRACE("CREATE mesh_gpu_rsrc(#%X)", this->get_id());
 
@@ -40,7 +40,7 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    mesh_gpu_rsrc::~mesh_gpu_rsrc()
+    mesh_geometry_gpu_rsrc::~mesh_geometry_gpu_rsrc()
     {
         TRIENGINE_TRACE("DESTROY mesh_gpu_rsrc(#%X)", this->get_id());
 
@@ -60,7 +60,7 @@ namespace triengine::core
         }
     }
 
-    bool mesh_gpu_rsrc::is_valid_impl() const
+    bool mesh_geometry_gpu_rsrc::is_valid_impl() const
     { 
         return 
             vao != 0 && 
@@ -68,7 +68,7 @@ namespace triengine::core
             ibo != 0;
     }
 
-    void mesh_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
+    void mesh_geometry_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
         //TRIENGINE_TRACE("UPDATE mesh_gpu_rsrc(#%X)", this->get_id());
 
@@ -207,8 +207,8 @@ namespace triengine::core
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    pcd_gpu_rsrc::pcd_gpu_rsrc()
-        : core::geometry_gpu_rsrc_base<pcd_gpu_rsrc>{ _create_unique_gpu_resource_id() }
+    pcd_geometry_gpu_rsrc::pcd_geometry_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<pcd_geometry_gpu_rsrc>{ _create_unique_geometry_gpu_resource_id() }
     {
         TRIENGINE_TRACE("CREATE pcd_gpu_rsrc(#%X)", this->get_id());
 
@@ -226,7 +226,7 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    pcd_gpu_rsrc::~pcd_gpu_rsrc()
+    pcd_geometry_gpu_rsrc::~pcd_geometry_gpu_rsrc()
     {
         TRIENGINE_TRACE("DESTROY pcd_gpu_rsrc(#%X)", this->get_id());
 
@@ -241,14 +241,14 @@ namespace triengine::core
         }
     }
     
-    bool pcd_gpu_rsrc::is_valid_impl() const
+    bool pcd_geometry_gpu_rsrc::is_valid_impl() const
     {
         return 
             vao != 0 && 
             vbo != 0;
     }
 
-    void pcd_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
+    void pcd_geometry_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
         //TRIENGINE_TRACE("UPDATE pcd_gpu_rsrc(#%X)", this->get_id());
 
@@ -309,8 +309,8 @@ namespace triengine::core
     
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    lineset_gpu_rsrc::lineset_gpu_rsrc()
-        : core::geometry_gpu_rsrc_base<lineset_gpu_rsrc>{ _create_unique_gpu_resource_id() }
+    lineset_geometry_gpu_rsrc::lineset_geometry_gpu_rsrc()
+        : core::geometry_gpu_rsrc_base<lineset_geometry_gpu_rsrc>{ _create_unique_geometry_gpu_resource_id() }
     {
         TRIENGINE_TRACE("CREATE lineset_gpu_rsrc(#%X)", this->get_id());
         
@@ -329,7 +329,7 @@ namespace triengine::core
         TRIENGINE_ASSERT(this->is_valid());
     }
 
-    lineset_gpu_rsrc::~lineset_gpu_rsrc()
+    lineset_geometry_gpu_rsrc::~lineset_geometry_gpu_rsrc()
     {
         TRIENGINE_TRACE("DESTROY lineset_gpu_rsrc(#%X)", this->get_id());
         
@@ -349,7 +349,7 @@ namespace triengine::core
         }
     }
     
-    bool lineset_gpu_rsrc::is_valid_impl() const
+    bool lineset_geometry_gpu_rsrc::is_valid_impl() const
     {
         return 
             vao != 0 && 
@@ -357,7 +357,7 @@ namespace triengine::core
             ibo != 0;
     }
 
-    void lineset_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
+    void lineset_geometry_gpu_rsrc::update_impl(const std::shared_ptr<geometry::geometry_object_base>& geometry_object)
     {
         //TRIENGINE_TRACE("UPDATE lineset_gpu_rsrc(#%X)", this->get_id());
         

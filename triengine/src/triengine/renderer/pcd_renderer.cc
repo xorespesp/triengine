@@ -96,8 +96,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_pcd_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_pcd_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -120,12 +120,12 @@ namespace triengine::renderer
 
                 // Update VAO (if needed)
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render pointcloud
-                GLCall(::glBindVertexArray(gpu_rsrc->vao));
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
                 GLCall(::glDrawArrays(
                     GL_POINTS,
                     0,
@@ -166,8 +166,8 @@ namespace triengine::renderer
                     continue;
                 }
 
-                const auto gpu_rsrc = gpu_rsrc_mgr->get_pcd_resource(object);
-                if (!gpu_rsrc) {
+                const auto object_gpu_rsrc = gpu_rsrc_mgr->get_pcd_geometry_resource(object);
+                if (!object_gpu_rsrc) {
                     continue;
                 }
 
@@ -193,12 +193,12 @@ namespace triengine::renderer
 
                 // Update VAO (if needed)
                 if (object->is_dirty()) {
-                    gpu_rsrc->update(object);
+                    object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
                 // Render pointcloud
-                GLCall(::glBindVertexArray(gpu_rsrc->vao));
+                GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
                 GLCall(::glDrawArrays(
                     GL_POINTS,
                     0,

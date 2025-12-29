@@ -97,7 +97,7 @@ namespace triengine::core
     }
 
     bool frame_buffer::is_valid() const noexcept {
-        return _fbo_id != kInvalidBufferID;
+        return _fbo_id != kInvalidGLFrameBufferID;
     }
 
     bool frame_buffer::is_MRT() const noexcept {
@@ -243,9 +243,9 @@ namespace triengine::core
 
     void frame_buffer::destroy() noexcept
     {
-        if (_fbo_id != kInvalidBufferID) {
+        if (_fbo_id != kInvalidGLFrameBufferID) {
             ::glDeleteFramebuffers(1, &_fbo_id);
-            _fbo_id = kInvalidBufferID;
+            _fbo_id = kInvalidGLFrameBufferID;
         }
 
         // Release color attachments
@@ -645,7 +645,7 @@ namespace triengine::core
         const int32_t sample_count)
     {
         // Deallocate if there's an existing resource
-        if (attach_info.buffer_id != kInvalidBufferID) {
+        if (attach_info.buffer_id != kInvalidGLFrameBufferID) {
             _deallocate_attachment_buffer(attach_info);
         }
 
@@ -737,13 +737,13 @@ namespace triengine::core
     void frame_buffer::_deallocate_attachment_buffer(
         attachment_info_t& attach_info)
     {
-        if (attach_info.buffer_id != kInvalidBufferID) {
+        if (attach_info.buffer_id != kInvalidGLFrameBufferID) {
             if (attach_info.is_render_buffer) {
                 ::glDeleteRenderbuffers(1, &attach_info.buffer_id);
             } else {
                 ::glDeleteTextures(1, &attach_info.buffer_id);
             }
-            attach_info.buffer_id = kInvalidBufferID;
+            attach_info.buffer_id = kInvalidGLFrameBufferID;
         }
     }
 

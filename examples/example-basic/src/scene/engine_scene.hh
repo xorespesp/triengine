@@ -40,6 +40,7 @@ namespace demo::scene
             if (io::load_mesh_from_obj(
                 rsrc_dir_path / "objects/car_engine/car_engine.obj",
                 false,
+                *scn,
                 *_engine_mesh
             ))
             {

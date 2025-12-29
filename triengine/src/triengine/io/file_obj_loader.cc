@@ -10,6 +10,7 @@ namespace triengine::io
     bool load_mesh_from_obj(
         const std::filesystem::path& file_path,
         const bool apply_gamma_correction,
+        scene& scn,
         geometry::mesh_object& mesh /* out */)
     {
         TRIENGINE_DEBUG("Load obj file: %s", file_path.string().c_str());
@@ -234,22 +235,36 @@ namespace triengine::io
                 );
 
                 if (!tinyobj_material.diffuse_texname.empty()) {
-                    curr_mesh_material->diffuse_map.create_from_file(mtl_base_dir / tinyobj_material.diffuse_texname, apply_gamma_correction);
+                    texture_params_t tex_params{};
+                    tex_params.gamma_correction = apply_gamma_correction;
+                    curr_mesh_material->diffuse_map = scn.create_texture_2d_from_file(
+                        mtl_base_dir / tinyobj_material.diffuse_texname,
+                        tex_params,
+                        true/* flip image */
+                    );
                 }
 
                 if (!tinyobj_material.specular_texname.empty()) {
-                    curr_mesh_material->specular_map.create_from_file(mtl_base_dir / tinyobj_material.specular_texname, apply_gamma_correction);
+                    texture_params_t tex_params{};
+                    tex_params.gamma_correction = apply_gamma_correction;
+                    curr_mesh_material->specular_map = scn.create_texture_2d_from_file(
+                        mtl_base_dir / tinyobj_material.specular_texname,
+                        tex_params,
+                        true/* flip image */
+                    );
                 }
             } // for
 
             // if the obj file does not have a diffuse map, just create randomly
-            if (!curr_mesh_material->diffuse_map.is_valid()) {
-                curr_mesh_material->diffuse_map.create_from_uniform_color(triengine::color3_f32::all(1.0f));
+            if (curr_mesh_material->diffuse_map == kInvalidTextureHandle) {
+                TRIENGINE_WARN("No diffuse map found in obj file, creating a uniform color texture as placeholder..");
+                curr_mesh_material->diffuse_map = scn.create_texture_2d_from_uniform_color(triengine::color3_f32::all(1.0f));
             }
 
             // if the obj file does not have a specular map, just create randomly
-            if (!curr_mesh_material->specular_map.is_valid()) {
-                curr_mesh_material->specular_map.create_from_uniform_color(triengine::color3_f32::all(1.0f));
+            if (curr_mesh_material->specular_map == kInvalidTextureHandle) {
+                TRIENGINE_WARN("No specular map found in obj file, creating a uniform color texture as placeholder..");
+                curr_mesh_material->specular_map = scn.create_texture_2d_from_uniform_color(triengine::color3_f32::all(1.0f));
             }
         }
 

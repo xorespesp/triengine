@@ -142,10 +142,33 @@ namespace triengine
         void remove_label_2d(text_object_id_type label_id);
         void clear_label_2d();
 
-        /*
-        texture_handle_t register_texture(...);
-        texture_handle_t unregister_texture(...);
-        */
+        // Create texture from image
+        texture_handle_t create_texture_2d(
+            const std::shared_ptr<image_buffer>& tex_image,
+            const texture_params_t& tex_params = {}
+        );
+
+        // Create texture from raw memory
+        texture_handle_t create_texture_2d_from_memory(
+            const uint8_t* image_file_buff,
+            size_t image_file_buff_size,
+            const texture_params_t& tex_params = {}
+        );
+
+        // Create texture from file
+        texture_handle_t create_texture_2d_from_file(
+            const std::filesystem::path& image_path,
+            const texture_params_t& tex_params = {},
+            bool flip_image = true
+        );
+
+        // Create a single-color texture
+        texture_handle_t create_texture_2d_from_uniform_color(
+            const color3_f32& color
+        );
+
+        // Destroy texture
+        void destroy_texture(texture_handle_t texture_handle);
 
     }; // class
 

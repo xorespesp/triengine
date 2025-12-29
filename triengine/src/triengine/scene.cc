@@ -212,4 +212,63 @@ namespace triengine
         _text_2d_objects.clear();
     }
 
+    texture_handle_t scene::create_texture_2d(
+        const std::shared_ptr<image_buffer>& tex_image,
+        const texture_params_t& tex_params)
+    {
+        auto gpu_rsrc_mgr = _gpu_rsrc_mgr.lock();
+        if (!gpu_rsrc_mgr) {
+            TRIENGINE_PANIC("Failed to access gpu resource manager");
+        }
+
+        return gpu_rsrc_mgr->request_create_texture_resource(tex_image, tex_params);
+    }
+
+    texture_handle_t scene::create_texture_2d_from_memory(
+        const uint8_t* const image_file_buff,
+        const size_t image_file_buff_size,
+        const texture_params_t& tex_params)
+    {
+        auto tex_image = std::make_shared<image_buffer>();
+        tex_image->load_from_memory(image_file_buff, image_file_buff_size);
+        return this->create_texture_2d(tex_image, tex_params);
+    }
+
+    texture_handle_t scene::create_texture_2d_from_file(
+        const std::filesystem::path& image_path, 
+        const texture_params_t& tex_params,
+        const bool flip_image)
+    {
+        auto tex_image = std::make_shared<image_buffer>();
+        tex_image->load_from_file(image_path, flip_image);
+        return this->create_texture_2d(tex_image, tex_params);
+    }
+
+    texture_handle_t scene::create_texture_2d_from_uniform_color(
+        const color3_f32& color)
+    {
+        // Create a 1x1 image with the specified uniform color
+        auto tex_image = std::make_shared<image_buffer>();
+        tex_image->prepare(1, 1, image_format_type::rgb);
+
+        // Convert float color to 0-255 range
+        uint8_t* const rgb0 = tex_image->data();
+        rgb0[0] = static_cast<uint8_t>(std::clamp(color.r() * 255.0f, 0.0f, 255.0f));
+        rgb0[1] = static_cast<uint8_t>(std::clamp(color.g() * 255.0f, 0.0f, 255.0f));
+        rgb0[2] = static_cast<uint8_t>(std::clamp(color.b() * 255.0f, 0.0f, 255.0f));
+
+        return this->create_texture_2d(tex_image, texture_params_t{});
+    }
+
+    void scene::destroy_texture(
+        const texture_handle_t texture_handle)
+    {
+        auto gpu_rsrc_mgr = _gpu_rsrc_mgr.lock();
+        if (!gpu_rsrc_mgr) {
+            TRIENGINE_PANIC("Failed to access gpu resource manager");
+        }
+
+        gpu_rsrc_mgr->request_destroy_texture_resource(texture_handle);
+    }
+
 } // namespace

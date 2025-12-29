@@ -45,6 +45,7 @@ namespace demo::scene
             if (io::load_mesh_from_obj(
                 rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
                 false,
+                *scn,
                 *_skull_mesh
             ))
             {
@@ -69,6 +70,7 @@ namespace demo::scene
             if (io::load_mesh_from_obj(
                 rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
                 false,
+                *scn,
                 *_skull_mesh2
             ))
             {

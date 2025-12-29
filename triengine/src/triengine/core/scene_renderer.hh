@@ -4,6 +4,7 @@
 #include <triengine/scene.hh>
 
 #include <triengine/core/gl_context.hh>
+#include <triengine/core/texture.hh>
 #include <triengine/core/frame_buffer.hh>
 #include <triengine/core/bloom_effect.hh>
 

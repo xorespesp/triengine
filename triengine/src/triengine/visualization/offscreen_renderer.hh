@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/image.hh>
+#include <triengine/image_buffer.hh>
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/scene_renderer.hh>
 #include <triengine/utility/noncopyable.hh>
@@ -45,7 +45,7 @@ namespace triengine::visualization
         void resize_frame(int32_t width, int32_t height);
 
         void render(
-            image& frame_image/* out */,
+            image_buffer& frame_image/* out */,
             image_format_type frame_image_format = image_format_type::bgra
         );
 

@@ -83,8 +83,8 @@ namespace triengine::renderer
                 continue;
             }
 
-            const auto gpu_rsrc = gpu_rsrc_mgr->get_lineset_resource(object);
-            if (!gpu_rsrc) {
+            const auto object_gpu_rsrc = gpu_rsrc_mgr->get_lineset_geometry_resource(object);
+            if (!object_gpu_rsrc) {
                 continue;
             }
 
@@ -95,12 +95,12 @@ namespace triengine::renderer
 
             // Update VAO (if needed)
             if (object->is_dirty()) {
-                gpu_rsrc->update(object); 
+                object_gpu_rsrc->update(object); 
                 object->clear_dirty();
             }
 
             // Render lines
-            GLCall(::glBindVertexArray(gpu_rsrc->vao));
+            GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
             GLCall(::glDrawElementsBaseVertex(
                 GL_LINES, 
                 static_cast<GLsizei>(line_indices.size() * std::decay_t<decltype(line_indices)>::value_type::SizeAtCompileTime),
