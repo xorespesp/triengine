@@ -32,6 +32,18 @@ namespace triengine::geometry
             float alpha{ 1.0f }; /// object transparency (WBOIT); must be `[0.0...1.0]`
 
             vertex_shading_material() = default;
+            vertex_shading_material(
+                float ambient_intensity_,
+                float diffuse_intensity_,
+                float specular_intensity_,
+                uint16_t shininess_,
+                float alpha_)
+                : ambient_intensity{ ambient_intensity_ }
+                , diffuse_intensity{ diffuse_intensity_ }
+                , specular_intensity{ specular_intensity_ }
+                , shininess{ shininess_ }
+                , alpha{ alpha_ }
+            {}
 
             bool is_valid() const noexcept {
                 return 
@@ -55,6 +67,22 @@ namespace triengine::geometry
             float alpha{ 1.0f }; /// object transparency (WBOIT); must be `[0.0...1.0]`
 
             texture_shading_material() = default;
+            texture_shading_material(
+                texture_2d diffuse_map_,
+                texture_2d specular_map_,
+                float ambient_intensity_,
+                float diffuse_intensity_,
+                float specular_intensity_,
+                uint16_t shininess_,
+                float alpha_)
+                : diffuse_map{ std::move(diffuse_map_) }
+                , specular_map{ std::move(specular_map_) }
+                , ambient_intensity{ ambient_intensity_ }
+                , diffuse_intensity{ diffuse_intensity_ }
+                , specular_intensity{ specular_intensity_ }
+                , shininess{ shininess_ }
+                , alpha{ alpha_ }
+            {}
 
             bool is_valid() const noexcept {
                 return
