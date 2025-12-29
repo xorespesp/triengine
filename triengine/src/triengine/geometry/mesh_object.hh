@@ -58,8 +58,8 @@ namespace triengine::geometry
         /// NOTE: Only used in texture-shading mode
         struct texture_shading_material
         {
-            texture_handle_t diffuse_map{ kInvalidTextureHandle }; /// diffuse-map texture. (TODO: replace texture_2d -> pure image object)
-            texture_handle_t specular_map{ kInvalidTextureHandle }; /// specular-map texture (TODO: replace texture_2d -> pure image object)
+            texture_handle_t diffuse_map{ kInvalidTextureHandle }; /// diffuse-map texture handle.
+            texture_handle_t specular_map{ kInvalidTextureHandle }; /// specular-map texture handle.
             float ambient_intensity{ 1.0f }; /// ambient intensity; must be `>= 0`
             float diffuse_intensity{ 1.0f }; /// diffuse intensity; must be `>= 0`
             float specular_intensity{ 1.0f }; /// specular intensity; must be `>= 0`
@@ -119,9 +119,19 @@ namespace triengine::geometry
         std::vector<vec3_i32> triangle_indices; /// List of triangles denoted by the index of points forming the triangle (num_triangles)
 
     private:
-        std::shared_ptr<geometry_object_base> clone_impl() const override {
-            TRIENGINE_PANIC("Not implemented");
-            //return nullptr;
+        std::shared_ptr<geometry_object_base> clone_impl() const override
+        {
+            auto clone = std::make_shared<mesh_object>();
+            clone->vertex_positions = this->vertex_positions;
+            clone->vertex_normals = this->vertex_normals;
+            clone->vertex_colors = this->vertex_colors;
+            clone->vertex_uvs = this->vertex_uvs;
+            clone->triangle_indices = this->triangle_indices;
+            clone->_shading_mode = this->_shading_mode;
+            clone->_material = this->_material;
+            clone->set_visible(this->is_visible());
+            clone->set_model(this->get_model());
+            return clone;
         }
 
     public:
