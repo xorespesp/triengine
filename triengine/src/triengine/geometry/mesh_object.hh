@@ -119,19 +119,18 @@ namespace triengine::geometry
         std::vector<vec3_i32> triangle_indices; /// List of triangles denoted by the index of points forming the triangle (num_triangles)
 
     private:
-        std::shared_ptr<geometry_object_base> clone_impl() const override
+        void clone_impl(geometry_object_base& clone_dst) const override 
         {
-            auto clone = std::make_shared<mesh_object>();
-            clone->vertex_positions = this->vertex_positions;
-            clone->vertex_normals = this->vertex_normals;
-            clone->vertex_colors = this->vertex_colors;
-            clone->vertex_uvs = this->vertex_uvs;
-            clone->triangle_indices = this->triangle_indices;
-            clone->_shading_mode = this->_shading_mode;
-            clone->_material = this->_material;
-            clone->set_visible(this->is_visible());
-            clone->set_model(this->get_model());
-            return clone;
+            auto& clone_to = dynamic_cast<std::decay_t<decltype(*this)>&>(clone_dst);
+            clone_to.vertex_positions = this->vertex_positions;
+            clone_to.vertex_normals = this->vertex_normals;
+            clone_to.vertex_colors = this->vertex_colors;
+            clone_to.vertex_uvs = this->vertex_uvs;
+            clone_to.triangle_indices = this->triangle_indices;
+            clone_to._shading_mode = this->_shading_mode;
+            clone_to._material = this->_material;
+            clone_to.set_visible(this->is_visible());
+            clone_to.set_model(this->get_model());
         }
 
     public:
@@ -148,7 +147,13 @@ namespace triengine::geometry
         }
 
         std::shared_ptr<mesh_object> clone() const {
-            return std::static_pointer_cast<mesh_object>(this->clone_impl());
+            auto cloned = std::make_shared<mesh_object>();
+            this->clone_impl(*cloned);
+            return cloned;
+        }
+
+        void clone_to(mesh_object& clone_dst) const {
+            this->clone_impl(clone_dst);
         }
 
         shading_mode get_shading_mode() const noexcept {

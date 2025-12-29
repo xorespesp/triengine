@@ -183,10 +183,7 @@ namespace triengine::geometry
         geometry_object_base(geometry_object_base&&) = delete;
         geometry_object_base& operator=(geometry_object_base&&) = delete;
 
-        virtual std::shared_ptr<geometry_object_base> clone_impl() const {
-            TRIENGINE_PANIC("Not implemented");
-            //return nullptr;
-        }
+        virtual void clone_impl(geometry_object_base& clone_dst) const = 0;
 
     }; // class
 

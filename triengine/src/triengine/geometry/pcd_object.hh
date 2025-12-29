@@ -37,13 +37,15 @@ namespace triengine::geometry
         material_t material;
 
     private:
-        std::shared_ptr<geometry_object_base> clone_impl() const override {
-            auto cloned = std::make_shared<pcd_object>();
-            cloned->points = this->points;
-            cloned->normals = this->normals;
-            cloned->colors = this->colors;
-            cloned->material = this->material;
-            return cloned;
+        void clone_impl(geometry_object_base& clone_dst) const override
+        {
+            auto& clone_to = dynamic_cast<std::decay_t<decltype(*this)>&>(clone_dst);
+            clone_to.points = this->points;
+            clone_to.normals = this->normals;
+            clone_to.colors = this->colors;
+            clone_to.material = this->material;
+            clone_to.set_visible(this->is_visible());
+            clone_to.set_model(this->get_model());
         }
 
     public:
@@ -52,7 +54,13 @@ namespace triengine::geometry
         {}
 
         std::shared_ptr<pcd_object> clone() const {
-            return std::static_pointer_cast<pcd_object>(this->clone_impl());
+            auto cloned = std::make_shared<pcd_object>();
+            this->clone_impl(*cloned);
+            return cloned;
+        }
+
+        void clone_to(pcd_object& clone_dst) const {
+            this->clone_impl(clone_dst);
         }
 
         bool is_opaque() const noexcept {

@@ -18,12 +18,14 @@ namespace triengine::geometry
         std::vector<color3_f32> line_colors; /// RGB colors of lines.
 
     private:
-        std::shared_ptr<geometry_object_base> clone_impl() const override {
-            auto cloned = std::make_shared<lineset_object>();
-            cloned->line_points = this->line_points;
-            cloned->line_indices = this->line_indices;
-            cloned->line_colors = this->line_colors;
-            return cloned;
+        void clone_impl(geometry_object_base& clone_dst) const override
+        {
+            auto& clone_to = dynamic_cast<std::decay_t<decltype(*this)>&>(clone_dst);
+            clone_to.line_points = this->line_points;
+            clone_to.line_indices = this->line_indices;
+            clone_to.line_colors = this->line_colors;
+            clone_to.set_visible(this->is_visible());
+            clone_to.set_model(this->get_model());
         }
 
     public:
@@ -32,7 +34,13 @@ namespace triengine::geometry
         {}
 
         std::shared_ptr<lineset_object> clone() const {
-            return std::static_pointer_cast<lineset_object>(this->clone_impl());
+            auto cloned = std::make_shared<lineset_object>();
+            this->clone_impl(*cloned);
+            return cloned;
+        }
+
+        void clone_to(lineset_object& clone_dst) const {
+            this->clone_impl(clone_dst);
         }
 
         void paint_uniform_color(const color3_f32& color) {

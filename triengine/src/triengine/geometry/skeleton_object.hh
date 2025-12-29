@@ -71,9 +71,27 @@ namespace triengine::geometry
             _bone_objects;
 
     private:
-        std::shared_ptr<geometry_object_base> clone_impl() const override {
-            TRIENGINE_PANIC("Not implemented");
-            //return nullptr;
+        void clone_impl(geometry_object_base& clone_dst) const override
+        {
+            auto& clone_to = dynamic_cast<std::decay_t<decltype(*this)>&>(clone_dst);
+
+            // Perform deep copy of joint_objects and bone_objects ...
+            clone_to._joint_objects.clear();
+            for (const auto& joint : _joint_objects) {
+                auto cloned_joint = joint->clone();
+                TRIENGINE_ASSERT(cloned_joint != nullptr);
+                clone_to._joint_objects.push_back(cloned_joint);
+            }
+
+            clone_to._bone_objects.clear();
+            for (const auto& bone : _bone_objects) {
+                auto cloned_bone = bone->clone();
+                TRIENGINE_ASSERT(cloned_bone != nullptr);
+                clone_to._bone_objects.push_back(cloned_bone);
+            }
+
+            clone_to.set_visible(this->is_visible());
+            clone_to.set_model(this->get_model());
         }
 
     public:
@@ -90,8 +108,8 @@ namespace triengine::geometry
             return _bone_objects;
         }
 
-        std::shared_ptr<skeleton_object> clone() const {
-            return std::static_pointer_cast<skeleton_object>(this->clone_impl());
+        void clone_to(skeleton_object& clone_dst) const {
+            this->clone_impl(clone_dst);
         }
 
         void translate(
