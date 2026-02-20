@@ -5,23 +5,6 @@
 cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
 
 ########################################################################################
-# Library Root Includes / Policies
-
-# Use standard install directory variables
-#   - CMAKE_INSTALL_LIBDIR
-#   - CMAKE_INSTALL_BINDIR
-#   - CMAKE_INSTALL_INCLUDEDIR
-include(GNUInstallDirs)
-
-# Include module with functions:
-# Generates and installs the files needed for find_package(${LIBRARY_NAME}) to work.
-#   - write_basic_package_version_file(...)
-#   - configure_package_config_file(...)
-include(CMakePackageConfigHelpers)
-
-include(FetchContent)
-
-########################################################################################
 # Library Variables
 
 # Root project name
@@ -78,6 +61,22 @@ project(${TRIENGINE_PROJECT_NAME}
     LANGUAGES C CXX
     DESCRIPTION "Triengine Library"
 )
+
+# Library Root Includes / Policies
+
+# Use standard install directory variables
+#   - CMAKE_INSTALL_LIBDIR
+#   - CMAKE_INSTALL_BINDIR
+#   - CMAKE_INSTALL_INCLUDEDIR
+include(GNUInstallDirs)
+
+# Include module with functions:
+# Generates and installs the files needed for find_package(${LIBRARY_NAME}) to work.
+#   - write_basic_package_version_file(...)
+#   - configure_package_config_file(...)
+include(CMakePackageConfigHelpers)
+
+include(FetchContent)
 
 # Standard C++ Settings
 set(CMAKE_CXX_STANDARD 17)
