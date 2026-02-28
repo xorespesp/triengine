@@ -2,7 +2,7 @@
 ##### Top-level CMake project file #####
 ########################################
 
-cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.28 FATAL_ERROR)
 
 ########################################################################################
 # Library Variables
