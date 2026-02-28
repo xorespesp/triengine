@@ -7,6 +7,10 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe"
@@ -18,80 +22,99 @@
       }
     },
     {
-      "name": "win64-debug",
+      "name": "win64-base-rel",
       "hidden": true,
       "inherits": "windows-base",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "win64-release",
-      "hidden": true,
-      "inherits": "win64-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
-    },
-    {
-      "name": "win64-debug-minimum",
-      "displayName": "W64-DBG (minimum)",
-      "inherits": "win64-debug",
-      "cacheVariables": {
-        "TRIENGINE_BUILD_EXAMPLES": "OFF",
-        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
-      }
-    },
-    {
-      "name": "win64-release-minimum",
-      "displayName": "W64-REL (minimum)",
-      "inherits": "win64-release",
-      "cacheVariables": {
-        "TRIENGINE_BUILD_EXAMPLES": "OFF",
-        "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
-      }
-    },
-    {
-      "name": "win64-debug-examples",
-      "displayName": "W64-DBG (examples)",
-      "inherits": "win64-debug",
-      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "TRIENGINE_BUILD_EXAMPLES": "ON",
         "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
       }
     },
     {
-      "name": "win64-release-examples",
-      "displayName": "W64-REL (examples)",
-      "inherits": "win64-release",
+      "name": "win64-base-dbg",
+      "hidden": true,
+      "inherits": "windows-base",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "TRIENGINE_BUILD_EXAMPLES": "ON",
         "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
       }
     },
+
     {
-      "name": "win64-debug-external-examples",
-      "displayName": "W64-DBG (external examples)",
-      "inherits": "win64-debug",
+      "name": "win64-rel",
+      "displayName": "WIN64-REL",
+      "inherits": "win64-base-rel"
+    },
+    {
+      "name": "win64-rel-min",
+      "displayName": "WIN64-REL (Min)",
+      "inherits": "win64-base-rel",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-rel-ext",
+      "displayName": "WIN64-REL (Ext)",
+      "inherits": "win64-base-rel",
       "cacheVariables": {
         "TRIENGINE_BUILD_EXAMPLES": "OFF",
         "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "ON"
       }
     },
+
     {
-      "name": "win64-release-external-examples",
-      "displayName": "W64-REL (external examples)",
-      "inherits": "win64-release",
+      "name": "win64-dbg",
+      "displayName": "WIN64-DBG",
+      "inherits": "win64-base-dbg"
+    },
+    {
+      "name": "win64-dbg-min",
+      "displayName": "WIN64-DBG (Min)",
+      "inherits": "win64-base-dbg",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-dbg-ext",
+      "displayName": "WIN64-DBG (Ext)",
+      "inherits": "win64-base-dbg",
       "cacheVariables": {
         "TRIENGINE_BUILD_EXAMPLES": "OFF",
         "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "ON"
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win64-rel",
+      "configurePreset": "win64-rel"
+    },
+    {
+      "name": "win64-rel-min",
+      "configurePreset": "win64-rel-min"
+    },
+    {
+      "name": "win64-rel-ext",
+      "configurePreset": "win64-rel-ext"
+    },
+
+    {
+      "name": "win64-dbg",
+      "configurePreset": "win64-dbg"
+    },
+    {
+      "name": "win64-dbg-min",
+      "configurePreset": "win64-dbg-min"
+    },
+    {
+      "name": "win64-dbg-ext",
+      "configurePreset": "win64-dbg-ext"
     }
   ]
 }
