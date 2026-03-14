@@ -20,29 +20,23 @@ target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 target_compile_definitions(${TARGET_NAME} PUBLIC
     SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 
-##################################################################
+# ----- Boost Library -----
 # See: https://stackoverflow.com/q/72913306
-
 message(STATUS "Fetching boost...")
-set(BOOST_INCLUDE_LIBRARIES interprocess date_time program_options)
-set(BOOST_ENABLE_CMAKE ON)
-set(FETCHCONTENT_QUIET FALSE) # Needed to print downloading progress
 FetchContent_Declare(
     Boost
-    URL https://github.com/boostorg/boost/releases/download/boost-1.88.0/boost-1.88.0-cmake.7z # downloading a zip release speeds up the download
-    USES_TERMINAL_DOWNLOAD TRUE 
-    GIT_PROGRESS TRUE   
+    URL "https://github.com/boostorg/boost/releases/download/boost-1.90.0/boost-1.90.0-cmake.7z" # downloading a zip release speeds up the download
+    USES_TERMINAL_DOWNLOAD TRUE
     DOWNLOAD_NO_EXTRACT FALSE
+    #FETCHCONTENT_QUIET FALSE # Needed to print downloading progress (CMake 3.25+)
 )
+set(BOOST_INCLUDE_LIBRARIES interprocess date_time CACHE STRING "" FORCE)
 FetchContent_MakeAvailable(Boost)
-
-##################################################################
 
 target_link_libraries(${TARGET_NAME} PRIVATE 
     Triengine::triengine
     Boost::interprocess
     Boost::date_time
-    Boost::program_options
     example-common)
 
 install(
