@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 if (NOT TARGET freetype)
     message(STATUS "Fetching freetype...")
 

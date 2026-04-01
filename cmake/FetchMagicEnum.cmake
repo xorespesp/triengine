@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 if (NOT TARGET magic_enum::magic_enum)
     message(STATUS "Fetching magic-enum...")
 

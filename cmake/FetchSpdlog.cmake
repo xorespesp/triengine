@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 if (NOT TARGET spdlog::spdlog)
     message(STATUS "Fetching spdlog...")
 

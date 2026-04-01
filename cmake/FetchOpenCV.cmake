@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 if (NOT TARGET opencv_core)
     message(STATUS "Fetching OpenCV...")
 

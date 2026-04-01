@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 if (NOT TARGET Eigen3::Eigen)
     message(STATUS "Fetching Eigen...")
 

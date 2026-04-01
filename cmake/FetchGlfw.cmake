@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 if (NOT TARGET glfw)
     message(STATUS "Fetching Glfw...")
 
