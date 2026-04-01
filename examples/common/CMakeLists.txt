@@ -1,4 +1,4 @@
-﻿# An INTERFACE library has no source files (it produces no object files),
+# An INTERFACE library has no source files (it produces no object files),
 # so there is no need to add a source list. (headers can be omitted)
 # Its purpose is to propagate "usage requirements" (include directories, link dependencies, etc.) to consuming targets.
 

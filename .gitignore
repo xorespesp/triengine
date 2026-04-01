@@ -1,4 +1,4 @@
-﻿## Source: https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
+## Source: https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 # Vcpkg
 /dependency/vcpkg_installed/

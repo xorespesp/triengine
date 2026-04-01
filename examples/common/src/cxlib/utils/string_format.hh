@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <cxlib/cxlib_defs.h>
 
 #if defined(_CXLIB_HAS_FMT)

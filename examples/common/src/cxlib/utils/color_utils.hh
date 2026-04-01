@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <cxlib/cxlib_defs.h>
 #include <cxlib/utils/string_utils.hh>
 
