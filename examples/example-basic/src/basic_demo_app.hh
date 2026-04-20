@@ -12,7 +12,7 @@
 
 namespace demo
 {
-    class scene_control_window;
+    class demo_scene_control_window;
 
     class basic_demo_app
     {
@@ -28,7 +28,7 @@ namespace demo
         std::unique_ptr<triengine::visualization::visualizer> _vis;
         std::shared_ptr<triengine::gui::log_window> _log_window;
         std::shared_ptr<triengine::gui::render_stats_window> _render_stats_window;
-        std::shared_ptr<scene_control_window> _scene_ctrl_window;
+        std::shared_ptr<demo_scene_control_window> _demo_scene_ctrl_window;
         bool _flag_animation{ true };
     }; // class
 

@@ -8,7 +8,7 @@
 
 namespace demo
 {
-    class scene_control_window
+    class demo_scene_control_window
         : public triengine::gui::iwindow
     {
     private:
@@ -22,11 +22,11 @@ namespace demo
         > _scn_id_map;
         
     public:
-        scene_control_window(triengine::visualization::visualizer* vis)
+        demo_scene_control_window(triengine::visualization::visualizer* vis)
             : _vis{ vis }
         {}
 
-        virtual ~scene_control_window() = default;
+        virtual ~demo_scene_control_window() = default;
 
         const char* get_window_name() const override {
             return "Scene Controller";
@@ -160,10 +160,10 @@ namespace demo
                         _flag_animation = !_flag_animation;
                         break;
                     case GLFW_KEY_LEFT:
-                        _scene_ctrl_window->switch_to_prev_scene();
+                        _demo_scene_ctrl_window->switch_to_prev_scene();
                         break;
                     case GLFW_KEY_RIGHT:
-                        _scene_ctrl_window->switch_to_next_scene();
+                        _demo_scene_ctrl_window->switch_to_next_scene();
                         break;
                     }
                 }
@@ -177,14 +177,14 @@ namespace demo
         _render_stats_window->set_visible(false);
         _vis->add_gui_window(_render_stats_window);
 
-        _scene_ctrl_window = std::make_shared<scene_control_window>(_vis.get());
-        _scene_ctrl_window->set_visible(true);
-        _vis->add_gui_window(_scene_ctrl_window);
+        _demo_scene_ctrl_window = std::make_shared<demo_scene_control_window>(_vis.get());
+        _demo_scene_ctrl_window->set_visible(true);
+        _vis->add_gui_window(_demo_scene_ctrl_window);
 
-        _scene_ctrl_window->add_scene(std::make_shared<scene::main_scene>(*_vis));
-        _scene_ctrl_window->add_scene(std::make_shared<scene::engine_scene>(*_vis));
-        _scene_ctrl_window->add_scene(std::make_shared<scene::pointcloud_scene>(*_vis));
-        _scene_ctrl_window->add_scene(std::make_shared<scene::bvh_scene>(*_vis));
+        _demo_scene_ctrl_window->add_scene(std::make_shared<scene::main_scene>(*_vis));
+        _demo_scene_ctrl_window->add_scene(std::make_shared<scene::engine_scene>(*_vis));
+        _demo_scene_ctrl_window->add_scene(std::make_shared<scene::pointcloud_scene>(*_vis));
+        _demo_scene_ctrl_window->add_scene(std::make_shared<scene::bvh_scene>(*_vis));
     }
 
     void basic_demo_app::destroy()
@@ -209,7 +209,7 @@ namespace demo
         {
             // animate
             if (_flag_animation) {
-                _scene_ctrl_window->update_animation();
+                _demo_scene_ctrl_window->update_animation();
             }
 
             _vis->render();
