@@ -32,10 +32,12 @@ namespace demo
         _render_stats_window->set_visible(false);
         _vis->add_gui_window(_render_stats_window);
 
+        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>(_vis.get());
+        _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
+
         auto scn = _vis->add_scene();
         _inspector_window = std::make_shared<bvh_inspector_window>(scn);
-        _inspector_window->set_visible(true);
-        _vis->add_gui_window(_inspector_window);
+        _vis->add_gui_window(_inspector_window, triengine::gui::dock_slot::left);
 
         _vis->set_key_callback(
             [this](
@@ -80,7 +82,9 @@ namespace demo
 
         _log_window.reset();
         _render_stats_window.reset();
-        
+        _scene_ctrl_window.reset();
+        _inspector_window.reset();
+
         _vis->destroy_window();
         _vis.reset();
 

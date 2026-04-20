@@ -6,6 +6,8 @@
 
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
+
 namespace triengine::gui
 {
     /**
@@ -83,10 +85,9 @@ namespace triengine::gui
         this->change_dpi_scale(dpi_scale_factor);
 
         _scene_window = std::make_shared<gui::scene_view_window>(_vis);
-        this->add_window(_scene_window);
 
-        _scene_ctrl_window = std::make_shared<gui::scene_control_window>(_vis);
-        this->add_window(_scene_ctrl_window);
+        // scene viewport is always docked to the central node (handled in setup_dock_space)
+        _windows.push_back({ _scene_window, dock_slot::floating });
     }
 
     void gui_manager::deinitialize()
@@ -130,6 +131,17 @@ namespace triengine::gui
         ::ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // ImGui docking model primer:
+        //   * A "dockspace" is a full-area container hosting dockable windows.
+        //   * Inside it lives a tree of "dock nodes"; each leaf node can hold one or more
+        //     windows shown as tabs.
+        //   * A window (ImGui::Begin("Name", ...)) attaches to a node when its name matches
+        //     the string previously bound via DockBuilderDockWindow() - i.e. windows and nodes
+        //     are linked BY NAME, not by pointer/handle.
+        //
+        // Here we create (or reuse across frames) a top-level dockspace filling the OS viewport.
+        // PassthruCentralNode keeps the central node transparent when nothing is docked in it,
+        // so anything rendered to the OS framebuffer underneath stays visible.
         const ImGuiID main_dockspace_id = ImGui::GetID(detail::kMainDockSpaceName);
         ImGuiViewport* const viewport = ImGui::GetMainViewport();
         ImGui::DockSpaceOverViewport(main_dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
@@ -158,7 +170,8 @@ namespace triengine::gui
 
             if (ImGui::BeginMenu("Windows"))
             {
-                for (auto window : _windows) {
+                for (auto& entry : _windows) {
+                    auto& window = entry.window;
                     bool p_selected = window->is_visible();
                     if (ImGui::MenuItem(window->get_window_name(), nullptr, &p_selected)) {
                         window->set_visible(p_selected);
@@ -182,8 +195,8 @@ namespace triengine::gui
         {
             ImVec2 next_window_pos{ scaled_padding_size, main_menu_height + scaled_padding_size };
             ImGui::SetNextWindowPos(next_window_pos, ImGuiCond_Once);
-            for (auto& window : _windows) {
-                if (this->render_window(window)) {
+            for (auto& entry : _windows) {
+                if (this->render_window(entry.window)) {
                     next_window_pos.x += scaled_padding_size;
                     next_window_pos.y += scaled_padding_size;
                     ImGui::SetNextWindowPos(next_window_pos, ImGuiCond_Once);
@@ -199,6 +212,10 @@ namespace triengine::gui
             ImPlot::ShowDemoWindow(&_flag_show_implot_demo_window);
         }
 
+        // Build the initial dock layout exactly once on the first frame. After that, ImGui
+        // retains the node tree and window-to-node bindings internally (and in imgui.ini when
+        // enabled), so every subsequent frame just renders into the existing layout and lets
+        // the user drag windows between nodes freely.
         {
             thread_local bool is_first_loop = true;
             if (is_first_loop) {
@@ -421,39 +438,140 @@ namespace triengine::gui
         io.FontDefault = _fonts_map["Roboto Mono Bold"];
     }
 
+    void gui_manager::set_dock_split_ratios(const dock_split_ratios& ratios)
+    {
+        // ImGui's DockBuilderSplitNode silently tolerates bad ratios but produces ugly results;
+        // clamp to a safe sub-range so user mistakes can't collapse a side leaf to zero or
+        // flip the parent inside-out.
+        constexpr float kMin = 0.05f;
+        constexpr float kMax = 0.95f;
+        _dock_ratios.left   = std::clamp(ratios.left,   kMin, kMax);
+        _dock_ratios.right  = std::clamp(ratios.right,  kMin, kMax);
+        _dock_ratios.top    = std::clamp(ratios.top,    kMin, kMax);
+        _dock_ratios.bottom = std::clamp(ratios.bottom, kMin, kMax);
+    }
+
     void gui_manager::setup_dock_space(
         const ImGuiID main_dockspace_id,
         ImGuiViewport* const viewport)
     {
+        // The DockBuilder API (imgui_internal.h) lets us construct a dock node tree
+        // programmatically instead of relying on the user to drag windows into place.
+        // Typical flow:
+        //   1. RemoveNode(id)                      - clear any prior tree registered under this id,
+        //                                            including layout restored from imgui.ini. Without
+        //                                            this, stale node state from previous runs bleeds in.
+        //   2. AddNode(id, flags)                  - create a fresh empty root node. `flags` set its
+        //                                            role: DockSpace marks it a top-level container,
+        //                                            PassthruCentralNode makes the empty central leaf
+        //                                            transparent, etc.
+        //   3. SetNodeSize(id, size)               - required before SplitNode: split ratios are computed
+        //                                            against the parent node's size, so a zero-sized
+        //                                            root gives garbage child rects.
+        //   4. SplitNode(...) repeatedly           - split a node into two child nodes along a direction.
+        //                                            The parent becomes an internal branch; only unsplit
+        //                                            leaves can host docked windows.
+        //   5. DockWindow("window name", node_id)  - reserve a binding: "next time a window calls
+        //                                            ImGui::Begin() with this exact name string, place
+        //                                            it into node_id". Match is by name only - one
+        //                                            character off and the window pops out floating.
+        //   6. Finish(id)                          - atomically commit every pending builder op from
+        //                                            steps 1-5. Forgetting this is the #1 mistake:
+        //                                            the tree exists in a staging area and never goes
+        //                                            live, so the UI shows blank or the previous layout.
+        // All builder operations mutate a "pending" layout; nothing is visible until Finish().
+        //
         // Refs:
         // https://github.com/ocornut/imgui/issues/4430
         // https://gist.github.com/moebiussurfing/d7e6ec46a44985dd557d7678ddfeda99
         // https://github.com/moebiussurfing/ofxSurfingImGui/blob/master/3_Docking/3_0_Layout_Docking2/src/ofApp.cpp#L324-L361
 
-        ImGui::DockBuilderRemoveNode(main_dockspace_id); // clear any previous layout
+        // split ratios (user-configurable via gui_manager::set_dock_split_ratios)
+        const float kSplitRatioLeft   = _dock_ratios.left;
+        const float kSplitRatioRight  = _dock_ratios.right;
+        const float kSplitRatioTop    = _dock_ratios.top;
+        const float kSplitRatioBottom = _dock_ratios.bottom;
+
+        // Wipe any prior layout for this dockspace id and recreate an empty root node
+        // flagged as a DockSpace (top-level container) with a transparent central leaf.
+        ImGui::DockBuilderRemoveNode(main_dockspace_id);
         ImGui::DockBuilderAddNode(main_dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
         ImGui::DockBuilderSetNodeSize(main_dockspace_id, viewport->Size);
 
-        // -- split the dockspace into 2 nodes --
-        // `ImGui::DockBuilderSplitNode()` takes in the following args in the following order:
-        // node id to split, split direction, split size ratio (0.0 ~ 1.0 range),
-        // the last two args(`out_id_at_dir`, `out_id_at_opposite_dir`) let's us choose which id we want 
-        // (which ever one we DON'T set as `nullptr`, will be returned by the function)
-        // `out_id_at_dir` is the id of the node in the direction we specified earlier,
-        // `out_id_at_opposite_dir` is in the opposite direction
+        // DockBuilderSplitNode signature:
+        //   ImGuiID SplitNode(
+        //       ImGuiID  node_id,                    // node to split in two
+        //       ImGuiDir split_dir,                  // side the new child goes to (Left/Right/Up/Down)
+        //       float    size_ratio_for_node_at_dir, // ratio 0..1 for the `at_dir` child (NOT the opposite)
+        //       ImGuiID* out_id_at_dir,              // [out, optional] child id on split_dir side
+        //       ImGuiID* out_id_at_opposite_dir      // [out, optional] child id on the opposite side
+        //   );
+        //   // return value == *out_id_at_dir - one of the two outputs can be taken as return.
+        //
+        // After SplitNode, `node_id` stops being a leaf and becomes an internal container
+        // holding two new child leaves. Only the child ids (from the out-params / return value)
+        // are valid DockWindow targets; docking onto the old node_id does nothing useful.
+        //
+        // Below we reuse a single `dock_id_center` as the opposite-side out-param across four
+        // calls. Each call:
+        //   (1) splits the CURRENT center node into a side leaf + a smaller remainder,
+        //   (2) captures the side leaf via the return value (-> dock_id_left/right/top/bottom),
+        //   (3) OVERWRITES dock_id_center with the id of the smaller remainder.
+        // So `dock_id_center` walks down the tree, each step naming a strictly smaller central
+        // region. After all four splits it refers to the final central rectangle in the middle
+        // - this is where the 3D scene viewport docks.
+        //
+        //   initial            after Left         after Right        after Up           after Down
+        //   +----------+       +---+------+       +---+----+--+      +---+----+--+      +---+----+--+
+        //   |          |       |   |      |       |   |    |  |      |   | top|  |      |   | top|  |
+        //   |  center  |  -->  | L |center|  -->  | L |ctr | R|  ->  | L +----+ R|  ->  | L +----+ R|
+        //   |          |       |   |      |       |   |    |  |      |   | ctr|  |      |   | ctr|  |
+        //   +----------+       +---+------+       +---+----+--+      +---+----+0-+      |   +----+  |
+        //                                                                               |   | bot|  |
+        //                                                                               +---+----+--+
+        //
+        // Gotcha (3rd argument - `size_ratio_for_node_at_dir`):
+        // the ratio names the `at_dir` child (the new side leaf being split off), NOT the
+        // remainder/center. So kSplitRatioLeft = 0.22 with ImGuiDir_Left means the LEFT
+        // child takes 22% of the parent and the remainder (78%) becomes the new center.
+        // A common bug is thinking "I want center to stay at 78%" and passing 0.78 here,
+        // which actually produces a giant 78%-wide side leaf and a tiny 22% center.
+        ImGuiID dock_id_center = main_dockspace_id;
+        ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dock_id_center, ImGuiDir_Left, kSplitRatioLeft, nullptr, &dock_id_center);
+        ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dock_id_center, ImGuiDir_Right, kSplitRatioRight, nullptr, &dock_id_center);
+        ImGuiID dock_id_top = ImGui::DockBuilderSplitNode(dock_id_center, ImGuiDir_Up, kSplitRatioTop, nullptr, &dock_id_center);
+        ImGuiID dock_id_bottom = ImGui::DockBuilderSplitNode(dock_id_center, ImGuiDir_Down, kSplitRatioBottom, nullptr, &dock_id_center);
 
-        ImGuiID dock_id_left, dock_id_right;
-        dock_id_right = ImGui::DockBuilderSplitNode(
-            main_dockspace_id,
-            ImGuiDir_Right,
-            0.75f,
-            nullptr,
-            &dock_id_left
-        );
+        // DockBuilderDockWindow binds a window to a node using the window's name string.
+        // When ImGui::Begin("<name>", ...) runs later in the frame, ImGui looks up that
+        // binding and places the window into the matching node. The name MUST match
+        // exactly what iwindow::get_window_name() returns.
+        //
+        // Scene viewport always occupies the central (leftover) node.
+        ImGui::DockBuilderDockWindow(_scene_window->get_window_name(), dock_id_center);
 
-        ImGui::DockBuilderDockWindow(_scene_window->get_window_name(), dock_id_right);
-        ImGui::DockBuilderDockWindow(_scene_ctrl_window->get_window_name(), dock_id_left);
+        // dock user-registered windows according to their slot selection
+        for (auto& entry : _windows) {
+            if (entry.window == _scene_window) {
+                continue; // already docked above
+            }
+            ImGuiID target_id = 0;
+            switch (entry.slot) {
+            case dock_slot::left:   target_id = dock_id_left;   break;
+            case dock_slot::right:  target_id = dock_id_right;  break;
+            case dock_slot::top:    target_id = dock_id_top;    break;
+            case dock_slot::bottom: target_id = dock_id_bottom; break;
+            case dock_slot::floating:
+            default:
+                // No DockBuilderDockWindow call = the window is unbound and starts as a
+                // free-floating window. The user can still drag it onto a node later.
+                continue;
+            }
+            ImGui::DockBuilderDockWindow(entry.window->get_window_name(), target_id);
+        }
 
+        // Commit the pending tree; after this the layout is live and windows begin
+        // landing in their assigned nodes on their next ImGui::Begin() call.
         ImGui::DockBuilderFinish(main_dockspace_id);
     }
 

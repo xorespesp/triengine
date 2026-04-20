@@ -172,14 +172,16 @@ namespace demo
         _log_window = std::make_shared<triengine::gui::log_window>();
         _log_window->set_visible(false);
         _vis->add_gui_window(_log_window);
-
+        
         _render_stats_window = std::make_shared<triengine::gui::render_stats_window>();
         _render_stats_window->set_visible(false);
         _vis->add_gui_window(_render_stats_window);
 
+        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>(_vis.get());
+        _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
+
         _demo_scene_ctrl_window = std::make_shared<demo_scene_control_window>(_vis.get());
-        _demo_scene_ctrl_window->set_visible(true);
-        _vis->add_gui_window(_demo_scene_ctrl_window);
+        _vis->add_gui_window(_demo_scene_ctrl_window, triengine::gui::dock_slot::left);
 
         _demo_scene_ctrl_window->add_scene(std::make_shared<scene::main_scene>(*_vis));
         _demo_scene_ctrl_window->add_scene(std::make_shared<scene::engine_scene>(*_vis));
@@ -193,7 +195,9 @@ namespace demo
 
         _log_window.reset();
         _render_stats_window.reset();
-        
+        _scene_ctrl_window.reset();
+        _demo_scene_ctrl_window.reset();
+
         _vis->destroy_window();
         _vis.reset();
 

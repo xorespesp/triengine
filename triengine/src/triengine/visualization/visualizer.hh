@@ -76,8 +76,18 @@ namespace triengine::visualization
             _gui_mgr->enable_main_menu(enable);
         }
 
-        void add_gui_window(std::shared_ptr<gui::iwindow> window) {
-            _gui_mgr->add_window(window);
+        void add_gui_window(
+            std::shared_ptr<gui::iwindow> window,
+            gui::dock_slot slot = gui::dock_slot::floating
+        ) {
+            _gui_mgr->add_window(std::move(window), slot);
+        }
+
+        // Override the dock area width/height ratios. 
+        // NOTE: Must be called before the first render() call; 
+        // afterwards the initial layout is already frozen.
+        void set_dock_split_ratios(const gui::dock_split_ratios& ratios) {
+            _gui_mgr->set_dock_split_ratios(ratios);
         }
 
     private:
