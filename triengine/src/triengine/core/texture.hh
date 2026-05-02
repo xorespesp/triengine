@@ -38,6 +38,8 @@ namespace triengine::core
 
         bool is_valid() const noexcept;
 
+        void update_data(const image_buffer& new_tex_image);
+
         void destroy() noexcept;
 
     private:

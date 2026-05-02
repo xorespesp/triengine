@@ -190,6 +190,53 @@ namespace triengine::core
         return _tex_id != kInvalidGLTextureID;
     }
 
+    void texture_2d::update_data(const image_buffer& new_tex_image)
+    {
+        if (!this->is_valid()) {
+            TRIENGINE_PANIC("update_data on invalid texture");
+        }
+
+        if (new_tex_image.width_pixels() != _width_pixels ||
+            new_tex_image.height_pixels() != _height_pixels ||
+            new_tex_image.format() != _image_format)
+        {
+            TRIENGINE_PANIC("update_data dimensions/format mismatch — recreate texture instead");
+        }
+
+        [[maybe_unused]] GLenum internal_format{};
+        GLenum format{};
+        if (!_try_map_image_format_to_texture_format(
+            _image_format, 
+            _tex_params.gamma_correction,
+            internal_format, 
+            format
+        )) {
+            TRIENGINE_PANIC("update_data failed to map image format to texture format");
+        }
+
+        {
+            // Temporarily set pixel unpack alignment to 1 to avoid issues with image buffer alignment
+            scoped_gl_pixel_store_guard unpack_alignment_guard{ GL_UNPACK_ALIGNMENT, 1 };
+
+            // Upload the image data to the texture GPU storage
+            GLCall(::glTextureSubImage2D(
+                _tex_id,                              /* GLuint texture */
+                0,                                    /* GLint level */
+                0,                                    /* GLint xoffset */
+                0,                                    /* GLint yoffset */
+                static_cast<GLsizei>(_width_pixels),  /* GLsizei width */
+                static_cast<GLsizei>(_height_pixels), /* GLsizei height */
+                format,                               /* GLenum format */
+                GL_UNSIGNED_BYTE,                     /* GLenum type */
+                new_tex_image.data()                  /* const void* pixels */
+            ));
+        }
+
+        if (_tex_params.generate_mipmap) {
+            GLCall(::glGenerateTextureMipmap(_tex_id));
+        }
+    }
+
     void texture_2d::destroy() noexcept
     {
         if (this->is_valid()) {
