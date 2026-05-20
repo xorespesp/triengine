@@ -44,7 +44,8 @@ namespace demo
             playback_state_type playback_state{ playback_state_type::paused };
             float playback_speed{ 1.0f }; // speed factor
             std::optional<triengine::io::bvh_joint_id_t> selected_joint_id;
-            bool fl_update_scene{ true };
+            bool fl_rebuild_skeleton{ true }; // hierarchy/appearance changed -> recreate skeleton
+            bool fl_pose_dirty{ false }; // only the pose changed -> in-place skeleton pose update
 
             ui_state_t() = default;
         };
@@ -81,8 +82,15 @@ namespace demo
     private:
         void _render_hierarchy_tree(triengine::io::bvh_joint_id_t bvh_jid);
 
-        std::shared_ptr<triengine::geometry::skeleton_object> _create_skeleton_object_from_bvh(
+        // Builds a fresh skeleton object whose hierarchy and appearance come from the
+        // current ui state; `ref_frame` provides the initial pose and bone lengths.
+        std::shared_ptr<triengine::geometry::skeleton_object> _build_skeleton_object(
             const triengine::io::bvh_file_t& bvh_file,
+            const triengine::io::bvh_motion_frame_t& ref_frame
+        ) const;
+
+        // Converts a bvh motion frame into a skeleton pose (one entry per joint).
+        triengine::geometry::skeleton_pose_t _make_skeleton_pose(
             const triengine::io::bvh_motion_frame_t& bvh_frame
         ) const;
 

@@ -45,7 +45,8 @@ namespace demo::scene
             playback_state_type playback_state{ playback_state_type::paused };
             float playback_speed{ 1.0f }; // speed factor
             std::optional<io::bvh_joint_id_t> selected_joint_id;
-            bool fl_update_scene{ true };
+            bool fl_rebuild_skeleton{ true }; // hierarchy/appearance changed -> recreate skeleton
+            bool fl_pose_dirty{ false }; // only the pose changed -> in-place skeleton pose update
 
             bool fl_visualize_joint_names{ true };
             triengine::color3_f32 joint_label_color{ 0.0f, 1.0f, 0.0f };
@@ -133,21 +134,22 @@ namespace demo::scene
 
                     // move to next frame
                     _state.current_frame_index = (_state.current_frame_index + 1) % bvh_data.frames.size();
-                    _state.fl_update_scene = true;
+                    _state.fl_pose_dirty = true;
                 }
             }
 
-            // Update scene
-            if (_state.fl_update_scene)
+            // Rebuild the skeleton when its hierarchy or appearance changed.
+            if (_state.fl_rebuild_skeleton)
             {
+                if (_bvh_skeleton) {
+                    this->get_scene()->remove_geometry(_bvh_skeleton);
+                    _bvh_skeleton.reset();
+                }
+
                 if (_state.bvh_data)
                 {
-                    if (_bvh_skeleton) {
-                        this->get_scene()->remove_geometry(_bvh_skeleton);
-                    }
-
                     const io::bvh_file_t& bvh_data = *_state.bvh_data;
-                    _bvh_skeleton = this->_create_skeleton_object_from_bvh(
+                    _bvh_skeleton = this->_build_skeleton_object(
                         bvh_data,
                         bvh_data.frames[_state.current_frame_index]
                     );
@@ -159,21 +161,30 @@ namespace demo::scene
 
                     this->get_scene()->add_geometry(_bvh_skeleton);
 
-                    // Update joint name labels
+                    // Update joint name labels for the current frame
                     this->_update_joint_labels(bvh_data, bvh_data.frames[_state.current_frame_index]);
                 }
                 else
                 {
-                    if (_bvh_skeleton) {
-                        this->get_scene()->remove_geometry(_bvh_skeleton);
-                    }
-                    _bvh_skeleton.reset();
-
                     // Clear joint labels
                     this->_clear_joint_labels();
                 }
 
-                _state.fl_update_scene = false;
+                _state.fl_rebuild_skeleton = false;
+                _state.fl_pose_dirty = false;
+            }
+            // Otherwise, apply an in-place pose update for the current frame (hot path).
+            else if (_state.fl_pose_dirty && _bvh_skeleton)
+            {
+                const io::bvh_file_t& bvh_data = *_state.bvh_data;
+                _bvh_skeleton->set_pose(
+                    this->_make_skeleton_pose(bvh_data.frames[_state.current_frame_index])
+                );
+
+                // Joint name labels track the pose, so refresh them too.
+                this->_update_joint_labels(bvh_data, bvh_data.frames[_state.current_frame_index]);
+
+                _state.fl_pose_dirty = false;
             }
         }
 
@@ -206,7 +217,7 @@ namespace demo::scene
 
                 if (ImGui::Button("|<")) {
                     _state.current_frame_index = 0;
-                    _state.fl_update_scene = true;
+                    _state.fl_pose_dirty = true;
                 }
 
                 ImGui::SameLine();
@@ -225,7 +236,7 @@ namespace demo::scene
 
                 if (ImGui::Button(">|")) {
                     _state.current_frame_index = static_cast<int>(_state.bvh_data->frames.size() - 1);
-                    _state.fl_update_scene = true;
+                    _state.fl_pose_dirty = true;
                 }
 
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.7f);
@@ -236,69 +247,68 @@ namespace demo::scene
                     , "Frame: %d"))
                 {
                     _state.playback_state = playback_state_type::paused;
-                    _state.fl_update_scene = true;
+                    _state.fl_pose_dirty = true;
                 }
                 ImGui::PopItemWidth();
                 ImGui::SameLine();
                 ImGui::Text("/ %zu frames", bvh_data.frames.size());
 
-                if (ImGui::DragFloat("Playback Speed", &_state.playback_speed, 0.01f, 0.01f, 4.0f, "%.2fx")) {
-                    _state.fl_update_scene = true;
-                }
+                // Playback speed affects only frame timing, not geometry or pose.
+                ImGui::DragFloat("Playback Speed", &_state.playback_speed, 0.01f, 0.01f, 4.0f, "%.2fx");
 
                 if (ImGui::CollapsingHeader("Skeleton Render Options", ImGuiTreeNodeFlags_None))
                 {
                     ImGui::Indent();
 
                     if (ImGui::ColorEdit3("Joint Color", _state.joint_color.data(), ImGuiColorEditFlags_NoAlpha)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::ColorEdit3("Bone Color", _state.bone_color.data(), ImGuiColorEditFlags_NoAlpha)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::DragFloat("Joint Radius", &_state.joint_radius, 0.001f, 0.001f, 0.1f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::DragFloat("Bone Parent Cap Radius Ratio", &_state.bone_parent_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::DragFloat("Bone Child Cap Radius Ratio", &_state.bone_child_cap_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::DragFloat("Bone Middle Radius Ratio", &_state.bone_middle_radius_ratio, 0.001f, 0.001f, 0.5f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::DragFloat("Max Bone Middle Radius", &_state.max_bone_middle_radius, 0.001f, 0.001f, 0.2f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::DragFloat("Bone Height Ratio", &_state.bone_height_ratio_parent, 0.001f, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (ImGui::SliderInt("Bone Resolution", &_state.bone_resolution, 3, 40, "%d")) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     ImGui::Separator();
 
                     if (ImGui::Checkbox("Show Joint Names", &_state.fl_visualize_joint_names)) {
-                        _state.fl_update_scene = true;
+                        _state.fl_rebuild_skeleton = true;
                     }
 
                     if (_state.fl_visualize_joint_names) {
                         if (ImGui::ColorEdit3("Joint Label Color", _state.joint_label_color.data(), ImGuiColorEditFlags_NoAlpha)) {
-                            _state.fl_update_scene = true;
+                            _state.fl_rebuild_skeleton = true;
                         }
 
                         if (ImGui::DragFloat("Joint Label Scale", &_state.joint_label_scale, 0.01f, 0.05f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) {
-                            _state.fl_update_scene = true;
+                            _state.fl_rebuild_skeleton = true;
                         }
                     }
 
@@ -404,7 +414,7 @@ namespace demo::scene
                     //Tr.block<3, 3>(0, 0) = R;
                     //_state.offset_transform = Tr;
 
-                    _state.fl_update_scene = true;
+                    _state.fl_rebuild_skeleton = true;
                 }
             }
         }
@@ -485,7 +495,7 @@ namespace demo::scene
 
             if (ImGui::IsItemClicked()) {
                 _state.selected_joint_id = bvh_jid; // update selected jid
-                _state.fl_update_scene = true; // refresh scene to show highlight
+                _state.fl_rebuild_skeleton = true; // refresh scene to show highlight
             }
 
             if (open_tree_node && has_children) {
@@ -496,54 +506,70 @@ namespace demo::scene
             }
         }
 
-        std::shared_ptr<geometry::skeleton_object> _create_skeleton_object_from_bvh(
-            const io::bvh_file_t& bvh_file,
+        geometry::skeleton_pose_t _make_skeleton_pose(
             const io::bvh_motion_frame_t& bvh_frame) const
         {
             constexpr double kScaleCM2M = 0.01;
 
-            std::vector<geometry::skeleton_joint_info_t> skeleton_joints;
-            skeleton_joints.resize(bvh_frame.skeleton.size());
+            geometry::skeleton_pose_t pose;
+            pose.resize(bvh_frame.skeleton.size());
             for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
             {
-                // Use highlight color if this joint is selected
-                const bool is_selected = _state.selected_joint_id.has_value() && _state.selected_joint_id.value() == bvh_jid;
-                const auto& joint_color = is_selected ? _state.selected_highlight_color : _state.joint_color;
+                geometry::skeleton_joint_pose_t& jp = pose.at(static_cast<size_t>(bvh_jid));
+                jp.position = (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval();
+                jp.rotation = bvh_jdata.world_rotation.cast<float>().eval();
+            }
+            return pose;
+        }
 
-                skeleton_joints.at(static_cast<size_t>(bvh_jid)) = geometry::skeleton_joint_info_t{
-                    (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval(),
-                    bvh_jdata.world_rotation.cast<float>().eval(),
-                    joint_color,
-                    _state.joint_radius
-                };
+        std::shared_ptr<geometry::skeleton_object> _build_skeleton_object(
+            const io::bvh_file_t& bvh_file,
+            const io::bvh_motion_frame_t& ref_frame) const
+        {
+            // Reference pose for the initial frame; also used to derive per-bone
+            // lengths for radius scaling.
+            const geometry::skeleton_pose_t ref_pose = this->_make_skeleton_pose(ref_frame);
+
+            geometry::skeleton_object::builder builder;
+
+            // Add joints in bvh joint-id order, so each skeleton joint id equals
+            // its bvh joint id. Appearance comes from the ui state; the selected
+            // joint is highlighted with a distinct color.
+            for (io::bvh_joint_id_t bvh_jid = 0; bvh_jid < bvh_file.joints.size(); ++bvh_jid)
+            {
+                const bool is_selected =
+                    _state.selected_joint_id.has_value() &&
+                    _state.selected_joint_id.value() == bvh_jid;
+
+                geometry::skeleton_joint_desc_t jdesc;
+                jdesc.color = is_selected ? _state.selected_highlight_color : _state.joint_color;
+                jdesc.radius = _state.joint_radius;
+
+                builder.add_joint(jdesc, ref_pose.at(bvh_jid));
             }
 
-            std::vector<geometry::skeleton_bone_info_t> skeleton_bones;
-            skeleton_bones.reserve(bvh_frame.skeleton.size());
+            // Connect bones; each bone's radii are scaled by its reference length.
             for (const auto [child_bvh_jid, parent_bvh_jid] : bvh_file.joints_parent_map)
             {
                 if (child_bvh_jid == parent_bvh_jid) { continue; } // root joint has no parent
-                
-                const geometry::skeleton_joint_info_t* const from_joint = &skeleton_joints.at(static_cast<size_t>(child_bvh_jid));
-                const geometry::skeleton_joint_info_t* const to_joint = &skeleton_joints.at(static_cast<size_t>(parent_bvh_jid));
-                const float bone_length = triengine::math::vec3_distance(from_joint->position, to_joint->position);
 
-                skeleton_bones.emplace_back(
-                    from_joint/* from_joint */,
-                    to_joint/* to_joint */,
-                    _state.bone_color/* color */,
-                    bone_length * _state.bone_parent_cap_radius_ratio/* parent_cap_radius */,
-                    bone_length * _state.bone_child_cap_radius_ratio/* child_cap_radius */,
-                    std::max(bone_length * _state.bone_middle_radius_ratio, _state.max_bone_middle_radius)/* middle_radius */,
-                    _state.bone_height_ratio_parent/* height_ratio_parent */,
-                    _state.bone_resolution/* resolution */
+                const float bone_length = triengine::math::vec3_distance(
+                    ref_pose.at(child_bvh_jid).position,
+                    ref_pose.at(parent_bvh_jid).position
                 );
+
+                geometry::skeleton_bone_desc_t bdesc;
+                bdesc.color = _state.bone_color;
+                bdesc.parent_cap_radius = bone_length * _state.bone_parent_cap_radius_ratio;
+                bdesc.child_cap_radius = bone_length * _state.bone_child_cap_radius_ratio;
+                bdesc.middle_radius = std::max(bone_length * _state.bone_middle_radius_ratio, _state.max_bone_middle_radius);
+                bdesc.height_ratio_parent = _state.bone_height_ratio_parent;
+                bdesc.resolution = _state.bone_resolution;
+
+                builder.add_bone(parent_bvh_jid, child_bvh_jid, bdesc);
             }
 
-            return geometry::skeleton_object::create(
-                skeleton_joints,
-                skeleton_bones
-            );
+            return builder.build();
         }
 
     }; // class
