@@ -1,11 +1,45 @@
 #pragma once
 #include <triengine/geometry/geometry_object_base.hh>
+#include <triengine/utility/color_map.hh>
 
 #include <vector>
 #include <memory>
+#include <limits>
+#include <optional>
 
 namespace triengine::geometry
 {
+    /// Axis used as the scalar source when colorizing a point cloud.
+    enum class colorize_axis { x, y, z };
+
+    /// Strategy for mapping a scalar field onto the `[0,1]` colormap domain.
+    enum class colorize_mapping
+    {
+        linear,  /// linear min-max mapping
+        dynamic  /// data-adaptive mapping via cumulative-histogram equalization
+    };
+
+    /// An explicit `[min, max]` scalar range for colorize normalization.
+    /// (Unit: same as the colorize scalar field; [m] for the current methods)
+    struct colorize_range
+    {
+        float min{};
+        float max{};
+    };
+
+    /// Options controlling how a scalar field is normalized before colormap lookup.
+    struct colorize_options
+    {
+        colorize_mapping mapping{ colorize_mapping::linear };
+
+        /// Explicit scalar range for normalization. `std::nullopt` auto-derives
+        /// the range from the cloud's finite scalar values.
+        std::optional<colorize_range> range;
+
+        /// Histogram bin count used by `colorize_mapping::dynamic` (ignored otherwise).
+        int histogram_bins{ 4096 };
+    };
+
     class pcd_object
         : public geometry_object_base
     {
@@ -81,6 +115,22 @@ namespace triengine::geometry
         void clear();
 
         void paint_uniform_color(const color3_f32& color);
+
+        /// Colorizes each point by its coordinate on the given `axis`, filling
+        /// the `colors` vector by mapping the scalar field through `color_map`.
+        void colorize_by_axis(
+            colorize_axis axis,
+            const utility::color_map& color_map = utility::color_map_presets::jet(),
+            const colorize_options& options = {}
+        );
+
+        /// Colorizes each point by its Euclidean distance from `reference_point`,
+        /// filling the `colors` vector by mapping the scalar field through `color_map`.
+        void colorize_by_distance(
+            const vec3_f32& reference_point = vec3_f32::Zero(),
+            const utility::color_map& color_map = utility::color_map_presets::jet(),
+            const colorize_options& options = {}
+        );
 
         void apply_model_in_place() override {
             TRIENGINE_PANIC("not implemented");

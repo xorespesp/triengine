@@ -52,6 +52,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/logger.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/debug_utils.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/gl_utils.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/color_map.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/fonts/FontAwesome5.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/extern/fonts/FontAwesome5Brands.cc"
@@ -128,6 +129,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/logger.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/color_map.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/noncopyable.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/singleton.hh"

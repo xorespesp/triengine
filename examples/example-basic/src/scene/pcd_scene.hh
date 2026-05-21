@@ -4,7 +4,9 @@
 #include <triengine/math/math3d.hh>
 #include <triengine/geometry/pcd_object.hh>
 #include <triengine/io/file_ply_loader.hh>
+#include <triengine/utility/color_map.hh>
 
+#include <vector>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -178,15 +180,79 @@ namespace demo::scene
 
         }; // class
 
+        /// A named color map preset, used to populate the colorize GUI combo.
+        struct named_color_map {
+            const char* name;
+            const utility::color_map& (*getter)();
+        };
+
+        const named_color_map kColorizeColorMaps[] = {
+            { "Jet",           &utility::color_map_presets::jet },
+            { "Classic",       &utility::color_map_presets::classic },
+            { "Hue",           &utility::color_map_presets::hue },
+            { "Grayscale",     &utility::color_map_presets::grayscale },
+            { "Inv Grayscale", &utility::color_map_presets::inv_grayscale },
+            { "Biomes",        &utility::color_map_presets::biomes },
+            { "Cold",          &utility::color_map_presets::cold },
+            { "Warm",          &utility::color_map_presets::warm },
+        };
+
     } // namespace
 
     class pointcloud_scene
         : public scene_wrapper
     {
+    private:
+        /// Scalar source used when colorizing the point cloud.
+        enum class colorize_source { axis, distance };
+
+        /// All user-controllable colorize parameters.
+        struct colorize_settings {
+            bool enabled{ false };
+            colorize_source source{ colorize_source::axis };
+            geometry::colorize_axis axis{ geometry::colorize_axis::z };
+            Eigen::Vector3f reference_point{ Eigen::Vector3f::Zero() };
+            int color_map_index{ 0 };
+            geometry::colorize_mapping mapping{ geometry::colorize_mapping::linear };
+            bool auto_range{ true };
+            float range_min{ 0.0f };
+            float range_max{ 1.0f };
+            int histogram_bins{ 4096 };
+        };
+
         std::shared_ptr<geometry::pcd_object> _pcd;
         std::shared_ptr<geometry::mesh_object> _pcd_axis_frame;
         std::unique_ptr<pcd_noise_generator> _pcd_gen;
         bool _inplace_update{ true };
+        colorize_settings _colorize;
+        std::vector<color3_f32> _pcd_colors_original; // colors as loaded, before any colorize
+
+    private:
+        /// Builds a `colorize_options` from the current `_colorize` settings.
+        geometry::colorize_options _build_colorize_options() const
+        {
+            geometry::colorize_options opts;
+            opts.mapping = _colorize.mapping;
+            opts.histogram_bins = _colorize.histogram_bins;
+            if (!_colorize.auto_range) {
+                opts.range = geometry::colorize_range{ _colorize.range_min, _colorize.range_max };
+            }
+            return opts;
+        }
+
+        /// Applies colorize to `_pcd` using the current settings. No-op when disabled.
+        void _apply_colorize()
+        {
+            if (!_pcd || !_colorize.enabled) { return; }
+
+            const utility::color_map& cmap = kColorizeColorMaps[_colorize.color_map_index].getter();
+            const auto opts = _build_colorize_options();
+            if (_colorize.source == colorize_source::axis) {
+                _pcd->colorize_by_axis(_colorize.axis, cmap, opts);
+            } else {
+                _pcd->colorize_by_distance(_colorize.reference_point, cmap, opts);
+            }
+        }
 
     public:
         pointcloud_scene(
@@ -220,6 +286,11 @@ namespace demo::scene
                 scn->add_geometry(_pcd);
             }
 
+            // Keep a copy of the loaded colors so colorize can be toggled off.
+            _pcd_colors_original = _pcd->colors;
+            // Default the distance colorize reference to the point cloud center.
+            _colorize.reference_point = _pcd->get_center();
+
             _pcd_axis_frame = geometry::mesh_object::create_coordinate_frame(0.5f);
             _pcd_axis_frame->transform(offset_Tr, true);
             scn->add_geometry(_pcd_axis_frame);
@@ -248,6 +319,9 @@ namespace demo::scene
                 }
 
                 _pcd->mark_dirty();
+
+                // Colorize is applied last, after the noise pass
+                this->_apply_colorize();
             }
         }
 
@@ -292,6 +366,83 @@ namespace demo::scene
             ImGui::Separator();
 
             ImGui::Checkbox("Inplace update", &_inplace_update);
+
+            ImGui::Separator();
+            ImGui::TextUnformatted("Colorize");
+
+            if (ImGui::Checkbox("Enable Colorize", &_colorize.enabled)) {
+                if (_colorize.enabled) {
+                    this->_apply_colorize();
+                } else if (_pcd) {
+                    // Restore the point cloud's original colors.
+                    _pcd->colors = _pcd_colors_original;
+                    _pcd->mark_dirty();
+                }
+            }
+
+            if (_colorize.enabled)
+            {
+                bool colorize_changed{ false };
+
+                int source_idx = static_cast<int>(_colorize.source);
+                if (ImGui::Combo("Source", &source_idx, "Axis\0Distance\0")) {
+                    _colorize.source = static_cast<colorize_source>(source_idx);
+                    colorize_changed = true;
+                }
+
+                if (_colorize.source == colorize_source::axis) {
+                    int axis_idx = static_cast<int>(_colorize.axis);
+                    if (ImGui::Combo("Axis", &axis_idx, "X\0Y\0Z\0")) {
+                        _colorize.axis = static_cast<geometry::colorize_axis>(axis_idx);
+                        colorize_changed = true;
+                    }
+                } else {
+                    if (ImGui::DragFloat3("Reference Point", _colorize.reference_point.data(), 0.01f)) {
+                        colorize_changed = true;
+                    }
+                }
+
+                const char* color_map_names[IM_ARRAYSIZE(kColorizeColorMaps)];
+                for (int i = 0; i < IM_ARRAYSIZE(kColorizeColorMaps); ++i) {
+                    color_map_names[i] = kColorizeColorMaps[i].name;
+                }
+                if (ImGui::Combo("Color Map", &_colorize.color_map_index,
+                                 color_map_names, IM_ARRAYSIZE(kColorizeColorMaps))) {
+                    colorize_changed = true;
+                }
+
+                // "Dynamic" maps colors via cumulative-histogram equalization.
+                int mapping_idx = static_cast<int>(_colorize.mapping);
+                if (ImGui::Combo("Mapping", &mapping_idx, "Linear\0Dynamic\0")) {
+                    _colorize.mapping = static_cast<geometry::colorize_mapping>(mapping_idx);
+                    colorize_changed = true;
+                }
+
+                if (_colorize.mapping == geometry::colorize_mapping::dynamic) {
+                    if (ImGui::SliderInt("Histogram Bins", &_colorize.histogram_bins, 16, 16384)) {
+                        colorize_changed = true;
+                    }
+                }
+
+                if (ImGui::Checkbox("Auto Range", &_colorize.auto_range)) {
+                    colorize_changed = true;
+                }
+
+                if (!_colorize.auto_range) {
+                    // DragFloatRange2 keeps range_min <= range_max automatically.
+                    if (ImGui::DragFloatRange2("Range",
+                        &_colorize.range_min, &_colorize.range_max,
+                        0.01f, 0.0f, 0.0f, "%.3f")) {
+                        colorize_changed = true;
+                    }
+                }
+
+                // Re-apply immediately so colorize changes are reflected without
+                // waiting for the next noise update tick.
+                if (colorize_changed) {
+                    this->_apply_colorize();
+                }
+            }
         }
 
     }; // class

@@ -3,9 +3,113 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/hash_utils.hh>
 #include <unordered_map>
+#include <algorithm>
+#include <limits>
+#include <cmath>
+#include <cstdint>
 
 namespace triengine::geometry
 {
+    namespace
+    {
+        /// Maps a per-point scalar field to RGB colors through `cmap`, using the
+        /// normalization strategy in `options`, writing the result into
+        /// `out_colors` (resized to match `scalars`).
+        void colorize_from_scalars(
+            std::vector<color3_f32>& out_colors,
+            const std::vector<float>& scalars,
+            const utility::color_map& cmap,
+            const colorize_options& options)
+        {
+            if (scalars.empty()) {
+                out_colors.clear();
+                return;
+            }
+
+            // Resolve the scalar range: use the explicit range from `options`.
+            // if present, otherwise auto-derive it from the finite scalar values.
+            const colorize_range value_range = [&options, &scalars]() -> colorize_range {
+                if (options.range.has_value()) {
+                    if (options.range->min > options.range->max) {
+                        TRIENGINE_PANIC("colorize_options::range requires min <= max");
+                    }
+                    return *options.range;
+                }
+
+                // auto-derive it from the finite scalar values.
+                float derived_min = std::numeric_limits<float>::max();
+                float derived_max = std::numeric_limits<float>::lowest();
+                bool any_finite = false;
+                for (const float s : scalars) {
+                    if (!std::isfinite(s)) { continue; }
+                    derived_min = std::min(derived_min, s);
+                    derived_max = std::max(derived_max, s);
+                    any_finite = true;
+                }
+                if (!any_finite) { return { 0.0f, 0.0f }; }
+                return { derived_min, derived_max };
+            }();
+
+            out_colors.resize(scalars.size());
+
+            const float range_span = value_range.max - value_range.min;
+
+            if (options.mapping == colorize_mapping::dynamic &&
+                range_span > 0.0f)
+            {
+                const int bin_count = std::max(options.histogram_bins, 1);
+
+                // Histogram equalization makes the color distribution adapt to the
+                // data: value ranges where points are densely packed receive more
+                // of the colormap, while sparse ranges receive less.
+                //
+                // The scalar values are arbitrary floats, so they cannot index a
+                // histogram directly. Instead the value range is divided into
+                // `bin_count` equal-width bins, and `bin_of()`
+                // quantizes a scalar value to its bin index. The per-bin counts are
+                // then accumulated into a cumulative distribution (CDF); each
+                // point's normalized value `t` is the CDF evaluated at its bin
+                // (`cdf[bin] / total`), which spreads `t` according to data density.
+                std::vector<uint64_t> cdf(static_cast<size_t>(bin_count), 0);
+                auto bin_of = [&](float s) -> int {
+                    // Quantize the scalar `s` to a bin index within `[0, bin_count)`.
+                    const float t = (s - value_range.min) / range_span;
+                    const int bin = static_cast<int>(t * static_cast<float>(bin_count));
+                    return std::clamp(bin, 0, bin_count - 1);
+                };
+
+                uint64_t total = 0;
+                for (const float s : scalars) {
+                    if (!std::isfinite(s)) { continue; }
+                    ++cdf[static_cast<size_t>(bin_of(s))];
+                    ++total;
+                }
+                for (size_t i = 1; i < cdf.size(); ++i) { cdf[i] += cdf[i - 1]; }
+
+                for (size_t i = 0; i < scalars.size(); ++i) {
+                    float t = 0.0f;
+                    if (total > 0 && std::isfinite(scalars[i])) {
+                        t = static_cast<float>(cdf[static_cast<size_t>(bin_of(scalars[i]))]) /
+                            static_cast<float>(total);
+                    }
+                    out_colors[i] = cmap.at(t);
+                }
+            }
+            else
+            {
+                // Linear min-max mapping (also the fallback when the range is empty).
+                for (size_t i = 0; i < scalars.size(); ++i) {
+                    float t = 0.0f;
+                    if (range_span > 0.0f && std::isfinite(scalars[i])) {
+                        t = std::clamp((scalars[i] - value_range.min) / range_span, 0.0f, 1.0f);
+                    }
+                    out_colors[i] = cmap.at(t);
+                }
+            }
+        }
+
+    } // namespace
+
     void pcd_object::clear()
     {
         points.clear();
@@ -14,10 +118,41 @@ namespace triengine::geometry
     }
 
     void pcd_object::paint_uniform_color(
-        const color3_f32& color) 
+        const color3_f32& color)
     {
         colors.clear();
         colors.resize(points.size(), color);
+    }
+
+    void pcd_object::colorize_by_axis(
+        const colorize_axis axis,
+        const utility::color_map& color_map,
+        const colorize_options& options)
+    {
+        // `colorize_axis` enumerators map directly to coordinate indices (x=0, y=1, z=2).
+        const int axis_index = static_cast<int>(axis);
+
+        std::vector<float> scalars(points.size());
+        for (size_t i = 0; i < points.size(); ++i) {
+            scalars[i] = points[i][axis_index];
+        }
+
+        colorize_from_scalars(colors, scalars, color_map, options);
+        this->mark_dirty();
+    }
+
+    void pcd_object::colorize_by_distance(
+        const vec3_f32& reference_point,
+        const utility::color_map& color_map,
+        const colorize_options& options)
+    {
+        std::vector<float> scalars(points.size());
+        for (size_t i = 0; i < points.size(); ++i) {
+            scalars[i] = (points[i] - reference_point).norm();
+        }
+
+        colorize_from_scalars(colors, scalars, color_map, options);
+        this->mark_dirty();
     }
 
     pcd_object& pcd_object::remove_duplicated_points()
