@@ -3,6 +3,8 @@
 # Vcpkg
 /dependency/vcpkg_installed/
 
+*.local.*
+
 # User-specific files
 *.rsuser
 *.suo
