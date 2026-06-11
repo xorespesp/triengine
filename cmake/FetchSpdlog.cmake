@@ -13,5 +13,11 @@ if (NOT TARGET spdlog::spdlog)
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
     set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
 
+    # Use external header-only fmt to stay consistent with xutl, which compiles
+    # with SPDLOG_FMT_EXTERNAL. This requires the fmt::fmt target to exist first.
+    # See: https://github.com/gabime/spdlog/blob/b18a234ed6af38638678a3338c0d7ed90210ae6c/CMakeLists.txt#L91
+    #      https://github.com/gabime/spdlog/issues/355#issuecomment-273497846
+    set(SPDLOG_FMT_EXTERNAL_HO  ON CACHE BOOL "" FORCE)
+
     FetchContent_MakeAvailable(spdlog)
 endif()
