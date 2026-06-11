@@ -34,7 +34,7 @@ namespace demo
             const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
 
             _renderer = std::make_unique<triengine::visualization::offscreen_renderer>();
-            _renderer->create_renderer(1280, 720);
+            _renderer->create_renderer(triengine::vec2_i32{ 1280, 720 });
             
             auto scn = _renderer->add_scene();
             scn->get_render_config()->bg_color = triengine::color4_f32::all(0.0f);
@@ -112,7 +112,7 @@ namespace demo
                 [this, &viewer](const int32_t new_width, const int32_t new_height)
                 {
                     TRIENGINE_TRACE("viewer window resize: %dx%d", new_width, new_height);
-                    this->_renderer->resize_frame(new_width, new_height);
+                    this->_renderer->resize_frame(triengine::vec2_i32{ new_width, new_height });
                 }
             );
 

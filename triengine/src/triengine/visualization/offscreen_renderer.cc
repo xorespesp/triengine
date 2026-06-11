@@ -17,9 +17,7 @@ namespace triengine::visualization
     {
     }
 
-    void offscreen_renderer::create_renderer(
-        const int32_t window_width,
-        const int32_t window_height)
+    void offscreen_renderer::create_renderer(const vec2_i32 initial_frame_size)
     {
         if (_flag_initialized) {
             TRIENGINE_PANIC("already created");
@@ -28,8 +26,8 @@ namespace triengine::visualization
         _glctx.create(
             "",
             false,
-            window_width,
-            window_height,
+            initial_frame_size.x(),
+            initial_frame_size.y(),
             false
         );
 
@@ -151,12 +149,12 @@ namespace triengine::visualization
         return _curr_frame_size;
     }
 
-    void offscreen_renderer::resize_frame(int32_t width, int32_t height)
+    void offscreen_renderer::resize_frame(const vec2_i32 new_frame_size)
     {
-        if (width <= 0 || height <= 0) {
-            TRIENGINE_PANIC("Invalid frame size (%d, %d)", width, height);
+        if (new_frame_size.x() <= 0 || new_frame_size.y() <= 0) {
+            TRIENGINE_PANIC("Invalid frame size (%d, %d)", new_frame_size.x(), new_frame_size.y());
         }
-        _curr_frame_size = vec2_i32{ width, height };
+        _curr_frame_size = new_frame_size;
         _flag_invalidate_fbo = true;
     }
 

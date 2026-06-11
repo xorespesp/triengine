@@ -21,10 +21,7 @@ namespace triengine::visualization
         const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
         core::gl_context* get_gl_context() noexcept { return &_glctx; }
 
-        void create_renderer(
-            int32_t width,
-            int32_t height
-        );
+        void create_renderer(vec2_i32 initial_frame_size);
 
         void destroy_renderer();
 
@@ -42,7 +39,7 @@ namespace triengine::visualization
         std::shared_ptr<scene> get_current_scene();
 
         vec2_i32 get_frame_size() const noexcept;
-        void resize_frame(int32_t width, int32_t height);
+        void resize_frame(vec2_i32 new_frame_size);
 
         void render(
             image_buffer& frame_image/* out */,
