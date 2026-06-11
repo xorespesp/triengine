@@ -24,19 +24,28 @@ layout (binding = 1) uniform sampler2D u_depthTexture;
 uniform vec3 u_textColor;
 uniform float u_cameraNear;
 uniform float u_cameraFar;
+uniform bool u_isOrtho; // whether the camera uses an orthographic projection
 uniform float u_depthBias = 0.005;
 uniform float u_occlusionAlpha = 0.1;
 
-// Function to linearize raw depth buffer value
-float linearizeDepth(float depth) {
+// Linearize a raw perspective depth buffer value to linear view-space depth.
+// (The perspective depth buffer is non-linearly distributed, so this inverts that mapping.)
+float linearizePerspDepth(float depth) {
     float z_ndc = depth * 2.0 - 1.0; // Convert from [0,1] to [-1,1]
     return (2.0 * u_cameraNear * u_cameraFar) / (u_cameraFar + u_cameraNear - z_ndc * (u_cameraFar - u_cameraNear));
+}
+
+// Linearize a raw orthographic depth buffer value to linear view-space depth.
+// (The orthographic depth buffer is already linear in eye space, so this is a plain remap.)
+float linearizeOrthoDepth(float depth) {
+    return u_cameraNear + depth * (u_cameraFar - u_cameraNear);
 }
 
 bool isTextOccluded(float textDepth, vec2 textScreenPos) {
     // Sample the closest depth value from the depth buffer (view space's depth buffer)
     // and linearize it to convert it to linear view-space depth.
-    const float closestDepth = linearizeDepth(texture(u_depthTexture, textScreenPos).r);
+    const float rawDepth = texture(u_depthTexture, textScreenPos).r;
+    const float closestDepth = u_isOrtho ? linearizeOrthoDepth(rawDepth) : linearizePerspDepth(rawDepth);
     
     const float bias = u_depthBias;
 

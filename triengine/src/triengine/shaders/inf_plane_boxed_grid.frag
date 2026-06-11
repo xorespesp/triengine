@@ -198,7 +198,7 @@ void main()
 	const vec4 blendColor = resultColor;
 
 	// calculate weight
-    const float weight = computeWBOITWeight(blendColor, gl_FragCoord.z);
+    const float weight = computeWBOITWeight(blendColor, -fsi.fragPosInView.z);
                 
 	// store pixel color accumulation
 	fso_accum = vec4(blendColor.rgb * blendColor.a, blendColor.a) * weight;

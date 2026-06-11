@@ -272,13 +272,29 @@ namespace triengine::gui
                     "\nEye Front: [%f, %f, %f]"
                     "\nEye Right: [%f, %f, %f]"
                     "\nEye Up: [%f, %f, %f]"
-                    "\nFovy: %.2f"
-                    "\nNear: %.3f / Far: %.3f"
                     , eye_world_pos.x(), eye_world_pos.y(), eye_world_pos.z()
                     , eye_front.x(), eye_front.y(), eye_front.z()
                     , eye_right.x(), eye_right.y(), eye_right.z()
                     , eye_up.x(), eye_up.y(), eye_up.z()
-                    , scn_camera->get_fovy()
+                );
+
+                // Projection-specific parameter: fovy for perspective cameras (fly/arcball),
+                // ortho view height for the orthographic camera. (fovy was moved out of the
+                // abstract camera base, so it is read via a type-specific cast here.)
+                switch (scn_camera->get_type()) {
+                case camera_type::fly:
+                    sb_.appendf("\nFovy: %.2f", scn_camera->as<fly_camera>()->get_fovy());
+                    break;
+                case camera_type::arcball:
+                    sb_.appendf("\nFovy: %.2f", scn_camera->as<arcball_camera>()->get_fovy());
+                    break;
+                case camera_type::ortho:
+                    sb_.appendf("\nView Height: %.2f", scn_camera->as<ortho_camera>()->get_ortho_view_height());
+                    break;
+                }
+
+                sb_.appendf(
+                    "\nNear: %.3f / Far: %.3f"
                     , triengine::camera_constants::kNearPlane, triengine::camera_constants::kFarPlane
                 );
 

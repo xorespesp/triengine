@@ -689,6 +689,7 @@ namespace triengine::renderer
 				active_text_shader.set_uniform_mat4("u_cameraProj", proj);
 				active_text_shader.set_uniform_float("u_cameraNear", camera_near);
 				active_text_shader.set_uniform_float("u_cameraFar", camera_far);
+				active_text_shader.set_uniform_bool("u_isOrtho", render_ctx.camera->is_ortho());
 				active_text_shader.set_uniform_float("u_depthBias", render_opts.depth_test_opts.depth_bias);
 				active_text_shader.set_uniform_float("u_occlusionAlpha", render_opts.depth_test_opts.occlusion_alpha);
 
@@ -728,10 +729,28 @@ namespace triengine::renderer
 				float distance_scale_factor = 1.0f;
 				if (render_opts.dist_scale_opts.enabled)
 				{
-					const float distance = view_space_pos.head<3>().norm();
+					// Eye-to-label distance in view space, shared by both distance-scale modes.
+					const float distance = [&view_space_pos, &render_ctx]() -> float {
+						const float raw_distance = view_space_pos.head<3>().norm();
 
-					switch (render_opts.dist_scale_opts.scale_mode)
-					{
+						// [Orthographic camera]
+						// In ortho the eye stays at a fixed distance from the pivot and scroll-zoom
+						// changes the view height instead of moving the eye, so the raw eye-to-label
+						// distance does not change when zooming. Scale it by the zoom factor (current
+						// view height relative to the default) so that BOTH distance-scale modes
+						// (fade_out and perspective) respond to zoom the same way they do under a
+						// perspective camera. At the default view height the factor is 1, so the
+						// per-label distances (and the perspective mode's near-big/far-small cue) are
+						// preserved.
+						if (render_ctx.camera->is_ortho()) {
+							const float view_height = render_ctx.camera->as<ortho_camera>()->get_ortho_view_height();
+							return raw_distance * (view_height / camera_constants::kDefaultOrthoViewHeight);
+						}
+
+						return raw_distance;
+					}();
+
+					switch (render_opts.dist_scale_opts.scale_mode) {
 					case text_render_options::dist_scale_mode_type::fade_out:
 					{
 						// === FADE OUT SCALING ===

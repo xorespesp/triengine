@@ -615,4 +615,280 @@ namespace triengine
         this->_get_camera_vectors().update_vectors(new_front);
     }
 
+
+    //-------------------------------------------------------------------------------------------------
+    // Ortho Camera Implementations
+    //
+    // The orbit controls (rotation, pan, keyboard translation, vector update) mirror arcball_camera.
+    // The differences are the orthographic projection in get_view_projection and the zoom semantics
+    // (scroll adjusts the view height instead of dollying the eye).
+    //-------------------------------------------------------------------------------------------------
+
+    ortho_camera::ortho_camera(
+        const vec3_f32& pivot_point,
+        float zoom_distance,
+        float ortho_view_height)
+        : abstract_camera{ camera_type::ortho, pivot_point + vec3_f32(0.0f, 0.0f, zoom_distance) }
+        , _pivot_point{ pivot_point }, _target_pivot_point{ pivot_point }
+        , _zoom_distance{ zoom_distance }, _target_zoom_distance{ zoom_distance }
+        , _ortho_view_height{ ortho_view_height }, _target_ortho_view_height{ ortho_view_height }
+    {
+        this->update_camera_vectors();
+    }
+
+    void ortho_camera::get_view_projection(mat4_f32& view, mat4_f32& proj) const
+    {
+        // For orbit cameras, the view matrix is generated using a
+        // fixed world-up vector(`kWorldUp`) instead of the camera's up vector to prevent rolling.
+        view = math::lookAt(
+            this->get_position(),
+            _pivot_point,
+            camera_constants::kWorldUp
+        );
+
+        // Build a symmetric orthographic frustum from the current view height and viewport aspect.
+        const float aspect = this->get_viewport().aspect_ratio();
+        const float half_h = _ortho_view_height * 0.5f;
+        const float half_w = half_h * aspect;
+        proj = math::ortho(
+            -half_w, half_w,
+            -half_h, half_h,
+            camera_constants::kNearPlane,
+            camera_constants::kFarPlane
+        );
+    }
+
+    void ortho_camera::process_keyboard_translation(const camera_movement_type move_dir, const float delta_time)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        // Implement panning feature that moves the pivot point.
+        // The movement distance is proportional to the view height,
+        // allowing for fine movement when zoomed in and faster movement when zoomed out.
+
+        constexpr float kPanningSensitivity = 0.5f; // Ratio multiplied by view height to determine panning distance.
+        const float displacement = std::max(
+            (_ortho_view_height * kPanningSensitivity) * delta_time,
+            0.01f /* minimum guaranteed movement distance */
+        );
+
+        // When moving forward/backward, to ensure the target moves horizontally on the XZ plane
+        // even if the camera is tilted, calculate the horizontal forward vector from the current camera's Yaw angle.
+        const vec3_f32 forwardVectorOnGroundPlane = vec3_f32{
+            std::cos(math::deg2rad(_target_yaw)),
+            0.0f,
+            std::sin(math::deg2rad(_target_yaw))
+        }.normalized();
+
+        auto& vectors = this->_get_camera_vectors();
+        switch (move_dir) {
+        case camera_movement_type::forward:  _target_pivot_point -= forwardVectorOnGroundPlane * displacement; break;
+        case camera_movement_type::backward: _target_pivot_point += forwardVectorOnGroundPlane * displacement; break;
+        case camera_movement_type::left:     _target_pivot_point -= vectors.right * displacement; break;
+        case camera_movement_type::right:    _target_pivot_point += vectors.right * displacement; break;
+        case camera_movement_type::up:       _target_pivot_point += camera_constants::kWorldUp * displacement; break;
+        case camera_movement_type::down:     _target_pivot_point -= camera_constants::kWorldUp * displacement; break;
+        default: // Unknown movement type, do nothing
+            TRIENGINE_WARN("Unknown camera movement type: %d", static_cast<int>(move_dir));
+            break;
+        }
+    }
+
+    void ortho_camera::process_mouse_translation(const vec2_f32 start_viewport_pos, const vec2_f32 end_viewport_pos)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        std::optional<float> panning_ref_ndc_z;
+        if (vec3_f32 ndc_pos;
+            this->project_to_ndc_space(
+                _pivot_point,
+                ndc_pos
+            )) {
+            panning_ref_ndc_z = std::clamp(ndc_pos.z(), -1.0f, 1.0f);
+        }
+
+        if (!panning_ref_ndc_z.has_value()) {
+            TRIENGINE_ERROR("Failed to get panning_ref_ndc_z");
+            return;
+        }
+
+        vec3_f32 start_world_pos;
+        vec3_f32 end_world_pos;
+
+        if (!this->unproject_from_viewport_space_with_ndc_z(
+            start_viewport_pos,
+            panning_ref_ndc_z.value(),
+            start_world_pos
+        )) {
+            TRIENGINE_ERROR("Failed to get start_world_pos");
+            return;
+        }
+
+        if (!this->unproject_from_viewport_space_with_ndc_z(
+            end_viewport_pos,
+            panning_ref_ndc_z.value(),
+            end_world_pos
+        )) {
+            TRIENGINE_ERROR("Failed to get end_world_pos");
+            return;
+        }
+
+        const vec3_f32 translation_offset = end_world_pos - start_world_pos;
+        _target_pivot_point -= translation_offset;
+    }
+
+    void ortho_camera::process_mouse_rotation(vec2_f32 move_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        // Apply mouse sensitivity to the movement offset
+        move_offset *= _opts.mouse_sensitivity;
+
+        _target_yaw += move_offset.x();
+        _target_pitch -= move_offset.y();
+
+        // constraint pitch
+        _target_pitch = std::clamp(
+            _target_pitch,
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
+        );
+    }
+
+    void ortho_camera::process_mouse_zoom(const float zoom_offset)
+    {
+        // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
+        // (The actual camera parameter updates are performed in the update_animation function)
+
+        // An orthographic projection is invariant to translation along the view axis, so dollying the
+        // eye would not change the apparent size. Instead, "zoom" scales the view volume by adjusting
+        // the view height.
+        _target_ortho_view_height = std::clamp(
+            _target_ortho_view_height - zoom_offset,
+            camera_constants::kMinOrthoViewHeight,
+            camera_constants::kMaxOrthoViewHeight
+        );
+    }
+
+    void ortho_camera::process_mouse_perspective_zoom([[maybe_unused]] const float zoom_offset)
+    {
+        // No-op: an orthographic camera has no field of view to adjust.
+    }
+
+    void ortho_camera::update_animation(const float delta_time)
+    {
+        //
+        // Determine how much to interpolate in the current frame (how quickly to approach the target values)
+        // and update the camera parameters (gradually and smoothly) based on that interpolation value.
+        //
+
+        // Value for how much to interpolate in the current frame.
+        const float mixFactor = compute_smoothing_factor(_opts.damping_factor, delta_time);
+
+        // Update view height (the orthographic analogue of fovy/zoom)
+        _ortho_view_height = lerp(_ortho_view_height, _target_ortho_view_height, mixFactor);
+
+        _pivot_point = lerp(_pivot_point, _target_pivot_point, mixFactor);
+        _zoom_distance = lerp(_zoom_distance, _target_zoom_distance, mixFactor);
+        _yaw = lerp(_yaw, _target_yaw, mixFactor);
+        _pitch = lerp(_pitch, _target_pitch, mixFactor);
+        this->update_camera_vectors();
+    }
+
+    void ortho_camera::set_pivot_point(const vec3_f32& new_pivot_point, const bool smooth_update)
+    {
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _pivot_point = new_pivot_point;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_pivot_point = new_pivot_point;
+    }
+
+    void ortho_camera::set_zoom_distance(const float zoom_distance, const bool smooth_update) noexcept
+    {
+        const float clamped_zoom_distance = std::clamp(
+            zoom_distance,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _zoom_distance = clamped_zoom_distance;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_zoom_distance = clamped_zoom_distance;
+    }
+
+    void ortho_camera::set_yaw(const float yaw, const bool smooth_update) noexcept
+    {
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _yaw = yaw;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_yaw = yaw;
+    }
+
+    void ortho_camera::set_pitch(const float pitch, const bool smooth_update) noexcept
+    {
+        const float clamped_pitch = std::clamp(
+            pitch,
+            camera_constants::kMinPitch,
+            camera_constants::kMaxPitch
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _pitch = clamped_pitch;
+            this->update_camera_vectors();
+        }
+
+        // Always update the target state regardless of animation
+        _target_pitch = clamped_pitch;
+    }
+
+    void ortho_camera::set_ortho_view_height(const float ortho_view_height, const bool smooth_update) noexcept
+    {
+        const float clamped_view_height = std::clamp(
+            ortho_view_height,
+            camera_constants::kMinOrthoViewHeight,
+            camera_constants::kMaxOrthoViewHeight
+        );
+
+        // Immediately update the current state only if animation is not applied
+        if (!smooth_update) {
+            _ortho_view_height = clamped_view_height;
+        }
+
+        // Always update the target state regardless of animation
+        _target_ortho_view_height = clamped_view_height;
+    }
+
+    void ortho_camera::update_camera_vectors()
+    {
+        // Calculate new camera position using spherical coordinates
+        const vec3_f32 new_position{
+            _pivot_point.x() + _zoom_distance * std::cos(math::deg2rad(_pitch)) * std::cos(math::deg2rad(_yaw)),
+            _pivot_point.y() + _zoom_distance * std::sin(math::deg2rad(_pitch)),
+            _pivot_point.z() + _zoom_distance * std::cos(math::deg2rad(_pitch)) * std::sin(math::deg2rad(_yaw))
+        };
+
+        // Calculate new camera front vector
+        const vec3_f32 new_front{ (_pivot_point - new_position).normalized() };
+
+        this->_set_position(new_position);
+        this->_get_camera_vectors().update_vectors(new_front);
+    }
+
 } // namespace

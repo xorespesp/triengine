@@ -18,6 +18,7 @@ namespace triengine
     {
         _camera_map.emplace(camera_type::arcball, std::make_unique<arcball_camera>());
         _camera_map.emplace(camera_type::fly, std::make_unique<fly_camera>());
+        _camera_map.emplace(camera_type::ortho, std::make_unique<ortho_camera>());
         _active_camera_ptr = _camera_map.find(camera_type::arcball)->second.get();
     }
 

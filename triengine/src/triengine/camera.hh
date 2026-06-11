@@ -86,6 +86,7 @@ namespace triengine
             kNearPlane{ 0.1f }, // near plane distance
             kFarPlane{ 100.0f }; // far plane distance
 
+        // perspective camera only (vertical field of view, in degrees)
         constexpr float
             kMinFovy{ 1.0f },
             kMaxFovy{ 145.0f },
@@ -111,6 +112,14 @@ namespace triengine
 
         static const vec3_f32
             kDefaultArcballPivotPoint{ 0.0f, 0.0f, 0.0f };
+
+        // ortho camera only (vertical extent of the view volume, in world units).
+        // The default is chosen to roughly match the default perspective view at the
+        // pivot plane: 2 * kDefaultArcballZoomDistance * tan(kDefaultFovy / 2).
+        constexpr float
+            kMinOrthoViewHeight{ 0.1f },
+            kMaxOrthoViewHeight{ kFarPlane },
+            kDefaultOrthoViewHeight{ 4.14f };
 
     } // namespace
 
@@ -160,10 +169,12 @@ namespace triengine
     enum class camera_type {
         fly,
         arcball,
+        ortho,
     };
 
     class fly_camera;
     class arcball_camera;
+    class ortho_camera;
 
     //-------------------------------------------------------------------------------------------------
     // An abstract camera class that defines a common interface for all camera types.
@@ -213,7 +224,8 @@ namespace triengine
         const vec3_f32& get_position() const noexcept { return _position; }
         const vec3_f32& get_direction() const noexcept { return this->get_front(); } // syntactic sugar of `get_front()`
 
-        float get_fovy() const noexcept { return _fovy; }
+        // Whether this camera uses an perspective/orthographic projection.
+        virtual bool is_ortho() const noexcept { return false; }
 
         const view_port& get_viewport() const noexcept { return _viewport; }
         void set_viewport(const view_port& viewport);
@@ -294,10 +306,6 @@ namespace triengine
             _position = position;
         }
 
-        void _set_fovy(float fovy) noexcept {
-            _fovy = std::clamp(fovy, camera_constants::kMinFovy, camera_constants::kMaxFovy);
-        }
-
     private:
         template<typename _Ty>
         inline bool _is_castable_to() const noexcept {
@@ -306,6 +314,8 @@ namespace triengine
                 return _type == camera_type::fly;
             } else if constexpr (std::is_same_v<_Ty, arcball_camera>) {
                 return _type == camera_type::arcball;
+            } else if constexpr (std::is_same_v<_Ty, ortho_camera>) {
+                return _type == camera_type::ortho;
             } else {
                 return false; // Not castable to the requested type
             }
@@ -316,7 +326,6 @@ namespace triengine
         const camera_type _type;
         vec3_f32 _position{ camera_constants::kDefaultPosition };
         camera_vectors _vectors;
-        float _fovy{ camera_constants::kDefaultFovy };
 
         // Viewport for the camera
         view_port _viewport;
@@ -371,15 +380,21 @@ namespace triengine
         float get_pitch() const noexcept { return _pitch; }
         void set_pitch(float pitch, bool smooth_update = false) noexcept;
 
+        float get_fovy() const noexcept { return _fovy; }
         void set_fovy(float fovy, bool smooth_update = false) noexcept;
 
     private:
         void update_camera_vectors();
 
+        void _set_fovy(float fovy) noexcept {
+            _fovy = std::clamp(fovy, camera_constants::kMinFovy, camera_constants::kMaxFovy);
+        }
+
     private:
         // Current state attributes
         float _yaw{ camera_constants::kDefaultYaw }; // Euler angle
         float _pitch{ camera_constants::kDefaultPitch }; // Euler angle
+        float _fovy{ camera_constants::kDefaultFovy }; // vertical field of view (degrees)
 
         // Target state attributes for smoothing
         float _target_yaw{ camera_constants::kDefaultYaw };
@@ -442,7 +457,97 @@ namespace triengine
         float get_pitch() const noexcept { return _pitch; }
         void set_pitch(float pitch, bool smooth_update = false) noexcept;
 
+        float get_fovy() const noexcept { return _fovy; }
         void set_fovy(float fovy, bool smooth_update = false) noexcept;
+
+    private:
+        void update_camera_vectors();
+
+        void _set_fovy(float fovy) noexcept {
+            _fovy = std::clamp(fovy, camera_constants::kMinFovy, camera_constants::kMaxFovy);
+        }
+
+    private:
+        // Current state attributes
+        float _yaw{ camera_constants::kDefaultYaw }; // Euler angle
+        float _pitch{ camera_constants::kDefaultPitch }; // Euler angle
+        vec3_f32 _pivot_point{ camera_constants::kDefaultArcballPivotPoint };
+        float _zoom_distance{ camera_constants::kDefaultArcballZoomDistance };
+        float _fovy{ camera_constants::kDefaultFovy }; // vertical field of view (degrees)
+
+        // Target state attributes for smoothing
+        float _target_yaw{ camera_constants::kDefaultYaw };
+        float _target_pitch{ camera_constants::kDefaultPitch };
+        vec3_f32 _target_pivot_point{ camera_constants::kDefaultArcballPivotPoint };
+        float _target_zoom_distance{ camera_constants::kDefaultArcballZoomDistance };
+        float _target_fovy{ camera_constants::kDefaultFovy };
+
+        // Camera options
+        options_t _opts;
+    };
+
+
+    //-------------------------------------------------------------------------------------------------
+    // An orthographic camera that orbits around a target point.
+    //
+    // Shares the arcball-style orbit/pan/rotation controls, but emits an orthographic projection
+    // (no perspective foreshortening). Because an orthographic projection is invariant to translation
+    // along the view axis, dollying the eye does not change the apparent size; instead the scroll-zoom
+    // adjusts `_ortho_view_height` (the world-space vertical extent of the view volume). The eye is
+    // still positioned at `_zoom_distance` from the pivot so geometry falls within the near/far planes.
+    //-------------------------------------------------------------------------------------------------
+    class ortho_camera : public abstract_camera
+    {
+    public:
+        // Camera options
+        struct options_t
+        {
+            float mouse_sensitivity{ 0.25f }; // Mouse sensitivity factor
+            float damping_factor{ 10.0f }; // Damping factor for smooth animation (higher = faster stop)
+        };
+
+    public:
+        ortho_camera(
+            const vec3_f32& pivot_point = camera_constants::kDefaultArcballPivotPoint,
+            float zoom_distance = camera_constants::kDefaultArcballZoomDistance,
+            float ortho_view_height = camera_constants::kDefaultOrthoViewHeight
+        );
+
+        //
+        // Interface Implementations
+        //
+
+        void get_view_projection(mat4_f32& view/* out */, mat4_f32& proj/* out */) const override;
+        void process_keyboard_translation(camera_movement_type move_dir, float delta_time) override;
+        void process_mouse_translation(vec2_f32 start_viewport_pos, vec2_f32 end_viewport_pos) override;
+        void process_mouse_rotation(vec2_f32 move_offset) override;
+        void process_mouse_zoom(float zoom_offset) override;
+        void process_mouse_perspective_zoom(float zoom_offset) override;
+        void update_animation(float delta_time) override;
+
+        bool is_ortho() const noexcept override { return true; }
+
+        //
+        // Ortho camera specific methods
+        //
+
+        const options_t& get_options() const noexcept { return _opts; }
+        options_t& get_options() noexcept { return _opts; }
+
+        const vec3_f32& get_pivot_point() const { return _pivot_point; }
+        void set_pivot_point(const vec3_f32& pivot_point, bool smooth_update = false);
+
+        float get_zoom_distance() const noexcept { return _zoom_distance; }
+        void set_zoom_distance(float zoom_distance, bool smooth_update = false) noexcept;
+
+        float get_yaw() const noexcept { return _yaw; }
+        void set_yaw(float yaw, bool smooth_update = false) noexcept;
+
+        float get_pitch() const noexcept { return _pitch; }
+        void set_pitch(float pitch, bool smooth_update = false) noexcept;
+
+        float get_ortho_view_height() const noexcept { return _ortho_view_height; }
+        void set_ortho_view_height(float ortho_view_height, bool smooth_update = false) noexcept;
 
     private:
         void update_camera_vectors();
@@ -453,13 +558,14 @@ namespace triengine
         float _pitch{ camera_constants::kDefaultPitch }; // Euler angle
         vec3_f32 _pivot_point{ camera_constants::kDefaultArcballPivotPoint };
         float _zoom_distance{ camera_constants::kDefaultArcballZoomDistance };
+        float _ortho_view_height{ camera_constants::kDefaultOrthoViewHeight }; // vertical view extent (world units)
 
         // Target state attributes for smoothing
         float _target_yaw{ camera_constants::kDefaultYaw };
         float _target_pitch{ camera_constants::kDefaultPitch };
         vec3_f32 _target_pivot_point{ camera_constants::kDefaultArcballPivotPoint };
         float _target_zoom_distance{ camera_constants::kDefaultArcballZoomDistance };
-        float _target_fovy{ camera_constants::kDefaultFovy };
+        float _target_ortho_view_height{ camera_constants::kDefaultOrthoViewHeight };
 
         // Camera options
         options_t _opts;

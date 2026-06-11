@@ -57,9 +57,10 @@ namespace triengine::gui
                 {
                     ImGui::Indent();
 
-                    static constexpr std::array<const char*, 2> kCameraTypeNamesMap = {
+                    static constexpr std::array<const char*, 3> kCameraTypeNamesMap = {
                         "Fly",
-                        "Arcball"
+                        "Arcball",
+                        "Ortho"
                     };
 
                     if (int cam_type_idx = static_cast<int>(scn.get_camera()->get_type());
@@ -192,6 +193,60 @@ namespace triengine::gui
                                 "%.2f",
                                 ImGuiSliderFlags_AlwaysClamp)) {
                             arcball_cam->set_fovy(fovy, fl_smooth_update);
+                        }
+                    }
+                    else if (cam_type == camera_type::ortho)
+                    {
+                        auto* ortho_cam = scn.get_camera()->as<ortho_camera>();
+                        TRIENGINE_ASSERT(ortho_cam != nullptr);
+                        auto& ortho_cam_opts = ortho_cam->get_options();
+
+                        ImGui::DragFloat("Mouse Sensitivity", &ortho_cam_opts.mouse_sensitivity,
+                            0.01f, 0.01f, 10.0f,
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        ImGui::DragFloat("Damping Factor", &ortho_cam_opts.damping_factor,
+                            0.1f, 1.0f, 30.0f,
+                            "%.2f",
+                            ImGuiSliderFlags_AlwaysClamp
+                        );
+
+                        if (auto pivot_point = ortho_cam->get_pivot_point();
+                            ImGui::DragFloat3("Pivot Point", pivot_point.data(),
+                                0.1f, -100.0f, 100.0f)) {
+                            ortho_cam->set_pivot_point(pivot_point, fl_smooth_update);
+                        }
+
+                        if (float zoom_distance = ortho_cam->get_zoom_distance();
+                            ImGui::DragFloat("Zoom Distance", &zoom_distance,
+                                0.1f, camera_constants::kMinArcballZoomDistance, camera_constants::kMaxArcballZoomDistance)) {
+                            ortho_cam->set_zoom_distance(zoom_distance, fl_smooth_update);
+                        }
+
+                        if (float yaw = ortho_cam->get_yaw();
+                            ImGui::DragFloat("Yaw", &yaw,
+                                1.0f, -180.0f, 180.0f,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            ortho_cam->set_yaw(yaw, fl_smooth_update);
+                        }
+
+                        if (float pitch = ortho_cam->get_pitch();
+                            ImGui::DragFloat("Pitch", &pitch,
+                                1.0f, camera_constants::kMinPitch, camera_constants::kMaxPitch,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            ortho_cam->set_pitch(pitch, fl_smooth_update);
+                        }
+
+                        if (float view_height = ortho_cam->get_ortho_view_height();
+                            ImGui::DragFloat("View Height", &view_height,
+                                0.1f, camera_constants::kMinOrthoViewHeight, camera_constants::kMaxOrthoViewHeight,
+                                "%.2f",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+                            ortho_cam->set_ortho_view_height(view_height, fl_smooth_update);
                         }
                     }
                     else

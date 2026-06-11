@@ -626,6 +626,38 @@ namespace triengine::math
 	}
 
 	/**
+	 * Equivalent of: `glm::ortho` (with near/far clipping planes)
+	 *
+	 * Unlike the 4-parameter overload above (which omits depth scaling and is meant for
+	 * 2D/text rendering), this variant maps view-space z into NDC z [-1, 1] using the
+	 * `zNear`/`zFar` planes, so it is suitable for a depth-correct 3D orthographic camera.
+	 *
+	 * Ref:
+	 * glm/ext/matrix_clip_space.inl
+	 */
+	template<typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> ortho(
+		const _Scalar left,
+		const _Scalar right,
+		const _Scalar bottom,
+		const _Scalar top,
+		const _Scalar zNear,
+		const _Scalar zFar)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		Eigen::Matrix4<_Scalar> result = Eigen::Matrix4<_Scalar>::Identity();
+		result(0, 0) =  static_cast<_Scalar>(2) / (right - left);
+		result(1, 1) =  static_cast<_Scalar>(2) / (top - bottom);
+		result(2, 2) = -static_cast<_Scalar>(2) / (zFar - zNear);
+		result(0, 3) = -(right + left) / (right - left);
+		result(1, 3) = -(top + bottom) / (top - bottom);
+		result(2, 3) = -(zFar + zNear) / (zFar - zNear);
+
+		return result;
+	}
+
+	/**
 	 * @brief Translates a 4x4 matrix 'm' by directly adding a 3D vector 'v'
 	 * to its existing translation components (the first three elements of the last column).
 	 *
