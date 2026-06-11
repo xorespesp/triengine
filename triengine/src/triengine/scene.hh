@@ -167,6 +167,13 @@ namespace triengine
             const color3_f32& color
         );
 
+        // Update the image content of an existing texture in-place.
+        // The new image must have the same resolution and format as the original.
+        void update_texture_2d(
+            texture_handle_t texture_handle,
+            const std::shared_ptr<image_buffer>& tex_image
+        );
+
         // Destroy texture
         void destroy_texture(texture_handle_t texture_handle);
 

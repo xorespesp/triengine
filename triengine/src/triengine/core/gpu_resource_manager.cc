@@ -76,6 +76,20 @@ namespace triengine::core
         return new_tex_handle;
     }
 
+    void gpu_resource_manager::request_update_texture_resource(
+        texture_handle_t tex_handle,
+        const std::shared_ptr<image_buffer>& tex_image)
+    {
+        command_data cmd;
+        cmd.cmd_type = command_type::update_texture_resource;
+        auto& cmd_data = cmd.cmd_data.emplace<update_texture_resource_command_data>();
+        cmd_data.tex_handle = tex_handle;
+        cmd_data.tex_image = tex_image;
+
+        std::scoped_lock lk{ _cmd_q_mtx };
+        _cmd_q.emplace_back(std::move(cmd));
+    }
+
     void gpu_resource_manager::request_destroy_texture_resource(
         texture_handle_t tex_handle)
     {
@@ -117,6 +131,11 @@ namespace triengine::core
             case command_type::create_texture_resource:
                 this->_handle_create_texture_resource_command(
                     std::get<create_texture_resource_command_data>(cmd.cmd_data)
+                );
+                break;
+            case command_type::update_texture_resource:
+                this->_handle_update_texture_resource_command(
+                    std::get<update_texture_resource_command_data>(cmd.cmd_data)
                 );
                 break;
             case command_type::destroy_texture_resource:
@@ -316,6 +335,24 @@ namespace triengine::core
             , new_tex2d_rsrc->id()
             , cmd_data.tex_handle
         );
+    }
+
+    void gpu_resource_manager::_handle_update_texture_resource_command(
+        const update_texture_resource_command_data& cmd_data)
+    {
+        if (!cmd_data.tex_image || cmd_data.tex_image->empty()) {
+            TRIENGINE_PANIC("Invalid image provided for texture handle #%llX", cmd_data.tex_handle);
+        }
+
+        auto it = _tex2d_rsrc_map.find(cmd_data.tex_handle);
+        if (it == _tex2d_rsrc_map.end()) {
+            // The create command may not have been processed yet, so do not panic here.
+            TRIENGINE_WARN("Texture handle #%llX not found in texture resource map", cmd_data.tex_handle);
+            return;
+        }
+
+        // In-place GPU upload. Dimension/format mismatch is validated inside update_data().
+        it->second->update_data(*cmd_data.tex_image);
     }
 
     void gpu_resource_manager::_handle_destroy_texture_resource_command(

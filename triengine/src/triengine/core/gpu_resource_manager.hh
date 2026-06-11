@@ -28,10 +28,11 @@ namespace triengine::core
         template <typename _Ty>
         using geometry_resource_map = std::unordered_map<geometry::geometry_object_id_t, _Ty>;
 
-        enum class command_type { 
-            acquire_geometry_resource, 
-            release_geometry_resource, 
+        enum class command_type {
+            acquire_geometry_resource,
+            release_geometry_resource,
             create_texture_resource,
+            update_texture_resource,
             destroy_texture_resource
         };
 
@@ -51,6 +52,11 @@ namespace triengine::core
             texture_params_t tex_params{};
         };
 
+        struct update_texture_resource_command_data {
+            texture_handle_t tex_handle{};
+            std::shared_ptr<image_buffer> tex_image;
+        };
+
         struct destroy_texture_resource_command_data {
             texture_handle_t tex_handle{};
         };
@@ -61,6 +67,7 @@ namespace triengine::core
                 acquire_geometry_resource_command_data,
                 release_geometry_resource_command_data,
                 create_texture_resource_command_data,
+                update_texture_resource_command_data,
                 destroy_texture_resource_command_data
             > cmd_data;
         };
@@ -97,6 +104,12 @@ namespace triengine::core
         texture_handle_t request_create_texture_resource(
             const std::shared_ptr<image_buffer>& tex_image,
             const texture_params_t& tex_params
+        );
+
+        // thread-safe
+        void request_update_texture_resource(
+            texture_handle_t tex_handle,
+            const std::shared_ptr<image_buffer>& tex_image
         );
 
         // thread-safe
@@ -141,6 +154,11 @@ namespace triengine::core
         // NOTE: must be called in render thread
         void _handle_create_texture_resource_command(
             const create_texture_resource_command_data& cmd_data
+        );
+
+        // NOTE: must be called in render thread
+        void _handle_update_texture_resource_command(
+            const update_texture_resource_command_data& cmd_data
         );
 
         // NOTE: must be called in render thread

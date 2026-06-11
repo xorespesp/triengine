@@ -260,6 +260,18 @@ namespace triengine
         return this->create_texture_2d(tex_image, texture_params_t{});
     }
 
+    void scene::update_texture_2d(
+        const texture_handle_t texture_handle,
+        const std::shared_ptr<image_buffer>& tex_image)
+    {
+        auto gpu_rsrc_mgr = _gpu_rsrc_mgr.lock();
+        if (!gpu_rsrc_mgr) {
+            TRIENGINE_PANIC("Failed to access gpu resource manager");
+        }
+
+        gpu_rsrc_mgr->request_update_texture_resource(texture_handle, tex_image);
+    }
+
     void scene::destroy_texture(
         const texture_handle_t texture_handle)
     {
