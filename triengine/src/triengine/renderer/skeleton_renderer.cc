@@ -46,8 +46,14 @@ namespace triengine::renderer
                 continue;
             }
 
-            _mesh_renderer.render(render_ctx, object->get_joint_objects());
-            _mesh_renderer.render(render_ctx, object->get_bone_objects());
+            _mesh_renderer.render(render_ctx,
+                mesh_renderer::render_mode_type::lit_shaded_surfaces, 
+                object->get_joint_objects()
+            );
+            _mesh_renderer.render(render_ctx,
+                mesh_renderer::render_mode_type::lit_shaded_surfaces, 
+                object->get_bone_objects()
+            );
         }
     }
 

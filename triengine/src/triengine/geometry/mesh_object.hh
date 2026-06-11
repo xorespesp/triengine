@@ -16,10 +16,18 @@ namespace triengine::geometry
         : public geometry_object_base
     {
     public:
+        /// Base color shading source.
         enum class shading_mode
         {
             vertex, /// Coloring by linear-interpolation from vertices, requires vertex colors (as rgb)
             texture /// Coloring by texture, requires texture uv coordinates (color information)
+        };
+
+        /// Whether lighting is applied to the base color. Orthogonal to `shading_mode`.
+        enum class lighting_mode
+        {
+            lit, /// base color is shaded by scene lights
+            unlit /// base color is output as-is, no lighting applied
         };
 
         /// NOTE: Only used in vertex-shading mode
@@ -97,8 +105,11 @@ namespace triengine::geometry
         };
 
     private:
-        /// Shading mode
+        /// Base color shading source
         shading_mode _shading_mode{ shading_mode::vertex };
+
+        /// Whether lighting is applied to the base color
+        lighting_mode _lighting_mode{ lighting_mode::lit };
 
         /// Material info
         std::variant<
@@ -128,6 +139,7 @@ namespace triengine::geometry
             clone_to.vertex_uvs = this->vertex_uvs;
             clone_to.triangle_indices = this->triangle_indices;
             clone_to._shading_mode = this->_shading_mode;
+            clone_to._lighting_mode = this->_lighting_mode;
             clone_to._material = this->_material;
             clone_to.set_visible(this->is_visible());
             clone_to.set_model(this->get_model());
@@ -174,6 +186,14 @@ namespace triengine::geometry
                 TRIENGINE_ASSERT(false); // not expected
                 break;
             }
+        }
+
+        lighting_mode get_lighting_mode() const noexcept {
+            return _lighting_mode;
+        }
+
+        void set_lighting_mode(lighting_mode mode) noexcept {
+            _lighting_mode = mode;
         }
 
         /// NOTE: Only used in vertex-shading mode

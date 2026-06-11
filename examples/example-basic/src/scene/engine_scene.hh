@@ -13,6 +13,7 @@ namespace demo::scene
         : public scene_wrapper
     {
         std::shared_ptr<geometry::mesh_object> _engine_mesh;
+        color3_f32 _engine_color{ 0.8f, 0.8f, 0.8f }; // base color applied on demand via the gui
 
     public:
         engine_scene(
@@ -24,8 +25,10 @@ namespace demo::scene
             scn->set_name("engine");
 
             scn->get_render_config()->show_origin_xz_grid = false;
-            scn->get_render_config()->bg_color = color4_f32{ 1.0f, 1.0f, 1.0f, 1.0f };
+            scn->get_render_config()->bg_color = color4_f32{ 0.08f, 0.08f, 0.08f, 1.0f };
             scn->get_render_config()->light_opts.point_light.enabled = false;
+            scn->get_render_config()->light_opts.dir_light.enabled = true;
+            scn->get_render_config()->light_opts.dir_light.follow_camera = true;
             scn->get_render_config()->light_opts.dir_light.ambient_intensity = 0.1f;
             scn->get_render_config()->light_opts.dir_light.diffuse_intensity = 0.45f;
             scn->get_render_config()->light_opts.dir_light.specular_intensity = 1.5f;
@@ -52,7 +55,7 @@ namespace demo::scene
                 _engine_mesh->apply_model_in_place();
                 _engine_mesh->translate(vec3_f32(0.0f, 0.5f, 0.0f), true);
                 _engine_mesh->get_vertex_shading_material()->specular_intensity = 1.0f;
-                _engine_mesh->get_vertex_shading_material()->alpha = 0.6f;
+                _engine_mesh->get_vertex_shading_material()->alpha = 0.4f;
                 scn->add_geometry(_engine_mesh);
             }
         }
@@ -80,7 +83,35 @@ namespace demo::scene
         {
             ImGui::Text("engine scene gui!");
 
-            ImGui::DragFloat("alpha", &_engine_mesh->get_vertex_shading_material()->alpha, 0.01f, 0.0f, 1.0f);
+            using lighting_mode = geometry::mesh_object::lighting_mode;
+            auto* const mat = _engine_mesh->get_vertex_shading_material();
+
+            // Lighting mode (lit / unlit)
+            const char* const lighting_items[] = { "Lit", "Unlit" };
+            int lighting_idx = (_engine_mesh->get_lighting_mode() == lighting_mode::unlit) ? 1 : 0;
+            if (ImGui::Combo("lighting", &lighting_idx, lighting_items, IM_ARRAYSIZE(lighting_items))) {
+                _engine_mesh->set_lighting_mode(lighting_idx == 1 ? lighting_mode::unlit : lighting_mode::lit);
+            }
+
+            // Engine base color: valid in both lit and unlit
+            if (ImGui::ColorEdit3("color", _engine_color.data())) {
+                _engine_mesh->paint_uniform_color(_engine_color);
+                _engine_mesh->mark_dirty();
+            }
+
+            // Phong material: only meaningful when lit
+            if (_engine_mesh->get_lighting_mode() == lighting_mode::lit) {
+                ImGui::DragFloat("ambient", &mat->ambient_intensity, 0.01f, 0.0f, 4.0f);
+                ImGui::DragFloat("diffuse", &mat->diffuse_intensity, 0.01f, 0.0f, 4.0f);
+                ImGui::DragFloat("specular", &mat->specular_intensity, 0.01f, 0.0f, 4.0f);
+                int shininess = static_cast<int>(mat->shininess);
+                if (ImGui::SliderInt("shininess", &shininess, 1, 256)) {
+                    mat->shininess = static_cast<uint16_t>(shininess);
+                }
+            }
+
+            // Alpha: valid in both lit and unlit; < 1.0 routes the mesh through the WBOIT transparent pass
+            ImGui::DragFloat("alpha", &mat->alpha, 0.01f, 0.0f, 1.0f);
         }
 
     }; // class

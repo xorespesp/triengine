@@ -286,7 +286,6 @@ namespace triengine::core
             _pcd_renderer.set_pcd_point_size(scn_render_config.pcd_point_size.value());
         }
 
-        _mesh_renderer.set_render_mode(renderer::mesh_renderer::render_mode_type::shaded_surfaces);
         _skeleton_renderer.show_joint_axis(scn_render_config.skeleton_mode == skeleton_render_mode::overlay_with_joint_axis);
         _inf_plane_renderer.set_options(scn_render_config.inf_plane_opts);
 
@@ -400,7 +399,10 @@ namespace triengine::core
             // (fill G-buffer with opaque objects)
             {
                 _pcd_renderer.render(render_ctx, scn.get_pcd_geometries());
-                _mesh_renderer.render(render_ctx, scn.get_mesh_geometries());
+                _mesh_renderer.render(render_ctx,
+                    renderer::mesh_renderer::render_mode_type::lit_shaded_surfaces,
+                    scn.get_mesh_geometries()
+                );
                 if (!overlay_render_pass_required) {
                     _skeleton_renderer.render(render_ctx, scn.get_skeleton_geometries());
                 }
@@ -527,10 +529,19 @@ namespace triengine::core
             _light_source_renderer.render(render_ctx);
             _lineset_renderer.render(render_ctx, scn.get_lineset_geometries());
 
+            // Unlit opaque meshes: rendered here (not in the deferred geometry pass) so
+            // they bypass lighting entirely while still depth-interacting with lit geometry.
+            _mesh_renderer.render(render_ctx,
+                renderer::mesh_renderer::render_mode_type::unlit_shaded_surfaces,
+                scn.get_mesh_geometries()
+            );
+
             // render mesh object normals (if enabled)
             if (scn_render_config.show_object_normals) {
-                _mesh_renderer.set_render_mode(renderer::mesh_renderer::render_mode_type::vertex_normals);
-                _mesh_renderer.render(render_ctx, scn.get_mesh_geometries());
+                _mesh_renderer.render(render_ctx,
+                    renderer::mesh_renderer::render_mode_type::vertex_normals,
+                    scn.get_mesh_geometries()
+                );
             }
 
             //
@@ -565,8 +576,16 @@ namespace triengine::core
             // render transparent objects
             _pcd_renderer.render(render_ctx, scn.get_pcd_geometries());
 
-            _mesh_renderer.set_render_mode(renderer::mesh_renderer::render_mode_type::shaded_surfaces);
-            _mesh_renderer.render(render_ctx, scn.get_mesh_geometries());
+            _mesh_renderer.render(render_ctx,
+                renderer::mesh_renderer::render_mode_type::lit_shaded_surfaces,
+                scn.get_mesh_geometries()
+            );
+
+            // Unlit transparent meshes (WBOIT, no lighting)
+            _mesh_renderer.render(render_ctx,
+                renderer::mesh_renderer::render_mode_type::unlit_shaded_surfaces,
+                scn.get_mesh_geometries()
+            );
 
             if (scn_render_config.show_origin_xz_grid) {
                 // NOTE: The infinite plane renderer must be rendered last to allow for alpha-blending.

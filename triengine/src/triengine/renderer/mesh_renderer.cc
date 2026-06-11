@@ -7,11 +7,6 @@ namespace triengine::renderer
     mesh_renderer::mesh_renderer()
     {}
 
-    void mesh_renderer::set_render_mode(render_mode_type new_mode)
-    {
-        _curr_render_mode = new_mode;
-    }
-
     void mesh_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());
@@ -28,36 +23,56 @@ namespace triengine::renderer
         const auto shader_ldr = glctx.get_shader_loader();
 
         // Create shader program
-        _vtxshaded_deferred_opaque_pass_shader
-            .attach_vertex_shader({ shader_ldr->load("vtxshaded_mesh_deferred_geom_pass.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("vtxshaded_mesh_deferred_geom_pass.frag")->c_str() })
+        _lit_vtxshaded_deferred_opaque_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("lit_vtxshaded_mesh_deferred_geom_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lit_vtxshaded_mesh_deferred_geom_pass.frag")->c_str() })
             .link();
 
-        _vtxshaded_forward_trans_pass_shader
-            .attach_vertex_shader({ shader_ldr->load("vtxshaded_mesh_forward_trans_pass.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("vtxshaded_mesh_forward_trans_pass.frag")->c_str() })
+        _lit_vtxshaded_forward_trans_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("lit_vtxshaded_mesh_forward_trans_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lit_vtxshaded_mesh_forward_trans_pass.frag")->c_str() })
             .link();
 
-        _vtxshaded_forward_opaque_pass_shader
-            .attach_vertex_shader({ shader_ldr->load("vtxshaded_mesh_forward_opaque_pass.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("vtxshaded_mesh_forward_opaque_pass.frag")->c_str() })
+        _lit_vtxshaded_forward_opaque_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("lit_vtxshaded_mesh_forward_opaque_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lit_vtxshaded_mesh_forward_opaque_pass.frag")->c_str() })
             .link();
 
-        _texshaded_deferred_opaque_pass_shader
-            .attach_vertex_shader({ shader_ldr->load("texshaded_mesh_deferred_geom_pass.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("texshaded_mesh_deferred_geom_pass.frag")->c_str() })
+        _lit_texshaded_deferred_opaque_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("lit_texshaded_mesh_deferred_geom_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lit_texshaded_mesh_deferred_geom_pass.frag")->c_str() })
             .link();
 
-        _texshaded_forward_opaque_pass_shader
-            .attach_vertex_shader({ shader_ldr->load("texshaded_mesh_forward_opaque_pass.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("texshaded_mesh_forward_opaque_pass.frag")->c_str() })
+        _lit_texshaded_forward_opaque_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("lit_texshaded_mesh_forward_opaque_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lit_texshaded_mesh_forward_opaque_pass.frag")->c_str() })
             .link();
         
-        _texshaded_forward_trans_pass_shader
-            .attach_vertex_shader({ shader_ldr->load("texshaded_mesh_forward_trans_pass.vert")->c_str() })
-            .attach_fragment_shader({ shader_ldr->load("texshaded_mesh_forward_trans_pass.frag")->c_str() })
+        _lit_texshaded_forward_trans_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("lit_texshaded_mesh_forward_trans_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("lit_texshaded_mesh_forward_trans_pass.frag")->c_str() })
             .link();
-        
+
+        _unlit_vtxshaded_forward_opaque_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("unlit_vtxshaded_mesh_forward_opaque_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("unlit_vtxshaded_mesh_forward_opaque_pass.frag")->c_str() })
+            .link();
+
+        _unlit_vtxshaded_forward_trans_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("unlit_vtxshaded_mesh_forward_trans_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("unlit_vtxshaded_mesh_forward_trans_pass.frag")->c_str() })
+            .link();
+
+        _unlit_texshaded_forward_opaque_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("unlit_texshaded_mesh_forward_opaque_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("unlit_texshaded_mesh_forward_opaque_pass.frag")->c_str() })
+            .link();
+
+        _unlit_texshaded_forward_trans_pass_shader
+            .attach_vertex_shader({ shader_ldr->load("unlit_texshaded_mesh_forward_trans_pass.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("unlit_texshaded_mesh_forward_trans_pass.frag")->c_str() })
+            .link();
+
         _normal_vis_shader
             .attach_vertex_shader({ shader_ldr->load("obj_normal_vis.vert")->c_str() })
             .attach_geometry_shader({ shader_ldr->load("obj_normal_vis.geom")->c_str() })
@@ -71,13 +86,18 @@ namespace triengine::renderer
         {
             this->set_creation_flag(false);
 
-            _vtxshaded_deferred_opaque_pass_shader.destroy();
-            _vtxshaded_forward_opaque_pass_shader.destroy();
-            _vtxshaded_forward_trans_pass_shader.destroy();
+            _lit_vtxshaded_deferred_opaque_pass_shader.destroy();
+            _lit_vtxshaded_forward_opaque_pass_shader.destroy();
+            _lit_vtxshaded_forward_trans_pass_shader.destroy();
 
-            _texshaded_deferred_opaque_pass_shader.destroy();
-            _texshaded_forward_opaque_pass_shader.destroy();
-            _texshaded_forward_trans_pass_shader.destroy();
+            _lit_texshaded_deferred_opaque_pass_shader.destroy();
+            _lit_texshaded_forward_opaque_pass_shader.destroy();
+            _lit_texshaded_forward_trans_pass_shader.destroy();
+
+            _unlit_vtxshaded_forward_opaque_pass_shader.destroy();
+            _unlit_vtxshaded_forward_trans_pass_shader.destroy();
+            _unlit_texshaded_forward_opaque_pass_shader.destroy();
+            _unlit_texshaded_forward_trans_pass_shader.destroy();
 
             _normal_vis_shader.destroy();
 
@@ -87,6 +107,7 @@ namespace triengine::renderer
 
     void mesh_renderer::render_impl(
         const render_context& render_ctx,
+        const render_mode_type render_mode,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_obj_list,
         const pred_callback_type<geometry::mesh_object> predicate,
         void* const predicate_userdata)
@@ -98,10 +119,14 @@ namespace triengine::renderer
         // Enable depth testing
         //GLCall(::glEnable(GL_DEPTH_TEST));
 
-        switch (_curr_render_mode) {
-        case render_mode_type::shaded_surfaces:
-            this->_render_vertex_shaded_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
-            this->_render_texture_shaded_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
+        switch (render_mode) {
+        case render_mode_type::lit_shaded_surfaces:
+            this->_render_lit_vertex_shaded_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
+            this->_render_lit_texture_shaded_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
+            break;
+        case render_mode_type::unlit_shaded_surfaces:
+            this->_render_unlit_vertex_shaded_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
+            this->_render_unlit_texture_shaded_objects(render_ctx, render_obj_list, predicate, predicate_userdata);
             break;
         case render_mode_type::vertex_normals:
             this->_render_objects_normals(render_ctx, render_obj_list, predicate, predicate_userdata);
@@ -109,12 +134,12 @@ namespace triengine::renderer
         default:
             TRIENGINE_PANIC("%s(): Unsupported render mode type: %d"
                 , __func__
-                , static_cast<int>(_curr_render_mode)
+                , static_cast<int>(render_mode)
             );
         }
     }
 
-    void mesh_renderer::_render_vertex_shaded_objects(
+    void mesh_renderer::_render_lit_vertex_shaded_objects(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
         pred_callback_type<geometry::mesh_object> const predicate,
@@ -123,7 +148,7 @@ namespace triengine::renderer
         switch (render_ctx.curr_render_pass) {
         case render_pass_type::deferred_opaque_pass:
         {
-            auto* const draw_shader = &_vtxshaded_deferred_opaque_pass_shader;
+            auto* const draw_shader = &_lit_vtxshaded_deferred_opaque_pass_shader;
 
             draw_shader->use();
 
@@ -138,7 +163,9 @@ namespace triengine::renderer
                     continue;
                 }
 
-                if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
+                if (!object->is_visible() ||
+                    object->get_lighting_mode() != geometry::mesh_object::lighting_mode::lit ||
+                    object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
                     continue;
                 }
 
@@ -193,7 +220,7 @@ namespace triengine::renderer
         }
         case render_pass_type::forward_opaque_pass: // for overlay rendering (skeleton renderer)
         {
-            auto* const draw_shader = &_vtxshaded_forward_opaque_pass_shader;
+            auto* const draw_shader = &_lit_vtxshaded_forward_opaque_pass_shader;
 
             draw_shader->use();
 
@@ -213,7 +240,9 @@ namespace triengine::renderer
                     continue;
                 }
 
-                if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
+                if (!object->is_visible() ||
+                    object->get_lighting_mode() != geometry::mesh_object::lighting_mode::lit ||
+                    object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
                     continue;
                 }
 
@@ -267,7 +296,7 @@ namespace triengine::renderer
         }
         case render_pass_type::forward_transparent_pass:
         {
-            auto* const draw_shader = &_vtxshaded_forward_trans_pass_shader;
+            auto* const draw_shader = &_lit_vtxshaded_forward_trans_pass_shader;
 
             draw_shader->use();
 
@@ -287,7 +316,9 @@ namespace triengine::renderer
                     continue;
                 }
 
-                if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
+                if (!object->is_visible() ||
+                    object->get_lighting_mode() != geometry::mesh_object::lighting_mode::lit ||
+                    object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
                     continue;
                 }
 
@@ -350,7 +381,7 @@ namespace triengine::renderer
         }
     }
 
-    void mesh_renderer::_render_texture_shaded_objects(
+    void mesh_renderer::_render_lit_texture_shaded_objects(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
         pred_callback_type<geometry::mesh_object> const predicate,
@@ -359,7 +390,7 @@ namespace triengine::renderer
         switch (render_ctx.curr_render_pass) {
         case render_pass_type::deferred_opaque_pass:
         {
-            auto* const draw_shader = &_texshaded_deferred_opaque_pass_shader;
+            auto* const draw_shader = &_lit_texshaded_deferred_opaque_pass_shader;
 
             draw_shader->use();
 
@@ -374,7 +405,9 @@ namespace triengine::renderer
                     continue;
                 }
 
-                if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
+                if (!object->is_visible() ||
+                    object->get_lighting_mode() != geometry::mesh_object::lighting_mode::lit ||
+                    object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
                     continue;
                 }
 
@@ -439,7 +472,7 @@ namespace triengine::renderer
         }
         case render_pass_type::forward_opaque_pass: // for overlay rendering (skeleton renderer)
         {
-            auto* const draw_shader = &_texshaded_forward_opaque_pass_shader;
+            auto* const draw_shader = &_lit_texshaded_forward_opaque_pass_shader;
 
             draw_shader->use();
 
@@ -459,7 +492,9 @@ namespace triengine::renderer
                     continue;
                 }
 
-                if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
+                if (!object->is_visible() ||
+                    object->get_lighting_mode() != geometry::mesh_object::lighting_mode::lit ||
+                    object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
                     continue;
                 }
 
@@ -524,7 +559,7 @@ namespace triengine::renderer
         }
         case render_pass_type::forward_transparent_pass:
         {
-            auto* const draw_shader = &_texshaded_forward_trans_pass_shader;
+            auto* const draw_shader = &_lit_texshaded_forward_trans_pass_shader;
 
             draw_shader->use();
 
@@ -544,7 +579,9 @@ namespace triengine::renderer
                     continue; 
                 }
 
-                if (!object->is_visible() || object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
+                if (!object->is_visible() ||
+                    object->get_lighting_mode() != geometry::mesh_object::lighting_mode::lit ||
+                    object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
                     continue;
                 }
 
@@ -618,6 +655,199 @@ namespace triengine::renderer
         }
     }
 
+    void mesh_renderer::_render_unlit_vertex_shaded_objects(
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
+        pred_callback_type<geometry::mesh_object> const predicate,
+        void* const predicate_userdata)
+    {
+        // Vertex-colored unlit objects bypass the deferred pipeline entirely; they are drawn
+        // in the forward passes (opaque -> forward_opaque_pass, transparent -> WBOIT) and the
+        // interpolated vertex color is output as-is without any lighting.
+        core::shader_program* draw_shader = nullptr;
+        bool render_opaque = false; // true: render opaque objects, false: render transparent objects
+
+        switch (render_ctx.curr_render_pass) {
+        case render_pass_type::deferred_opaque_pass:
+            // Unlit objects are not part of the deferred geometry pass.
+            return;
+        case render_pass_type::forward_opaque_pass:
+            draw_shader = &_unlit_vtxshaded_forward_opaque_pass_shader;
+            render_opaque = true;
+            break;
+        case render_pass_type::forward_transparent_pass:
+            draw_shader = &_unlit_vtxshaded_forward_trans_pass_shader;
+            render_opaque = false;
+            break;
+        default:
+            TRIENGINE_PANIC("%s(): Unsupported render pass type: %d"
+                , __func__
+                , static_cast<int>(render_ctx.curr_render_pass)
+            );
+        }
+
+        draw_shader->use();
+
+        // Update view, projection matrices in shader
+        draw_shader->set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader->set_uniform_mat4("u_proj", render_ctx.projection);
+
+        auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
+        for (const auto& object : render_objects)
+        {
+            if (object->is_opaque() != render_opaque) {
+                continue;
+            }
+
+            if (!object->is_visible() ||
+                object->get_lighting_mode() != geometry::mesh_object::lighting_mode::unlit ||
+                object->get_shading_mode() != geometry::mesh_object::shading_mode::vertex) {
+                continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
+                continue;
+            }
+
+            const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+            if (!object_gpu_rsrc) {
+                continue;
+            }
+
+            const auto& triangle_indices = object->triangle_indices;
+            const auto* const material = object->get_vertex_shading_material();
+
+            TRIENGINE_ASSERT(!triangle_indices.empty());
+            TRIENGINE_ASSERT(material != nullptr);
+
+            // Update model(transform) matrix in shader
+            const mat4_f32& model = object->get_model();
+            draw_shader->set_uniform_mat4("u_model", model);
+
+            // Update alpha material (WBOIT transparent pass only)
+            if (!render_opaque) {
+                draw_shader->set_uniform_float("u_alpha", material->alpha);
+            }
+
+            // Update VAO
+            if (object->is_dirty()) {
+                object_gpu_rsrc->update(object);
+                object->clear_dirty();
+            }
+
+            // Render triangles
+            GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
+            GLCall(::glDrawElementsBaseVertex(
+                GL_TRIANGLES,
+                static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
+                GL_UNSIGNED_INT,
+                nullptr/* const GLvoid* indices */,
+                0/* GLint basevertex */
+            ));
+            //GLCall(::glBindVertexArray(0)); // Unbind VAO (optional)
+        } // for
+    }
+
+    void mesh_renderer::_render_unlit_texture_shaded_objects(
+        const render_context& render_ctx,
+        const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
+        pred_callback_type<geometry::mesh_object> const predicate,
+        void* const predicate_userdata)
+    {
+        // Texture-shaded unlit objects bypass the deferred pipeline entirely; they are drawn
+        // in the forward passes (opaque -> forward_opaque_pass, transparent -> WBOIT) and the
+        // diffuse map color is output as-is without any lighting. (specular map is unused)
+        core::shader_program* draw_shader = nullptr;
+        bool render_opaque = false; // true: render opaque objects, false: render transparent objects
+
+        switch (render_ctx.curr_render_pass) {
+        case render_pass_type::deferred_opaque_pass:
+            // Unlit objects are not part of the deferred geometry pass.
+            return;
+        case render_pass_type::forward_opaque_pass:
+            draw_shader = &_unlit_texshaded_forward_opaque_pass_shader;
+            render_opaque = true;
+            break;
+        case render_pass_type::forward_transparent_pass:
+            draw_shader = &_unlit_texshaded_forward_trans_pass_shader;
+            render_opaque = false;
+            break;
+        default:
+            TRIENGINE_PANIC("%s(): Unsupported render pass type: %d"
+                , __func__
+                , static_cast<int>(render_ctx.curr_render_pass)
+            );
+        }
+
+        draw_shader->use();
+
+        // Update view, projection matrices in shader
+        draw_shader->set_uniform_mat4("u_view", render_ctx.view);
+        draw_shader->set_uniform_mat4("u_proj", render_ctx.projection);
+
+        auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
+        for (const auto& object : render_objects)
+        {
+            if (object->is_opaque() != render_opaque) {
+                continue;
+            }
+
+            if (!object->is_visible() ||
+                object->get_lighting_mode() != geometry::mesh_object::lighting_mode::unlit ||
+                object->get_shading_mode() != geometry::mesh_object::shading_mode::texture) {
+                continue;
+            }
+
+            if (predicate && !predicate(*object, predicate_userdata)) {
+                continue;
+            }
+
+            const auto object_gpu_rsrc = gpu_rsrc_mgr->get_mesh_geometry_resource(object);
+            if (!object_gpu_rsrc) {
+                continue;
+            }
+
+            const auto& triangle_indices = object->triangle_indices;
+            const auto* const material = object->get_texture_shading_material();
+
+            TRIENGINE_ASSERT(!triangle_indices.empty());
+            // Unlit only needs the diffuse map (specular map is ignored), so do not require full is_valid().
+            TRIENGINE_ASSERT(material != nullptr && material->diffuse_map != kInvalidTextureHandle);
+
+            // Update model(transform) matrix in shader
+            const mat4_f32& model = object->get_model();
+            draw_shader->set_uniform_mat4("u_model", model);
+
+            // Update material diffuse(base color) map
+            auto diffuse_tex2d_gpu_rsrc = gpu_rsrc_mgr->get_texture_2d_resource(material->diffuse_map);
+            TRIENGINE_ASSERT(diffuse_tex2d_gpu_rsrc != nullptr && diffuse_tex2d_gpu_rsrc->is_valid());
+
+            ::glBindTextureUnit(0, diffuse_tex2d_gpu_rsrc->id());
+
+            // Update alpha material (WBOIT transparent pass only)
+            if (!render_opaque) {
+                draw_shader->set_uniform_float("u_alpha", material->alpha);
+            }
+
+            // Update VAO
+            if (object->is_dirty()) {
+                object_gpu_rsrc->update(object);
+                object->clear_dirty();
+            }
+
+            // Render triangles
+            GLCall(::glBindVertexArray(object_gpu_rsrc->vao)); // Bind VAO
+            GLCall(::glDrawElementsBaseVertex(
+                GL_TRIANGLES,
+                static_cast<GLsizei>(triangle_indices.size() * std::decay_t<decltype(triangle_indices)>::value_type::SizeAtCompileTime),
+                GL_UNSIGNED_INT,
+                nullptr/* const GLvoid* indices */,
+                0/* GLint basevertex */
+            ));
+            //GLCall(::glBindVertexArray(0)); // Unbind VAO (optional)
+        } // for
+    }
+
     void mesh_renderer::_render_objects_normals(
         const render_context& render_ctx,
         const std::list<std::shared_ptr<geometry::mesh_object>>& render_objects,
@@ -666,7 +896,7 @@ namespace triengine::renderer
 
             // Update VAO (if needed)
             if (object->is_dirty()) {
-                object_gpu_rsrc->update(object); 
+                object_gpu_rsrc->update(object);
                 object->clear_dirty();
             }
 
