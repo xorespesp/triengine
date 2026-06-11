@@ -28,6 +28,12 @@ namespace triengine::visualization
         core::gl_context* get_gl_context() noexcept;
 
         vec2_i32 get_window_size() const;
+
+        // Scene render frame size in pixels, excluding gui regions.
+        // (use `get_window_size()` for the full window)
+        // Valid only after the first render; `{ 0, 0 }` before that.
+        vec2_i32 get_frame_size() const;
+
         vec2_f32 get_window_dpi_scale() const;
 
         void set_close_callback(close_callback_type cb);
@@ -42,7 +48,8 @@ namespace triengine::visualization
             bool show_window = true,
             int32_t window_width = -1,
             int32_t window_height = -1,
-            bool fullscreen = false
+            bool fullscreen = false,
+            bool enable_vsync = false
         );
 
         void close_window();
@@ -50,6 +57,7 @@ namespace triengine::visualization
         void destroy_window();
 
         void set_window_position(int32_t xpos, int32_t ypos);
+        void set_window_visible(bool visible);
 
         std::shared_ptr<scene> add_scene();
         void remove_scene(scene_id_t scn_id);

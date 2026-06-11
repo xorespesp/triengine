@@ -23,6 +23,11 @@ namespace triengine::visualization
         return _glctx.get_window_size();
     }
 
+    vec2_i32 visualizer::get_frame_size() const {
+        const core::frame_buffer& scene_fb = _scene_window->get_framebuffer();
+        return vec2_i32{ scene_fb.width_pixels(), scene_fb.height_pixels() };
+    }
+
     vec2_f32 visualizer::get_window_dpi_scale() const {
         return _glctx.get_window_dpi_scale();
     }
@@ -56,7 +61,8 @@ namespace triengine::visualization
         const bool show_window,
         const int32_t window_width,
         const int32_t window_height,
-        const bool fullscreen)
+        const bool fullscreen,
+        const bool enable_vsync)
     {
         if (_flag_initialized) {
             TRIENGINE_PANIC("already created");
@@ -65,9 +71,10 @@ namespace triengine::visualization
         _glctx.create(
             window_name,
             show_window,
-            window_width, 
+            window_width,
             window_height,
-            fullscreen
+            fullscreen,
+            enable_vsync
         );
 
         _glctx.set_close_callback(std::bind(&visualizer::_handle_close_event, this, 
@@ -123,6 +130,11 @@ namespace triengine::visualization
     void visualizer::set_window_position(int32_t xpos, int32_t ypos)
     {
         _glctx.set_window_position(xpos, ypos);
+    }
+
+    void visualizer::set_window_visible(bool visible)
+    {
+        _glctx.set_window_visible(visible);
     }
 
     std::shared_ptr<scene> visualizer::add_scene()

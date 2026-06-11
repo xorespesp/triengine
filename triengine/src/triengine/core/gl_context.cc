@@ -1,6 +1,6 @@
 #include "gl_context.hh"
 
-#include <triengine_generated/packed_shaders_data.h>
+#include <triengine_generated/packed_shaders_data.h> // auto-generated header
 #include <triengine/utility/logger.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
@@ -459,6 +459,15 @@ namespace triengine::core
     void gl_context::set_window_position(int32_t xpos, int32_t ypos)
     {
         ::glfwSetWindowPos(_glfw_window.get(), xpos, ypos);
+    }
+
+    void gl_context::set_window_visible(bool visible)
+    {
+        if (visible) {
+            ::glfwShowWindow(_glfw_window.get());
+        } else {
+            ::glfwHideWindow(_glfw_window.get());
+        }
     }
 
     void gl_context::make_context_current()

@@ -53,6 +53,7 @@ namespace triengine::core
         bool get_window_close_flag() const;
         void set_window_close_flag(bool close);
         void set_window_position(int32_t xpos, int32_t ypos);
+        void set_window_visible(bool visible);
 
         void make_context_current();
         void swap_buffers();
