@@ -1,276 +1,217 @@
 #include "renderer_process.hh"
 
+#include <triengine_interop/surface/surface_producer.hh>
+
+#include "task_dispatcher.hh"
+
 #include <xutl/concurrency/spin_lock.hh>
 #include <xutl/debug/logger.hh>
 
+// Short namespace aliases for the triengine_interop surface protocol and API.
+namespace ipc_proto = triengine_interop::surface::proto;
+namespace ipc_surface = triengine_interop::surface;
+
+// The per-session interface the surface producer drives. Created once and hosted for the
+// single consumer: the GL renderer/scene is built on connect (on_session_init) and torn down on
+// disconnect, so each connection starts fresh. Surface work marshals onto the main
+// render thread (the offscreen renderer is not thread-safe); input runs on the IPC
+// thread and uses the spin lock to guard the scene against the render thread.
 class renderer_process::impl
+    : public ipc_surface::surface_producer::session_interface
 {
 public:
-    impl(
-        std::shared_ptr<ipc_session> session)
-        : _ipc_session{ session }
-        , _main_task_dispatcher{ std::make_shared<task_dispatcher>() }
+    impl()
+        : _main_task_dispatcher{ std::make_shared<task_dispatcher>() }
     {
         XUTL_TRACE("{}() ENTER", __func__);
-        this->_initialize();
         XUTL_TRACE("{}() LEAVE", __func__);
     }
 
-    ~impl()
+    ~impl() override
     {
         XUTL_TRACE("{}() ENTER", __func__);
-        _renderer->destroy_renderer();
+        if (_renderer) {
+            _renderer->destroy_renderer();
+        }
         XUTL_TRACE("{}() LEAVE", __func__);
     }
 
-    // NOTE: This method MUST be called in the main thread 
-    void poll()
+    // Pump marshaled tasks and render the current frame. 
+    // Returns true if a frame was rendered. 
+    // NOTE: MUST be called on the main render thread.
+    bool poll()
     {
         _main_task_dispatcher->dispatch_pending_tasks();
 
-        if (_fl_initialized)
-        {
-            std::unique_lock lk{ _ipc_lock };
-            if (!_renderer) { return; }
-            this->_update_scene();
+        std::unique_lock lk{ _ipc_lock };
+        if (!_renderer) { return false; }
+        this->_update_renderer_scene();
 
-            // Render with frame synchronization
-            constexpr uint64_t mutex_key = 0;
-            XUTL_ASSERT(_renderer->render(mutex_key));
-            lk.unlock();
+        // Render with frame synchronization
+        constexpr uint64_t mutex_key = 0;
+        XUTL_ASSERT(_renderer->render(mutex_key));
+        return true;
+    }
+
+    // --- session_interface ---
+
+    void on_session_init(
+        int32_t width, int32_t height,
+        LUID& out_adapter_luid,
+        HANDLE& out_surface_handle) override
+    {
+        _main_task_dispatcher->submit_task([this, width, height, &out_adapter_luid, &out_surface_handle]()
+        {
+            XUTL_INFO("Start initialization... (frame size: {}x{})", width, height);
+            this->_create_renderer(width, height);
+            this->_create_renderer_scene();
+
+            DXGI_ADAPTER_DESC desc{};
+            _renderer->get_dxgi_adapter()->GetDesc(&desc);
+            out_adapter_luid = desc.AdapterLuid;
+            out_surface_handle = _renderer->get_surface_handle().get();
+
+            XUTL_DEBUG("initialize complete");
+        }).get();
+    }
+
+    void on_frame_resize_event(
+        int32_t width, int32_t height, 
+        HANDLE& out_surface_handle) override
+    {
+        const triengine::vec2_i32 new_frame_size{ width, height };
+        out_surface_handle = _main_task_dispatcher->submit_task([this, new_frame_size]() -> triengine::shared_win32_handle
+        {
+            XUTL_TRACE("frame resize start... (target size: {}x{})", new_frame_size.x(), new_frame_size.y());
+
+            auto new_surface_handle = _renderer->resize_frame(new_frame_size);
+
+            XUTL_TRACE("frame resize complete! (update surface handle: 0x{:X})"
+                , new_surface_handle.get()
+            );
+
+            return new_surface_handle;
+        }).get().get();
+    }
+
+    void on_mouse_button_event(
+        [[maybe_unused]] int32_t x,
+        [[maybe_unused]] int32_t y,
+        ipc_proto::mouse_button_type button,
+        ipc_proto::button_action_type action,
+        [[maybe_unused]] ipc_proto::modifier_button_type mods) override
+    {
+        std::scoped_lock lk{ _ipc_lock };
+
+        switch (button) {
+        case ipc_proto::MOUSE_L:
+            _flag_l_mouse_pressed = action != ipc_proto::ACTION_RELEASE;
+            break;
+        case ipc_proto::MOUSE_R:
+            _flag_r_mouse_pressed = action != ipc_proto::ACTION_RELEASE;
+            break;
+        case ipc_proto::MOUSE_M:
+            _flag_m_mouse_pressed = action != ipc_proto::ACTION_RELEASE;
+            break;
+        default:
+            break;
+        }
+
+        _flag_mouse_dragging =
+            _flag_l_mouse_pressed ||
+            _flag_r_mouse_pressed ||
+            _flag_m_mouse_pressed;
+    }
+
+    void on_mouse_move_event(
+        int32_t x,
+        int32_t y,
+        [[maybe_unused]] ipc_proto::modifier_button_type mods) override
+    {
+        std::scoped_lock lk{ _ipc_lock };
+        if (!_renderer || !_scene) { return; }
+
+        const triengine::vec2_f32 cursor_screen_pos{
+            static_cast<float>(x),
+            static_cast<float>(y)
+        };
+
+        if (_flag_mouse_dragging)
+        {
+            const triengine::vec2_f32 move_offset{
+                cursor_screen_pos.x() - _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).x(),
+                _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
+            };
+
+            triengine::abstract_camera* const scn_camera = _scene->get_camera();
+
+            if (_flag_l_mouse_pressed)
+            {
+                scn_camera->process_mouse_rotation(move_offset);
+            }
+            else if (_flag_m_mouse_pressed)
+            {
+                const triengine::vec2_i32 screen_size = _renderer->get_frame_size().cast<int32_t>();
+                const triengine::view_port& screen_viewport = scn_camera->get_viewport();
+
+                const triengine::vec2_f32 start_pos = triengine::win32_screen_pos_2_gl_viewport_pos(
+                    _begin_click_cursor_screen_pos.value_or(cursor_screen_pos),
+                    screen_size,
+                    screen_viewport
+                );
+
+                const triengine::vec2_f32 end_pos = triengine::win32_screen_pos_2_gl_viewport_pos(
+                    cursor_screen_pos,
+                    screen_size,
+                    screen_viewport
+                );
+
+                scn_camera->process_mouse_translation(
+                    start_pos,
+                    end_pos
+                );
+            }
+
+            _begin_click_cursor_screen_pos = cursor_screen_pos;
+        }
+        else //if (!_flag_mouse_dragging)
+        {
+            if (_begin_click_cursor_screen_pos) {
+                _begin_click_cursor_screen_pos.reset();
+            }
         }
     }
 
-private:
-    void _initialize()
+    void on_mouse_scroll_event(float yoffset) override
     {
-        //
-        // IPC 세션 초기화
-        //
-
-        _ipc_session->set_request_callback(
-            [this](
-                [[maybe_unused]] const uint32_t req_pck_id, 
-                const std::string_view req_pck_data, 
-                std::vector<uint8_t>& rep_pck_data)
-            {
-                packet_view pck{ req_pck_data.data(), req_pck_data.size() };
-
-                switch (pck.type()) {
-                case ipc_proto::packet_type::init_request:
-                {
-                    auto body = pck.body<ipc_proto::packets::init_request_t>();
-                    XUTL_TRACE("----- recv init request: {}x{}"
-                        , body->frame_width
-                        , body->frame_height
-                    );
-
-                    // init 작업은 ipc 스레드에서 직접 수행하지 않고, 메인 렌더 스레드에 위임
-                    auto init_future = _main_task_dispatcher->submit_task(
-                        [this, init_req = *pck.body<ipc_proto::packets::init_request_t>()]() -> bool
-                        {
-                            XUTL_INFO("Start initialization...");
-
-                            this->_create_renderer(
-                                init_req.frame_width,
-                                init_req.frame_height
-                            );
-
-                            this->_create_renderer_scene();
-
-                            XUTL_DEBUG("initialize complete");
-                            return true;
-                        });
-
-                    XUTL_TRACE("IPC thread waiting for init completion...");
-                    try {
-                        const bool init_res = init_future.get();
-                        if (!init_res) {
-                            XUTL_ERROR("Failed to initialize renderer.");
-                            return;
-                        }
-                    } catch (const std::exception& e) {
-                        XUTL_ERROR("Initialization task failed: {}", e.what());
-                        return;
-                    }
-
-                    DXGI_ADAPTER_DESC target_adapter_desc{};
-                    _renderer->get_dxgi_adapter()->GetDesc(&target_adapter_desc);
-                    auto surface_handle = _renderer->get_surface_handle();
-
-                    XUTL_TRACE("Sending init response...");
-                    packet_builder<ipc_proto::packets::init_response_t> rep_pck{ ipc_proto::packet_type::init_response };
-                    rep_pck.body()->renderer_process_id = ::GetCurrentProcessId();
-                    rep_pck.body()->target_adapter_luid = target_adapter_desc.AdapterLuid;
-                    rep_pck.body()->surface_handle = surface_handle.get();
-                    XUTL_TRACE("target adapter: {:x}-{:x}, surface handle: {:p}"
-                        , target_adapter_desc.AdapterLuid.HighPart
-                        , target_adapter_desc.AdapterLuid.LowPart
-                        , surface_handle.get()
-                    );
-                    rep_pck_data.assign(rep_pck.data(), rep_pck.data() + rep_pck.size());
-
-                    XUTL_TRACE("Initialization complete!");
-                    _fl_initialized = true;
-                    break;
-                }
-                case ipc_proto::packet_type::frame_resize_request:
-                {
-                    auto body = pck.body<ipc_proto::packets::frame_resize_request_t>();
-                    const triengine::vec2_i32 new_frame_size{ body->width, body->height };
-
-                    // resize 작업은 ipc 스레드에서 직접 수행하지 않고, 메인 렌더 스레드에 위임
-                    auto resize_future = _main_task_dispatcher->submit_task(
-                        [this, new_frame_size]() -> triengine::shared_win32_handle
-                        {
-                            return this->_handle_frame_resize_request(new_frame_size);
-                        });
-
-                    XUTL_TRACE("IPC thread waiting for resize completion...");
-                    const auto new_surface_handle = resize_future.get();
-                    if (!new_surface_handle) {
-                        XUTL_ERROR("Failed to resize frame");
-                        return;
-                    }
-
-                    XUTL_TRACE("Sending resize response...");
-                    packet_builder<ipc_proto::packets::frame_resize_response_t> rep_pck{ ipc_proto::packet_type::frame_resize_response };
-                    rep_pck.body()->surface_handle = new_surface_handle.get();
-                    rep_pck_data.assign(rep_pck.data(), rep_pck.data() + rep_pck.size());
-                    break;
-                }
-                default:
-                    XUTL_WARN("Got unknown request packet");
-                    break;
-                } // switch
-            });
-        
-        _ipc_session->set_notify_callback(
-            [this](
-                [[maybe_unused]] const uint32_t id, 
-                const std::string_view data)
-            {
-                packet_view pck{ data.data(), data.size() };
-
-                switch (pck.type()) {
-                case ipc_proto::packet_type::mouse_button_event:
-                {
-                    auto body = pck.body<ipc_proto::packets::mouse_button_event_t>();
-                    //XUTL_TRACE("mouse button {} action: {}"
-                    //    , static_cast<int>(body->button)
-                    //    , static_cast<int>(body->action)
-                    //);
-
-                    std::scoped_lock lk{ _ipc_lock };
-                    [[maybe_unused]] triengine::abstract_camera* const scn_camera = _scene->get_camera();
-
-                    switch (body->button) {
-                    case ipc_proto::MOUSE_L:
-                        _flag_l_mouse_pressed = body->action != ipc_proto::ACTION_RELEASE;
-                        //XUTL_TRACE("l mouse pressed : {}", _flag_m_mouse_pressed);
-                        break;
-                    case ipc_proto::MOUSE_R:
-                        _flag_r_mouse_pressed = body->action != ipc_proto::ACTION_RELEASE;
-                        //XUTL_TRACE("r mouse pressed : {}", _flag_m_mouse_pressed);
-                        break;
-                    case ipc_proto::MOUSE_M:
-                        _flag_m_mouse_pressed = body->action != ipc_proto::ACTION_RELEASE;
-                        //XUTL_TRACE("m mouse pressed : {}", _flag_m_mouse_pressed);
-                        break;
-                    default:
-                        break;
-                    }
-
-                    _flag_mouse_dragging = 
-                        _flag_l_mouse_pressed || 
-                        _flag_r_mouse_pressed ||
-                        _flag_m_mouse_pressed;
-
-                    //XUTL_TRACE("mouse dragging : {}", _flag_mouse_dragging);
-                    break;
-                }
-                case ipc_proto::packet_type::mouse_move_event:
-                {
-                    auto body = pck.body<ipc_proto::packets::mouse_move_event_t>();
-                    //XUTL_TRACE("mouse move: {}x{}", body->x, body->y);
-
-                    std::scoped_lock lk{ _ipc_lock };
-
-                    const triengine::vec2_f32 cursor_screen_pos{
-                        static_cast<float>(body->x),
-                        static_cast<float>(body->y)
-                    };
-
-                    if (_flag_mouse_dragging)
-                    {
-                        const triengine::vec2_f32 move_offset{
-                            cursor_screen_pos.x() - _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).x(),
-                            _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
-                        };
-
-                        triengine::abstract_camera* const scn_camera = _scene->get_camera();
-
-                        if (_flag_l_mouse_pressed)
-                        {
-                            scn_camera->process_mouse_rotation(move_offset);
-                        }
-                        else if (_flag_m_mouse_pressed)
-                        {
-                            const triengine::vec2_i32 screen_size = _renderer->get_frame_size().cast<int32_t>();
-                            const triengine::view_port& screen_viewport = scn_camera->get_viewport();
-
-                            const triengine::vec2_f32 start_pos = triengine::win32_screen_pos_2_gl_viewport_pos(
-                                _begin_click_cursor_screen_pos.value_or(cursor_screen_pos),
-                                screen_size,
-                                screen_viewport
-                            );
-
-                            const triengine::vec2_f32 end_pos = triengine::win32_screen_pos_2_gl_viewport_pos(
-                                cursor_screen_pos,
-                                screen_size,
-                                screen_viewport
-                            );
-
-                            scn_camera->process_mouse_translation(
-                                start_pos,
-                                end_pos
-                            );
-                        }
-
-                        _begin_click_cursor_screen_pos = cursor_screen_pos;
-                    }
-                    else //if (!_flag_mouse_dragging)
-                    {
-                        if (_begin_click_cursor_screen_pos) {
-                            _begin_click_cursor_screen_pos.reset();
-                        }
-                    }
-                    break;
-                }
-                case ipc_proto::packet_type::mouse_scroll_event:
-                {
-                    auto body = pck.body<ipc_proto::packets::mouse_scroll_event_t>();
-                    //XUTL_TRACE("mouse scroll: {}"
-                    //    , body->yoffset
-                    //);
-                    std::scoped_lock lk{ _ipc_lock };
-                    triengine::abstract_camera* const scn_camera = _scene->get_camera();
-                
-                    const float zoom_offset = body->yoffset;
-                    scn_camera->process_mouse_zoom(static_cast<float>(zoom_offset));
-                    break;
-                }
-                default:
-                    XUTL_WARN("Got unknown notify packet");
-                    break;
-                } // switch
-            });
-
-        // 세션 패킷 수신 시작 (초기화 요청 수신 대기)
-        XUTL_INFO("Start waiting for init request...");
-        _ipc_session->start();
+        std::scoped_lock lk{ _ipc_lock };
+        if (!_scene) { return; }
+        _scene->get_camera()->process_mouse_zoom(yoffset);
     }
 
+    void on_session_disconnect() override
+    {
+        // Tear down the GL state on the render thread so the next connection starts
+        // fresh. Fire-and-forget: the task runs (FIFO) before any subsequent on_session_init.
+        _main_task_dispatcher->submit_task([this]() {
+            XUTL_DEBUG("Session disconnected, cleaning up GL renderer resources...");
+            std::scoped_lock lk{ _ipc_lock };
+            if (_renderer) {
+                _renderer->destroy_renderer();
+            }
+            _skull_mesh.reset();
+            _skull_mesh2.reset();
+            _scene.reset();
+            _renderer.reset();
+            _flag_mouse_dragging = false;
+            _flag_l_mouse_pressed = false;
+            _flag_r_mouse_pressed = false;
+            _flag_m_mouse_pressed = false;
+            _begin_click_cursor_screen_pos.reset();
+        });
+    }
+
+private:
     void _create_renderer(
         const int32_t frame_width,
         const int32_t frame_height)
@@ -281,9 +222,9 @@ private:
         );
 
         _renderer = std::make_unique<triengine::visualization::offscreen_renderer_dx>();
-        _renderer->create_renderer(triengine::vec2_i32{ 
-            frame_width, 
-            frame_height 
+        _renderer->create_renderer(triengine::vec2_i32{
+            frame_width,
+            frame_height
         });
 
         XUTL_TRACE("Renderer created successfully.");
@@ -308,8 +249,6 @@ private:
         scn->get_camera()->as<triengine::arcball_camera>()->get_options().damping_factor = 11.0f;
 
         auto mesh_axis_frame = triengine::geometry::mesh_object::create_coordinate_frame(0.5f);
-        //mesh_axis_frame->paint_uniform_color(_get_next_color());
-        //mesh_axis_frame->translate(Eigen::Vector3f{ 1.8f, 0.0f, -1.5f });
         scn->add_geometry(mesh_axis_frame);
 
         _skull_mesh = std::make_shared<triengine::geometry::mesh_object>();
@@ -320,7 +259,6 @@ private:
             *_skull_mesh
         ))
         {
-            //_skull_mesh->compute_vertex_normals();
             _skull_mesh->set_model(
                 triengine::math::scale(_skull_mesh->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
             );
@@ -345,7 +283,6 @@ private:
             *_skull_mesh2
         ))
         {
-            //_skull_mesh2->compute_vertex_normals();
             _skull_mesh2->set_model(
                 triengine::math::scale(_skull_mesh2->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
             );
@@ -366,30 +303,12 @@ private:
         XUTL_TRACE("Renderer scene created successfully.");
     }
 
-    triengine::shared_win32_handle _handle_frame_resize_request(
-        const triengine::vec2_i32 new_window_size)
-    {
-        XUTL_TRACE("frame resize start... (target size: {}x{})", new_window_size.x(), new_window_size.y());
-
-        auto new_surface_handle = _renderer->resize_frame(new_window_size);
-
-        XUTL_TRACE("frame resize complete! (update surface handle: 0x{:X})"
-            , new_surface_handle.get()
-        );
-
-        return new_surface_handle;
-    }
-
-    void _update_scene()
+    void _update_renderer_scene()
     {
         constexpr float rotSpeed = triengine::math::pi<float>() / 8.0f;
         const float dT = static_cast<float>(::glfwGetTime());
 
         Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-        //R = Eigen::AngleAxisf(rotSpeed * dT * 0.1f, Eigen::Vector3f::UnitZ()) *
-        //    Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY()) *
-        //    Eigen::AngleAxisf(rotSpeed * dT * 0.5f, Eigen::Vector3f::UnitX());
-
         R = Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
             Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
 
@@ -399,10 +318,8 @@ private:
     }
 
 private:
-    bool _fl_initialized{ false };
     std::shared_ptr<task_dispatcher> _main_task_dispatcher;
 
-    std::shared_ptr<ipc_session> _ipc_session;
     _XUTL concurrency::spin_lock _ipc_lock;
 
     // GL Renderer
@@ -410,7 +327,7 @@ private:
     std::shared_ptr<triengine::scene> _scene;
     std::shared_ptr<triengine::geometry::mesh_object> _skull_mesh;
     std::shared_ptr<triengine::geometry::mesh_object> _skull_mesh2;
-    
+
     bool _flag_mouse_dragging{ false };
     bool _flag_l_mouse_pressed{ false };
     bool _flag_r_mouse_pressed{ false };
@@ -419,42 +336,19 @@ private:
 
 }; // class
 
-void renderer_process::impl_deleter::operator()(impl* p) const
-{
-    delete p;
-}
-
 renderer_process::renderer_process()
-    : _main_task_dispatcher{ std::make_shared<task_dispatcher>() }
 {
     XUTL_INFO("GL renderer process spawned (PID: {})"
         , ::GetCurrentProcessId()
     );
 
     XUTL_DEBUG("Creating IPC server...");
-    _ipc_srv = std::make_shared<ipc_server>();
 
-    _ipc_srv->set_session_connect_callback(
-        [this](std::shared_ptr<ipc_session> session) {
-            _main_task_dispatcher->submit_task([this, session]() {
-                XUTL_DEBUG("Session connected, initializing GL renderer...");
+    // impl is the producer's session interface; its ctor touches no GL, so create it up
+    // front and host it for the single consumer.
+    _imp = std::make_shared<impl>();
+    _producer.start(Config::RENDERER_SERVER_NAME, _imp);
 
-                // NOTE: `impl` object MUST be manipulated on the main render thread.
-                _impl = impl_unique_ptr{ new impl{ session } };
-            });
-        });
-
-    _ipc_srv->set_session_disconnect_callback(
-        [this]([[maybe_unused]] std::shared_ptr<ipc_session> session) {
-            _main_task_dispatcher->submit_task([this]() {
-                XUTL_DEBUG("Session disconnected, cleaning up GL renderer resources...");
-
-                // NOTE: `impl` object MUST be manipulated on the main render thread.
-                _impl.reset();
-            });
-        });
-
-    _ipc_srv->start(Config::RENDERER_SERVER_NAME, 1);
     XUTL_DEBUG("Created!");
 
     _process_inst_handle.reset(
@@ -476,15 +370,13 @@ void renderer_process::run()
 
     while (_run_flag)
     {
-        _main_task_dispatcher->dispatch_pending_tasks();
-
-        if (!_impl) {
-            XUTL_TRACE("waiting for connection...");
-            std::this_thread::sleep_for(1000ms);
+        // Pumps marshaled init/resize/teardown tasks and renders when a consumer is
+        // connected; idles otherwise.
+        if (!_imp->poll())
+        {
+            std::this_thread::sleep_for(16ms);
             continue;
         }
-
-        _impl->poll();
 
         // log average of frame time and fps every 1 second
         static int frameCount = 0;
@@ -505,5 +397,12 @@ void renderer_process::run()
 
 void renderer_process::stop()
 {
+    // Stop the surface producer before signaling the render loop to exit. This is called
+    // from a different thread than run(), so the render loop keeps pumping while the
+    // producer joins its IPC threads: any IPC thread blocked in on_session_init /
+    // on_frame_resize_event (which marshal onto the render thread and wait) can complete its
+    // task and unblock, letting the join finish. Clearing _run_flag first would stop the
+    // pump while an IPC thread is still waiting on it, deadlocking the join.
+    _producer.stop();
     _run_flag = false;
 }

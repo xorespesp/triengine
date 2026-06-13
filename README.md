@@ -14,7 +14,7 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - Text rendering support (3D & 2D space)  
 - Smoothed Arcball / Fly camera system support  
 - Offscreen rendering support  
-- Inter-process rendering support (currently, supports Windows OS only)  
+- Inter-process rendering support (currently, supports Windows OS only; see [`triengine_interop`](#related-repositories))  
 - Blinn-Phong lighting model  
 - Deferred shading  
 - Order-independent transparency  
@@ -40,5 +40,14 @@ It uses [Eigen](https://eigen.tuxfamily.org/) for internal math operations, maki
 - [ ] Frustum culling  
 - [ ] Bounding Volume Hierarchy (BVH)  
 - [ ] ECS architecture (Entity-Component-System)  
+
+---
+
+### Related Repositories
+
+- [**triengine_interop**](https://github.com/xorespesp/triengine_interop) — the inter-process interop
+  layer (IPC transport, rendering wire-protocol, and DX11 shared-surface toolkit) used by inter-process
+  rendering (Windows). Shared between the Triengine renderer process (e.g. the `ex04-interprocess`
+  example) and clients such as the Flutter interop plugin.
 
 ---

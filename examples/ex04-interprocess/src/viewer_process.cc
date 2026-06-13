@@ -3,47 +3,12 @@
 #include <windowsx.h>
 #include <conio.h>
 #include <iostream>
+#include <optional>
 #include <xutl/debug/logger.hh>
+#include <xutl/utility/bit.hh>
 
-namespace
-{
-    ComPtr<ID3D11Texture2D> open_shared_texture_from_native_handle(
-        ComPtr<ID3D11Device2> dx11_device,
-        HANDLE target_shared_texture_handle,
-        HANDLE owner_process_handle)
-    {
-        ComPtr<ID3D11Texture2D> dx11_shared_texture;
-
-        // OpenSharedResource1(혹은 OpenSharedResourceByName)를 사용하여 client측에서 생성한 NT 핸들 획득 & 공유 텍스처 생성
-        // (OpenSharedResource1 함수를 사용하는 경우, DuplicateHandle을 사용하여 전달받은 공유 텍스처 핸들을 현재 프로세스에서 유효한 핸들로 복제해야 함)
-        HANDLE duplicated_handle{};
-        if (!::DuplicateHandle(
-            owner_process_handle, // 원본 핸들을 소유하고 있는 소스 프로세스 핸들
-            target_shared_texture_handle, // IPC로 수신한 원본 핸들 값
-            ::GetCurrentProcess(), // 핸들을 복제해 올 타겟 프로세스 핸들 (현재 프로세스)
-            &duplicated_handle, // 복제된 핸들을 저장할 포인터
-            0, // 접근 권한 (0은 원본과 동일한 권한임을 의미)
-            FALSE, // 핸들 상속 여부
-            DUPLICATE_SAME_ACCESS // 원본과 동일한 접근 권한으로 복제
-        )) {
-            XUTL_ERROR("Failed to duplicate shared texture handle. (error: {})", ::GetLastError());
-            return nullptr;
-        }
-
-        utils::unique_handle duplicated_handle_guard{ duplicated_handle }; // 핸들의 자동 해제를 위한 RAII 핸들 래퍼
-        if (HRESULT hr = dx11_device->OpenSharedResource1(
-            duplicated_handle_guard.get(),
-            IID_PPV_ARGS(&dx11_shared_texture));
-            FAILED(hr))
-        {
-            XUTL_ERROR("Failed to open shared texture resource. (HRESULT: {:08X})", static_cast<uint32_t>(hr));
-            return nullptr;
-        }
-
-        return dx11_shared_texture;
-    }
-
-} // namespace
+// Short namespace alias for the triengine_interop surface protocol enums.
+namespace ipc_proto = triengine_interop::surface::proto;
 
 viewer_process::viewer_process(const SIZE initial_frame_size, const DXGI_FORMAT target_frame_format)
 {
@@ -54,35 +19,20 @@ viewer_process::viewer_process(const SIZE initial_frame_size, const DXGI_FORMAT 
 viewer_process::~viewer_process()
 {
     XUTL_DEBUG("Cleaning up viewer process resources...");
-    
-    // Clean up D3D11 device context state
-    if (_dx11_device_context2) {
-        _dx11_device_context2->ClearState();
-        _dx11_device_context2->Flush();
+
+    // Release the viewer-owned present target before the consumer's device goes away.
+    if (_consumer.get_dx11_context()) {
+        _consumer.get_dx11_context()->ClearState();
+        _consumer.get_dx11_context()->Flush();
     }
 
-    // Clean up D3D11 resources (COM objects will auto-release)
+    // Cleanup D3D resources
     _dx11_rtv.Reset();
-    _dx11_srv.Reset();
-    _dx11_pixel_shader.Reset();
-    _dx11_vertex_shader.Reset();
-    _dx11_sampler_state.Reset();
-    _dx11_shared_texture_copy.Reset();
-    _dxgi_keyed_mutex.Reset();
-    _dx11_shared_texture.Reset();
     _dx11_swapchain1.Reset();
-    _dx11_device_context2.Reset();
-    _dx11_device2.Reset();
-    _dxgi_adapter.Reset();
-
-    // Clean up window handle
     _viewer_hwnd.reset();
 
-    // Clean up IPC client
-    if (_ipc_cli) {
-        _ipc_cli->disconnect();
-        _ipc_cli.reset();
-    }
+    // Destroy the surface interop and disconnect from the renderer.
+    _consumer.disconnect();
 
     // Close renderer process handle
     _renderer_process_handle.reset();
@@ -156,52 +106,26 @@ void viewer_process::_initialize(
         XUTL_DEBUG("Found existing renderer process!");
     }
 
-    _ipc_cli = std::make_shared<ipc_client>();
-    _ipc_cli->set_disconnect_callback(
+    _consumer.set_disconnect_callback(
         [this]()
     {
         XUTL_WARN("Renderer process disconnected! closing viewer window...");
         ::PostMessageA(_viewer_hwnd.get(), WM_CLOSE, 0, 0);
     });
 
-    if (!_ipc_cli->connect(Config::RENDERER_SERVER_NAME)) {
-        throw std::runtime_error{ "connect failed" };
-    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    XUTL_DEBUG("Connecting and creating surface consumer...");
 
-    XUTL_DEBUG("Connected! sending init request...");
-
-    // 초기화 요청 전송
-
-    packet_builder<ipc_proto::packets::init_request_t> init_req{ ipc_proto::packet_type::init_request };
-    init_req.body()->frame_width = static_cast<int32_t>(initial_frame_size.cx);
-    init_req.body()->frame_height = static_cast<int32_t>(initial_frame_size.cy);
-
-    std::vector<uint8_t> init_rep_bytes;
-    if (std::errc{} != _ipc_cli->send_request_sync(
-        init_req.data(),
-        init_req.size(),
-        init_rep_bytes))
+    // The consumer connects, performs the init handshake, picks the renderer's adapter,
+    // opens the shared surface and builds the blit pipeline. No manual color conversion
+    // is needed: the GPU swizzles RGBA<->BGRA on load/store, so only a Y-flip is
+    // requested here (the default `surface_render_options`).
+    if (!_consumer.connect(
+        Config::RENDERER_SERVER_NAME,
+        static_cast<int32_t>(initial_frame_size.cx),
+        static_cast<int32_t>(initial_frame_size.cy)))
     {
-        throw std::runtime_error{ "send init request failed" };
-    }
-
-    packet_view init_rep_pck_view{ init_rep_bytes.data(), init_rep_bytes.size() };
-    const auto init_rep = init_rep_pck_view.body<ipc_proto::packets::init_response_t>();
-    XUTL_DEBUG("Received init response. (pid: {}, adapter: {:x}-{:x}, surface handle: {})"
-        , init_rep->renderer_process_id
-        , init_rep->target_adapter_luid.HighPart
-        , init_rep->target_adapter_luid.LowPart
-        , init_rep->surface_handle
-    );
-
-    if (!_renderer_process_handle) {
-        XUTL_DEBUG("Opening renderer process handle...");
-        _renderer_process_handle.reset(::OpenProcess(
-            PROCESS_DUP_HANDLE | SYNCHRONIZE,
-            FALSE,
-            init_rep->renderer_process_id
-        ));
-        XUTL_ASSERT(_renderer_process_handle.get());
+        throw std::runtime_error{ "failed to connect / create surface consumer" };
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,110 +176,15 @@ void viewer_process::_initialize(
     XUTL_ASSERT(_viewer_hwnd.get());
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-    XUTL_DEBUG("Initializing D3D resources...");
+    XUTL_DEBUG("Creating swap chain on the consumer's device...");
+
+    // The viewer owns the present target. It is created on the consumer's device so the
+    // consumer can blit its copy texture directly onto the back buffer.
 
     // NOTE: 반드시 CreateDXGIFactory2 함수를 사용해서 DXGI 1.2 버전 이상의 DXGI 팩토리(`IDXGIFactory`)를 생성해줘야 함.
     // (`ID3D11Device::CreateTexture2D: D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX is only available for devices created off of Dxgi1.1 factories or later.` D3D11 오류 방지)
     ComPtr<IDXGIFactory2> dxgiFactory2;
     ASSERT_HR(::CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory2)));
-
-    ComPtr<IDXGIAdapter> dxgiAdapter0;
-    for (UINT i = 0; dxgiFactory2->EnumAdapters(i, &dxgiAdapter0) != DXGI_ERROR_NOT_FOUND; ++i) {
-        DXGI_ADAPTER_DESC desc;
-        dxgiAdapter0->GetDesc(&desc);
-        if (std::memcmp(&desc.AdapterLuid, &init_rep->target_adapter_luid, sizeof(LUID)) == 0) {
-            _dxgi_adapter = dxgiAdapter0;
-            XUTL_DEBUG(L"Found matching adapter: {:x}-{:x} ({})", desc.AdapterLuid.HighPart, desc.AdapterLuid.LowPart, desc.Description);
-            break;
-        }
-    }
-
-    if (!_dxgi_adapter) {
-        throw std::runtime_error{ "Matching adapter not found" };
-    }
-
-    // Create D3D11 device and device context
-    {
-        UINT deviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#ifdef _DEBUG
-        deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-        ComPtr<ID3D11Device> dx11Device0;
-        ComPtr<ID3D11DeviceContext> dx11DeviceContext0;
-
-        ASSERT_HR(::D3D11CreateDevice(
-            _dxgi_adapter.Get(),
-            D3D_DRIVER_TYPE_UNKNOWN,
-            nullptr,
-            deviceFlags,
-            nullptr,
-            0,
-            D3D11_SDK_VERSION,
-            &dx11Device0,
-            nullptr,
-            &dx11DeviceContext0
-        ));
-
-        // Convert `ID3D11Device` -> `ID3D11Device2` (Higher version object)
-        ASSERT_HR(dx11Device0.As(&_dx11_device2));
-
-        // Convert `ID3D11DeviceContext` -> `ID3D11DeviceContext2` (Higher version object)
-        ASSERT_HR(dx11DeviceContext0.As(&_dx11_device_context2));
-    }
-
-    // Open shared interop texture from native handle
-    {
-        _dx11_shared_texture = open_shared_texture_from_native_handle(
-            _dx11_device2,
-            init_rep->surface_handle,
-            _renderer_process_handle.get()
-        );
-        if (_dx11_shared_texture) {
-            XUTL_DEBUG("Successfully opened surface handle: {})", init_rep->surface_handle);
-        } else {
-            throw std::runtime_error{ fmt::format(
-                "Failed to open surface handle: {}"
-                , init_rep->surface_handle
-            )};
-        }
-
-        // Get the KeyedMutex interface from the shared texture
-        ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
-    }
-
-    // Create copy of the shared texture (non-shared)
-    // (This texture will be sampled to present to the swap chain)
-    {
-        D3D11_TEXTURE2D_DESC sharedTexCopyDesc{};
-        _dx11_shared_texture->GetDesc(&sharedTexCopyDesc); // frame size & format will be same as shared texture
-        sharedTexCopyDesc.MipLevels = 1;
-        sharedTexCopyDesc.ArraySize = 1;
-        sharedTexCopyDesc.SampleDesc.Count = 1;
-        sharedTexCopyDesc.SampleDesc.Quality = 0;
-        sharedTexCopyDesc.Usage = D3D11_USAGE_DEFAULT;
-        sharedTexCopyDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-        sharedTexCopyDesc.CPUAccessFlags = 0;
-        sharedTexCopyDesc.MiscFlags = 0;
-        ASSERT_HR(_dx11_device2->CreateTexture2D(
-            &sharedTexCopyDesc,
-            nullptr,
-            &_dx11_shared_texture_copy
-        ));
-    }
-
-    // Create Sampler State
-    {
-        D3D11_SAMPLER_DESC sampDesc{};
-        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-        sampDesc.MinLOD = 0;
-        sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-        ASSERT_HR(_dx11_device2->CreateSamplerState(&sampDesc, &_dx11_sampler_state));
-    }
 
     // Create the swap chain for the viewer window (Use CreateSwapChainForHwnd instead)
     {
@@ -372,7 +201,7 @@ void viewer_process::_initialize(
         swapchainDesc1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // Use Modern flip model `DXGI_SWAP_EFFECT_FLIP_DISCARD` -> faster than blt
         swapchainDesc1.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; // Allow tearing for VSync off
         ASSERT_HR(dxgiFactory2->CreateSwapChainForHwnd(
-            _dx11_device2.Get(),
+            _consumer.get_dx11_device(),
             _viewer_hwnd.get(),
             &swapchainDesc1,
             nullptr, // Do not use fullscreen
@@ -381,129 +210,14 @@ void viewer_process::_initialize(
         ));
     }
 
-    // Base full-screen quad rendering shader template with preprocessor conditionals
-    static const std::string shaderTemplate = R"hlsl(
-        Texture2D g_texture : register(t0);
-        SamplerState g_sampler : register(s0);
-
-        struct VS_OUT {
-            float4 pos : SV_POSITION;
-            float2 uv : TEXCOORD;
-        };
-
-        VS_OUT VS(uint id : SV_VertexID) {
-            VS_OUT output;
-            // Full-screen triangle UVs: (0,0), (2,0), (0,2)
-            output.uv = float2((id << 1) & 2, id & 2); 
-            // Full-screen triangle positions: (-1,1), (3,1), (-1,-3)
-            output.pos = float4(output.uv * 2.0f - 1.0f, 0.0f, 1.0f);
-            // Flip Y for correct rendering
-            output.pos.y = -output.pos.y;
-            return output;
-        }
-
-        float4 PS(VS_OUT input) : SV_TARGET {
-            float2 uv = input.uv;
-            
-        #ifdef FLIP_Y_AXIS
-            // Flip Y-axis (if needed)
-            uv.y = 1.0 - uv.y;
-        #endif
-            
-            float4 color = g_texture.Sample(g_sampler, uv);
-            
-        #ifdef CONVERT_RGBA_TO_BGRA
-            color = float4(color.b, color.g, color.r, color.a); // Swap R and B channels
-        #endif
-            
-            return color;
-        }
-    )hlsl";
-
-    // Helper to compile shader with specific defines
-    constexpr auto compileShader =
-        [](const std::string& shader_template,
-            const std::string& entry_point,
-            const std::string& target,
-            const D3D_SHADER_MACRO* defines = nullptr) -> ComPtr<ID3DBlob>
-        {
-            ComPtr<ID3DBlob> psBlob, errBlob;
-            HRESULT hr = ::D3DCompile(
-                shader_template.c_str(), shader_template.size(),
-                nullptr, defines, nullptr,
-                entry_point.c_str(), target.c_str(),
-                0, 0,
-                &psBlob, &errBlob
-            );
-            if (FAILED(hr)) {
-                throw std::runtime_error{ fmt::format(
-                    "Failed to compile {} shader({:08X}): {}"
-                    , target.c_str()
-                    , hr
-                    , static_cast<const char*>(errBlob->GetBufferPointer())
-                ) };
-            }
-            return psBlob;
-        };
-
-    // Compile vertex shader
-    {
-        auto vsBlob = compileShader(shaderTemplate, "VS", "vs_5_0");
-        ASSERT_HR(_dx11_device2->CreateVertexShader(
-            vsBlob->GetBufferPointer(),
-            vsBlob->GetBufferSize(),
-            nullptr,
-            &_dx11_vertex_shader
-        ));
-    }
-
-    // Compile pixel shader
-    {
-        std::vector<D3D_SHADER_MACRO> defines;
-
-        // Need Y-flip because OpenGL uses bottom-left origin while DirectX uses top-left
-        defines.push_back(D3D_SHADER_MACRO{ "FLIP_Y_AXIS", "1" });
-
-        // NOTE: No manual color-conversion needed when rendering RGBA texture (OpenGL) to BGRA render target (Flutter),
-        // GPU handles the conversion automatically.
-        // when you load the texture, it gets 'swizzled' if needed to the standard Red, Green, and Blue channels
-        // and when you write to the render target the same thing happens depending on the format.
-        // so manual pixel shader conversion would cause double-swapping and corrupt colors.
-        // Ref: https://stackoverflow.com/a/46369577/3865427
-        // if (target_frame_format == DXGI_FORMAT_B8G8R8A8_UNORM) {
-        //     defines.push_back(D3D_SHADER_MACRO{ "CONVERT_RGBA_TO_BGRA", "1" }); 
-        // }
-
-        // Add a null terminator to the defines array
-        if (!defines.empty()) {
-            defines.push_back(D3D_SHADER_MACRO{ nullptr, nullptr });
-        }
-
-        auto psBlob = compileShader(shaderTemplate, "PS", "ps_5_0", defines.data());
-        ASSERT_HR(_dx11_device2->CreatePixelShader(
-            psBlob->GetBufferPointer(),
-            psBlob->GetBufferSize(),
-            nullptr,
-            &_dx11_pixel_shader
-        ));
-    }
-
     // Get the back buffer of the swap chain
     ComPtr<ID3D11Texture2D> backBuffer;
     ASSERT_HR(_dx11_swapchain1->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
 
-    // Create Shader Resource View (SRV)
-    // Equivalent of: `glBindTexture`+ `sampler2D`
-    ASSERT_HR(_dx11_device2->CreateShaderResourceView(
-        _dx11_shared_texture_copy.Get(),
-        nullptr,
-        &_dx11_srv
-    ));
-
     // Create Render Target View (RTV)
-    ASSERT_HR(_dx11_device2->CreateRenderTargetView(
-        backBuffer.Get(),
-        nullptr,
+    ASSERT_HR(_consumer.get_dx11_device()->CreateRenderTargetView(
+        backBuffer.Get(), 
+        nullptr, 
         &_dx11_rtv
     ));
 
@@ -525,101 +239,37 @@ void viewer_process::_resize_frame(const SIZE new_frame_size)
 {
     XUTL_TRACE("frame resize request: {}x{}", new_frame_size.cx, new_frame_size.cy);
 
-    packet_builder<ipc_proto::packets::frame_resize_request_t> req{ ipc_proto::packet_type::frame_resize_request };
-    req.body()->width = static_cast<int32_t>(new_frame_size.cx);
-    req.body()->height = static_cast<int32_t>(new_frame_size.cy);
-
-    std::vector<uint8_t> rep_bytes;
-    if (std::errc{} != _ipc_cli->send_request_sync(
-        req.data(),
-        req.size(),
-        rep_bytes))
-    {
-        throw std::runtime_error("frame resize request failed.");
-    }
-
-    packet_view pck_view{ rep_bytes.data(), rep_bytes.size() };
-    const auto resize_rep = pck_view.body<ipc_proto::packets::frame_resize_response_t>();
-    XUTL_TRACE("frame resize response -> surface handle: {}"
-        , resize_rep->surface_handle
-    );
-
-    D3D11_TEXTURE2D_DESC sharedTexCopyDesc{};
-    _dx11_shared_texture_copy->GetDesc(&sharedTexCopyDesc);
-
-    // First, need to clear the render target and shader resource views
-    // before resizing the swap chain and shared texture.
-    _dx11_device_context2->OMSetRenderTargets(0, nullptr, nullptr);
-    ID3D11ShaderResourceView* nullSRV = nullptr;
-    _dx11_device_context2->PSSetShaderResources(0, 1, &nullSRV);
-    _dx11_device_context2->Flush(); // Wait for GPU to finish processing
-
-    //
-    // 렌더링 리소스 해제 (해제 순서에 유의; 뷰 -> 텍스처 순서)
-    //
-
+    // Detach and release the back-buffer RTV before resizing the swap chain.
+    _consumer.get_dx11_context()->OMSetRenderTargets(0, nullptr, nullptr);
     _dx11_rtv.Reset();
-    _dx11_srv.Reset();
-    _dxgi_keyed_mutex.Reset();
-    _dx11_shared_texture.Reset();
-    _dx11_shared_texture_copy.Reset();
+    _consumer.get_dx11_context()->Flush();
 
-    //
-    // 렌더링 리소스 리사이즈(재생성) 시작
-    // (모든 버퍼 참조(RTV 등)가 해제된 후 수행되어야 함)
-    //
-
-    // 스왑체인 리사이즈
+    // Resize the swap chain (viewer-owned present target)
     DXGI_SWAP_CHAIN_DESC1 swapchainDesc1{};
     _dx11_swapchain1->GetDesc1(&swapchainDesc1);
-    HRESULT hr = _dx11_swapchain1->ResizeBuffers(
+    ASSERT_HR(_dx11_swapchain1->ResizeBuffers(
         swapchainDesc1.BufferCount,
         new_frame_size.cx,
         new_frame_size.cy,
         swapchainDesc1.Format,
         swapchainDesc1.Flags
-    );
-    ASSERT_HR(hr);
+    ));
 
-    // 공유 텍스처 재생성
-    _dx11_shared_texture = open_shared_texture_from_native_handle(
-        _dx11_device2,
-        resize_rep->surface_handle, // IPC로 받은 새로운 핸들
-        _renderer_process_handle.get()
-    );
-    if (_dx11_shared_texture) {
-        XUTL_DEBUG("Successfully opened surface handle: {}"
-            , resize_rep->surface_handle
-        );
-    } else {
-        throw std::runtime_error{ "Failed to open surface handle" };
+    // Resize the shared-surface side (the consumer requests the renderer resize and
+    // recreates the shared texture / copy / SRV).
+    if (!_consumer.resize(
+        static_cast<int32_t>(new_frame_size.cx),
+        static_cast<int32_t>(new_frame_size.cy)))
+    {
+        throw std::runtime_error("frame resize request failed.");
     }
-
-    // KeyedMutex 재생성
-    ASSERT_HR(_dx11_shared_texture.As(&_dxgi_keyed_mutex));
-
-    // 로컬 Screen 텍스처 재생성
-    sharedTexCopyDesc.Width = static_cast<UINT>(new_frame_size.cx);
-    sharedTexCopyDesc.Height = static_cast<UINT>(new_frame_size.cy);
-    ASSERT_HR(_dx11_device2->CreateTexture2D(
-        &sharedTexCopyDesc,
-        nullptr,
-        &_dx11_shared_texture_copy
-    ));
-
-    // 새로운 Screen 텍스처에 대한 SRV 재생성
-    ASSERT_HR(_dx11_device2->CreateShaderResourceView(
-        _dx11_shared_texture_copy.Get(),
-        nullptr,
-        &_dx11_srv
-    ));
 
     // 리사이즈된 스왑체인의 백버퍼에 대한 RTV 재생성
     ComPtr<ID3D11Texture2D> backBuffer;
     ASSERT_HR(_dx11_swapchain1->GetBuffer(0, IID_PPV_ARGS(&backBuffer)));
-    ASSERT_HR(_dx11_device2->CreateRenderTargetView(
-        backBuffer.Get(),
-        nullptr,
+    ASSERT_HR(_consumer.get_dx11_device()->CreateRenderTargetView(
+        backBuffer.Get(), 
+        nullptr, 
         &_dx11_rtv
     ));
 
@@ -634,69 +284,21 @@ void viewer_process::_render_frame()
 {
     if (_fl_render_interop_texture)
     {
-        // 렌더링 전, 획득해둔 KeyedMutex를 사용하여 GL 렌더러가 텍스처 쓰기를 완료할 때까지 대기
-        // (뮤텍스를 즉시 얻지 못한 경우, GL 렌더러 측에서 아직 작업 중이거나 렌더링된 프레임이 없음을 의미)
-        // 
-        // AcquireSync은 다음과 같은 DWORD 상수들을 반환할 수 있음.
-        // (단순 성공 여부 판단을 위해 SUCCEEDED 매크로만 사용할 경우, WAIT_OBJECT_0 반환값을 제외한 나머지 반환 상태값을 제대로 감지하지 못할 수 있음에 유의)
-        //     - WAIT_OBJECT_0  : keyed mutex를 성공적으로 획득했음. 이 경우, 렌더링 작업을 계속 진행할 수 있음. (S_OK 와 동일한 값)
-        //     - WAIT_TIMEOUT   : 지정된 키가 해제되기 전에 타임아웃 간격이 경과했음을 의미.
-        //     - WAIT_ABANDONED : SharedSurface와 KeyedMutex가 더 이상 일관된 상태가 아님. 이 경우, KeyedMutex와 SharedSurface 둘 다 해제한 후 재생성해야 함.
-        // https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgikeyedmutex-acquiresync
-
-        constexpr uint64_t kMutexKey = 0;
-        constexpr uint32_t kMaxWaitTimeoutInMs = 1; // Use a small timeout to prevent blocking the viewer while allowing smooth frame updates
-        switch (
-            const HRESULT sync_hr = _dxgi_keyed_mutex->AcquireSync(kMutexKey, kMaxWaitTimeoutInMs);
-        sync_hr
-            ) {
-        case WAIT_OBJECT_0: // KeyedMutex를 성공적으로 획득했으므로 렌더링 작업 진행 가능
-            // Shared 텍스처를 복사본 텍스처로 복사 (락 점유 시간을 최소화하기 위해 별도 텍스처로 데이터를 복사한 뒤 렌더링 수행)
-            _dx11_device_context2->CopyResource(_dx11_shared_texture_copy.Get(), _dx11_shared_texture.Get());
-            _dxgi_keyed_mutex->ReleaseSync(kMutexKey); // 텍스처 사용이 끝났으므로 KeyedMutex 잠금 해제
-            break;
-        case WAIT_TIMEOUT: // KeyedMutex를 획득하지 못했으므로 렌더링 작업을 건너뜀
-            break; // Continue rendering with the previous frame to maintain smooth presentation
-        case WAIT_ABANDONED: // KeyedMutex가 더 이상 일관된 상태가 아님. 이 경우, KeyedMutex와 SharedSurface 둘 다 해제한 후 재생성해야 함.
-            XUTL_ERROR("Keyed mutex abandoned - renderer process may have crashed");
-            return;
-        default:
-            XUTL_ERROR("Unexpected AcquireSync result: 0x{:X}", sync_hr);
+        // Sync the latest renderer frame into the consumer's copy, then blit it
+        // onto our back buffer. A false return means the shared surface became
+        // inconsistent (renderer likely crashed); skip the frame.
+        if (!_consumer.sync_latest_frame(1)) {
             return;
         }
-
-        _dx11_device_context2->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-        _dx11_device_context2->IASetInputLayout(nullptr); // No input buffer needed for this VS trick
-
-        _dx11_device_context2->VSSetShader(_dx11_vertex_shader.Get(), nullptr, 0);
-        _dx11_device_context2->PSSetShader(_dx11_pixel_shader.Get(), nullptr, 0);
-        _dx11_device_context2->PSSetShaderResources(0, 1, _dx11_srv.GetAddressOf());
-        _dx11_device_context2->PSSetSamplers(0, 1, _dx11_sampler_state.GetAddressOf());
-
-        _dx11_device_context2->RSSetViewports(1, &_viewport);
-        _dx11_device_context2->OMSetRenderTargets(1, _dx11_rtv.GetAddressOf(), nullptr);
-
-        _dx11_device_context2->Draw(3, 0); // 화면을 덮는 하나의 삼각형을 그림
+        _consumer.blit_to_render_target(_dx11_rtv.Get(), _viewport);
     }
     else
     {
         const std::array<float, 4> clearColor{ 0.5f, 0.5f, 0.5f, 1.0f };
-        _dx11_device_context2->ClearRenderTargetView(_dx11_rtv.Get(), clearColor.data());
+        _consumer.get_dx11_context()->ClearRenderTargetView(_dx11_rtv.Get(), clearColor.data());
     }
 
     _dx11_swapchain1->Present(0, DXGI_PRESENT_ALLOW_TEARING); // Present(0, DXGI_PRESENT_ALLOW_TEARING) : VSync Off
-
-    // log fps
-    //static int frameCount = 0;
-    //++frameCount;
-    //static auto lastTime = std::chrono::steady_clock::now();
-    //const auto currentTime = std::chrono::steady_clock::now();
-    //if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s)
-    //{
-    //    XUTL_DEBUG("Render FPS: {}", frameCount);
-    //    lastTime = currentTime;
-    //    frameCount = 0;
-    //}
 }
 
 LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -823,13 +425,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
             , static_cast<std::underlying_type_t<ipc_proto::modifier_button_type>>(mods)
         );
 
-        packet_builder<ipc_proto::packets::mouse_button_event_t> pck{ ipc_proto::packet_type::mouse_button_event };
-        pck.body()->x = x;
-        pck.body()->y = y;
-        pck.body()->button = btn;
-        pck.body()->action = action;
-        pck.body()->mods = mods;
-        XUTL_ASSERT(std::errc{} == _ipc_cli->send_notify(pck.data(), pck.size()));
+        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_button_event(x, y, btn, action, mods));
 
         return 0;
     }
@@ -850,11 +446,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
             , static_cast<std::underlying_type_t<ipc_proto::modifier_button_type>>(mods)
         );
 
-        packet_builder<ipc_proto::packets::mouse_move_event_t> pck{ ipc_proto::packet_type::mouse_move_event };
-        pck.body()->x = x;
-        pck.body()->y = y;
-        pck.body()->mods = mods;
-        XUTL_ASSERT(std::errc{} == _ipc_cli->send_notify(pck.data(), pck.size()));
+        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_move_event(x, y, mods));
 
         return 0;
     }
@@ -862,16 +454,12 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
     {
         const int32_t raw_scroll_delta = GET_WHEEL_DELTA_WPARAM(wParam);
 
-        // GLFW와 동일한 스크롤 값 계산
-        // GLFW는 스크롤 한 단위를 1.0 또는 -1.0으로 정규화하므로,
-        // raw_delta 값을 WHEEL_DELTA로 나누어준다. (Normalization)
+        // Same scroll value as GLFW: normalize one wheel notch to 1.0 / -1.0.
         const float yoffset = static_cast<float>(raw_scroll_delta) / static_cast<float>(WHEEL_DELTA);
 
         XUTL_TRACE("mouse scroll event -> yoffset: {}", yoffset);
 
-        packet_builder<ipc_proto::packets::mouse_scroll_event_t> pck{ ipc_proto::packet_type::mouse_scroll_event };
-        pck.body()->yoffset = yoffset;
-        XUTL_ASSERT(std::errc{} == _ipc_cli->send_notify(pck.data(), pck.size()));
+        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_scroll_event(yoffset));
 
         return 0;
     }

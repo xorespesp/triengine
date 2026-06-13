@@ -1,7 +1,8 @@
 #pragma once
+#include <triengine_interop/surface/proto/surface_proto.hh>
+#include <triengine_interop/surface/surface_consumer.hh>
+
 #include "common.hh"
-#include "ipc_proto.hh"
-#include "ipc_service.hh"
 
 class viewer_process
 {
@@ -25,24 +26,14 @@ private:
     bool _fl_render_interop_texture{ true }; // Whether to render using the interop texture or not
 
     // Process/IPC
-    std::shared_ptr<ipc_client> _ipc_cli;
-    utils::unique_handle _renderer_process_handle;
+    utils::unique_handle _renderer_process_handle; // spawned renderer process handle (owned for lifetime)
 
-    // D3D Resources (DX11.2)
+    // Shared-surface consumer (owns the IPC connection + the D3D device/surface interop)
+    triengine_interop::surface::surface_consumer _consumer;
+
+    // Present target owned by the viewer (created on _consumer.get_dx11_device())
     utils::unique_hwnd _viewer_hwnd; // D3D window handle
-    ComPtr<IDXGIAdapter> _dxgi_adapter;
-    ComPtr<ID3D11Device2> _dx11_device2;
-    ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
-    ComPtr<ID3D11Texture2D> _dx11_shared_texture;
-    ComPtr<ID3D11Texture2D> _dx11_shared_texture_copy; // copy of the shared texture (non-shared)
-    ComPtr<IDXGIKeyedMutex> _dxgi_keyed_mutex;
-
-    // D3D Pipeline Resources
     ComPtr<IDXGISwapChain1> _dx11_swapchain1;
-    ComPtr<ID3D11VertexShader> _dx11_vertex_shader;
-    ComPtr<ID3D11PixelShader> _dx11_pixel_shader;
-    ComPtr<ID3D11RenderTargetView> _dx11_rtv;
-    ComPtr<ID3D11ShaderResourceView> _dx11_srv;
-    ComPtr<ID3D11SamplerState> _dx11_sampler_state;
+    ComPtr<ID3D11RenderTargetView> _dx11_rtv; // swap-chain back buffer RTV
     D3D11_VIEWPORT _viewport{};
 };
