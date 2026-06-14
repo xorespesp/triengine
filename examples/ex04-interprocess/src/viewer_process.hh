@@ -32,6 +32,10 @@ private:
     bool _fl_render_interop_texture{ true }; // Whether to render using the interop texture or not
     bool _fl_vsync_enabled{ false }; // Whether to synchronize Present() with the display's vertical blank
 
+    // Number of mouse buttons currently held. Drives SetCapture/ReleaseCapture so a
+    // drag that leaves the window still delivers its button-up here (see _wnd_proc).
+    int _mouse_pressed_button_count{ 0 };
+
     // Process/IPC
     utils::unique_handle _renderer_process_handle; // spawned renderer process handle (owned for lifetime)
 

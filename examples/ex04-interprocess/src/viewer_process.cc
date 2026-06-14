@@ -454,6 +454,21 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
         //);
 
+        // Capture the mouse on the first button press so a drag that leaves the
+        // window still delivers the matching button-up here. Without capture, releasing
+        // outside the window sends WM_*BUTTONUP to another window, leaving the renderer
+        // stuck in a pressed state when the cursor returns. Release the capture once all
+        // buttons are up.
+        if (action == surface_proto::ACTION_PRESS) {
+            if (_mouse_pressed_button_count++ == 0) {
+                ::SetCapture(hWnd);
+            }
+        } else { // ACTION_RELEASE
+            if (_mouse_pressed_button_count > 0 && --_mouse_pressed_button_count == 0) {
+                ::ReleaseCapture();
+            }
+        }
+
         XUTL_ASSERT(std::errc{} == _consumer.send_mouse_button_event(POINT{ x, y }, btn, action, mods));
 
         return 0;
