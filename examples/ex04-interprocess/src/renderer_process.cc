@@ -113,6 +113,18 @@ public:
         }).get().get();
     }
 
+    void on_change_max_fps(uint32_t max_fps) override
+    {
+        // change_max_fps() must run on the render thread, so marshal it like init/resize.
+        _main_task_dispatcher->submit_task([this, max_fps]()
+        {
+            XUTL_TRACE("change max fps... (max fps: {})", max_fps);
+            if (_renderer) {
+                _renderer->change_max_fps(max_fps);
+            }
+        });
+    }
+
     void on_mouse_button_event(
         [[maybe_unused]] POINT pos,
         surface_proto::mouse_button_type button,
