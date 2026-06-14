@@ -9,10 +9,17 @@
 
 namespace surface_proto = triengine_interop::surface::proto;
 
-viewer_process::viewer_process(const SIZE initial_frame_size, const DXGI_FORMAT target_frame_format)
+viewer_process::viewer_process(
+    const SIZE initial_frame_size, 
+    const DXGI_FORMAT target_frame_format, 
+    const bool enable_vsync)
 {
     XUTL_INFO("DX viewer process spawned (PID: {})", ::GetCurrentProcessId());
-    this->_initialize(initial_frame_size, target_frame_format);
+    this->_initialize(
+        initial_frame_size, 
+        target_frame_format, 
+        enable_vsync
+    );
 }
 
 viewer_process::~viewer_process()
@@ -60,8 +67,12 @@ void viewer_process::run()
 
 void viewer_process::_initialize(
     const SIZE initial_frame_size,
-    const DXGI_FORMAT target_frame_format)
+    const DXGI_FORMAT target_frame_format,
+    const bool enable_vsync)
 {
+    _fl_vsync_enabled = enable_vsync;
+    XUTL_DEBUG("VSync: {}", enable_vsync ? "enabled" : "disabled");
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     XUTL_DEBUG("Connecting to IPC server...");
 
@@ -197,7 +208,9 @@ void viewer_process::_initialize(
         swapchainDesc1.Scaling = DXGI_SCALING_STRETCH;
         swapchainDesc1.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
         swapchainDesc1.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // Use Modern flip model `DXGI_SWAP_EFFECT_FLIP_DISCARD` -> faster than blt
-        swapchainDesc1.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING; // Allow tearing for VSync off
+        // Tearing is only permitted when VSync is off; the flag must match the sync
+        // interval used in Present() (see _render_frame).
+        swapchainDesc1.Flags = enable_vsync ? 0 : DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
         ASSERT_HR(dxgiFactory2->CreateSwapChainForHwnd(
             _consumer.get_dx11_device(),
             _viewer_hwnd.get(),
@@ -294,7 +307,13 @@ void viewer_process::_render_frame()
         _consumer.get_dx11_context()->ClearRenderTargetView(_dx11_rtv.Get(), clearColor.data());
     }
 
-    _dx11_swapchain1->Present(0, DXGI_PRESENT_ALLOW_TEARING); // Present(0, DXGI_PRESENT_ALLOW_TEARING) : VSync Off
+    // VSync on: sync interval 1, no tearing. VSync off: sync interval 0 with tearing
+    // allowed (requires the swap chain's ALLOW_TEARING flag, set in _initialize).
+    if (_fl_vsync_enabled) {
+        _dx11_swapchain1->Present(1, 0);
+    } else {
+        _dx11_swapchain1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+    }
 
     // log average of frame time and fps every 1 second
     thread_local int frameCount = 0;

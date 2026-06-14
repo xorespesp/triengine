@@ -43,6 +43,7 @@ public:
 
         std::unique_lock lk{ _ipc_lock };
         if (!_renderer) { return false; }
+        this->_process_scene_camera_keyboard_input();
         this->_update_renderer_scene();
 
         // Render with frame synchronization
@@ -203,6 +204,16 @@ public:
             , static_cast<int>(key)
             , static_cast<int>(action)
         );
+
+        // Track W/A/S/D as held state instead of acting on each event.
+        const bool pressed = action != surface_proto::ACTION_RELEASE;
+        switch (key) {
+        case surface_proto::KEY_W: _flag_key_w_pressed = pressed; break;
+        case surface_proto::KEY_A: _flag_key_a_pressed = pressed; break;
+        case surface_proto::KEY_S: _flag_key_s_pressed = pressed; break;
+        case surface_proto::KEY_D: _flag_key_d_pressed = pressed; break;
+        default: break;
+        }
     }
 
     void on_session_disconnect() override
@@ -224,6 +235,11 @@ public:
             _flag_r_mouse_pressed = false;
             _flag_m_mouse_pressed = false;
             _begin_click_cursor_screen_pos.reset();
+            _flag_key_w_pressed = false;
+            _flag_key_a_pressed = false;
+            _flag_key_s_pressed = false;
+            _flag_key_d_pressed = false;
+            _last_key_update_time.reset();
         });
     }
 
@@ -321,6 +337,24 @@ private:
         XUTL_TRACE("Renderer scene created successfully.");
     }
 
+    // Apply continuous camera translation for the held W/A/S/D keys. Driven once
+    // per rendered frame so movement is smooth and frame-rate independent.
+    // NOTE: MUST be called on the main render thread with _ipc_lock held.
+    void _process_scene_camera_keyboard_input()
+    {
+        const double now = ::glfwGetTime();
+        const float frame_delta = _last_key_update_time
+            ? static_cast<float>(now - *_last_key_update_time)
+            : 0.0f;
+        _last_key_update_time = now;
+
+        triengine::abstract_camera* const scn_camera = _scene->get_camera();
+        if (_flag_key_w_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::forward, frame_delta); }
+        if (_flag_key_s_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::backward, frame_delta); }
+        if (_flag_key_a_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::left, frame_delta); }
+        if (_flag_key_d_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::right, frame_delta); }
+    }
+
     void _update_renderer_scene()
     {
         constexpr float rotSpeed = triengine::math::pi<float>() / 8.0f;
@@ -351,6 +385,13 @@ private:
     bool _flag_r_mouse_pressed{ false };
     bool _flag_m_mouse_pressed{ false };
     std::optional<triengine::vec2_f32> _begin_click_cursor_screen_pos;
+
+    // Held state for the W/A/S/D camera movement keys, sampled per frame.
+    bool _flag_key_w_pressed{ false };
+    bool _flag_key_a_pressed{ false };
+    bool _flag_key_s_pressed{ false };
+    bool _flag_key_d_pressed{ false };
+    std::optional<double> _last_key_update_time;
 
 }; // class
 

@@ -9,21 +9,28 @@ class viewer_process
 public:
     viewer_process(
         SIZE initial_frame_size = { 640, 480 },
-        DXGI_FORMAT target_frame_format = DXGI_FORMAT_R8G8B8A8_UNORM
+        DXGI_FORMAT target_frame_format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        bool enable_vsync = false
     );
     ~viewer_process();
 
     void run();
 
 private:
-    void _initialize(SIZE initial_frame_size, DXGI_FORMAT target_frame_format);
+    void _initialize(
+        SIZE initial_frame_size, 
+        DXGI_FORMAT target_frame_format, 
+        bool enable_vsync
+    );
     void _resize_frame(SIZE new_frame_size);
     void _render_frame();
+    
     LRESULT _wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
     bool _fl_initialized{ false };
     bool _fl_render_interop_texture{ true }; // Whether to render using the interop texture or not
+    bool _fl_vsync_enabled{ false }; // Whether to synchronize Present() with the display's vertical blank
 
     // Process/IPC
     utils::unique_handle _renderer_process_handle; // spawned renderer process handle (owned for lifetime)
