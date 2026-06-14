@@ -2,6 +2,9 @@
 
 #include <triengine_interop/surface/surface_producer.hh>
 
+#include "scene_manager.hh"
+#include "scene/skull_scene.hh"
+#include "scene/plasma_scene.hh"
 #include "task_dispatcher.hh"
 
 #include <xutl/concurrency/spin_lock.hh>
@@ -28,6 +31,8 @@ public:
     ~impl() override
     {
         XUTL_TRACE("{}() ENTER", __func__);
+        // Destroy the scenes (stops the plasma worker) before the renderer they reference.
+        _scene_mgr.reset();
         if (_renderer) {
             _renderer->destroy_renderer();
         }
@@ -42,13 +47,23 @@ public:
         _main_task_dispatcher->dispatch_pending_tasks();
 
         std::unique_lock lk{ _ipc_lock };
-        if (!_renderer) { return false; }
+        if (!_renderer || !_scene_mgr) { return false; }
+
+        this->_apply_pending_scene_switch();
         this->_process_scene_camera_keyboard_input();
-        this->_update_renderer_scene();
+
+        scene_wrapper* const curr_scn = _scene_mgr->current();
+
+        // Per-frame update before render (skull rotation, plasma texture upload, ...).
+        if (curr_scn) { curr_scn->update(_renderer->get_frame_size()); }
 
         // Render with frame synchronization
         constexpr uint64_t mutex_key = 0;
         XUTL_ASSERT(_renderer->render(mutex_key));
+
+        // After render: let the scene release anything the render consumed (e.g. recycle the
+        // plasma frame buffer whose upload was just applied).
+        if (curr_scn) { curr_scn->post_render(); }
         return true;
     }
 
@@ -66,7 +81,7 @@ public:
         {
             XUTL_INFO("Start initialization... (frame size: {}x{}, max fps: {})", width, height, requested_max_fps);
             this->_create_renderer(width, height, requested_max_fps);
-            this->_create_renderer_scene();
+            this->_create_renderer_scenes();
 
             DXGI_ADAPTER_DESC desc{};
             _renderer->get_dxgi_adapter()->GetDesc(&desc);
@@ -132,7 +147,8 @@ public:
         [[maybe_unused]] surface_proto::modifier_button_type mods) override
     {
         std::scoped_lock lk{ _ipc_lock };
-        if (!_renderer || !_scene) { return; }
+        triengine::scene* const scn = this->_current_scene();
+        if (!_renderer || !scn) { return; }
 
         const triengine::vec2_f32 cursor_screen_pos{
             static_cast<float>(pos.x),
@@ -146,7 +162,7 @@ public:
                 _begin_click_cursor_screen_pos.value_or(cursor_screen_pos).y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
             };
 
-            triengine::abstract_camera* const scn_camera = _scene->get_camera();
+            triengine::abstract_camera* const scn_camera = scn->get_camera();
 
             if (_flag_l_mouse_pressed)
             {
@@ -188,8 +204,9 @@ public:
     void on_mouse_scroll_event(float yoffset) override
     {
         std::scoped_lock lk{ _ipc_lock };
-        if (!_scene) { return; }
-        _scene->get_camera()->process_mouse_zoom(yoffset);
+        triengine::scene* const scn = this->_current_scene();
+        if (!scn) { return; }
+        scn->get_camera()->process_mouse_zoom(yoffset);
     }
 
     void on_key_event(
@@ -198,12 +215,23 @@ public:
         [[maybe_unused]] surface_proto::modifier_button_type mods) override
     {
         std::scoped_lock lk{ _ipc_lock };
-        if (!_renderer || !_scene) { return; }
+        if (!_renderer || !_scene_mgr) { return; }
 
         XUTL_TRACE("key event -> key: {}, action: {}"
             , static_cast<int>(key)
             , static_cast<int>(action)
         );
+
+        // Left/Right switch scenes on a discrete press. The actual switch mutates the scene
+        // manager (and the renderer's current scene), so it is marshaled to the render thread
+        // (applied in poll()) instead of mutating shared state from this IPC thread.
+        if (action == surface_proto::ACTION_PRESS) {
+            switch (key) {
+            case surface_proto::KEY_LEFT: _pending_scene_switch = -1; return;
+            case surface_proto::KEY_RIGHT: _pending_scene_switch = +1; return;
+            default: break;
+            }
+        }
 
         // Track W/A/S/D as held state instead of acting on each event.
         const bool pressed = action != surface_proto::ACTION_RELEASE;
@@ -223,13 +251,14 @@ public:
         _main_task_dispatcher->submit_task([this]() {
             XUTL_DEBUG("Session disconnected, cleaning up GL renderer resources...");
             std::scoped_lock lk{ _ipc_lock };
+            // Destroy the scenes (stops the plasma worker) before tearing down the renderer
+            // they live in, so the next connection starts fresh.
+            _scene_mgr.reset();
             if (_renderer) {
                 _renderer->destroy_renderer();
             }
-            _skull_mesh.reset();
-            _skull_mesh2.reset();
-            _scene.reset();
             _renderer.reset();
+            _pending_scene_switch = 0;
             _flag_mouse_dragging = false;
             _flag_l_mouse_pressed = false;
             _flag_r_mouse_pressed = false;
@@ -264,77 +293,35 @@ private:
         XUTL_TRACE("Renderer created successfully.");
     }
 
-    void _create_renderer_scene()
+    void _create_renderer_scenes()
     {
-        XUTL_TRACE("Create renderer scene...");
+        XUTL_TRACE("Create renderer scenes...");
 
-        const auto rsrc_dir_path = triengine::global_options::instance()->get_resource_directory();
+        // Register the demo's scenes. The first one added becomes active, so skull starts
+        // active. Adding a new scene type here is the only step needed to extend the demo.
+        _scene_mgr = std::make_unique<scene_manager>(*_renderer);
+        _scene_mgr->add(std::make_unique<scene::skull_scene>(*_renderer));
+        _scene_mgr->add(std::make_unique<scene::plasma_scene>(*_renderer));
 
-        auto scn = _renderer->add_scene();
-        scn->set_name("main");
+        XUTL_TRACE("Renderer scenes created successfully.");
+    }
 
-        scn->get_render_config()->show_origin_xz_grid = true;
-        scn->get_render_config()->light_opts.point_light.position = triengine::vec3_f32{ 0.0f, 1.5f, -1.5f };
-        scn->get_render_config()->light_opts.point_light.ambient_intensity = 0.0f;
-        scn->get_render_config()->light_opts.point_light.diffuse_intensity = 2.5f;
-        scn->get_render_config()->light_opts.point_light.specular_intensity = 1.35f;
+    // Apply a scene switch requested from the IPC thread (left/right arrow). Runs on the
+    // render thread under _ipc_lock, so it can safely mutate the scene manager.
+    void _apply_pending_scene_switch()
+    {
+        if (_pending_scene_switch == 0 || !_scene_mgr) { return; }
 
-        scn->switch_camera_type(triengine::camera_type::arcball);
-        scn->get_camera()->as<triengine::arcball_camera>()->get_options().damping_factor = 11.0f;
-
-        auto mesh_axis_frame = triengine::geometry::mesh_object::create_coordinate_frame(0.5f);
-        scn->add_geometry(mesh_axis_frame);
-
-        _skull_mesh = std::make_shared<triengine::geometry::mesh_object>();
-        if (triengine::io::load_mesh_from_obj(
-            rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
-            false,
-            *scn,
-            *_skull_mesh
-        ))
-        {
-            _skull_mesh->set_model(
-                triengine::math::scale(_skull_mesh->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
-            );
-
-            _skull_mesh->apply_model_in_place();
-
-            Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-            R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
-
-            _skull_mesh->rotate(R, true);
-            _skull_mesh->translate(triengine::vec3_f32(0.0f, 0.5f, 0.0f), true);
-            scn->add_geometry(_skull_mesh);
+        if (_pending_scene_switch > 0) {
+            _scene_mgr->switch_to_next();
+        } else {
+            _scene_mgr->switch_to_prev();
         }
+        _pending_scene_switch = 0;
 
-        _skull_mesh2 = std::make_shared<triengine::geometry::mesh_object>();
-        if (triengine::io::load_mesh_from_obj(
-            rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
-            false,
-            *scn,
-            *_skull_mesh2
-        ))
-        {
-            _skull_mesh2->set_model(
-                triengine::math::scale(_skull_mesh2->get_model(), triengine::vec3_f32(0.0125f, 0.0125f, 0.0125f))
-            );
-            _skull_mesh2->get_texture_shading_material()->alpha = 0.5f;
-            _skull_mesh2->apply_model_in_place();
-
-            Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-            R = Eigen::AngleAxisf(triengine::math::deg2rad(0.0f), Eigen::Vector3f::UnitZ())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(180.0f), Eigen::Vector3f::UnitY())
-                * Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX());
-            _skull_mesh2->rotate(R, true);
-            _skull_mesh2->translate(triengine::vec3_f32(0.0f, 0.6f, 0.0f), true);
-
-            scn->add_geometry(_skull_mesh2);
+        if (const scene_wrapper* const curr = _scene_mgr->current()) {
+            XUTL_DEBUG("Switched to scene: {}", curr->get_scene()->get_name());
         }
-
-        _scene = scn;
-        XUTL_TRACE("Renderer scene created successfully.");
     }
 
     // Apply continuous camera translation for the held W/A/S/D keys. Driven once
@@ -342,31 +329,29 @@ private:
     // NOTE: MUST be called on the main render thread with _ipc_lock held.
     void _process_scene_camera_keyboard_input()
     {
+        triengine::scene* const scn = this->_current_scene();
+        if (!scn) { return; }
+
         const double now = ::glfwGetTime();
         const float frame_delta = _last_key_update_time
             ? static_cast<float>(now - *_last_key_update_time)
             : 0.0f;
         _last_key_update_time = now;
 
-        triengine::abstract_camera* const scn_camera = _scene->get_camera();
+        triengine::abstract_camera* const scn_camera = scn->get_camera();
         if (_flag_key_w_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::forward, frame_delta); }
         if (_flag_key_s_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::backward, frame_delta); }
         if (_flag_key_a_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::left, frame_delta); }
         if (_flag_key_d_pressed) { scn_camera->process_keyboard_translation(triengine::camera_movement_type::right, frame_delta); }
     }
 
-    void _update_renderer_scene()
+    // The active scene (mirrors the manager's current scene), or nullptr if none. Input is
+    // routed to its camera. MUST be called with _ipc_lock held.
+    triengine::scene* _current_scene() noexcept
     {
-        constexpr float rotSpeed = triengine::math::pi<float>() / 8.0f;
-        const float dT = static_cast<float>(::glfwGetTime());
-
-        Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-        R = Eigen::AngleAxisf(triengine::math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
-            Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitZ());
-
-        if (_skull_mesh) {
-            _skull_mesh->rotate(R);
-        }
+        if (!_scene_mgr) { return nullptr; }
+        scene_wrapper* const curr = _scene_mgr->current();
+        return curr ? curr->get_scene().get() : nullptr;
     }
 
 private:
@@ -376,9 +361,14 @@ private:
 
     // GL Renderer
     std::unique_ptr<triengine::visualization::offscreen_renderer_dx> _renderer;
-    std::shared_ptr<triengine::scene> _scene;
-    std::shared_ptr<triengine::geometry::mesh_object> _skull_mesh;
-    std::shared_ptr<triengine::geometry::mesh_object> _skull_mesh2;
+
+    // Owns the demo's scenes and tracks the active one. Created on session init, reset on
+    // disconnect (before the renderer it references is destroyed).
+    std::unique_ptr<scene_manager> _scene_mgr;
+
+    // Pending scene switch requested from the IPC thread: -1 previous, +1 next, 0 none.
+    // Applied on the render thread in poll().
+    int _pending_scene_switch{ 0 };
 
     bool _flag_mouse_dragging{ false };
     bool _flag_l_mouse_pressed{ false };

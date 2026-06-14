@@ -5,6 +5,11 @@ add_executable(${TARGET_NAME})
 target_sources(${TARGET_NAME}
     PRIVATE
         "src/task_dispatcher.hh"
+        "src/scene_wrapper.hh"
+        "src/scene_manager.hh"
+        "src/scene/skull_scene.hh"
+        "src/scene/plasma_scene.hh"
+        "src/scene/plasma_scene.cc"
         "src/renderer_process.cc"
         "src/renderer_process.hh"
         "src/viewer_process.cc"
