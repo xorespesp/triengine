@@ -4,10 +4,61 @@
 #include <conio.h>
 #include <iostream>
 #include <optional>
+#include <cmath>
 #include <xutl/debug/logger.hh>
 #include <xutl/utility/bit.hh>
 
-namespace surface_proto = triengine_interop::surface::proto;
+namespace interop_surface_proto = triengine_interop::surface::proto;
+namespace interop_surface = triengine_interop::surface;
+
+namespace
+{
+    // Surveys all active monitors and returns the highest refresh rate scaled by an
+    // over-produce margin, used as the adaptive frame-rate cap requested at connect.
+    // (triengine_interop no longer derives this; the policy lives in the consumer app.)
+    // Falls back to a fixed cap if no refresh rate could be determined.
+    uint32_t adaptive_max_fps()
+    {
+        uint32_t max_hz{ 0 };
+        ::EnumDisplayMonitors(nullptr, nullptr,
+            [](HMONITOR hmon, HDC, LPRECT, LPARAM lparam) -> BOOL
+            {
+                uint32_t& out_max_hz = *_XUTL utility::bit_cast<uint32_t*>(lparam);
+
+                MONITORINFOEXA mi{};
+                mi.cbSize = sizeof(mi);
+                if (::GetMonitorInfoA(hmon, &mi)) {
+                    DEVMODEA dm{};
+                    dm.dmSize = sizeof(dm);
+                    if (::EnumDisplaySettingsA(mi.szDevice, ENUM_CURRENT_SETTINGS, &dm)) {
+                        // 0 or 1 means "default/unknown" rather than an actual hardware rate.
+                        const uint32_t hz = static_cast<uint32_t>(dm.dmDisplayFrequency);
+                        if (hz > 1 && hz > out_max_hz) {
+                            out_max_hz = hz;
+                        }
+                    }
+                }
+                return TRUE; // continue enumeration
+            },
+            _XUTL utility::bit_cast<LPARAM>(&max_hz)
+        );
+
+        if (max_hz == 0) {
+            constexpr uint32_t kFallbackMaxFps{ 200 };
+            XUTL_WARN("failed to determine display refresh rate, falling back to {} fps", kFallbackMaxFps);
+            return kFallbackMaxFps;
+        }
+
+        // Producing somewhat faster than the display keeps the consumed frame fresh (lower
+        // input latency) at a modest CPU cost; clamp so high-refresh displays do not push
+        // production into wasteful territory.
+        constexpr double kOverproduceFactor{ 2.0 };
+        constexpr uint32_t kMaxRequestedFps{ 240 };
+
+        const uint32_t requested = static_cast<uint32_t>(std::floor(max_hz * kOverproduceFactor));
+        return requested < kMaxRequestedFps ? requested : kMaxRequestedFps;
+    }
+} // namespace
 
 viewer_process::viewer_process(
     const SIZE initial_frame_size, 
@@ -128,11 +179,14 @@ void viewer_process::_initialize(
 
     // The consumer connects, performs the init handshake, picks the renderer's adapter,
     // opens the shared surface and builds the blit pipeline. No manual color conversion
-    // is needed: the GPU swizzles RGBA<->BGRA on load/store, so only a Y-flip is
-    // requested here (the default `surface_render_options`).
+    // is needed: the GPU swizzles RGBA<->BGRA on load/store, so only a Y-flip is requested
+    // (the default). The frame-rate cap is derived adaptively from the local displays here.
+    interop_surface::surface_render_options cfg;
+    cfg.max_fps = adaptive_max_fps();
     if (!_consumer.connect(
         Config::RENDERER_SERVER_NAME,
-        initial_frame_size))
+        initial_frame_size,
+        cfg))
     {
         throw std::runtime_error{ "failed to connect / create surface consumer" };
     }
@@ -364,31 +418,31 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         const BOOL was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT; // previous key-state flag, 1 on autorepeat
         const WORD repeat_count = LOWORD(lParam); // repeat count, > 0 if several keydown messages was combined into one message
 
-        auto key = surface_proto::translate_vkcode(vkcode);
-        if (key != surface_proto::KEY_UNKNOWN)
+        auto key = interop_surface_proto::translate_vkcode(vkcode);
+        if (key != interop_surface_proto::KEY_UNKNOWN)
         {
-            auto action = is_key_released ? surface_proto::ACTION_RELEASE : (was_key_down && repeat_count ? surface_proto::ACTION_REPEAT : surface_proto::ACTION_PRESS);
-            surface_proto::modifier_button_type mods{};
-            if (GetKeyState(VK_SHIFT) & 0x8000) { mods |= surface_proto::MOD_KEY_SHIFT; }
-            if (GetKeyState(VK_CONTROL) & 0x8000) { mods |= surface_proto::MOD_KEY_CTRL; }
-            if (GetKeyState(VK_MENU) & 0x8000) { mods |= surface_proto::MOD_KEY_ALT; }
-            if (GetKeyState(VK_CAPITAL) & 0x0001) { mods |= surface_proto::MOD_KEY_CAPSLOCK; }
-            if (GetKeyState(VK_NUMLOCK) & 0x0001) { mods |= surface_proto::MOD_KEY_NUMLOCK; }
+            auto action = is_key_released ? interop_surface_proto::ACTION_RELEASE : (was_key_down && repeat_count ? interop_surface_proto::ACTION_REPEAT : interop_surface_proto::ACTION_PRESS);
+            interop_surface_proto::modifier_button_type mods{};
+            if (GetKeyState(VK_SHIFT) & 0x8000) { mods |= interop_surface_proto::MOD_KEY_SHIFT; }
+            if (GetKeyState(VK_CONTROL) & 0x8000) { mods |= interop_surface_proto::MOD_KEY_CTRL; }
+            if (GetKeyState(VK_MENU) & 0x8000) { mods |= interop_surface_proto::MOD_KEY_ALT; }
+            if (GetKeyState(VK_CAPITAL) & 0x0001) { mods |= interop_surface_proto::MOD_KEY_CAPSLOCK; }
+            if (GetKeyState(VK_NUMLOCK) & 0x0001) { mods |= interop_surface_proto::MOD_KEY_NUMLOCK; }
 
             //XUTL_TRACE("key event -> key: {}, scancode: {}, action: {}, mods: 0x{:X}"
             //    , static_cast<int>(key)
             //    , scan_code
             //    , static_cast<int>(action)
-            //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
+            //    , static_cast<std::underlying_type_t<interop_surface_proto::modifier_button_type>>(mods)
             //);
 
             // Forward the key event to the renderer.
             XUTL_ASSERT(std::errc{} == _consumer.send_key_event(key, action, mods));
 
-            if (action == surface_proto::ACTION_RELEASE)
+            if (action == interop_surface_proto::ACTION_RELEASE)
             {
                 switch (key) {
-                case surface_proto::KEY_F1:
+                case interop_surface_proto::KEY_F1:
                     _fl_render_interop_texture = !_fl_render_interop_texture;
                     XUTL_DEBUG("Toggled interop texture rendering: {}", _fl_render_interop_texture ? "enabled" : "disabled");
                     break;
@@ -410,48 +464,48 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         const int32_t x = GET_X_LPARAM(lParam);
         const int32_t y = GET_Y_LPARAM(lParam);
 
-        surface_proto::mouse_button_type btn = [msg]() -> std::optional<surface_proto::mouse_button_type> {
+        interop_surface_proto::mouse_button_type btn = [msg]() -> std::optional<interop_surface_proto::mouse_button_type> {
             switch (msg) {
             case WM_LBUTTONDOWN:
             case WM_LBUTTONUP:
-                return surface_proto::MOUSE_L;
+                return interop_surface_proto::MOUSE_L;
             case WM_RBUTTONDOWN:
             case WM_RBUTTONUP:
-                return surface_proto::MOUSE_R;
+                return interop_surface_proto::MOUSE_R;
             case WM_MBUTTONDOWN:
             case WM_MBUTTONUP:
-                return surface_proto::MOUSE_M;
+                return interop_surface_proto::MOUSE_M;
             default:
                 return std::nullopt;
             }
         }().value();
 
-        surface_proto::button_action_type action = [msg]() -> std::optional<surface_proto::button_action_type> {
+        interop_surface_proto::button_action_type action = [msg]() -> std::optional<interop_surface_proto::button_action_type> {
             switch (msg) {
             case WM_LBUTTONDOWN:
             case WM_RBUTTONDOWN:
             case WM_MBUTTONDOWN:
-                return surface_proto::ACTION_PRESS;
+                return interop_surface_proto::ACTION_PRESS;
             case WM_LBUTTONUP:
             case WM_RBUTTONUP:
             case WM_MBUTTONUP:
-                return surface_proto::ACTION_RELEASE;
+                return interop_surface_proto::ACTION_RELEASE;
             default:
                 return std::nullopt;
             }
         }().value();
 
-        surface_proto::modifier_button_type mods{};
-        if (wParam & MK_CONTROL) { mods |= surface_proto::MOD_KEY_CTRL; }
-        if (wParam & MK_SHIFT) { mods |= surface_proto::MOD_KEY_SHIFT; }
-        if (wParam & MK_LBUTTON) { mods |= surface_proto::MOD_MOUSE_L; }
-        if (wParam & MK_RBUTTON) { mods |= surface_proto::MOD_MOUSE_R; }
-        if (wParam & MK_MBUTTON) { mods |= surface_proto::MOD_MOUSE_M; }
+        interop_surface_proto::modifier_button_type mods{};
+        if (wParam & MK_CONTROL) { mods |= interop_surface_proto::MOD_KEY_CTRL; }
+        if (wParam & MK_SHIFT) { mods |= interop_surface_proto::MOD_KEY_SHIFT; }
+        if (wParam & MK_LBUTTON) { mods |= interop_surface_proto::MOD_MOUSE_L; }
+        if (wParam & MK_RBUTTON) { mods |= interop_surface_proto::MOD_MOUSE_R; }
+        if (wParam & MK_MBUTTON) { mods |= interop_surface_proto::MOD_MOUSE_M; }
 
         //XUTL_TRACE("mouse event -> btn: {}, action: {}, mods: 0x{:X}"
         //    , static_cast<int>(btn)
         //    , static_cast<int>(action)
-        //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
+        //    , static_cast<std::underlying_type_t<interop_surface_proto::modifier_button_type>>(mods)
         //);
 
         // Capture the mouse on the first button press so a drag that leaves the
@@ -459,7 +513,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         // outside the window sends WM_*BUTTONUP to another window, leaving the renderer
         // stuck in a pressed state when the cursor returns. Release the capture once all
         // buttons are up.
-        if (action == surface_proto::ACTION_PRESS) {
+        if (action == interop_surface_proto::ACTION_PRESS) {
             if (_mouse_pressed_button_count++ == 0) {
                 ::SetCapture(hWnd);
             }
@@ -478,16 +532,16 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         const int32_t x = GET_X_LPARAM(lParam);
         const int32_t y = GET_Y_LPARAM(lParam);
 
-        surface_proto::modifier_button_type mods{};
-        if (wParam & MK_CONTROL) { mods |= surface_proto::MOD_KEY_CTRL; }
-        if (wParam & MK_SHIFT) { mods |= surface_proto::MOD_KEY_SHIFT; }
-        if (wParam & MK_LBUTTON) { mods |= surface_proto::MOD_MOUSE_L; }
-        if (wParam & MK_RBUTTON) { mods |= surface_proto::MOD_MOUSE_R; }
-        if (wParam & MK_MBUTTON) { mods |= surface_proto::MOD_MOUSE_M; }
+        interop_surface_proto::modifier_button_type mods{};
+        if (wParam & MK_CONTROL) { mods |= interop_surface_proto::MOD_KEY_CTRL; }
+        if (wParam & MK_SHIFT) { mods |= interop_surface_proto::MOD_KEY_SHIFT; }
+        if (wParam & MK_LBUTTON) { mods |= interop_surface_proto::MOD_MOUSE_L; }
+        if (wParam & MK_RBUTTON) { mods |= interop_surface_proto::MOD_MOUSE_R; }
+        if (wParam & MK_MBUTTON) { mods |= interop_surface_proto::MOD_MOUSE_M; }
 
         //XUTL_TRACE("mouse move event -> pos: ({}, {}), mods: 0x{:X}"
         //    , x, y
-        //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
+        //    , static_cast<std::underlying_type_t<interop_surface_proto::modifier_button_type>>(mods)
         //);
 
         XUTL_ASSERT(std::errc{} == _consumer.send_mouse_move_event(POINT{ x, y }, mods));
