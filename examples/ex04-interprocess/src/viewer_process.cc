@@ -7,8 +7,7 @@
 #include <xutl/debug/logger.hh>
 #include <xutl/utility/bit.hh>
 
-// Short namespace alias for the triengine_interop surface protocol enums.
-namespace ipc_proto = triengine_interop::surface::proto;
+namespace surface_proto = triengine_interop::surface::proto;
 
 viewer_process::viewer_process(const SIZE initial_frame_size, const DXGI_FORMAT target_frame_format)
 {
@@ -122,8 +121,7 @@ void viewer_process::_initialize(
     // requested here (the default `surface_render_options`).
     if (!_consumer.connect(
         Config::RENDERER_SERVER_NAME,
-        static_cast<int32_t>(initial_frame_size.cx),
-        static_cast<int32_t>(initial_frame_size.cy)))
+        initial_frame_size))
     {
         throw std::runtime_error{ "failed to connect / create surface consumer" };
     }
@@ -257,9 +255,7 @@ void viewer_process::_resize_frame(const SIZE new_frame_size)
 
     // Resize the shared-surface side (the consumer requests the renderer resize and
     // recreates the shared texture / copy / SRV).
-    if (!_consumer.resize(
-        static_cast<int32_t>(new_frame_size.cx),
-        static_cast<int32_t>(new_frame_size.cy)))
+    if (!_consumer.resize_frame(new_frame_size))
     {
         throw std::runtime_error("frame resize request failed.");
     }
@@ -299,6 +295,17 @@ void viewer_process::_render_frame()
     }
 
     _dx11_swapchain1->Present(0, DXGI_PRESENT_ALLOW_TEARING); // Present(0, DXGI_PRESENT_ALLOW_TEARING) : VSync Off
+
+    // log average of frame time and fps every 1 second
+    thread_local int frameCount = 0;
+    ++frameCount;
+    thread_local auto lastTime = std::chrono::steady_clock::now();
+    const auto currentTime = std::chrono::steady_clock::now();
+    if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s) {
+        XUTL_DEBUG("Viewer FPS: {}", frameCount);
+        lastTime = currentTime;
+        frameCount = 0;
+    }
 }
 
 LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -338,28 +345,31 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         const BOOL was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT; // previous key-state flag, 1 on autorepeat
         const WORD repeat_count = LOWORD(lParam); // repeat count, > 0 if several keydown messages was combined into one message
 
-        auto key = ipc_proto::translate_vkcode(vkcode);
-        if (key != ipc_proto::KEY_UNKNOWN)
+        auto key = surface_proto::translate_vkcode(vkcode);
+        if (key != surface_proto::KEY_UNKNOWN)
         {
-            auto action = is_key_released ? ipc_proto::ACTION_RELEASE : (was_key_down && repeat_count ? ipc_proto::ACTION_REPEAT : ipc_proto::ACTION_PRESS);
-            ipc_proto::modifier_button_type mods{};
-            if (GetKeyState(VK_SHIFT) & 0x8000) { mods |= ipc_proto::MOD_KEY_SHIFT; }
-            if (GetKeyState(VK_CONTROL) & 0x8000) { mods |= ipc_proto::MOD_KEY_CTRL; }
-            if (GetKeyState(VK_MENU) & 0x8000) { mods |= ipc_proto::MOD_KEY_ALT; }
-            if (GetKeyState(VK_CAPITAL) & 0x0001) { mods |= ipc_proto::MOD_KEY_CAPSLOCK; }
-            if (GetKeyState(VK_NUMLOCK) & 0x0001) { mods |= ipc_proto::MOD_KEY_NUMLOCK; }
+            auto action = is_key_released ? surface_proto::ACTION_RELEASE : (was_key_down && repeat_count ? surface_proto::ACTION_REPEAT : surface_proto::ACTION_PRESS);
+            surface_proto::modifier_button_type mods{};
+            if (GetKeyState(VK_SHIFT) & 0x8000) { mods |= surface_proto::MOD_KEY_SHIFT; }
+            if (GetKeyState(VK_CONTROL) & 0x8000) { mods |= surface_proto::MOD_KEY_CTRL; }
+            if (GetKeyState(VK_MENU) & 0x8000) { mods |= surface_proto::MOD_KEY_ALT; }
+            if (GetKeyState(VK_CAPITAL) & 0x0001) { mods |= surface_proto::MOD_KEY_CAPSLOCK; }
+            if (GetKeyState(VK_NUMLOCK) & 0x0001) { mods |= surface_proto::MOD_KEY_NUMLOCK; }
 
-            XUTL_TRACE("key event -> key: {}, scancode: {}, action: {}, mods: 0x{:X}"
-                , static_cast<int>(key)
-                , scan_code
-                , static_cast<int>(action)
-                , static_cast<std::underlying_type_t<ipc_proto::modifier_button_type>>(mods)
-            );
+            //XUTL_TRACE("key event -> key: {}, scancode: {}, action: {}, mods: 0x{:X}"
+            //    , static_cast<int>(key)
+            //    , scan_code
+            //    , static_cast<int>(action)
+            //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
+            //);
 
-            if (action == ipc_proto::ACTION_RELEASE)
+            // Forward the key event to the renderer.
+            XUTL_ASSERT(std::errc{} == _consumer.send_key_event(key, action, mods));
+
+            if (action == surface_proto::ACTION_RELEASE)
             {
                 switch (key) {
-                case ipc_proto::KEY_F1:
+                case surface_proto::KEY_F1:
                     _fl_render_interop_texture = !_fl_render_interop_texture;
                     XUTL_DEBUG("Toggled interop texture rendering: {}", _fl_render_interop_texture ? "enabled" : "disabled");
                     break;
@@ -381,51 +391,51 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         const int32_t x = GET_X_LPARAM(lParam);
         const int32_t y = GET_Y_LPARAM(lParam);
 
-        ipc_proto::mouse_button_type btn = [msg]() -> std::optional<ipc_proto::mouse_button_type> {
+        surface_proto::mouse_button_type btn = [msg]() -> std::optional<surface_proto::mouse_button_type> {
             switch (msg) {
             case WM_LBUTTONDOWN:
             case WM_LBUTTONUP:
-                return ipc_proto::MOUSE_L;
+                return surface_proto::MOUSE_L;
             case WM_RBUTTONDOWN:
             case WM_RBUTTONUP:
-                return ipc_proto::MOUSE_R;
+                return surface_proto::MOUSE_R;
             case WM_MBUTTONDOWN:
             case WM_MBUTTONUP:
-                return ipc_proto::MOUSE_M;
+                return surface_proto::MOUSE_M;
             default:
                 return std::nullopt;
             }
         }().value();
 
-        ipc_proto::button_action_type action = [msg]() -> std::optional<ipc_proto::button_action_type> {
+        surface_proto::button_action_type action = [msg]() -> std::optional<surface_proto::button_action_type> {
             switch (msg) {
             case WM_LBUTTONDOWN:
             case WM_RBUTTONDOWN:
             case WM_MBUTTONDOWN:
-                return ipc_proto::ACTION_PRESS;
+                return surface_proto::ACTION_PRESS;
             case WM_LBUTTONUP:
             case WM_RBUTTONUP:
             case WM_MBUTTONUP:
-                return ipc_proto::ACTION_RELEASE;
+                return surface_proto::ACTION_RELEASE;
             default:
                 return std::nullopt;
             }
         }().value();
 
-        ipc_proto::modifier_button_type mods{};
-        if (wParam & MK_CONTROL) { mods |= ipc_proto::MOD_KEY_CTRL; }
-        if (wParam & MK_SHIFT) { mods |= ipc_proto::MOD_KEY_SHIFT; }
-        if (wParam & MK_LBUTTON) { mods |= ipc_proto::MOD_MOUSE_L; }
-        if (wParam & MK_RBUTTON) { mods |= ipc_proto::MOD_MOUSE_R; }
-        if (wParam & MK_MBUTTON) { mods |= ipc_proto::MOD_MOUSE_M; }
+        surface_proto::modifier_button_type mods{};
+        if (wParam & MK_CONTROL) { mods |= surface_proto::MOD_KEY_CTRL; }
+        if (wParam & MK_SHIFT) { mods |= surface_proto::MOD_KEY_SHIFT; }
+        if (wParam & MK_LBUTTON) { mods |= surface_proto::MOD_MOUSE_L; }
+        if (wParam & MK_RBUTTON) { mods |= surface_proto::MOD_MOUSE_R; }
+        if (wParam & MK_MBUTTON) { mods |= surface_proto::MOD_MOUSE_M; }
 
-        XUTL_TRACE("mouse event -> btn: {}, action: {}, mods: 0x{:X}"
-            , static_cast<int>(btn)
-            , static_cast<int>(action)
-            , static_cast<std::underlying_type_t<ipc_proto::modifier_button_type>>(mods)
-        );
+        //XUTL_TRACE("mouse event -> btn: {}, action: {}, mods: 0x{:X}"
+        //    , static_cast<int>(btn)
+        //    , static_cast<int>(action)
+        //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
+        //);
 
-        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_button_event(x, y, btn, action, mods));
+        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_button_event(POINT{ x, y }, btn, action, mods));
 
         return 0;
     }
@@ -434,19 +444,19 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         const int32_t x = GET_X_LPARAM(lParam);
         const int32_t y = GET_Y_LPARAM(lParam);
 
-        ipc_proto::modifier_button_type mods{};
-        if (wParam & MK_CONTROL) { mods |= ipc_proto::MOD_KEY_CTRL; }
-        if (wParam & MK_SHIFT) { mods |= ipc_proto::MOD_KEY_SHIFT; }
-        if (wParam & MK_LBUTTON) { mods |= ipc_proto::MOD_MOUSE_L; }
-        if (wParam & MK_RBUTTON) { mods |= ipc_proto::MOD_MOUSE_R; }
-        if (wParam & MK_MBUTTON) { mods |= ipc_proto::MOD_MOUSE_M; }
+        surface_proto::modifier_button_type mods{};
+        if (wParam & MK_CONTROL) { mods |= surface_proto::MOD_KEY_CTRL; }
+        if (wParam & MK_SHIFT) { mods |= surface_proto::MOD_KEY_SHIFT; }
+        if (wParam & MK_LBUTTON) { mods |= surface_proto::MOD_MOUSE_L; }
+        if (wParam & MK_RBUTTON) { mods |= surface_proto::MOD_MOUSE_R; }
+        if (wParam & MK_MBUTTON) { mods |= surface_proto::MOD_MOUSE_M; }
 
-        XUTL_TRACE("mouse move event -> pos: ({}, {}), mods: 0x{:X}"
-            , x, y
-            , static_cast<std::underlying_type_t<ipc_proto::modifier_button_type>>(mods)
-        );
+        //XUTL_TRACE("mouse move event -> pos: ({}, {}), mods: 0x{:X}"
+        //    , x, y
+        //    , static_cast<std::underlying_type_t<surface_proto::modifier_button_type>>(mods)
+        //);
 
-        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_move_event(x, y, mods));
+        XUTL_ASSERT(std::errc{} == _consumer.send_mouse_move_event(POINT{ x, y }, mods));
 
         return 0;
     }
@@ -457,7 +467,7 @@ LRESULT viewer_process::_wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
         // Same scroll value as GLFW: normalize one wheel notch to 1.0 / -1.0.
         const float yoffset = static_cast<float>(raw_scroll_delta) / static_cast<float>(WHEEL_DELTA);
 
-        XUTL_TRACE("mouse scroll event -> yoffset: {}", yoffset);
+        //XUTL_TRACE("mouse scroll event -> yoffset: {}", yoffset);
 
         XUTL_ASSERT(std::errc{} == _consumer.send_mouse_scroll_event(yoffset));
 

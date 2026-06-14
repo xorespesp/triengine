@@ -7,9 +7,7 @@
 #include <xutl/concurrency/spin_lock.hh>
 #include <xutl/debug/logger.hh>
 
-// Short namespace aliases for the triengine_interop surface protocol and API.
-namespace ipc_proto = triengine_interop::surface::proto;
-namespace ipc_surface = triengine_interop::surface;
+namespace surface_proto = triengine_interop::surface::proto;
 
 // The per-session interface the surface producer drives. Created once and hosted for the
 // single consumer: the GL renderer/scene is built on connect (on_session_init) and torn down on
@@ -17,7 +15,7 @@ namespace ipc_surface = triengine_interop::surface;
 // render thread (the offscreen renderer is not thread-safe); input runs on the IPC
 // thread and uses the spin lock to guard the scene against the render thread.
 class renderer_process::impl
-    : public ipc_surface::surface_producer::session_interface
+    : public triengine_interop::surface::surface_producer::session_interface
 {
 public:
     impl()
@@ -56,14 +54,17 @@ public:
     // --- session_interface ---
 
     void on_session_init(
-        int32_t width, int32_t height,
+        SIZE initial_frame_size,
+        uint32_t requested_max_fps,
         LUID& out_adapter_luid,
         HANDLE& out_surface_handle) override
     {
-        _main_task_dispatcher->submit_task([this, width, height, &out_adapter_luid, &out_surface_handle]()
+        const int32_t width = static_cast<int32_t>(initial_frame_size.cx);
+        const int32_t height = static_cast<int32_t>(initial_frame_size.cy);
+        _main_task_dispatcher->submit_task([this, width, height, requested_max_fps, &out_adapter_luid, &out_surface_handle]()
         {
-            XUTL_INFO("Start initialization... (frame size: {}x{})", width, height);
-            this->_create_renderer(width, height);
+            XUTL_INFO("Start initialization... (frame size: {}x{}, max fps: {})", width, height, requested_max_fps);
+            this->_create_renderer(width, height, requested_max_fps);
             this->_create_renderer_scene();
 
             DXGI_ADAPTER_DESC desc{};
@@ -76,10 +77,13 @@ public:
     }
 
     void on_frame_resize_event(
-        int32_t width, int32_t height, 
+        SIZE new_size,
         HANDLE& out_surface_handle) override
     {
-        const triengine::vec2_i32 new_frame_size{ width, height };
+        const triengine::vec2_i32 new_frame_size{
+            static_cast<int32_t>(new_size.cx),
+            static_cast<int32_t>(new_size.cy)
+        };
         out_surface_handle = _main_task_dispatcher->submit_task([this, new_frame_size]() -> triengine::shared_win32_handle
         {
             XUTL_TRACE("frame resize start... (target size: {}x{})", new_frame_size.x(), new_frame_size.y());
@@ -95,23 +99,22 @@ public:
     }
 
     void on_mouse_button_event(
-        [[maybe_unused]] int32_t x,
-        [[maybe_unused]] int32_t y,
-        ipc_proto::mouse_button_type button,
-        ipc_proto::button_action_type action,
-        [[maybe_unused]] ipc_proto::modifier_button_type mods) override
+        [[maybe_unused]] POINT pos,
+        surface_proto::mouse_button_type button,
+        surface_proto::button_action_type action,
+        [[maybe_unused]] surface_proto::modifier_button_type mods) override
     {
         std::scoped_lock lk{ _ipc_lock };
 
         switch (button) {
-        case ipc_proto::MOUSE_L:
-            _flag_l_mouse_pressed = action != ipc_proto::ACTION_RELEASE;
+        case surface_proto::MOUSE_L:
+            _flag_l_mouse_pressed = action != surface_proto::ACTION_RELEASE;
             break;
-        case ipc_proto::MOUSE_R:
-            _flag_r_mouse_pressed = action != ipc_proto::ACTION_RELEASE;
+        case surface_proto::MOUSE_R:
+            _flag_r_mouse_pressed = action != surface_proto::ACTION_RELEASE;
             break;
-        case ipc_proto::MOUSE_M:
-            _flag_m_mouse_pressed = action != ipc_proto::ACTION_RELEASE;
+        case surface_proto::MOUSE_M:
+            _flag_m_mouse_pressed = action != surface_proto::ACTION_RELEASE;
             break;
         default:
             break;
@@ -124,16 +127,15 @@ public:
     }
 
     void on_mouse_move_event(
-        int32_t x,
-        int32_t y,
-        [[maybe_unused]] ipc_proto::modifier_button_type mods) override
+        POINT pos,
+        [[maybe_unused]] surface_proto::modifier_button_type mods) override
     {
         std::scoped_lock lk{ _ipc_lock };
         if (!_renderer || !_scene) { return; }
 
         const triengine::vec2_f32 cursor_screen_pos{
-            static_cast<float>(x),
-            static_cast<float>(y)
+            static_cast<float>(pos.x),
+            static_cast<float>(pos.y)
         };
 
         if (_flag_mouse_dragging)
@@ -189,6 +191,20 @@ public:
         _scene->get_camera()->process_mouse_zoom(yoffset);
     }
 
+    void on_key_event(
+        surface_proto::key_button_type key,
+        surface_proto::button_action_type action,
+        [[maybe_unused]] surface_proto::modifier_button_type mods) override
+    {
+        std::scoped_lock lk{ _ipc_lock };
+        if (!_renderer || !_scene) { return; }
+
+        XUTL_TRACE("key event -> key: {}, action: {}"
+            , static_cast<int>(key)
+            , static_cast<int>(action)
+        );
+    }
+
     void on_session_disconnect() override
     {
         // Tear down the GL state on the render thread so the next connection starts
@@ -214,18 +230,20 @@ public:
 private:
     void _create_renderer(
         const int32_t frame_width,
-        const int32_t frame_height)
+        const int32_t frame_height,
+        const uint32_t max_fps)
     {
-        XUTL_TRACE("initialize renderer... (frame size: {}x{})"
+        XUTL_TRACE("initialize renderer... (frame size: {}x{}, max_fps: {})"
             , frame_width
             , frame_height
+            , max_fps
         );
 
         _renderer = std::make_unique<triengine::visualization::offscreen_renderer_dx>();
-        _renderer->create_renderer(triengine::vec2_i32{
-            frame_width,
-            frame_height
-        });
+        _renderer->create_renderer(
+            triengine::vec2_i32{ frame_width, frame_height },
+            max_fps
+        );
 
         XUTL_TRACE("Renderer created successfully.");
     }
@@ -379,13 +397,12 @@ void renderer_process::run()
         }
 
         // log average of frame time and fps every 1 second
-        static int frameCount = 0;
+        thread_local int frameCount = 0;
         ++frameCount;
-        static auto lastTime = std::chrono::steady_clock::now();
+        thread_local auto lastTime = std::chrono::steady_clock::now();
         const auto currentTime = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s)
-        {
-            XUTL_DEBUG("Render FPS: {}", frameCount);
+        if (std::chrono::duration_cast<std::chrono::seconds>(currentTime - lastTime) >= 1s) {
+            XUTL_DEBUG("Renderer FPS: {}", frameCount);
             lastTime = currentTime;
             frameCount = 0;
         }
