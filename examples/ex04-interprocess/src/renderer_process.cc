@@ -58,8 +58,7 @@ public:
         if (curr_scn) { curr_scn->update(_renderer->get_frame_size()); }
 
         // Render with frame synchronization
-        constexpr uint64_t mutex_key = 0;
-        XUTL_ASSERT(_renderer->render(mutex_key));
+        XUTL_ASSERT(_renderer->render(surface_proto::SHARED_SURFACE_MUTEX_KEY));
 
         // After render: let the scene release anything the render consumed (e.g. recycle the
         // plasma frame buffer whose upload was just applied).
