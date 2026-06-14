@@ -101,7 +101,9 @@ namespace triengine::visualization
         return _dx11_interop_color_tex_handle;
     }
 
-    void offscreen_renderer_dx::create_renderer(const vec2_i32 initial_frame_size)
+    void offscreen_renderer_dx::create_renderer(
+        const vec2_i32 initial_frame_size,
+        const uint32_t max_fps)
     {
         TRIENGINE_DEBUG("Creating DX offscreen renderer with frame size %dx%d"
             , initial_frame_size.x()
@@ -329,8 +331,17 @@ namespace triengine::visualization
 
         _scn_renderer.create(&_glctx);
 
+        // Configure the optional software frame-rate cap
+        this->_apply_frame_rate_cap(max_fps);
+
         TRIENGINE_TRACE("%s() LEAVE", __func__);
         _flag_initialized = true;
+    }
+
+    void offscreen_renderer_dx::change_max_fps(const uint32_t max_fps)
+    {
+        TRIENGINE_ASSERT(_flag_initialized);
+        this->_apply_frame_rate_cap(max_fps);
     }
 
     void offscreen_renderer_dx::destroy_renderer()
@@ -373,6 +384,10 @@ namespace triengine::visualization
 
             _scn_renderer.destroy();
             _glctx.destroy();
+
+            // Release the frame-pacing timer and disable the cap
+            _frame_timer.reset();
+            _target_frame_interval = std::chrono::nanoseconds(0);
         }
     }
 
@@ -554,6 +569,12 @@ namespace triengine::visualization
 
         _glctx.swap_buffers();
         _glctx.poll_window_events();
+
+        // Throttle the present to the configured frame-rate cap (no-op if uncapped)
+        if (_target_frame_interval.count() > 0) {
+            this->_throttle_frame_rate();
+        }
+
         return true;
     }
 
@@ -667,6 +688,74 @@ namespace triengine::visualization
 
         // Resize viewport
         ::glViewport(0, 0, _curr_frame_size.x(), _curr_frame_size.y());
+    }
+
+    // Applies a frame-rate cap: computes the target frame interval and lazily creates the
+    // high-resolution waitable timer. A zero `max_fps` disables the cap and releases the timer.
+    void offscreen_renderer_dx::_apply_frame_rate_cap(const uint32_t max_fps)
+    {
+        if (max_fps > 0) {
+            _target_frame_interval = std::chrono::nanoseconds(1'000'000'000ull / max_fps);
+
+            if (!_frame_timer) {
+                HANDLE timer = ::CreateWaitableTimerExW(
+                    nullptr,
+                    nullptr,
+                    CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                    TIMER_ALL_ACCESS
+                );
+                if (!timer) {
+                    TRIENGINE_PANIC("Failed to create high-resolution waitable timer (last error: %u)", ::GetLastError());
+                }
+                _frame_timer.reset(timer, ::CloseHandle);
+            }
+            _next_frame_deadline = std::chrono::steady_clock::now();
+
+            TRIENGINE_DEBUG("Frame rate cap set to %u FPS", max_fps);
+        } else {
+            _target_frame_interval = std::chrono::nanoseconds(0);
+            _frame_timer.reset();
+
+            TRIENGINE_DEBUG("Frame rate cap disabled");
+        }
+    }
+
+    // Blocks until the next allowed present slot, enforcing the `max_fps` cap configured
+    // in create_renderer(). This is a free-running producer-side throttle, NOT a vsync: it
+    // only limits how fast frames are produced and does not synchronize to the consumer or
+    // to any display. The producer and the shared-surface consumer run as two independent
+    // loops, so this cap bounds the production rate only, not the end-to-end present latency
+    // (see create_renderer's doc comment for why over-producing reduces input latency).
+    void offscreen_renderer_dx::_throttle_frame_rate()
+    {
+        using namespace std::chrono;
+
+        // Advance the absolute deadline so the cadence converges to the target rate
+        // without accumulating drift.
+        const auto now = steady_clock::now();
+        _next_frame_deadline += _target_frame_interval;
+
+        // If we have fallen behind by more than one interval, reset the deadline to avoid
+        // a burst of catch-up frames.
+        if (_next_frame_deadline < now) {
+            _next_frame_deadline = now + _target_frame_interval;
+        }
+
+        // Wait the bulk of the remaining time on the high-resolution timer (parks the
+        // thread, ~0.5ms accuracy, no busy-wait).
+        const auto remaining = _next_frame_deadline - steady_clock::now();
+        if (remaining > nanoseconds(0)) {
+            LARGE_INTEGER due_time;
+            due_time.QuadPart = -(remaining.count() / 100); // 100ns units, negative == relative time
+            if (::SetWaitableTimer(_frame_timer.get(), &due_time, 0, nullptr, nullptr, FALSE)) {
+                ::WaitForSingleObject(_frame_timer.get(), INFINITE);
+            }
+        }
+
+        // Absorb any sub-millisecond timer undershoot with a brief spin to the deadline.
+        while (steady_clock::now() < _next_frame_deadline) {
+            ::YieldProcessor();
+        }
     }
 
 } // namespace
