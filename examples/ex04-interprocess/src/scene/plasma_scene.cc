@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
@@ -28,13 +29,15 @@ namespace scene
         constexpr float kCyclesY = 3.0f;
         constexpr float kCyclesDiag = 2.0f;
 
-        // Per-frame phase advance (radians) and palette rotation (indices). These drive the
-        // animation: the three axes drift at slightly different rates while the palette cycles,
-        // giving a continuously flowing, non-repeating-looking plasma.
-        constexpr float kPhaseSpeedX = 0.013f;
-        constexpr float kPhaseSpeedY = 0.011f;
-        constexpr float kPhaseSpeedDiag = 0.009f;
-        constexpr int32_t kPaletteSpeed = 1;
+        // Animation rates expressed PER SECOND, so the motion is time-based and its speed is
+        // independent of the production/render frame rate (max_fps). The three axes drift at
+        // slightly different rates while the palette cycles, giving a continuously flowing,
+        // non-repeating-looking plasma. Values are tuned to match the previous look at ~60 fps;
+        // scale them to taste.
+        constexpr float kPhaseSpeedX = 0.78f;    // radians/s
+        constexpr float kPhaseSpeedY = 0.66f;    // radians/s
+        constexpr float kPhaseSpeedDiag = 0.54f; // radians/s
+        constexpr float kPaletteSpeed = 60.0f;   // palette indices/s
 
         inline uint8_t unit_to_u8(const float v) {
             return static_cast<uint8_t>(std::min(std::max(v, 0.0f), 1.0f) * 255.0f);
@@ -232,9 +235,11 @@ namespace scene
         {
             const palette_t palette = make_palette();
 
-            // Per-frame animation phases (advanced every produced frame).
+            // Animation phases, advanced by elapsed wall-clock time on each produced frame so
+            // the visible speed is independent of how fast frames are produced.
             float phase_x = 0.0f, phase_y = 0.0f, phase_diag = 0.0f;
-            int32_t palette_shift = 0;
+            float palette_phase = 0.0f; // fractional palette index; wrapped to [0, 256)
+            auto last_time = std::chrono::steady_clock::now();
 
             // Reused per-frame scratch (resized as the target size changes).
             std::vector<uint8_t> col_term;  // [width]
@@ -279,11 +284,18 @@ namespace scene
                     std::iota(row_indices.begin(), row_indices.end(), 0);
                 }
 
-                // Advance the animation.
-                phase_x += kPhaseSpeedX;
-                phase_y += kPhaseSpeedY;
-                phase_diag += kPhaseSpeedDiag;
-                palette_shift = (palette_shift + kPaletteSpeed) & 0xFF;
+                // Advance the animation by elapsed wall-clock time (time-based), so the visible
+                // speed does not depend on the produced frame rate.
+                const auto now = std::chrono::steady_clock::now();
+                float dt = std::chrono::duration<float>(now - last_time).count();
+                last_time = now;
+                // Clamp so a long stall (e.g. a minimized window) does not cause a big jump.
+                dt = std::min(dt, 0.1f);
+
+                phase_x += kPhaseSpeedX * dt;
+                phase_y += kPhaseSpeedY * dt;
+                phase_diag += kPhaseSpeedDiag * dt;
+                palette_phase = std::fmod(palette_phase + kPaletteSpeed * dt, 256.0f);
 
                 // Precompute the separable 1D sine terms (O(width + height) sine calls).
                 const int32_t diag_count = width + height - 1;
@@ -312,7 +324,7 @@ namespace scene
                 const uint8_t* const row = row_term.data();
                 const uint8_t* const diag = diag_term.data();
                 const std::array<uint8_t, 3>* const pal = palette.data();
-                const int32_t shift = palette_shift;
+                const int32_t shift = static_cast<int32_t>(palette_phase) & 0xFF;
 
                 std::for_each(std::execution::par, row_indices.begin(), row_indices.end(),
                     [=](const int32_t y)
