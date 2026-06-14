@@ -32,8 +32,7 @@ namespace scene
         // Animation rates expressed PER SECOND, so the motion is time-based and its speed is
         // independent of the production/render frame rate (max_fps). The three axes drift at
         // slightly different rates while the palette cycles, giving a continuously flowing,
-        // non-repeating-looking plasma. Values are tuned to match the previous look at ~60 fps;
-        // scale them to taste.
+        // non-repeating-looking plasma. Adjust these rate constants to control animation speed.
         constexpr float kPhaseSpeedX = 0.78f;    // radians/s
         constexpr float kPhaseSpeedY = 0.66f;    // radians/s
         constexpr float kPhaseSpeedDiag = 0.54f; // radians/s

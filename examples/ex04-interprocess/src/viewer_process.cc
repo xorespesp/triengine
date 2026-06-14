@@ -14,8 +14,7 @@ namespace interop_surface = triengine_interop::surface;
 namespace
 {
     // Surveys all active monitors and returns the highest refresh rate scaled by an
-    // over-produce margin, used as the adaptive frame-rate cap requested at connect.
-    // (triengine_interop no longer derives this; the policy lives in the consumer app.)
+    // over-produce margin, used as the frame-rate cap this consumer requests at connect.
     // Falls back to a fixed cap if no refresh rate could be determined.
     uint32_t adaptive_max_fps()
     {
