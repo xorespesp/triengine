@@ -170,7 +170,7 @@ namespace triengine
         fly,
         arcball,
         ortho,
-        pinhole, // keep last: the interactive camera-type combo only lists fly/arcball/ortho
+        pinhole,
     };
 
     class fly_camera;
@@ -588,9 +588,16 @@ namespace triengine
     // +y down, +z forward into the scene, with visible points at z > 0.
     //
     // The camera pose is driven externally (e.g. from a tracker/solver), so mouse and keyboard
-    // controls are intentional no-ops. The projection is independent of the on-screen viewport, 
-    // so for exact alignment with a backing image the viewport aspect should match 
-    // `image_width / image_height`.
+    // controls are intentional no-ops.
+    //
+    // The projection is defined entirely by the intrinsics, which assume a viewport of aspect
+    // ratio `image_width / image_height`. When the actual viewport aspect differs (e.g. a resizable
+    // window), get_view_projection() scales clip-space x/y so the image keeps its aspect ratio and
+    // the unfilled axis is letterboxed (a "contain" fit) instead of being stretched to fill the
+    // viewport; it is a no-op when the aspects already match (e.g. an offscreen target at the sensor
+    // resolution). To keep a background image aligned with the rendered geometry, draw the background
+    // with `background_fit_mode::contain` so its letterbox bars line up with the region this leaves
+    // empty. Other background fits stay valid but will not line up with the projected geometry.
     //-------------------------------------------------------------------------------------------------
     class pinhole_camera : public abstract_camera
     {

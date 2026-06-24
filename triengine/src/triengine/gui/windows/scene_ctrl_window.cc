@@ -57,10 +57,11 @@ namespace triengine::gui
                 {
                     ImGui::Indent();
 
-                    static constexpr std::array<const char*, 3> kCameraTypeNamesMap = {
+                    static constexpr std::array<const char*, 4> kCameraTypeNamesMap = {
                         "Fly",
                         "Arcball",
-                        "Ortho"
+                        "Ortho",
+                        "Pinhole"
                     };
 
                     if (int cam_type_idx = static_cast<int>(scn.get_camera()->get_type());
@@ -247,6 +248,29 @@ namespace triengine::gui
                                 "%.2f",
                                 ImGuiSliderFlags_AlwaysClamp)) {
                             ortho_cam->set_ortho_view_height(view_height, fl_smooth_update);
+                        }
+                    }
+                    else if (cam_type == camera_type::pinhole)
+                    {
+                        auto* pinhole_cam = scn.get_camera()->as<pinhole_camera>();
+                        TRIENGINE_ASSERT(pinhole_cam != nullptr);
+
+                        // The pinhole camera is driven by calibration data (intrinsics + extrinsics)
+                        // rather than mouse interaction, so only its intrinsics are exposed here.
+                        // fx/fy, cx/cy, and image width/height are each declared as adjacent members,
+                        // so their addresses can be passed to the 2-component widgets below.
+                        auto intrinsics = pinhole_cam->get_intrinsics();
+                        bool intrinsics_changed = false;
+
+                        intrinsics_changed |= ImGui::DragFloat2("Focal Length (fx, fy)", &intrinsics.fx,
+                            1.0f, 1.0f, 10000.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+                        intrinsics_changed |= ImGui::DragFloat2("Principal Point (cx, cy)", &intrinsics.cx,
+                            1.0f, 0.0f, 10000.0f, "%.1f");
+                        intrinsics_changed |= ImGui::DragInt2("Image Size (w, h)", &intrinsics.image_width,
+                            1.0f, 1, 8192);
+
+                        if (intrinsics_changed) {
+                            pinhole_cam->set_intrinsics(intrinsics);
                         }
                     }
                     else

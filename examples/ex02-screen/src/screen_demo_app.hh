@@ -3,6 +3,7 @@
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/scene.hh>
 #include <triengine/texture_params.hh>
+#include <triengine/gui/windows/scene_ctrl_window.hh>
 
 #include <array>
 #include <chrono>
@@ -58,6 +59,7 @@ namespace demo
 
     private:
         std::unique_ptr<triengine::visualization::visualizer> _vis;
+        std::shared_ptr<triengine::gui::scene_control_window> _scene_ctrl_window;
         std::shared_ptr<screen_control_window> _screen_ctrl_window;
 
         // One scene per screen mode, indexed by screen_mode.

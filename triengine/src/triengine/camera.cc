@@ -922,13 +922,43 @@ namespace triengine
             _intrinsics.near_plane,
             _intrinsics.far_plane
         );
+
+        // The intrinsic projection maps the whole image to NDC [-1, 1]^2, which fills the entire
+        // viewport. If the viewport aspect ratio differs from the image aspect ratio, that would
+        // stretch the rendered geometry. Instead, scale clip-space x/y so the image keeps its
+        // aspect ratio and the unfilled axis is letterboxed (contain fit). When the viewport
+        // already matches the image aspect (e.g. an offscreen target at the sensor resolution),
+        // this is a no-op.
+        const float viewport_aspect = this->get_viewport().aspect_ratio();
+        if (viewport_aspect > 0.0f && _intrinsics.image_height > 0) {
+            const float image_aspect =
+                static_cast<float>(_intrinsics.image_width) / static_cast<float>(_intrinsics.image_height);
+
+            float scale_x = 1.0f, scale_y = 1.0f;
+            if (viewport_aspect > image_aspect) {
+                scale_x = image_aspect / viewport_aspect; // pillarbox: bars on left/right
+            } else {
+                scale_y = viewport_aspect / image_aspect; // letterbox: bars on top/bottom
+            }
+
+            // Diagonal clip-space scale matrix `diag(scale_x, scale_y, 1, 1)`. 
+            // Pre-multiplying the projection by it shrinks the projected x or y 
+            // so the image occupies a centered, image-aspect region of the viewport.
+            // (the letterbox/pillarbox transform)
+            mat4_f32 aspect_fit = math::mat4_identity<float>();
+            aspect_fit(0, 0) = scale_x;
+            aspect_fit(1, 1) = scale_y;
+
+            // scale the projected clip-space x, y
+            proj = aspect_fit * proj;
+        }
     }
 
     void pinhole_camera::set_extrinsic(const mat4_f32& world_to_camera)
     {
         _extrinsic = world_to_camera;
 
-        // get_position() must report where the camera is in world space; without this sync it would
+        // NOTE: get_position() must report where the camera is in world space; without this sync it would
         // return a stale (or wrong) value after the pose changes. The extrinsic does not hold that
         // position directly (its translation t is not it), so derive it from [R | t]:
         //   [R | t] maps a world point p to camera space as R*p + t, and the camera position is the

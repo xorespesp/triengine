@@ -216,7 +216,7 @@ namespace demo
         void _init_screen_overlay_scene(triengine::scene& scn)
         {
             auto& cfg = *scn.get_render_config();
-            cfg.bg_image_fit = triengine::background_fit_mode::cover;
+            cfg.bg_image_fit = triengine::background_fit_mode::contain;
             cfg.show_object_normals = false;
             cfg.show_origin_xz_grid = false;
             cfg.light_opts.dir_light.enabled = true;
@@ -469,10 +469,16 @@ namespace demo
                 ImGui::TextUnformatted("Screen Image + Overlay");
 
                 ImGui::Checkbox("Calibrated (pinhole) camera", &_overlay_use_pinhole);
+
+                // Background fit. With the pinhole camera, only 'contain' keeps the overlay aligned
+                // (the camera letterboxes its projection the same way).
+                const char* const fit_items[] = { "Stretch", "Cover", "Contain" };
+                int fit_idx = static_cast<int>(_bg_fit_mode);
+                if (ImGui::Combo("Background Fit", &fit_idx, fit_items, IM_ARRAYSIZE(fit_items))) {
+                    _bg_fit_mode = static_cast<triengine::background_fit_mode>(fit_idx);
+                }
+
                 if (_overlay_use_pinhole) {
-                    // Pinhole projection maps the full image to the viewport, so the background is
-                    // forced to 'stretch' to keep it aligned with the projected mesh.
-                    ImGui::TextDisabled("Background forced to 'stretch' for alignment.");
                     ImGui::SliderFloat("fx", &_overlay_intrinsics.fx, 100.0f, 1200.0f, "%.0f px");
                     ImGui::SliderFloat("fy", &_overlay_intrinsics.fy, 100.0f, 1200.0f, "%.0f px");
                     ImGui::SliderFloat("cx", &_overlay_intrinsics.cx,
@@ -481,11 +487,6 @@ namespace demo
                         0.0f, static_cast<float>(_overlay_intrinsics.image_height), "%.0f px");
                 } else {
                     ImGui::TextDisabled("Arcball: drag to orbit the box.");
-                    const char* const fit_items[] = { "Stretch", "Cover", "Contain" };
-                    int fit_idx = static_cast<int>(_bg_fit_mode);
-                    if (ImGui::Combo("Fit Mode", &fit_idx, fit_items, IM_ARRAYSIZE(fit_items))) {
-                        _bg_fit_mode = static_cast<triengine::background_fit_mode>(fit_idx);
-                    }
                 }
 
                 ImGui::SliderFloat("Rotation Speed", &_overlay_rot_speed, 0.0f, 180.0f, "%.0f deg/s");
@@ -551,7 +552,7 @@ namespace demo
         pattern_controls _img_pat_ctrl;
         std::shared_ptr<triengine::geometry::mesh_object> _quad3d;
         screen_mode _curr_screen_mode{ screen_mode::screen_3d };
-        triengine::background_fit_mode _bg_fit_mode{ triengine::background_fit_mode::cover };
+        triengine::background_fit_mode _bg_fit_mode{ triengine::background_fit_mode::contain };
         float _overlay_rot_speed{ kOverlayRotSpeedDegPerSec };
         bool _overlay_use_pinhole{ false };
         triengine::pinhole_camera::intrinsics_t _overlay_intrinsics{};
@@ -592,6 +593,9 @@ namespace demo
         _init_screen3d_scene(screen3d_scene);
         _init_screen2d_scene(screen2d_scene);
         _init_screen_overlay_scene(overlay_scene);
+
+        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>(_vis.get());
+        _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
 
         _screen_ctrl_window = std::make_shared<screen_control_window>();
         _vis->add_gui_window(_screen_ctrl_window, triengine::gui::dock_slot::left);
@@ -674,6 +678,7 @@ namespace demo
         }
 
         _screen_ctrl_window.reset();
+        _scene_ctrl_window.reset();
         _overlay_mesh.reset();
         _screen2d_quad.reset();
         _screen3d_quad.reset();
@@ -748,16 +753,14 @@ namespace demo
                 }
 
                 if (want_pinhole) {
-                    // The intrinsic projection maps the full image to the viewport, so the
-                    // background must be stretched to stay aligned with the projected mesh.
                     overlay_scene.get_camera()->as<triengine::pinhole_camera>()
                         ->set_intrinsics(_screen_ctrl_window->overlay_intrinsics());
-                    overlay_scene.get_render_config()->bg_image_fit =
-                        triengine::background_fit_mode::stretch;
-                } else {
-                    overlay_scene.get_render_config()->bg_image_fit =
-                        _screen_ctrl_window->bg_fit_mode();
                 }
+
+                // The pinhole camera letterboxes its projection to the image aspect ratio
+                // (contain), so 'contain' (the default) is the fit that keeps the background
+                // aligned with the mesh. Other fits are honored too, which visibly misaligns them.
+                overlay_scene.get_render_config()->bg_image_fit = _screen_ctrl_window->bg_fit_mode();
 
                 // Spin the box about its own center, kept at kOverlayBoxDepth in front.
                 const float elapsed_sec =
