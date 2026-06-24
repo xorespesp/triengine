@@ -4,7 +4,7 @@
 include(FetchXutl)
 
 add_subdirectory(ex01-basic)
-add_subdirectory(ex02-screen-quad)
+add_subdirectory(ex02-screen)
 add_subdirectory(ex03-offscreen)
 if (WIN32)
 	add_subdirectory(ex04-interprocess)

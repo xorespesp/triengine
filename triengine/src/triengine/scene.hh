@@ -26,6 +26,15 @@ namespace triengine
         overlay_with_joint_axis,
     };
 
+    // How a background image is mapped onto the viewport 
+    // when the image aspect ratio differs from the viewport aspect ratio.
+    enum class background_fit_mode
+    {
+        stretch, // ignore aspect ratio; the image fills the whole viewport (may distort)
+        cover,   // fill the viewport, cropping the overflowing axis (no distortion)
+        contain, // show the whole image, letterboxing the shorter axis with bg_color
+    };
+
     struct scene_render_config
     {
         bool show_object_normals{ false };
@@ -35,7 +44,16 @@ namespace triengine
         infinite_plane_options inf_plane_opts;
         lighting_options light_opts;
         text_render_options text_render_opts;
+
+        // Solid background color. Also used as the letterbox bar color when bg_image is set
+        // with background_fit_mode::contain.
         color4_f32 bg_color{ 0.020f, 0.020f, 0.020f, 1.0f };
+        // Background image. (optional) 
+        // When set, the background is filled with this texture instead of the solid bg_color.
+        // The texture pixels are updated independently via update_texture_2d().
+        std::optional<texture_handle_t> bg_image;
+        background_fit_mode bg_image_fit{ background_fit_mode::cover };
+
         std::optional<float> pcd_point_size;
         skeleton_render_mode skeleton_mode{ skeleton_render_mode::skeleton_default };
 

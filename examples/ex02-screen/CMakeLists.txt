@@ -1,11 +1,11 @@
-set(TARGET_NAME ex02-screen-quad)
+set(TARGET_NAME ex02-screen)
 
 add_executable(${TARGET_NAME})
 target_sources(${TARGET_NAME}
     PRIVATE
-        "src/ex02_screen_quad_main.cc"
-        "src/screen_quad_demo_app.cc"
-        "src/screen_quad_demo_app.hh"
+        "src/ex02_screen_main.cc"
+        "src/screen_demo_app.cc"
+        "src/screen_demo_app.hh"
 )
 
 target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)

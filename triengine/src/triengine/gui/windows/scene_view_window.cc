@@ -291,6 +291,11 @@ namespace triengine::gui
                 case camera_type::ortho:
                     sb_.appendf("\nView Height: %.2f", scn_camera->as<ortho_camera>()->get_ortho_view_height());
                     break;
+                case camera_type::pinhole: {
+                    const auto& intr = scn_camera->as<pinhole_camera>()->get_intrinsics();
+                    sb_.appendf("\nFocal: fx %.1f, fy %.1f", intr.fx, intr.fy);
+                    break;
+                }
                 }
 
                 sb_.appendf(

@@ -1,4 +1,4 @@
-#include "screen_quad_demo_app.hh"
+#include "screen_demo_app.hh"
 
 #include <xutl/debug/logger.hh>
 
@@ -11,7 +11,7 @@ namespace
 {
     void run_demo()
     {
-        demo::screen_quad_demo_app app;
+        demo::screen_demo_app app;
 
         XUTL_INFO("Creating app..");
         app.create();
@@ -29,7 +29,7 @@ int main(
     [[maybe_unused]] char** argv)
 {
     _XUTL debug::logger::construct(_XUTL debug::logger::init_options()
-        .set_logger_name("ex02-screen-quad")
+        .set_logger_name("ex02-screen")
         .enable_stdout_logging(_XUTL debug::logger::level::trace)
         .enable_async_mode()
     );

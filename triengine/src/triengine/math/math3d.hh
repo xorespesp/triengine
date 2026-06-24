@@ -601,6 +601,44 @@ namespace triengine::math
 	}
 
 	/**
+	 * Builds an OpenGL projection matrix from pinhole camera intrinsics.
+	 *
+	 * The intrinsics follow the OpenCV convention: pixel units, principal point measured from
+	 * the image top-left, with the camera frame +x right, +y down, +z forward into the scene
+	 * (visible points at z > 0). The returned matrix maps points expressed in this OpenCV
+	 * camera frame directly to OpenGL clip space, folding in the OpenCV->OpenGL axis flip, so
+	 * the accompanying view matrix is the identity. Depth maps zNear -> -1, zFar -> +1.
+	 *
+	 * The projection is fully determined by the intrinsics and is independent of the on-screen
+	 * viewport: for the rendered geometry to align exactly with a backing camera image, the
+	 * viewport aspect ratio should match width/height.
+	 */
+	template<typename _Scalar>
+	static inline Eigen::Matrix4<_Scalar> perspective_from_intrinsics(
+		const _Scalar fx,
+		const _Scalar fy,
+		const _Scalar cx,
+		const _Scalar cy,
+		const _Scalar width,
+		const _Scalar height,
+		const _Scalar zNear,
+		const _Scalar zFar)
+	{
+		static_assert(std::is_floating_point_v<_Scalar>, "!!");
+
+		Eigen::Matrix4<_Scalar> result{ Eigen::Matrix4<_Scalar>::Zero() };
+		result(0, 0) = static_cast<_Scalar>(2) * fx / width;
+		result(0, 2) = static_cast<_Scalar>(2) * cx / width - static_cast<_Scalar>(1);
+		result(1, 1) = static_cast<_Scalar>(-2) * fy / height;
+		result(1, 2) = static_cast<_Scalar>(1) - static_cast<_Scalar>(2) * cy / height;
+		result(2, 2) = (zFar + zNear) / (zFar - zNear);
+		result(2, 3) = - (static_cast<_Scalar>(2) * zFar * zNear) / (zFar - zNear);
+		result(3, 2) = static_cast<_Scalar>(1);
+
+		return result;
+	}
+
+	/**
 	 * Equivalent of: `glm::ortho`
 	 * 
 	 * Ref:

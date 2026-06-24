@@ -59,6 +59,7 @@ namespace triengine::core
         shader_program _screen_quad_shader;
         shader_program _hdr_screen_quad_shader;
         shader_program _clear_color_screen_quad_shader;
+        shader_program _screen_quad_bg_img_shader;
 
         // SMAA pass shaders
         shader_program _smaa_edge_detect_shader;

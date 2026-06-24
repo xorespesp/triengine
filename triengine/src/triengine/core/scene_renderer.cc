@@ -124,6 +124,11 @@ namespace triengine::core
             .attach_fragment_shader({ shader_ldr->load("screen_quad.frag")->c_str() })
             .link();
 
+        _screen_quad_bg_img_shader
+            .attach_vertex_shader({ shader_ldr->load("screen_quad.vert")->c_str() })
+            .attach_fragment_shader({ shader_ldr->load("screen_quad_bg_image.frag")->c_str() })
+            .link();
+
         _hdr_screen_quad_shader
             .attach_vertex_shader({ shader_ldr->load("screen_quad.vert")->c_str() })
             .attach_fragment_shader({ shader_ldr->load("screen_quad_hdr.frag")->c_str() })
@@ -238,6 +243,7 @@ namespace triengine::core
         _wboit_composite_shader.destroy();
         _overlay_composite_shader.destroy();
         _screen_quad_shader.destroy();
+        _screen_quad_bg_img_shader.destroy();
         _hdr_screen_quad_shader.destroy();
         _clear_color_screen_quad_shader.destroy();
 
@@ -505,10 +511,49 @@ namespace triengine::core
             // clear only the background regions to a specific color in the forward pass.)
             GLCall(::glStencilFunc(GL_EQUAL, 0/* ref */, 0xFF/* mask */));
 
-            _clear_color_screen_quad_shader.use();
-            _clear_color_screen_quad_shader.set_uniform_vec4("u_clearColor", scn_render_config.bg_color.to_eigen());
+            // Resolve the optional background image to a GPU texture (null if unset/invalid).
+            texture_2d_ptr bg_tex_rsrc = nullptr;
+            if (scn_render_config.bg_image.has_value()) {
+                bg_tex_rsrc = _glctx->get_gpu_resource_manager()
+                    ->get_texture_2d_resource(scn_render_config.bg_image.value());
+            }
 
-            // draw screen quad (clear background region color)
+            if (bg_tex_rsrc && bg_tex_rsrc->is_valid()) {
+                // Compute the aspect-fit UV scale from the image and viewport aspect ratios.
+                const float viewport_aspect =
+                    static_cast<float>(frame_width_pixels) / static_cast<float>(frame_height_pixels);
+
+                const float image_aspect =
+                    static_cast<float>(bg_tex_rsrc->width_pixels()) / static_cast<float>(bg_tex_rsrc->height_pixels());
+
+                // > 1: image is wider than the viewport
+                // < 1: image is taller than the viewport.
+                const float aspect_ratio = image_aspect / viewport_aspect;
+
+                // Centered UV scale; 1.0 means no cropping/letterboxing on that axis.
+                float uv_scale_x = 1.0f, uv_scale_y = 1.0f;
+                switch (scn_render_config.bg_image_fit) {
+                case background_fit_mode::stretch:
+                    break; // keep (1, 1): ignore aspect, fill the viewport
+                case background_fit_mode::cover: // fill the viewport, crop the overflowing axis (scale < 1)
+                    (aspect_ratio > 1.0f) ? (uv_scale_x = 1.0f / aspect_ratio) : (uv_scale_y = aspect_ratio);
+                    break;
+                case background_fit_mode::contain: // show the whole image, letterbox the shorter axis (scale > 1)
+                    (aspect_ratio > 1.0f) ? (uv_scale_y = aspect_ratio) : (uv_scale_x = 1.0f / aspect_ratio);
+                    break;
+                }
+
+                GLCall(::glBindTextureUnit(0, bg_tex_rsrc->id()));
+                _screen_quad_bg_img_shader.use();
+                _screen_quad_bg_img_shader.set_uniform_int("u_bgImage", 0);
+                _screen_quad_bg_img_shader.set_uniform_vec2("u_uvScale", uv_scale_x, uv_scale_y);
+                _screen_quad_bg_img_shader.set_uniform_vec4("u_letterboxColor", scn_render_config.bg_color.to_eigen());
+            } else {
+                _clear_color_screen_quad_shader.use();
+                _clear_color_screen_quad_shader.set_uniform_vec4("u_clearColor", scn_render_config.bg_color.to_eigen());
+            }
+
+            // draw screen quad (fill the background region with the image or the solid color)
             GLCall(::glBindVertexArray(_vao_screen_quad));
             GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
                 

@@ -891,4 +891,52 @@ namespace triengine
         this->_get_camera_vectors().update_vectors(new_front);
     }
 
+    //-------------------------------------------------------------------------------------------------
+    // Pinhole Camera Implementations
+    //
+    // A fixed, calibrated camera at the world origin looking down the camera-frame +z axis. 
+    // Geometry is expected to already be in this frame, so the view matrix is the identity 
+    // and the projection is built entirely from the intrinsics.
+    //-------------------------------------------------------------------------------------------------
+
+    pinhole_camera::pinhole_camera(const intrinsics_t& intrinsics)
+        : abstract_camera{ camera_type::pinhole, vec3_f32{ 0.0f, 0.0f, 0.0f } }
+        , _intrinsics{ intrinsics }
+    {
+        // The camera looks straight down the camera-frame +z axis from the origin.
+        this->_get_camera_vectors().update_vectors(vec3_f32{ 0.0f, 0.0f, 1.0f });
+    }
+
+    void pinhole_camera::get_view_projection(mat4_f32& view, mat4_f32& proj) const
+    {
+        // The view matrix is the camera extrinsic (the world-to-camera transform).
+        view = _extrinsic;
+
+        proj = math::perspective_from_intrinsics(
+            _intrinsics.fx,
+            _intrinsics.fy,
+            _intrinsics.cx,
+            _intrinsics.cy,
+            static_cast<float>(_intrinsics.image_width),
+            static_cast<float>(_intrinsics.image_height),
+            _intrinsics.near_plane,
+            _intrinsics.far_plane
+        );
+    }
+
+    void pinhole_camera::set_extrinsic(const mat4_f32& world_to_camera)
+    {
+        _extrinsic = world_to_camera;
+
+        // get_position() must report where the camera is in world space; without this sync it would
+        // return a stale (or wrong) value after the pose changes. The extrinsic does not hold that
+        // position directly (its translation t is not it), so derive it from [R | t]:
+        //   [R | t] maps a world point p to camera space as R*p + t, and the camera position is the
+        //   world point mapping to the camera-frame origin: R*c + t = 0  =>  c = -R^T * t (R^-1 = R^T).
+        const mat3_f32 R = world_to_camera.block<3, 3>(0, 0);
+        const vec3_f32 t = world_to_camera.block<3, 1>(0, 3);
+        const vec3_f32 new_camera_position_world = -(R.transpose() * t);
+        this->_set_position(new_camera_position_world);
+    }
+
 } // namespace

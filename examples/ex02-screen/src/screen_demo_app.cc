@@ -1,4 +1,4 @@
-#include "screen_quad_demo_app.hh"
+#include "screen_demo_app.hh"
 
 #include <xutl/debug/logger.hh>
 
@@ -28,6 +28,21 @@ namespace demo
         // Fixed square texture size for the 3D quad: a 2x2 square quad needs a square
         // texture to keep pattern cells square (2D mode uses a frame-sized texture).
         constexpr int32_t kScreen3dTexSize = 512;
+
+        // Fixed 16:9 texture size for the screen_overlay mode. The background image
+        // keeps this resolution regardless of the window size; the renderer fits it to the
+        // viewport via scene_render_config::bg_image_fit, so a non-square size makes the
+        // cover/contain/stretch differences visible.
+        constexpr int32_t kBackgroundTexWidth = 640;
+        constexpr int32_t kBackgroundTexHeight = 360;
+
+        // Angular speed of the overlay mesh rotation, in degrees per second.
+        constexpr float kOverlayRotSpeedDegPerSec = 45.0f;
+
+        // Distance of the overlay box in front of the camera, along the camera-frame +z axis.
+        // The box must sit at positive z so the calibrated pinhole camera (at the origin looking
+        // down +z) has it in front of the near plane; the orbit camera frames the same point.
+        constexpr float kOverlayBoxDepth = 4.0f;
 
         // Image-generation parameters (copied by value to the worker thread).
         struct pattern_params {
@@ -179,6 +194,7 @@ namespace demo
             cfg.show_origin_xz_grid = false;
             cfg.light_opts.dir_light.enabled = false;
             cfg.light_opts.point_light.enabled = false;
+            cfg.light_opts.point_light.show_light_source = false;
             cfg.light_opts.simple_fog.enabled = false;
             cfg.light_opts.bloom.enabled = false;
             cfg.light_opts.hdr.enabled = false;
@@ -191,6 +207,29 @@ namespace demo
                 ortho_cam->set_yaw(90.0f);
                 ortho_cam->set_pitch(0.0f);
                 ortho_cam->set_ortho_view_height(2.0f);
+            }
+        }
+
+        // screen_overlay mode: a perspective 3D scene whose background is filled with the
+        // streamed image, with a lit 3D mesh drawn over it. The bg_image handle is assigned by
+        // the app once the texture exists; here only the handle-independent config is set.
+        void _init_screen_overlay_scene(triengine::scene& scn)
+        {
+            auto& cfg = *scn.get_render_config();
+            cfg.bg_image_fit = triengine::background_fit_mode::cover;
+            cfg.show_object_normals = false;
+            cfg.show_origin_xz_grid = false;
+            cfg.light_opts.dir_light.enabled = true;
+            cfg.light_opts.point_light.enabled = true;
+            cfg.light_opts.point_light.show_light_source = true;
+            cfg.light_opts.simple_fog.enabled = false;
+            cfg.light_opts.bloom.enabled = true;
+            cfg.light_opts.hdr.enabled = true;
+
+            // Orbit (arcball) view frames the overlay box, which sits in front along +z. The
+            // pinhole camera (toggled at runtime) ignores this and views from the origin.
+            if (auto* arc = scn.get_camera()->as<triengine::arcball_camera>()) {
+                arc->set_pivot_point(triengine::vec3_f32{ 0.0f, 0.0f, kOverlayBoxDepth });
             }
         }
 
@@ -362,14 +401,14 @@ namespace demo
         std::vector<std::shared_ptr<triengine::image_buffer>> _free; // recycled buffers
     }; // class
 
-    // Control window: owns the image-pattern controls and the screen-mode toggle, and
-    // edits the 3D quad's material (lighting/phong/alpha) directly.
-    class screen_quad_control_window
+    // Control window: owns the image-pattern controls and the screen-mode selector, and
+    // edits per-mode options (3D quad material, background fit mode, overlay rotation).
+    class screen_control_window
         : public triengine::gui::iwindow
     {
     public:
         const char* get_window_name() const override {
-            return "Screen Quad Control Window";
+            return "Screen Control Window";
         }
 
         ImVec2 get_initial_window_size() const override {
@@ -379,13 +418,15 @@ namespace demo
         void render(
             [[maybe_unused]] const triengine::gui::window_render_context& render_ctx) override
         {
-            ImGui::TextUnformatted("Screen Mode");
-            int mode = static_cast<int>(_curr_screen_mode);
+            // Cycle through the screen modes with prev/next arrows (wraps at both ends).
+            constexpr int mode_count = static_cast<int>(screen_mode::count);
+            int mode_idx = static_cast<int>(_curr_screen_mode);
+
+            ImGui::Text("Screen Mode: %s", _mode_name(_curr_screen_mode));
+            if (ImGui::Button("<")) { mode_idx = (mode_idx + mode_count - 1) % mode_count; }
             ImGui::SameLine();
-            ImGui::RadioButton("3D", &mode, static_cast<int>(screen_mode::screen_3d));
-            ImGui::SameLine();
-            ImGui::RadioButton("2D", &mode, static_cast<int>(screen_mode::screen_2d));
-            _curr_screen_mode = static_cast<screen_mode>(mode);
+            if (ImGui::Button(">")) { mode_idx = (mode_idx + 1) % mode_count; }
+            _curr_screen_mode = static_cast<screen_mode>(mode_idx);
 
             ImGui::Spacing();
             ImGui::Separator();
@@ -418,10 +459,36 @@ namespace demo
 
                 // Alpha < 1.0 routes the quad through the WBOIT transparent pass.
                 ImGui::SliderFloat("Alpha", &mat->alpha, 0.0f, 1.0f, "%.2f");
-            } else {
+            } else if (_curr_screen_mode == screen_mode::screen_2d) {
                 // 2D mode: a fixed flat, unlit, fullscreen screen has no material options.
                 ImGui::TextUnformatted("2D Screen Quad");
                 ImGui::TextDisabled("Flat unlit fullscreen screen.\nNo material options in this mode.");
+            } else {
+                // screen_overlay mode: pick the camera (free orbit vs calibrated pinhole), the
+                // background fit, and the overlay mesh spin speed.
+                ImGui::TextUnformatted("Screen Image + Overlay");
+
+                ImGui::Checkbox("Calibrated (pinhole) camera", &_overlay_use_pinhole);
+                if (_overlay_use_pinhole) {
+                    // Pinhole projection maps the full image to the viewport, so the background is
+                    // forced to 'stretch' to keep it aligned with the projected mesh.
+                    ImGui::TextDisabled("Background forced to 'stretch' for alignment.");
+                    ImGui::SliderFloat("fx", &_overlay_intrinsics.fx, 100.0f, 1200.0f, "%.0f px");
+                    ImGui::SliderFloat("fy", &_overlay_intrinsics.fy, 100.0f, 1200.0f, "%.0f px");
+                    ImGui::SliderFloat("cx", &_overlay_intrinsics.cx,
+                        0.0f, static_cast<float>(_overlay_intrinsics.image_width), "%.0f px");
+                    ImGui::SliderFloat("cy", &_overlay_intrinsics.cy,
+                        0.0f, static_cast<float>(_overlay_intrinsics.image_height), "%.0f px");
+                } else {
+                    ImGui::TextDisabled("Arcball: drag to orbit the box.");
+                    const char* const fit_items[] = { "Stretch", "Cover", "Contain" };
+                    int fit_idx = static_cast<int>(_bg_fit_mode);
+                    if (ImGui::Combo("Fit Mode", &fit_idx, fit_items, IM_ARRAYSIZE(fit_items))) {
+                        _bg_fit_mode = static_cast<triengine::background_fit_mode>(fit_idx);
+                    }
+                }
+
+                ImGui::SliderFloat("Rotation Speed", &_overlay_rot_speed, 0.0f, 180.0f, "%.0f deg/s");
             }
 
             ImGui::Spacing();
@@ -445,21 +512,60 @@ namespace demo
             return _img_pat_ctrl.params();
         }
 
+        // Selected background fit mode for the screen_overlay scene.
+        triengine::background_fit_mode bg_fit_mode() const noexcept {
+            return _bg_fit_mode;
+        }
+
+        // Overlay mesh rotation speed, in degrees per second.
+        float overlay_rot_speed() const noexcept {
+            return _overlay_rot_speed;
+        }
+
+        // Whether the screen_overlay scene should use the calibrated pinhole camera.
+        bool overlay_use_pinhole() const noexcept {
+            return _overlay_use_pinhole;
+        }
+
+        // Current pinhole intrinsics edited by the sliders.
+        const triengine::pinhole_camera::intrinsics_t& overlay_intrinsics() const noexcept {
+            return _overlay_intrinsics;
+        }
+
+        // Seed the pinhole intrinsics (image size + sensible defaults) once at startup.
+        void set_overlay_intrinsics(const triengine::pinhole_camera::intrinsics_t& intrinsics) {
+            _overlay_intrinsics = intrinsics;
+        }
+
+    private:
+        static const char* _mode_name(screen_mode m) noexcept {
+            switch (m) {
+            case screen_mode::screen_3d:      return "3D Quad";
+            case screen_mode::screen_2d:      return "2D Screen";
+            case screen_mode::screen_overlay: return "Image Overlay";
+            default:                          return "";
+            }
+        }
+
     private:
         pattern_controls _img_pat_ctrl;
         std::shared_ptr<triengine::geometry::mesh_object> _quad3d;
         screen_mode _curr_screen_mode{ screen_mode::screen_3d };
+        triengine::background_fit_mode _bg_fit_mode{ triengine::background_fit_mode::cover };
+        float _overlay_rot_speed{ kOverlayRotSpeedDegPerSec };
+        bool _overlay_use_pinhole{ false };
+        triengine::pinhole_camera::intrinsics_t _overlay_intrinsics{};
     }; // class
 
-    screen_quad_demo_app::screen_quad_demo_app() = default;
-    screen_quad_demo_app::~screen_quad_demo_app() = default;
+    screen_demo_app::screen_demo_app() = default;
+    screen_demo_app::~screen_demo_app() = default;
 
-    void screen_quad_demo_app::create()
+    void screen_demo_app::create()
     {
         XUTL_TRACE("{}() ENTER", __func__);
 
         _vis = std::make_unique<triengine::visualization::visualizer>();
-        _vis->create_window("Triengine Screen Quad Rendering Demo"
+        _vis->create_window("Triengine Screen Rendering Demo"
             " (Build: " __DATE__ ", " __TIME__
 #if defined (_DEBUG)
             " DBG"
@@ -477,14 +583,17 @@ namespace demo
         // default mode (screen_3d).
         _scenes[static_cast<size_t>(screen_mode::screen_3d)] = _vis->add_scene();
         _scenes[static_cast<size_t>(screen_mode::screen_2d)] = _vis->add_scene();
+        _scenes[static_cast<size_t>(screen_mode::screen_overlay)] = _vis->add_scene();
 
         auto& screen3d_scene = *_scenes[static_cast<size_t>(screen_mode::screen_3d)];
         auto& screen2d_scene = *_scenes[static_cast<size_t>(screen_mode::screen_2d)];
+        auto& overlay_scene = *_scenes[static_cast<size_t>(screen_mode::screen_overlay)];
 
         _init_screen3d_scene(screen3d_scene);
         _init_screen2d_scene(screen2d_scene);
+        _init_screen_overlay_scene(overlay_scene);
 
-        _screen_ctrl_window = std::make_shared<screen_quad_control_window>();
+        _screen_ctrl_window = std::make_shared<screen_control_window>();
         _vis->add_gui_window(_screen_ctrl_window, triengine::gui::dock_slot::left);
 
         // The demo starts in 3D mode, so the texture starts at the square size.
@@ -522,6 +631,26 @@ namespace demo
         _screen2d_quad->set_lighting_mode(triengine::geometry::mesh_object::lighting_mode::unlit);
         screen2d_scene.add_geometry(_screen2d_quad);
 
+        // Overlay scene: a lit box drawn over the background image. Use the shared texture as
+        // the background for now; entering the mode resizes it to the 16:9 background size. The
+        // box sits in front along +z (run() rotates it each frame in screen_overlay mode).
+        _overlay_mesh = triengine::geometry::mesh_object::create_box(1.0f, 1.0f, 1.0f);
+        _overlay_mesh->set_name("overlay_box");
+        _overlay_mesh->paint_uniform_color(triengine::color3_f32{ 0.9f, 0.5f, 0.2f });
+        _overlay_mesh->translate(triengine::vec3_f32{ 0.0f, 0.0f, kOverlayBoxDepth });
+        overlay_scene.add_geometry(_overlay_mesh);
+        overlay_scene.get_render_config()->bg_image = _screen_tex_handle;
+
+        // Seed the pinhole intrinsics to match the 16:9 background image, principal point
+        // centered, with a focal length that frames the box at kOverlayBoxDepth.
+        triengine::pinhole_camera::intrinsics_t overlay_intrinsics;
+        overlay_intrinsics.image_width = kBackgroundTexWidth;
+        overlay_intrinsics.image_height = kBackgroundTexHeight;
+        overlay_intrinsics.cx = static_cast<float>(kBackgroundTexWidth) * 0.5f;
+        overlay_intrinsics.cy = static_cast<float>(kBackgroundTexHeight) * 0.5f;
+        overlay_intrinsics.fx = overlay_intrinsics.fy = 400.0f;
+        _screen_ctrl_window->set_overlay_intrinsics(overlay_intrinsics);
+
         _screen_ctrl_window->set_target_quad(_screen3d_quad);
 
         _curr_screen_mode = _screen_ctrl_window->mode();
@@ -534,7 +663,7 @@ namespace demo
         XUTL_TRACE("{}() LEAVE", __func__);
     }
 
-    void screen_quad_demo_app::destroy()
+    void screen_demo_app::destroy()
     {
         XUTL_TRACE("{}() ENTER", __func__);
 
@@ -545,6 +674,7 @@ namespace demo
         }
 
         _screen_ctrl_window.reset();
+        _overlay_mesh.reset();
         _screen2d_quad.reset();
         _screen3d_quad.reset();
         for (auto& scn : _scenes) {
@@ -557,7 +687,7 @@ namespace demo
         XUTL_TRACE("{}() LEAVE", __func__);
     }
 
-    void screen_quad_demo_app::run()
+    void screen_demo_app::run()
     {
         XUTL_TRACE("{}() ENTER", __func__);
 
@@ -575,6 +705,8 @@ namespace demo
 
                 if (new_mode == screen_mode::screen_3d) {
                     this->_fit_screen3d();
+                } else if (new_mode == screen_mode::screen_overlay) {
+                    this->_fit_screen_overlay();
                 }
                 // Force a re-fit when (re-)entering 2D mode below.
                 prev_screen2d_fitted_frame_size = triengine::vec2_i32{ 0, 0 };
@@ -590,6 +722,55 @@ namespace demo
                     this->_fit_screen2d_to_frame(curr_frame_size);
                     prev_screen2d_fitted_frame_size = curr_frame_size;
                 }
+            }
+
+            // In screen_overlay mode, apply the chosen camera (orbit vs calibrated pinhole),
+            // the background fit, and spin the overlay mesh. A window resize is handled entirely
+            // by the renderer's UV-fit, so unlike 2D mode there is no per-frame texture re-fit.
+            if (_curr_screen_mode == screen_mode::screen_overlay) {
+                auto& overlay_scene = *_scenes[static_cast<size_t>(screen_mode::screen_overlay)];
+
+                // Switch the active camera only when the toggle changes.
+                const bool want_pinhole = _screen_ctrl_window->overlay_use_pinhole();
+                const bool is_pinhole =
+                    (overlay_scene.get_camera()->get_type() == triengine::camera_type::pinhole);
+                if (want_pinhole != is_pinhole) {
+                    overlay_scene.switch_camera_type(want_pinhole
+                        ? triengine::camera_type::pinhole
+                        : triengine::camera_type::arcball);
+
+                    if (want_pinhole) {
+                        // The box is positioned directly in the camera frame, so the camera pose
+                        // is the identity extrinsic (world space and camera space coincide).
+                        overlay_scene.get_camera()->as<triengine::pinhole_camera>()
+                            ->set_extrinsic(triengine::math::mat4_identity<float>());
+                    }
+                }
+
+                if (want_pinhole) {
+                    // The intrinsic projection maps the full image to the viewport, so the
+                    // background must be stretched to stay aligned with the projected mesh.
+                    overlay_scene.get_camera()->as<triengine::pinhole_camera>()
+                        ->set_intrinsics(_screen_ctrl_window->overlay_intrinsics());
+                    overlay_scene.get_render_config()->bg_image_fit =
+                        triengine::background_fit_mode::stretch;
+                } else {
+                    overlay_scene.get_render_config()->bg_image_fit =
+                        _screen_ctrl_window->bg_fit_mode();
+                }
+
+                // Spin the box about its own center, kept at kOverlayBoxDepth in front.
+                const float elapsed_sec =
+                    std::chrono::duration<float>(std::chrono::steady_clock::now() - _start_time).count();
+                const float angle_rad = triengine::math::deg2rad(
+                    elapsed_sec * _screen_ctrl_window->overlay_rot_speed());
+                triengine::mat4_f32 box_model = triengine::math::rotate_around_axis(
+                    triengine::math::mat4_identity<float>(),
+                    angle_rad,
+                    triengine::vec3_f32{ 0.0f, 1.0f, 0.0f });
+                box_model = triengine::math::translate_offset(
+                    box_model, triengine::vec3_f32{ 0.0f, 0.0f, kOverlayBoxDepth });
+                _overlay_mesh->set_model(box_model);
             }
 
             _producer->set_params(_screen_ctrl_window->current_params());
@@ -616,7 +797,7 @@ namespace demo
         XUTL_TRACE("{}() LEAVE", __func__);
     }
 
-    void screen_quad_demo_app::_fit_screen2d_to_frame(triengine::vec2_i32 frame_size)
+    void screen_demo_app::_fit_screen2d_to_frame(triengine::vec2_i32 frame_size)
     {
         auto& screen2d_scene = *_scenes[static_cast<size_t>(screen_mode::screen_2d)];
 
@@ -647,7 +828,7 @@ namespace demo
                 triengine::vec3_f32{ aspect, 1.0f, 1.0f }));
     }
 
-    void screen_quad_demo_app::_fit_screen3d()
+    void screen_demo_app::_fit_screen3d()
     {
         // Already square: nothing to do.
         if (_tex_size.x() == kScreen3dTexSize && _tex_size.y() == kScreen3dTexSize) {
@@ -678,6 +859,42 @@ namespace demo
 
         // 3. Retarget the producer back to the square size.
         _producer->set_target_size(kScreen3dTexSize, kScreen3dTexSize,
+            triengine::image_format_type::rgb);
+    }
+
+    void screen_demo_app::_fit_screen_overlay()
+    {
+        // Already at the background size: only (re)assign the background image handle, in case
+        // another mode recreated the shared texture while this scene was inactive.
+        auto& overlay_scene = *_scenes[static_cast<size_t>(screen_mode::screen_overlay)];
+        if (_tex_size.x() == kBackgroundTexWidth && _tex_size.y() == kBackgroundTexHeight) {
+            overlay_scene.get_render_config()->bg_image = _screen_tex_handle;
+            return;
+        }
+
+        // 1. Recreate the texture at the fixed 16:9 background size, filling it once so the
+        //    switch shows correct content immediately, before the producer catches up.
+        const pattern_params params = _screen_ctrl_window->current_params();
+        auto bg_img = std::make_shared<triengine::image_buffer>();
+        bg_img->prepare(kBackgroundTexWidth, kBackgroundTexHeight, triengine::image_format_type::rgb);
+        {
+            std::vector<int32_t> rows(static_cast<size_t>(kBackgroundTexHeight));
+            std::iota(rows.begin(), rows.end(), 0);
+            fill_pattern_rows(*bg_img, params, 0.0f, rows);
+        }
+
+        // 2. The handle changes, so repoint both quads and the overlay background image.
+        overlay_scene.destroy_texture(_screen_tex_handle);
+        triengine::texture_params_t tex_params;
+        tex_params.generate_mipmap = false; // updated every frame
+        _screen_tex_handle = overlay_scene.create_texture_2d(bg_img, tex_params);
+        _screen2d_quad->get_texture_shading_material()->diffuse_map = _screen_tex_handle;
+        _screen3d_quad->get_texture_shading_material()->diffuse_map = _screen_tex_handle;
+        overlay_scene.get_render_config()->bg_image = _screen_tex_handle;
+        _tex_size = triengine::vec2_i32{ kBackgroundTexWidth, kBackgroundTexHeight };
+
+        // 3. Retarget the producer to the background size.
+        _producer->set_target_size(kBackgroundTexWidth, kBackgroundTexHeight,
             triengine::image_format_type::rgb);
     }
 

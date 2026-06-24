@@ -170,11 +170,13 @@ namespace triengine
         fly,
         arcball,
         ortho,
+        pinhole, // keep last: the interactive camera-type combo only lists fly/arcball/ortho
     };
 
     class fly_camera;
     class arcball_camera;
     class ortho_camera;
+    class pinhole_camera;
 
     //-------------------------------------------------------------------------------------------------
     // An abstract camera class that defines a common interface for all camera types.
@@ -316,6 +318,8 @@ namespace triengine
                 return _type == camera_type::arcball;
             } else if constexpr (std::is_same_v<_Ty, ortho_camera>) {
                 return _type == camera_type::ortho;
+            } else if constexpr (std::is_same_v<_Ty, pinhole_camera>) {
+                return _type == camera_type::pinhole;
             } else {
                 return false; // Not castable to the requested type
             }
@@ -569,6 +573,74 @@ namespace triengine
 
         // Camera options
         options_t _opts;
+    };
+
+
+    //-------------------------------------------------------------------------------------------------
+    // A calibrated pinhole camera, defined the way a real camera is: by its intrinsics (focal
+    // lengths and principal point) and its extrinsic, i.e. the camera pose, meaning where the
+    // camera sits and which way it looks, expressed as a rigid world-to-camera transform.
+    //
+    // The projection is built purely from the intrinsics and the view matrix is the extrinsic, so
+    // the rendered result matches an image captured by that physical camera. The extrinsic defaults
+    // to the identity, meaning world space and camera space coincide and geometry is taken to already
+    // be expressed in the camera frame. The camera frame follows the OpenCV convention: +x right,
+    // +y down, +z forward into the scene, with visible points at z > 0.
+    //
+    // The camera pose is driven externally (e.g. from a tracker/solver), so mouse and keyboard
+    // controls are intentional no-ops. The projection is independent of the on-screen viewport, 
+    // so for exact alignment with a backing image the viewport aspect should match 
+    // `image_width / image_height`.
+    //-------------------------------------------------------------------------------------------------
+    class pinhole_camera : public abstract_camera
+    {
+    public:
+        // Pinhole intrinsics in the OpenCV convention.
+        // (pixel units, principal point from top-left)
+        struct intrinsics_t
+        {
+            float fx{ 500.0f }, fy{ 500.0f };   // focal lengths (pixels), must be > 0
+            float cx{ 320.0f }, cy{ 240.0f };   // principal point (pixels)
+            int32_t image_width{ 640 };         // sensor resolution (pixels), must be > 0
+            int32_t image_height{ 480 };
+            float near_plane{ camera_constants::kNearPlane };
+            float far_plane{ camera_constants::kFarPlane };
+        };
+
+    public:
+        explicit pinhole_camera(const intrinsics_t& intrinsics = {});
+
+        //
+        // Interface Implementations
+        //
+
+        void get_view_projection(mat4_f32& view/* out */, mat4_f32& proj/* out */) const override;
+
+        //
+        // Pinhole camera specific methods
+        //
+
+        const intrinsics_t& get_intrinsics() const noexcept { return _intrinsics; }
+        void set_intrinsics(const intrinsics_t& intrinsics) { _intrinsics = intrinsics; }
+
+        // Camera extrinsic (pose): the rigid world-to-camera transform used directly as the view
+        // matrix. The identity (the default) means world and camera space coincide, so geometry is
+        // taken to already be in the camera frame. The matrix maps world-space points into the
+        // OpenCV-convention camera frame (+x right, +y down, +z forward).
+        const mat4_f32& get_extrinsic() const noexcept { return _extrinsic; }
+        void set_extrinsic(const mat4_f32& world_to_camera);
+
+        // Fixed calibrated camera: interactive controls are no-ops.
+        void process_keyboard_translation(camera_movement_type, float) override {}
+        void process_mouse_translation(vec2_f32, vec2_f32) override {}
+        void process_mouse_rotation(vec2_f32) override {}
+        void process_mouse_zoom(float) override {}
+        void process_mouse_perspective_zoom(float) override {}
+        void update_animation(float) override {}
+
+    private:
+        intrinsics_t _intrinsics;
+        mat4_f32 _extrinsic{ math::mat4_identity<float>() };
     };
 
 } // namespace
