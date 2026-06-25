@@ -50,82 +50,96 @@ namespace triengine::visualization
     } // namespace
 
     offscreen_renderer_dx::offscreen_renderer_dx()
-    { }
+    {
+        // Window half (GLFW main thread): create the hidden window and its GL context
+        // now. GL and the DX interop pipeline are built later by `create()` on the
+        // render thread. The window is only a carrier for the GL context; output
+        // goes to a D3D11 shared surface sized by `create()`/`resize_frame()`, so a
+        // 1x1 placeholder window is enough here and the real size is committed
+        // later.
+        _glctx.create_window(
+            "",
+            false, // hidden window: offscreen output only
+            1, 1,  // placeholder size; the render target is sized by `create()`
+            false  // not fullscreen
+        );
+    }
 
     offscreen_renderer_dx::~offscreen_renderer_dx()
-    { }
+    {
+        // `destroy()` must run on the render thread before this object is destroyed;
+        // the destructor (GLFW main thread) cannot tear down the GL/DX pipeline safely.
+        // A failure here means `destroy()` was skipped, leaving the GL context and
+        // DX interop to be released in a disorderly way (see the class threading
+        // contract).
+        TRIENGINE_ASSERT(!_is_created);
+        _glctx.destroy_window();
+    }
 
     const core::gl_context* offscreen_renderer_dx::get_gl_context() const noexcept
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         return &_glctx;
     }
 
     core::gl_context* offscreen_renderer_dx::get_gl_context() noexcept
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         return &_glctx;
     }
 
     Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_dxgi_adapter() const noexcept
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         TRIENGINE_ASSERT(_dxgi_adapter != nullptr);
         return _dxgi_adapter;
     }
 
     Microsoft::WRL::ComPtr<ID3D11Device2> offscreen_renderer_dx::get_dx11_device() const noexcept
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         TRIENGINE_ASSERT(_dx11_device2 != nullptr);
         return _dx11_device2;
     }
 
     Microsoft::WRL::ComPtr<ID3D11DeviceContext2> offscreen_renderer_dx::get_dx11_device_context() const noexcept
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         TRIENGINE_ASSERT(_dx11_device_context2 != nullptr);
         return _dx11_device_context2;
     }
 
     vec2_i32 offscreen_renderer_dx::get_frame_size() const noexcept
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         return _curr_frame_size;
     }
 
     shared_win32_handle offscreen_renderer_dx::get_surface_handle() const
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         TRIENGINE_ASSERT(_dx11_interop_color_tex_handle != nullptr);
         return _dx11_interop_color_tex_handle;
     }
 
-    void offscreen_renderer_dx::create_renderer(
-        const vec2_i32 initial_frame_size,
-        const uint32_t max_fps)
+    void offscreen_renderer_dx::create(const vec2_i32 initial_frame_size, const uint32_t max_fps)
     {
-        TRIENGINE_DEBUG("Creating DX offscreen renderer with frame size %dx%d"
-            , initial_frame_size.x()
-            , initial_frame_size.y()
-        );
+        if (_is_created) {
+            TRIENGINE_PANIC("offscreen_renderer_dx::create() called again without a matching destroy()");
+        }
 
         if (initial_frame_size.x() <= 0 || initial_frame_size.y() <= 0) {
             TRIENGINE_PANIC("Invalid frame size: %dx%d", initial_frame_size.x(), initial_frame_size.y());
         }
 
-        if (_flag_initialized) {
-            TRIENGINE_PANIC("already created");
-        }
-
-        _glctx.create(
-            "",
-            false, // Disable window visibility
-            initial_frame_size.x(),
-            initial_frame_size.y(),
-            false, // Disable fullscreen
-            false // Disable VSync
+        TRIENGINE_DEBUG("Creating DX offscreen renderer with frame size %dx%d"
+            , initial_frame_size.x()
+            , initial_frame_size.y()
         );
+
+        // Context half (render thread):
+        // make the context current and load GL on this thread.
+        _glctx.init_context();
 
         TRIENGINE_DEBUG("Checking OpenGL compatibility...");
 
@@ -326,29 +340,30 @@ namespace triengine::visualization
         _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_resize_frame, this,
             std::placeholders::_1));
 
-        // Initil resize to create rest...
+        // Initial resize: create the shared color surface + GL/DX interop at the
+        // requested render target size.
         this->_resize_frame(initial_frame_size);
 
         _scn_renderer.create(&_glctx);
 
-        // Configure the optional software frame-rate cap
+        // Configure the optional software frame-rate cap (0 == uncapped).
         this->_apply_frame_rate_cap(max_fps);
 
         TRIENGINE_TRACE("%s() LEAVE", __func__);
-        _flag_initialized = true;
+        _is_created = true;
     }
 
     void offscreen_renderer_dx::change_max_fps(const uint32_t max_fps)
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         this->_apply_frame_rate_cap(max_fps);
     }
 
-    void offscreen_renderer_dx::destroy_renderer()
+    void offscreen_renderer_dx::destroy()
     {
-        if (_flag_initialized)
+        if (_is_created)
         {
-            _flag_initialized = false;
+            _is_created = false;
 
             // Clear D3D11 device context state if available
             if (_dx11_device_context2) {
@@ -383,7 +398,7 @@ namespace triengine::visualization
             _dxgi_adapter.Reset();
 
             _scn_renderer.destroy();
-            _glctx.destroy();
+            _glctx.reset_context();
 
             // Release the frame-pacing timer and disable the cap
             _frame_timer.reset();
@@ -487,7 +502,7 @@ namespace triengine::visualization
 
     shared_win32_handle offscreen_renderer_dx::resize_frame(const vec2_i32 new_frame_size)
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
         TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
 
         ::glfwSetWindowSize(
@@ -501,7 +516,7 @@ namespace triengine::visualization
 
     bool offscreen_renderer_dx::render(const uint64_t mutex_key)
     {
-        TRIENGINE_ASSERT(_flag_initialized);
+        TRIENGINE_ASSERT(_is_created);
 
         if (_curr_scn_it == _scn_list.end()) {
             TRIENGINE_PANIC("No scenes added");
@@ -582,7 +597,7 @@ namespace triengine::visualization
     {
         TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
 
-        if (_flag_initialized && _curr_frame_size == new_frame_size) {
+        if (_is_created && _curr_frame_size == new_frame_size) {
             return; // No need to resize if the size is the same
         }
 
@@ -720,12 +735,13 @@ namespace triengine::visualization
         }
     }
 
-    // Blocks until the next allowed present slot, enforcing the `max_fps` cap configured
-    // in create_renderer(). This is a free-running producer-side throttle, NOT a vsync: it
-    // only limits how fast frames are produced and does not synchronize to the consumer or
-    // to any display. The producer and the shared-surface consumer run as two independent
-    // loops, so this cap bounds the production rate only, not the end-to-end present latency
-    // (see create_renderer's doc comment for why over-producing reduces input latency).
+    // Blocks until the next allowed present slot, enforcing the `max_fps` cap passed to
+    // `create()` (or updated via `change_max_fps()`). This is a free-running producer-side
+    // throttle, NOT a vsync: it only limits how fast frames are produced and does not
+    // synchronize to the consumer or to any display. The producer and the shared-surface
+    // consumer run as two independent loops, so this cap bounds the production rate only,
+    // not the end-to-end present latency (see `create()`'s doc comment for why
+    // over-producing reduces input latency).
     void offscreen_renderer_dx::_throttle_frame_rate()
     {
         using namespace std::chrono;

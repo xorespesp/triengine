@@ -7,6 +7,8 @@
 #include <triengine/utility/singleton.hh>
 
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #if defined(TRIENGINE_FORCE_DISCRETE_GPU)
 #  if defined(_WIN32) || defined(_WIN64)
@@ -21,7 +23,7 @@ extern "C" {
 
 namespace triengine::core
 {
-    namespace 
+    namespace
     {
         // Manages the global lifecycle of the GLFW library.
         // This class ensures that GLFW is initialized before its use (e.g., by a visualizer)
@@ -31,6 +33,19 @@ namespace triengine::core
         // CRITICAL NOTE: GLFW functions, especially initialization and window creation,
         //                typically need to be called from the main thread. Therefore, the first
         //                access to this singleton (which triggers its constructor) must occur on the main thread.
+        //
+        // GLFW thread-safety constraints: https://www.glfw.org/docs/latest/intro_guide.html#thread_safety
+        //
+        // Main-thread-only GLFW calls used here: (main thread == the thread that called `glfwInit()`)
+        //   - `glfwInit()` / `glfwTerminate()` (global GLFW library lifecycle)
+        //   - `glfwCreateWindow()` / `glfwDestroyWindow()`
+        //   - `glfwPollEvents()` / `glfwWaitEvents()`
+        //   - `glfwGetWindowSize()`, `glfwSetWindowPos()`, `glfwGetWindowContentScale()`, `glfwShowWindow()`, ... (window state queries/mutations)
+        //
+        // GLFW calls that are safe from any thread (so they live in the context half):
+        //   - `glfwMakeContextCurrent()` / `glfwGetCurrentContext()`
+        //   - `glfwSwapBuffers()` / `glfwSwapInterval()`
+        //   - `glfwGetProcAddress()` (used by glad to load function pointers)
         class global_glfw_environment final : public utility::singleton_trait<global_glfw_environment> {
         public:
             // Constructor: Initializes the GLFW library and sets up an error callback.
@@ -41,6 +56,9 @@ namespace triengine::core
                     std::cerr << "\nglfwInit() failed" << std::endl;
                     ::exit(EXIT_FAILURE);
                 }
+
+                // record current thread id so main-thread-only GLFW calls can be verified later.
+                _glfw_init_thread_id = std::this_thread::get_id();
 
                 ::glfwSetErrorCallback(
                     +[](const int err_code, const char* const err_desc) -> void {
@@ -67,7 +85,35 @@ namespace triengine::core
             // explicit in the application's startup sequence. It performs no additional operations.
             void initialize() {}
 
+            // True when the queried thread is the GLFW main thread.
+            // (main thread == the thread that called `glfwInit()`)
+            // Used to guard GLFW calls that are only valid on that thread.
+            bool is_glfw_init_thread(std::thread::id query_thread_id = std::this_thread::get_id()) const noexcept {
+                return query_thread_id == _glfw_init_thread_id;
+            }
+
+        private:
+            std::thread::id _glfw_init_thread_id;
         }; // class
+
+        // Guards the one-time load of glad's GL function pointer table.
+        //
+        // glad is built in non-MX mode, so the loaded function pointers and feature
+        // flags live in a single process-wide global table. Every context here is
+        // created with identical window hints (same pixel format) on one GPU/driver,
+        // so glfwGetProcAddress resolves identical addresses for all of them; loading
+        // the table exactly once is therefore valid for every context. call_once both
+        // removes the write race between render threads that each init their own
+        // context and publishes the populated table with a proper happens-before edge
+        // for later readers (threads that skip the load still observe a fully written table).
+        //
+        // TODO: revisit if multi-GPU / heterogeneous-driver offscreen rendering is needed.
+        //       In that case a single global table is no longer correct (per-context
+        //       function pointers and feature flags can differ), and glad should be
+        //       regenerated in MX mode so each gl_context owns a GladGLContext dispatch
+        //       table loaded via gladLoadGLContext(). That removes the shared table
+        //       entirely but requires routing the context into every GL call site.
+        std::once_flag g_glad_load_once;
 
     } // namespace
 
@@ -135,27 +181,40 @@ namespace triengine::core
         TRIENGINE_TRACE(msg);
     }
 
-    bool gl_context::is_created() const noexcept {
-        return _flag_initialized;
+    gl_context::~gl_context()
+    {
+        // The context half must be reset before this object is destroyed.
+        // `reset_context()` releases the GL-side resource managers.
+        // If it is skipped, those managers will be destroyed here with
+        // no current context, which causes GL calls to be issued
+        // against the wrong or non-existent context, leading to usage errors.
+        TRIENGINE_ASSERT(!_context_initialized);
+
+        if (_window_created) {
+            this->destroy_window();
+        }
     }
 
-    void gl_context::create(
+    void gl_context::create_window(
         const std::string& window_name,
         const bool visible,
         const int32_t width,
         const int32_t height,
-        const bool fullscreen,
-        const bool enable_vsync)
+        const bool fullscreen)
     {
-        if (_flag_initialized) {
-            TRIENGINE_PANIC("gl_context already created");
+        if (_window_created) {
+            TRIENGINE_PANIC("gl_context window already created");
         }
 
-        // NOTE: Should be called in main thread
+        // Ensures GLFW is initialized (lazily, on first use). The very first call
+        // establishes the GLFW main thread; later calls are verified against it.
         global_glfw_environment::instance()->initialize();
 
+        // Window creation is main-thread-only; verify we are on the GLFW main thread.
+        TRIENGINE_ASSERT(global_glfw_environment::instance()->is_glfw_init_thread());
+
         /**
-         * The GLFW_CONTEXT_VERSION_MAJOR and GLFW_CONTEXT_VERSION_MINOR hints specify the 
+         * The GLFW_CONTEXT_VERSION_MAJOR and GLFW_CONTEXT_VERSION_MINOR hints specify the
          * client API version that the created context must be compatible with.
          * For OpenGL, these hints are not hard constraints, as they don't have to match exactly, 
          * but glfwCreateWindow will still fail if the resulting OpenGL version is less than the one requested.
@@ -273,44 +332,6 @@ namespace triengine::core
             ::glfwSetWindowPos(_glfw_window.get(), window_client_start_pos.x(), window_client_start_pos.y());
         }
 
-        ::glfwMakeContextCurrent(_glfw_window.get());
-
-        if (!::gladLoadGL(reinterpret_cast<GLADloadfunc>(::glfwGetProcAddress))) {
-            TRIENGINE_PANIC("Failed to load GL functions");
-        }
-
-        if constexpr (kEnableGLDebugContext)
-        {
-            // Initialize OpenGL debug output
-            // Basic Ref: https://learnopengl.com/In-Practice/Debugging
-            ::glEnable(GL_DEBUG_OUTPUT);
-            ::glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-            ::glDebugMessageCallback(_gl_debug_output_callback, this/* userParam */);
-            ::glDebugMessageControl(
-                /* GLenum source     */GL_DONT_CARE,
-                /* GLenum type       */GL_DONT_CARE,
-                /* GLenum severity   */GL_DONT_CARE,
-                /* GLsizei count     */0,
-                /* const GLuint* ids */nullptr,
-                /* GLboolean enabled */GL_TRUE
-            );
-        }
-
-        // Log GPU information
-        {
-            const GLubyte* version = ::glGetString(GL_VERSION);
-            const GLubyte* vendor = ::glGetString(GL_VENDOR);
-            const GLubyte* renderer = ::glGetString(GL_RENDERER);
-            TRIENGINE_ASSERT(version && vendor && renderer);
-
-            TRIENGINE_DEBUG("GL version: %s", version);
-            TRIENGINE_DEBUG("GL vendor: %s", vendor);
-            TRIENGINE_DEBUG("GL renderer: %s", renderer);
-        }
-
-        TRIENGINE_TRACE("V-Sync: %s", enable_vsync ? "enabled" : "disabled");
-        ::glfwSwapInterval((enable_vsync) ? 1 : 0);
-
         ::glfwSetWindowUserPointer(_glfw_window.get(), this);
 
         //
@@ -379,6 +400,76 @@ namespace triengine::core
             }
         });
 
+        _window_created = true;
+        TRIENGINE_TRACE(
+            "gl_context window created. window size=%dx%d, visible=%d, fullscreen=%d"
+            , initial_widow_size.x()
+            , initial_widow_size.y()
+            , visible
+            , fullscreen
+        );
+    }
+
+    void gl_context::init_context(const bool enable_vsync)
+    {
+        if (!_window_created) {
+            TRIENGINE_PANIC("gl_context::init_context() called before create_window()");
+        }
+        if (_context_initialized) {
+            TRIENGINE_PANIC("gl_context context already initialized");
+        }
+
+        ::glfwMakeContextCurrent(_glfw_window.get());
+
+        // Load glad's global GL function pointer table exactly once across all threads and contexts. 
+        // (see `g_glad_load_once`)
+        bool glad_load_ok = true; // start with true to avoid false negatives if the lambda is never called.
+        std::call_once(g_glad_load_once, [&glad_load_ok]() {
+            glad_load_ok = (::gladLoadGL(reinterpret_cast<GLADloadfunc>(::glfwGetProcAddress)) != 0);
+        });
+        if (!glad_load_ok) {
+            TRIENGINE_PANIC("Failed to load GL functions");
+        }
+
+        constexpr int kEnableGLDebugContext =
+#if defined (TRIENGINE_DEBUG_MODE)
+            GL_TRUE;
+#else  // ^^^ TRIENGINE_DEBUG_MODE ^^^ / vvv !TRIENGINE_DEBUG_MODE vvv
+            GL_FALSE;
+#endif // ^^^ TRIENGINE_DEBUG_MODE ^^^
+
+        if constexpr (kEnableGLDebugContext)
+        {
+            // Initialize OpenGL debug output
+            // Basic Ref: https://learnopengl.com/In-Practice/Debugging
+            ::glEnable(GL_DEBUG_OUTPUT);
+            ::glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            ::glDebugMessageCallback(_gl_debug_output_callback, this/* userParam */);
+            ::glDebugMessageControl(
+                /* GLenum source     */GL_DONT_CARE,
+                /* GLenum type       */GL_DONT_CARE,
+                /* GLenum severity   */GL_DONT_CARE,
+                /* GLsizei count     */0,
+                /* const GLuint* ids */nullptr,
+                /* GLboolean enabled */GL_TRUE
+            );
+        }
+
+        // Log GPU information
+        {
+            const GLubyte* version = ::glGetString(GL_VERSION);
+            const GLubyte* vendor = ::glGetString(GL_VENDOR);
+            const GLubyte* renderer = ::glGetString(GL_RENDERER);
+            TRIENGINE_ASSERT(version && vendor && renderer);
+
+            TRIENGINE_DEBUG("GL version: %s", version);
+            TRIENGINE_DEBUG("GL vendor: %s", vendor);
+            TRIENGINE_DEBUG("GL renderer: %s", renderer);
+        }
+
+        TRIENGINE_TRACE("V-Sync: %s", enable_vsync ? "enabled" : "disabled");
+        ::glfwSwapInterval((enable_vsync) ? 1 : 0);
+
         constexpr char kDefaultGLSLShaderVersion[] = "#version 450 core";
 
         _shader_ldr = std::make_shared<shader_loader>();
@@ -390,23 +481,44 @@ namespace triengine::core
 
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();
 
-        _flag_initialized = true;
-        TRIENGINE_TRACE(
-            "gl_context created. window size=%dx%d, visible=%d, fullscreen=%d"
-            , initial_widow_size.x()
-            , initial_widow_size.y()
-            , visible
-            , fullscreen
-        );
+        _context_initialized = true;
+        TRIENGINE_TRACE("gl_context context initialized.");
     }
 
-    void gl_context::destroy()
+    void gl_context::reset_context()
     {
-        if (_flag_initialized) {
-            _glfw_window.reset();
-            _flag_initialized = false;
-            TRIENGINE_TRACE("gl_context destroyed.");
+        if (!_context_initialized) {
+            return;
         }
+
+        // Release the GL-side resources while the context is still current on this
+        // thread (their destructors issue GL calls, e.g. buffer/fence deletion),
+        // then unbind the context so it can be re-initialized or the window destroyed.
+        _gpu_res_mgr.reset();
+        _shader_ldr.reset();
+        ::glfwMakeContextCurrent(nullptr);
+
+        _context_initialized = false;
+        TRIENGINE_TRACE("gl_context context reset.");
+    }
+
+    void gl_context::destroy_window()
+    {
+        if (!_window_created) {
+            return;
+        }
+
+        // Destroying the GLFW window is main-thread-only; verify we are on the GLFW main thread.
+        TRIENGINE_ASSERT(global_glfw_environment::instance()->is_glfw_init_thread());
+
+        // Precondition: the context half must already be reset (see header NOTE).
+        // Otherwise the GL resource managers outlive their context and are torn
+        // down later without a current one.
+        TRIENGINE_ASSERT(!_context_initialized);
+
+        _glfw_window.reset();
+        _window_created = false;
+        TRIENGINE_TRACE("gl_context window destroyed.");
     }
 
     GLFWwindow* gl_context::get_glfw_window() const noexcept

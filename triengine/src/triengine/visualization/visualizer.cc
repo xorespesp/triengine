@@ -68,14 +68,15 @@ namespace triengine::visualization
             TRIENGINE_PANIC("already created");
         }
 
-        _glctx.create(
+        _glctx.create_window(
             window_name,
             show_window,
             window_width,
             window_height,
-            fullscreen,
-            enable_vsync
+            fullscreen
         );
+
+        _glctx.init_context(enable_vsync);
 
         _glctx.set_close_callback(std::bind(&visualizer::_handle_close_event, this, 
             std::placeholders::_1));
@@ -123,7 +124,8 @@ namespace triengine::visualization
             _gui_mgr.reset();
 
             _scn_renderer.destroy();
-            _glctx.destroy();
+            _glctx.reset_context();
+            _glctx.destroy_window();
         }
     }
 

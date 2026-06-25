@@ -4,6 +4,8 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
+#include <algorithm>
+
 namespace triengine::core
 {
     namespace
@@ -107,8 +109,16 @@ namespace triengine::core
         return _mip_tex_id;
     }
 
-    void phys_bloom_effect::mip_texture::resize(const vec2_f32 new_mip_size_f32)
+    void phys_bloom_effect::mip_texture::resize(const vec2_f32 requested_mip_size_f32)
     {
+        // A bloom mip must be at least 1x1: glTextureStorage2D rejects zero
+        // dimensions, and a bloom mip chain floors at one pixel. Clamp so a tiny
+        // source size cannot produce a degenerate (sub-pixel, truncated to 0) mip.
+        const vec2_f32 new_mip_size_f32{
+            std::max(requested_mip_size_f32.x(), 1.0f),
+            std::max(requested_mip_size_f32.y(), 1.0f)
+        };
+
         const vec2_f32 old_mip_size_f32 = this->get_size_f32();
         const vec2_i32 old_mip_size_i32 = this->get_size_i32();
         const vec2_i32 new_mip_size_i32 = _cast_f32_to_i32_trunc(new_mip_size_f32);

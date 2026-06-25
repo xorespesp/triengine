@@ -15,38 +15,54 @@ namespace triengine::visualization
 {
     offscreen_renderer::offscreen_renderer()
     {
-    }
-
-    void offscreen_renderer::create_renderer(const vec2_i32 initial_frame_size)
-    {
-        if (_flag_initialized) {
-            TRIENGINE_PANIC("already created");
-        }
-
-        _glctx.create(
+        // Window half (GLFW main thread): create the hidden window and its GL context
+        // now. The context is initialized later by `create()` on the render thread.
+        // 
+        // The window is only a carrier for the GL context; offscreen output goes
+        // to an FBO sized by `create()`/`resize_frame()`, so a 1x1 placeholder window
+        // is enough here and the real size is committed later.
+        _glctx.create_window(
             "",
-            false,
-            initial_frame_size.x(),
-            initial_frame_size.y(),
+            false, // hidden window: offscreen output only
+            1, 1,  // placeholder size. (the render target is sized by `create()`)
             false
         );
-
-        _curr_frame_size = _glctx.get_window_size();
-
-        _scn_renderer.create(&_glctx);
-
-        TRIENGINE_TRACE("%s() LEAVE", __func__);
-        _flag_initialized = true;
     }
 
-    void offscreen_renderer::destroy_renderer()
+    offscreen_renderer::~offscreen_renderer()
     {
-        if (_flag_initialized)
+        // `destroy()` must run on the render thread before this object is destroyed;
+        // the destructor (GLFW main thread) cannot tear down the GL context safely.
+        // A failure here means `destroy()` was skipped, leaving the GL context to be
+        // released in a disorderly way (see the class threading contract).
+        TRIENGINE_ASSERT(!_is_created);
+        _glctx.destroy_window();
+    }
+
+    void offscreen_renderer::create(const vec2_i32 initial_frame_size)
+    {
+        if (_is_created) {
+            TRIENGINE_PANIC("offscreen_renderer::create() called again without a matching destroy()");
+        }
+
+        _glctx.init_context();
+
+        // Set the initial offscreen render target size.
+        this->resize_frame(initial_frame_size);
+        _scn_renderer.create(&_glctx);
+
+        _is_created = true;
+        TRIENGINE_TRACE("%s() LEAVE", __func__);
+    }
+
+    void offscreen_renderer::destroy()
+    {
+        if (_is_created)
         {
-            _flag_initialized = false;
+            _is_created = false;
 
             _scn_renderer.destroy();
-            _glctx.destroy();
+            _glctx.reset_context();
         }
     }
 

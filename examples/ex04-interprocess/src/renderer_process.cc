@@ -34,7 +34,7 @@ public:
         // Destroy the scenes (stops the plasma worker) before the renderer they reference.
         _scene_mgr.reset();
         if (_renderer) {
-            _renderer->destroy_renderer();
+            _renderer->destroy();
         }
         XUTL_TRACE("{}() LEAVE", __func__);
     }
@@ -265,10 +265,12 @@ public:
             // Destroy the scenes (stops the plasma worker) before tearing down the renderer
             // they live in, so the next connection starts fresh.
             _scene_mgr.reset();
+
             if (_renderer) {
-                _renderer->destroy_renderer();
+                _renderer->destroy();
             }
             _renderer.reset();
+            
             _pending_scene_switch = 0;
             _flag_mouse_dragging = false;
             _flag_l_mouse_pressed = false;
@@ -296,7 +298,7 @@ private:
         );
 
         _renderer = std::make_unique<triengine::visualization::offscreen_renderer_dx>();
-        _renderer->create_renderer(
+        _renderer->create(
             triengine::vec2_i32{ frame_width, frame_height },
             max_fps
         );
