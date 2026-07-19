@@ -149,7 +149,7 @@ endif()
 
 ########################################################################################
 
-add_subdirectory(${TRIENGINE_LIBRARY_NAME})
+add_subdirectory(src)
 
 if (TRIENGINE_BUILD_EXAMPLES)
     add_subdirectory(examples)

@@ -1,5 +1,5 @@
-set(TRIENGINE_LIBRARY_SOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}")
-set(TRIENGINE_LIBRARY_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}")
+set(TRIENGINE_LIBRARY_SOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${TRIENGINE_LIBRARY_NAME}")
+set(TRIENGINE_LIBRARY_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/${TRIENGINE_LIBRARY_NAME}")
 
 ########################################################################################
 # library sources
@@ -254,7 +254,7 @@ target_sources(${TRIENGINE_LIBRARY_NAME}
         FILE_SET triengine_public_headers
             TYPE HEADERS
             FILES ${TRIENGINE_LIBRARY_HEADERS_PUBLIC}
-            BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 target_compile_features(${TRIENGINE_LIBRARY_NAME} PUBLIC cxx_std_17)
@@ -290,11 +290,11 @@ endif()
 target_include_directories(${TRIENGINE_LIBRARY_NAME}
     PUBLIC
         # $<BUILD_INTERFACE:...>: Path used by consumers within the same build tree.
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}/extern>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}/extern/glad> # for `#include <KHR/khrplatform.h>`
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}/extern/imgui> # for `#include "imgui.h"` (implot use this)
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/${TRIENGINE_LIBRARY_NAME}/extern/rply> # for `#include "rply.h"`, `#include "rplyfile.h`
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${TRIENGINE_LIBRARY_NAME}/extern>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${TRIENGINE_LIBRARY_NAME}/extern/glad> # for `#include <KHR/khrplatform.h>`
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${TRIENGINE_LIBRARY_NAME}/extern/imgui> # for `#include "imgui.h"` (implot use this)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${TRIENGINE_LIBRARY_NAME}/extern/rply> # for `#include "rply.h"`, `#include "rplyfile.h`
         # $<INSTALL_INTERFACE:...>: Path relative to CMAKE_INSTALL_INCLUDEDIR used by consumers after installation
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${TRIENGINE_LIBRARY_NAME}/extern>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${TRIENGINE_LIBRARY_NAME}/extern/glad> # for `#include <KHR/khrplatform.h>`
@@ -302,7 +302,7 @@ target_include_directories(${TRIENGINE_LIBRARY_NAME}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${TRIENGINE_LIBRARY_NAME}/extern/rply> # for `#include "rply.h"`, `#include "rplyfile.h`
     PRIVATE
         # Path needed for compiling this library's own sources.
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
         # Build-tree root that holds the generated packed-shaders header
         # (making it reachable as `#include <triengine_generated/packed_shaders_data.h>`)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
@@ -336,7 +336,7 @@ message(STATUS "Configuring shader packing and embedding...")
 set(TRIENGINE_SHADERS_BASE_DIR "${TRIENGINE_LIBRARY_SOURCES_DIR}/shaders")
 set(TRIENGINE_AUTO_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/${TRIENGINE_LIBRARY_NAME}_generated")
 set(TRIENGINE_PACKED_SHADERS_HEADER_FILE "${TRIENGINE_AUTO_GENERATED_DIR}/packed_shaders_data.h")
-set(TRIENGINE_SHADERS_BINPACK_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/binpack.py")
+set(TRIENGINE_SHADERS_BINPACK_SCRIPT "${TRIENGINE_PROJECT_ROOT_DIR}/scripts/binpack.py")
 
 message(STATUS "TRIENGINE_SHADERS_BASE_DIR: ${TRIENGINE_SHADERS_BASE_DIR}")
 message(STATUS "TRIENGINE_PACKED_SHADERS_HEADER_FILE: ${TRIENGINE_PACKED_SHADERS_HEADER_FILE}")
@@ -416,7 +416,7 @@ install(
 # Install Library Resources
 #   - resources/*.* -> <prefix>/resources
 install(
-    DIRECTORY "resources/" # The trailing '/' copies the *contents* of "resources"
+    DIRECTORY "${TRIENGINE_PROJECT_ROOT_DIR}/resources/" # The trailing '/' copies the *contents* of "resources"
     DESTINATION "resources" # Target: "<prefix>/resources"
 )
 
