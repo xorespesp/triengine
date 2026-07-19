@@ -14,3 +14,15 @@
 
 # Auto-generated packed-shaders directory (produced by scripts/binpack.py)
 triengine_generated/
+
+# Python byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+
+# Per-user CMake presets
+CMakeUserPresets.json
+
+# LNK files
+*.lnk
