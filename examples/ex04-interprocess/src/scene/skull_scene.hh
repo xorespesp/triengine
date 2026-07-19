@@ -48,7 +48,7 @@ namespace scene
 
             _skull_mesh = std::make_shared<geometry::mesh_object>();
             if (io::load_mesh_from_obj(
-                rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
+                rsrc_dir_path / "mesh/skull/12140_Skull_v3_L2.obj",
                 false,
                 *scn,
                 *_skull_mesh))
@@ -63,7 +63,7 @@ namespace scene
 
             _skull_mesh2 = std::make_shared<geometry::mesh_object>();
             if (io::load_mesh_from_obj(
-                rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
+                rsrc_dir_path / "mesh/skull/12140_Skull_v3_L2.obj",
                 false,
                 *scn,
                 *_skull_mesh2))

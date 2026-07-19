@@ -58,7 +58,7 @@ namespace demo
 
             if (auto new_obj = std::make_shared<triengine::geometry::mesh_object>();
                 triengine::io::load_mesh_from_obj(
-                    rsrc_dir_path / "objects/skull/12140_Skull_v3_L2.obj",
+                    rsrc_dir_path / "mesh/skull/12140_Skull_v3_L2.obj",
                     false,
                     *scn,
                     *new_obj
