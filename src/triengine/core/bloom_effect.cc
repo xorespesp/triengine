@@ -246,6 +246,7 @@ namespace triengine::core
             .attach_fragment_shader({ shader_ldr->load("bloom_composite_pass.frag")->c_str() })
             .link();
 
+        _initialized = true;
         return true;
     }
 
@@ -253,12 +254,19 @@ namespace triengine::core
     {
         _mip_chain.clear();
 
+        ::glDeleteVertexArrays(1, &_screen_quad_vao);
+        _screen_quad_vao = 0;
+        ::glDeleteBuffers(1, &_screen_quad_vbo);
+        _screen_quad_vbo = 0;
+
         ::glDeleteFramebuffers(1, &_bloom_fbo);
         _bloom_fbo = 0;
 
         _downsample_shader.destroy();
         _upsample_shader.destroy();
         _composite_shader.destroy();
+
+        _initialized = false;
     }
 
     const phys_bloom_effect::mip_texture& phys_bloom_effect::get_bloom_mip(size_t index) const
@@ -402,6 +410,15 @@ namespace triengine::core
         // Restore viewport
         GLCall(::glViewport(0, 0, _src_texture_size.x(), _src_texture_size.y()));
 
+        // TODO: Fix texture feedback loop(undefined behavior per GL spec)
+        //   This pass attaches `src_texture_id` as `GL_COLOR_ATTACHMENT0` while
+        //   simultaneously sampling it as `u_sceneTexture` below, i.e. it reads
+        //   and writes the same texture in one draw. It happens to work because
+        //   each fragment does a 1:1 same-texel read-modify-write, but it is
+        //   still UB. Fix: composite into a dedicated output texture owned by
+        //   this effect (leaving `src_texture_id` read-only) and expose it via
+        //   the return value so the caller consumes the composited result from
+        //   there instead of in-place.
         GLCall(::glNamedFramebufferTexture(
             _bloom_fbo,            /* GLuint framebuffer */
             GL_COLOR_ATTACHMENT0,  /* GLenum attachment */
