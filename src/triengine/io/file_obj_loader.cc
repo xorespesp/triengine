@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <optional>
 
 namespace triengine::io
 {
@@ -42,6 +43,10 @@ namespace triengine::io
         const tinyobj::attrib_t& tinyobj_attrib = tinyobj_reader.GetAttrib();
         const std::vector<tinyobj::shape_t>& tinyobj_shapes = tinyobj_reader.GetShapes();
         const std::vector<tinyobj::material_t>& tinyobj_materials = tinyobj_reader.GetMaterials();
+
+        TRIENGINE_ASSERT(tinyobj_attrib.vertices.size()  % 3 == 0);
+        TRIENGINE_ASSERT(tinyobj_attrib.normals.size()   % 3 == 0);
+        TRIENGINE_ASSERT(tinyobj_attrib.texcoords.size() % 2 == 0);
 
         std::vector<triengine::vec3_f32> vertex_positions;
         std::vector<triengine::vec3_f32> vertex_normals;
@@ -96,7 +101,7 @@ namespace triengine::io
         > vertex_index_map;
 
         const auto process_new_vertex =
-            [&](const tinyobj::index_t& tinyobj_idx) -> size_t
+            [&](const tinyobj::index_t& tinyobj_idx) -> std::optional<size_t>
             {
                 auto [map_insert_it, map_insert_succeeded] = vertex_index_map.insert(
                     { tinyobj_idx, static_cast<size_t>(-1)/*npos*/ }
@@ -106,28 +111,60 @@ namespace triengine::io
                     return map_insert_it->second;
                 }
 
-                // Vertex Position
+                // Validate vertex position index bounds
+                if (tinyobj_idx.vertex_index < 0 ||
+                    static_cast<size_t>(tinyobj_idx.vertex_index) >= tinyobj_attrib.vertices.size() / 3)
+                {
+                    TRIENGINE_ERROR("Invalid obj vertex index %d (position count: %zu)"
+                        , tinyobj_idx.vertex_index
+                        , tinyobj_attrib.vertices.size() / 3
+                    );
+                    return std::nullopt;
+                }
+
                 Eigen::Vector3f curr_vertex_position{
-                    tinyobj_attrib.vertices[3 * size_t(tinyobj_idx.vertex_index) + 0],
-                    tinyobj_attrib.vertices[3 * size_t(tinyobj_idx.vertex_index) + 1],
-                    tinyobj_attrib.vertices[3 * size_t(tinyobj_idx.vertex_index) + 2]
+                    tinyobj_attrib.vertices[3 * static_cast<size_t>(tinyobj_idx.vertex_index) + 0],
+                    tinyobj_attrib.vertices[3 * static_cast<size_t>(tinyobj_idx.vertex_index) + 1],
+                    tinyobj_attrib.vertices[3 * static_cast<size_t>(tinyobj_idx.vertex_index) + 2]
                 };
 
                 // Vertex Normal
                 Eigen::Vector3f curr_vertex_normal{ Eigen::Vector3f::Zero() };
                 if (const bool has_normal_data = tinyobj_idx.normal_index >= 0; // Check if `normal_index` is zero or positive. negative = no normal data
-                    has_normal_data) {
-                    curr_vertex_normal(0/*x*/) = tinyobj_attrib.normals[3 * size_t(tinyobj_idx.normal_index) + 0];
-                    curr_vertex_normal(1/*y*/) = tinyobj_attrib.normals[3 * size_t(tinyobj_idx.normal_index) + 1];
-                    curr_vertex_normal(2/*z*/) = tinyobj_attrib.normals[3 * size_t(tinyobj_idx.normal_index) + 2];
+                    has_normal_data)
+                {
+                    // Validate normal index bounds
+                    if (static_cast<size_t>(tinyobj_idx.normal_index) >= tinyobj_attrib.normals.size() / 3)
+                    {
+                        TRIENGINE_ERROR("Invalid obj normal index %d (normal count: %zu)"
+                            , tinyobj_idx.normal_index
+                            , tinyobj_attrib.normals.size() / 3
+                        );
+                        return std::nullopt;
+                    }
+
+                    curr_vertex_normal(0/*x*/) = tinyobj_attrib.normals[3 * static_cast<size_t>(tinyobj_idx.normal_index) + 0];
+                    curr_vertex_normal(1/*y*/) = tinyobj_attrib.normals[3 * static_cast<size_t>(tinyobj_idx.normal_index) + 1];
+                    curr_vertex_normal(2/*z*/) = tinyobj_attrib.normals[3 * static_cast<size_t>(tinyobj_idx.normal_index) + 2];
                 }
 
                 // Vertex Texture UV
                 Eigen::Vector2f curr_vertex_uv{ Eigen::Vector2f::Zero() };
                 if (const bool has_uv_data = tinyobj_idx.texcoord_index >= 0; // Check if `texcoord_index` is zero or positive. negative = no texcoord data
-                    has_uv_data) {
-                    curr_vertex_uv(0/*u*/) = tinyobj_attrib.texcoords[2 * size_t(tinyobj_idx.texcoord_index) + 0];
-                    curr_vertex_uv(1/*v*/) = tinyobj_attrib.texcoords[2 * size_t(tinyobj_idx.texcoord_index) + 1];
+                    has_uv_data)
+                {
+                    // Validate texcoord index bounds
+                    if (static_cast<size_t>(tinyobj_idx.texcoord_index) >= tinyobj_attrib.texcoords.size() / 2)
+                    {
+                        TRIENGINE_ERROR("Invalid obj texcoord index %d (texcoord count: %zu)"
+                            , tinyobj_idx.texcoord_index
+                            , tinyobj_attrib.texcoords.size() / 2
+                        );
+                        return std::nullopt;
+                    }
+
+                    curr_vertex_uv(0/*u*/) = tinyobj_attrib.texcoords[2 * static_cast<size_t>(tinyobj_idx.texcoord_index) + 0];
+                    curr_vertex_uv(1/*v*/) = tinyobj_attrib.texcoords[2 * static_cast<size_t>(tinyobj_idx.texcoord_index) + 1];
                 }
 
                 const size_t curr_vertex_idx = vertex_positions.size();
@@ -158,8 +195,13 @@ namespace triengine::io
                     // access to face(triangle) vertex
                     const tinyobj::index_t& tinyobj_idx = tinyobj_shapes[s].mesh.indices[index_offset + v];
 
-                    const size_t curr_vertex_idx = process_new_vertex(tinyobj_idx);
-                    face_idx(v) = static_cast<int>(curr_vertex_idx);
+                    const std::optional<size_t> curr_vertex_idx = process_new_vertex(tinyobj_idx);
+                    if (!curr_vertex_idx.has_value()) {
+                        TRIENGINE_ERROR("Failed to load obj: %s (out-of-range face index)"
+                            , file_path.string().c_str());
+                        return false;
+                    }
+                    face_idx(v) = static_cast<int>(*curr_vertex_idx);
                 } // for
 
                 mesh.triangle_indices.push_back(face_idx);
