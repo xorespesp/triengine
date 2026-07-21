@@ -429,9 +429,11 @@ namespace triengine::visualization
     {
         auto map_it = _scn_id_map.find(scn_id);
         if (map_it != _scn_id_map.end()) {
+            // erase invalidates iterator, so we must check it before the erase.
+            const bool removing_curr_scn = (_curr_scn_it == map_it->second);
             _scn_list.erase(map_it->second);
             _scn_id_map.erase(map_it);
-            if ((*_curr_scn_it)->get_id() == scn_id) {
+            if (removing_curr_scn) {
                 _curr_scn_it = _scn_id_map.empty()
                     ? _scn_list.end()
                     : _scn_list.begin();
