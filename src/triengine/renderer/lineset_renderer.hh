@@ -14,6 +14,7 @@ namespace triengine::renderer
 
     public:
         lineset_renderer();
+        ~lineset_renderer();
 
         // CRTP methods
         void create_impl(core::gl_context& glctx);

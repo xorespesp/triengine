@@ -17,6 +17,7 @@ namespace triengine::renderer
 
     public:
         skeleton_renderer();
+        ~skeleton_renderer();
 
         void show_joint_axis(bool show);
 

@@ -16,6 +16,7 @@ namespace triengine::renderer
 
     public:
         light_source_renderer();
+        ~light_source_renderer();
 
         // CRTP methods
         void create_impl(core::gl_context& glctx);

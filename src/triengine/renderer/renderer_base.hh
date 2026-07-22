@@ -44,11 +44,8 @@ namespace triengine::renderer
 
     public:
         renderer_base() = default;
-        virtual ~renderer_base() {
-            if (this->is_created()) {
-                this->destroy();
-            }
-        }
+        // NOTE: Cleanup MUST not be performed here; `_Derived` has already been destroyed. (Refer to UB, see C.82)
+        virtual ~renderer_base() = default;
 
         bool is_created() const noexcept {
             return _creation_flag;

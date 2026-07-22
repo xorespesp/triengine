@@ -21,6 +21,7 @@ namespace triengine::renderer
 
     public:
         pcd_renderer();
+        ~pcd_renderer();
 
         void set_pcd_point_size(float point_size);
 

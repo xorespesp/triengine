@@ -43,6 +43,7 @@ namespace triengine::renderer
 
     public:
         mesh_renderer();
+        ~mesh_renderer();
 
         // CRTP methods
         void create_impl(core::gl_context& glctx);

@@ -7,6 +7,11 @@ namespace triengine::renderer
     lineset_renderer::lineset_renderer()
     { }
 
+    lineset_renderer::~lineset_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void lineset_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());

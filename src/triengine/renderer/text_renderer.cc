@@ -534,6 +534,11 @@ namespace triengine::renderer
     text_renderer::text_renderer()
     { }
 
+    text_renderer::~text_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void text_renderer::create_impl(
         core::gl_context& glctx,
 		const uint8_t* const ttf_file_buff,

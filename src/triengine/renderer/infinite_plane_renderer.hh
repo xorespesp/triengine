@@ -19,6 +19,7 @@ namespace triengine::renderer
 
     public:
         infinite_plane_renderer();
+        ~infinite_plane_renderer();
 
         const infinite_plane_options& get_options() const { return _options; }
         void set_options(const infinite_plane_options& options) { _options = options; }

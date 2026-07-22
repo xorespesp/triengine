@@ -7,6 +7,11 @@ namespace triengine::renderer
     skeleton_renderer::skeleton_renderer()
     { }
 
+    skeleton_renderer::~skeleton_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void skeleton_renderer::show_joint_axis(bool show)
     {
         _flag_show_joint_axis = show;

@@ -82,6 +82,11 @@ namespace triengine::renderer
     light_source_renderer::light_source_renderer()
     {}
 
+    light_source_renderer::~light_source_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void light_source_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());

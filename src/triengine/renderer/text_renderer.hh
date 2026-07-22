@@ -19,6 +19,7 @@ namespace triengine::renderer
 
     public:
         text_renderer();
+        ~text_renderer();
 
         // CRTP methods
         void create_impl(

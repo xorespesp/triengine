@@ -7,6 +7,11 @@ namespace triengine::renderer
     mesh_renderer::mesh_renderer()
     {}
 
+    mesh_renderer::~mesh_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void mesh_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());

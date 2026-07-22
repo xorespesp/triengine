@@ -7,6 +7,11 @@ namespace triengine::renderer
     pcd_renderer::pcd_renderer()
     { }
 
+    pcd_renderer::~pcd_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void pcd_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());

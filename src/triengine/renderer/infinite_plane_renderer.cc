@@ -7,6 +7,11 @@ namespace triengine::renderer
     infinite_plane_renderer::infinite_plane_renderer()
     { }
 
+    infinite_plane_renderer::~infinite_plane_renderer()
+    {
+        this->destroy_impl();
+    }
+
     void infinite_plane_renderer::create_impl(core::gl_context& glctx)
     {
         TRIENGINE_ASSERT(!this->is_created());
