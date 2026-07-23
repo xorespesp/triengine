@@ -410,7 +410,7 @@ namespace triengine::string
                 curr_token_size = scan_pos - curr_token_pos;
                 scan_pos += drop_delim_sv.size(); // next scan pos
             } else {
-                curr_token_pos = target_sv.size() - curr_token_pos;
+                curr_token_size = target_sv.size() - curr_token_pos;
             }
 
             if (curr_token_size > 0 || _EmptyTokenPolicy == empty_token_policy_type::keep_empty_tokens) {
