@@ -32,9 +32,9 @@ namespace triengine
         }
 
         float aspect_ratio() const noexcept {
-            return (height) // Avoid zero division
+            return (width > 0 && height > 0)
                 ? static_cast<float>(width) / static_cast<float>(height)
-                : 0.0f;
+                : 1.0f; // NOTE: 1:1 fallback for a collapsed viewport (0 would make the projection matrix inf/NaN).
         }
 
         bool operator==(const view_port& rhs) const noexcept {
