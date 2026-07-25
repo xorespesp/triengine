@@ -251,20 +251,43 @@ namespace triengine::core
 
         if (visible && fullscreen)
         {
-            int num_modes = 0, best_mode_idx = 0;
-            const GLFWvidmode* const modes = ::glfwGetVideoModes(monitor_info, &num_modes);
-            for (int i = 0; i < num_modes; ++i) {
-                if ((modes[i].width >= modes[best_mode_idx].width) ||
-                    (modes[i].height >= modes[best_mode_idx].height) ||
-                    (modes[i].refreshRate >= modes[best_mode_idx].refreshRate) ||
-                    (modes[i].blueBits + modes[i].greenBits + modes[i].redBits) >= (modes[best_mode_idx].blueBits + modes[best_mode_idx].greenBits + modes[best_mode_idx].redBits))
+            // NOTE: compare by priority (resolution -> color depth -> refresh rate); 
+            //       OR-ing the tests would pick a mode that wins any single attribute.
+            const auto is_better_mode =
+                [](const GLFWvidmode& lhs, const GLFWvidmode& rhs) noexcept -> bool
                 {
-                    best_mode_idx = i;
-                }
-            }
+                    const int lhs_area = lhs.width * lhs.height;
+                    const int rhs_area = rhs.width * rhs.height;
+                    if (lhs_area != rhs_area) { return lhs_area > rhs_area; }
 
-            initial_widow_size.x() = modes[best_mode_idx].width;
-            initial_widow_size.y() = modes[best_mode_idx].height;
+                    const int lhs_color_bits = lhs.redBits + lhs.greenBits + lhs.blueBits;
+                    const int rhs_color_bits = rhs.redBits + rhs.greenBits + rhs.blueBits;
+                    if (lhs_color_bits != rhs_color_bits) { return lhs_color_bits > rhs_color_bits; }
+
+                    return lhs.refreshRate > rhs.refreshRate;
+                };
+
+            int num_modes = 0;
+            const GLFWvidmode* const modes = ::glfwGetVideoModes(monitor_info, &num_modes);
+
+            if (modes && num_modes > 0)
+            {
+                int best_mode_idx = 0;
+                for (int i = 1; i < num_modes; ++i) {
+                    if (is_better_mode(modes[i], modes[best_mode_idx])) {
+                        best_mode_idx = i;
+                    }
+                }
+
+                initial_widow_size.x() = modes[best_mode_idx].width;
+                initial_widow_size.y() = modes[best_mode_idx].height;
+            }
+            else if (display_info)
+            {
+                // fall back to the monitor's current video mode
+                initial_widow_size.x() = display_info->width;
+                initial_widow_size.y() = display_info->height;
+            }
         }
         else if (visible && !fullscreen)
         {
