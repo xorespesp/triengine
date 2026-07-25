@@ -45,8 +45,8 @@ namespace triengine
         _format = format;
         _width_pixels = width;
         _height_pixels = height;
-        _stride_bytes = _width_pixels * channel_size;
-        _buffer.resize(_height_pixels * _stride_bytes);
+        _stride_bytes = static_cast<uint32_t>(static_cast<size_t>(width) * static_cast<size_t>(channel_size));
+        _buffer.resize(static_cast<size_t>(_height_pixels) * static_cast<size_t>(_stride_bytes));
 
         return *this;
     }
