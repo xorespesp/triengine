@@ -251,9 +251,14 @@ namespace triengine::geometry
         }
 
         // Concat vertex colors
+        if (this->has_triangle_colors() && rhs.has_triangle_colors())
         {
             vertex_colors.reserve(vertex_colors.size() + rhs.vertex_colors.size());
             vertex_colors.insert(vertex_colors.end(), rhs.vertex_colors.begin(), rhs.vertex_colors.end());
+        }
+        else
+        {
+            vertex_colors.clear();
         }
 
         // Concat vertex indices
