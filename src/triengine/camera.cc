@@ -967,6 +967,10 @@ namespace triengine
         const vec3_f32 t = world_to_camera.block<3, 1>(0, 3);
         const vec3_f32 new_camera_position_world = -(R.transpose() * t);
         this->_set_position(new_camera_position_world);
+
+        // The camera looks down the camera-frame +z axis; R^T (camera-to-world rotation) maps it to world space.
+        const vec3_f32 new_front_world = R.transpose() * vec3_f32::UnitZ();
+        this->_get_camera_vectors().update_vectors(new_front_world);
     }
 
 } // namespace
