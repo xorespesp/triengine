@@ -321,7 +321,7 @@ namespace triengine::gui
                 const float curr_dT = static_cast<float>(ImGui::GetTime());
                 const float curr_fps = ImGui::GetIO().Framerate;
 
-                sb_.appendf("\nFrame Time: %.3fms (%.1f FPS)", 1000.0f / curr_fps, curr_fps);
+                sb_.appendf("\nFrame Time: %.3fms (%.1f FPS)", (curr_fps > 0.0f) ? (1000.0f / curr_fps) : 0.0f, curr_fps);
                 ImGui::TextColored(ImVec4(64, 64, 64, 255), "%s", sb_.c_str());
 
                 if (!_state.fps_plot_next_update_time) {
@@ -335,10 +335,12 @@ namespace triengine::gui
                 }
 
                 double curr_fps_avg{ 0.0 };
-                for (const auto fps_val : _state.fps_plot_buffer.data) {
-                    curr_fps_avg += fps_val.y();
+                if (!_state.fps_plot_buffer.data.empty()) {
+                    for (const auto fps_val : _state.fps_plot_buffer.data) {
+                        curr_fps_avg += fps_val.y();
+                    }
+                    curr_fps_avg /= static_cast<double>(_state.fps_plot_buffer.data.size());
                 }
-                curr_fps_avg /= static_cast<double>(_state.fps_plot_buffer.data.size());
 
                 ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2{ 5.0f * render_ctx.dpi_scale, 5.0f * render_ctx.dpi_scale });
                 ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.1f);
@@ -362,24 +364,27 @@ namespace triengine::gui
                     ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, 800.0, ImPlotCond_Once);
                     ImPlot::SetupAxisTicks(ImAxis_Y1, 0.0, 1000.0, 10, nullptr, false);
 
-                    ImPlot::PlotShaded("##FPSShadedPlot",
-                        &_state.fps_plot_buffer.data.begin()->x(),
-                        &_state.fps_plot_buffer.data.begin()->y(),
-                        static_cast<int>(_state.fps_plot_buffer.data.size()),
-                        0.0,
-                        ImPlotShadedFlags_None,
-                        _state.fps_plot_buffer.offset,
-                        sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
-                    );
+                    if (!_state.fps_plot_buffer.data.empty())
+                    {
+                        ImPlot::PlotShaded("##FPSShadedPlot",
+                            &_state.fps_plot_buffer.data.begin()->x(),
+                            &_state.fps_plot_buffer.data.begin()->y(),
+                            static_cast<int>(_state.fps_plot_buffer.data.size()),
+                            0.0,
+                            ImPlotShadedFlags_None,
+                            _state.fps_plot_buffer.offset,
+                            sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
+                        );
 
-                    ImPlot::PlotLine("##FPSLinePlot",
-                        &_state.fps_plot_buffer.data.begin()->x(),
-                        &_state.fps_plot_buffer.data.begin()->y(),
-                        static_cast<int>(_state.fps_plot_buffer.data.size()),
-                        ImPlotShadedFlags_None,
-                        _state.fps_plot_buffer.offset,
-                        sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
-                    );
+                        ImPlot::PlotLine("##FPSLinePlot",
+                            &_state.fps_plot_buffer.data.begin()->x(),
+                            &_state.fps_plot_buffer.data.begin()->y(),
+                            static_cast<int>(_state.fps_plot_buffer.data.size()),
+                            ImPlotShadedFlags_None,
+                            _state.fps_plot_buffer.offset,
+                            sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
+                        );
+                    }
 
                     if (ImDrawList* const draw_list{ ImPlot::GetPlotDrawList() };
                         draw_list)
