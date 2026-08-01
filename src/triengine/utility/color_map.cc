@@ -65,7 +65,7 @@ namespace triengine::utility
         if (_lut.empty()) { return color3_f32::zero(); }
 
         t = std::clamp(t, 0.0f, 1.0f);
-        const size_t idx = static_cast<size_t>(t * static_cast<float>(_lut.size() - 1));
+        const size_t idx = static_cast<size_t>(t * static_cast<float>(_lut.size() - 1) + 0.5f);
         return _lut[idx];
     }
 
