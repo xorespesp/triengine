@@ -170,8 +170,12 @@ namespace triengine
 
     void scene::remove_label_3d(text_object_id_type label_id)
     {
-        auto it = _text_3d_objects_id_map.at(label_id);
-        _text_3d_objects.erase(it);
+        auto map_it = _text_3d_objects_id_map.find(label_id);
+        if (map_it == _text_3d_objects_id_map.end()) {
+            return;
+        }
+        _text_3d_objects.erase(map_it->second);
+        _text_3d_objects_id_map.erase(map_it);
     }
 
     void scene::clear_label_3d()
@@ -204,8 +208,12 @@ namespace triengine
 
     void scene::remove_label_2d(text_object_id_type label_id)
     {
-        auto it = _text_2d_objects_id_map.at(label_id);
-        _text_2d_objects.erase(it);
+        auto map_it = _text_2d_objects_id_map.find(label_id);
+        if (map_it == _text_2d_objects_id_map.end()) {
+            return;
+        }
+        _text_2d_objects.erase(map_it->second);
+        _text_2d_objects_id_map.erase(map_it);
     }
 
     void scene::clear_label_2d()
