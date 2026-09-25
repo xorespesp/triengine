@@ -61,6 +61,11 @@ namespace triengine::visualization
         {
             _is_created = false;
 
+            // NOTE: `_fb_main` owns GL objects outside the context's GPU resource manager, so release it while this context is current.
+            // If left to the destructor(GLFW main thread), the delete hits that thread's current context and destroys its same-named objects.
+            _fb_main.destroy();
+            _flag_invalidate_fbo = true; // reset invalidate flag to later `create()` allocates the framebuffer again
+
             _scn_renderer.destroy();
             _glctx.reset_context();
         }
