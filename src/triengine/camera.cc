@@ -913,14 +913,14 @@ namespace triengine
         view = _extrinsic;
 
         proj = math::perspective_from_intrinsics(
-            _intrinsics.fx,
-            _intrinsics.fy,
-            _intrinsics.cx,
-            _intrinsics.cy,
+            static_cast<float>(_intrinsics.fx),
+            static_cast<float>(_intrinsics.fy),
+            static_cast<float>(_intrinsics.cx),
+            static_cast<float>(_intrinsics.cy),
             static_cast<float>(_intrinsics.image_width),
             static_cast<float>(_intrinsics.image_height),
-            _intrinsics.near_plane,
-            _intrinsics.far_plane
+            _near_plane,
+            _far_plane
         );
 
         // The intrinsic projection maps the whole image to NDC [-1, 1]^2, which fills the entire

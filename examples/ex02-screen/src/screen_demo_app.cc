@@ -479,12 +479,13 @@ namespace demo
                 }
 
                 if (_overlay_use_pinhole) {
-                    ImGui::SliderFloat("fx", &_overlay_intrinsics.fx, 100.0f, 1200.0f, "%.0f px");
-                    ImGui::SliderFloat("fy", &_overlay_intrinsics.fy, 100.0f, 1200.0f, "%.0f px");
-                    ImGui::SliderFloat("cx", &_overlay_intrinsics.cx,
-                        0.0f, static_cast<float>(_overlay_intrinsics.image_width), "%.0f px");
-                    ImGui::SliderFloat("cy", &_overlay_intrinsics.cy,
-                        0.0f, static_cast<float>(_overlay_intrinsics.image_height), "%.0f px");
+                    constexpr double kMinFocal{ 100.0 }, kMaxFocal{ 1200.0 }, kMinPrincipal{ 0.0 };
+                    const double max_cx = static_cast<double>(_overlay_intrinsics.image_width);
+                    const double max_cy = static_cast<double>(_overlay_intrinsics.image_height);
+                    ImGui::SliderScalar("fx", ImGuiDataType_Double, &_overlay_intrinsics.fx, &kMinFocal, &kMaxFocal, "%.0f px");
+                    ImGui::SliderScalar("fy", ImGuiDataType_Double, &_overlay_intrinsics.fy, &kMinFocal, &kMaxFocal, "%.0f px");
+                    ImGui::SliderScalar("cx", ImGuiDataType_Double, &_overlay_intrinsics.cx, &kMinPrincipal, &max_cx, "%.0f px");
+                    ImGui::SliderScalar("cy", ImGuiDataType_Double, &_overlay_intrinsics.cy, &kMinPrincipal, &max_cy, "%.0f px");
                 } else {
                     ImGui::TextDisabled("Arcball: drag to orbit the box.");
                 }
@@ -650,9 +651,9 @@ namespace demo
         triengine::pinhole_camera::intrinsics_t overlay_intrinsics;
         overlay_intrinsics.image_width = kBackgroundTexWidth;
         overlay_intrinsics.image_height = kBackgroundTexHeight;
-        overlay_intrinsics.cx = static_cast<float>(kBackgroundTexWidth) * 0.5f;
-        overlay_intrinsics.cy = static_cast<float>(kBackgroundTexHeight) * 0.5f;
-        overlay_intrinsics.fx = overlay_intrinsics.fy = 400.0f;
+        overlay_intrinsics.cx = static_cast<double>(kBackgroundTexWidth) * 0.5;
+        overlay_intrinsics.cy = static_cast<double>(kBackgroundTexHeight) * 0.5;
+        overlay_intrinsics.fx = overlay_intrinsics.fy = 400.0;
         _screen_ctrl_window->set_overlay_intrinsics(overlay_intrinsics);
 
         _screen_ctrl_window->set_target_quad(_screen3d_quad);

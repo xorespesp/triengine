@@ -262,10 +262,12 @@ namespace triengine::gui
                         auto intrinsics = pinhole_cam->get_intrinsics();
                         bool intrinsics_changed = false;
 
-                        intrinsics_changed |= ImGui::DragFloat2("Focal Length (fx, fy)", &intrinsics.fx,
-                            1.0f, 1.0f, 10000.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
-                        intrinsics_changed |= ImGui::DragFloat2("Principal Point (cx, cy)", &intrinsics.cx,
-                            1.0f, 0.0f, 10000.0f, "%.1f");
+                        constexpr double kMinFocalLength{ 1.0 }, kMaxFocalLength{ 10000.0 };
+                        constexpr double kMinPrincipalPoint{ 0.0 }, kMaxPrincipalPoint{ 10000.0 };
+                        intrinsics_changed |= ImGui::DragScalarN("Focal Length (fx, fy)", ImGuiDataType_Double, &intrinsics.fx, 2,
+                            1.0f, &kMinFocalLength, &kMaxFocalLength, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+                        intrinsics_changed |= ImGui::DragScalarN("Principal Point (cx, cy)", ImGuiDataType_Double, &intrinsics.cx, 2,
+                            1.0f, &kMinPrincipalPoint, &kMaxPrincipalPoint, "%.1f");
                         intrinsics_changed |= ImGui::DragInt2("Image Size (w, h)", &intrinsics.image_width,
                             1.0f, 1, 8192);
 

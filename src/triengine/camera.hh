@@ -606,12 +606,17 @@ namespace triengine
         // (pixel units, principal point from top-left)
         struct intrinsics_t
         {
-            float fx{ 500.0f }, fy{ 500.0f };   // focal lengths (pixels), must be > 0
-            float cx{ 320.0f }, cy{ 240.0f };   // principal point (pixels)
+            double fx{ 500.0 }, fy{ 500.0 };    // focal lengths (pixels), must be > 0
+            double cx{ 320.0 }, cy{ 240.0 };    // principal point (pixels)
             int32_t image_width{ 640 };         // sensor resolution (pixels), must be > 0
             int32_t image_height{ 480 };
-            float near_plane{ camera_constants::kNearPlane };
-            float far_plane{ camera_constants::kFarPlane };
+
+            bool operator==(const intrinsics_t& other) const noexcept {
+                return fx == other.fx && fy == other.fy
+                    && cx == other.cx && cy == other.cy
+                    && image_width == other.image_width && image_height == other.image_height;
+            }
+            bool operator!=(const intrinsics_t& other) const noexcept { return !(*this == other); }
         };
 
     public:
@@ -630,6 +635,15 @@ namespace triengine
         const intrinsics_t& get_intrinsics() const noexcept { return _intrinsics; }
         void set_intrinsics(const intrinsics_t& intrinsics) { _intrinsics = intrinsics; }
 
+        // Near/far clipping distances of the projection. They are a rendering setting, not part of the
+        // calibrated intrinsics, and default to the same constants as the other camera types.
+        float get_near_plane() const noexcept { return _near_plane; }
+        float get_far_plane() const noexcept { return _far_plane; }
+        void set_clip_planes(float near_plane, float far_plane) {
+            _near_plane = near_plane;
+            _far_plane = far_plane;
+        }
+
         // Camera extrinsic (pose): the rigid world-to-camera transform used directly as the view
         // matrix. The identity (the default) means world and camera space coincide, so geometry is
         // taken to already be in the camera frame. The matrix maps world-space points into the
@@ -647,6 +661,8 @@ namespace triengine
 
     private:
         intrinsics_t _intrinsics;
+        float _near_plane{ camera_constants::kNearPlane };
+        float _far_plane{ camera_constants::kFarPlane };
         mat4_f32 _extrinsic{ math::mat4_identity<float>() };
     };
 
