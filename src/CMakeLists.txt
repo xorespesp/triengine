@@ -46,6 +46,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/io/file_ply_loader.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/visualizer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/visualizer_gui.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer_dx.cc"
 
@@ -141,6 +142,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/offscreen_renderer_dx.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/visualizer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/visualization/visualizer_gui.hh"
 )
 
 # library headers (private)

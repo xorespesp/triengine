@@ -1,6 +1,6 @@
 #pragma once
 #include <triengine/global_options.hh>
-#include <triengine/visualization/visualizer.hh>
+#include <triengine/visualization/visualizer_gui.hh>
 #include <triengine/utility/noncopyable.hh>
 
 #include <memory>

@@ -154,6 +154,26 @@ namespace triengine::core
         );
 
         /**
+         * @brief Blits the content of this FBO into the default framebuffer (the window backbuffer).
+         *        A requested buffer that either side lacks is silently skipped by GL, while depth/stencil
+         *        formats that differ between the two sides are an error.
+         * @param target_width_pixels Width of the default framebuffer.
+         * @param target_height_pixels Height of the default framebuffer.
+         * @param blit_color Whether to blit color buffer.
+         * @param blit_depth Whether to blit depth buffer.
+         * @param blit_stencil Whether to blit stencil buffer.
+         * @param blit_filter Usually GL_NEAREST or GL_LINEAR.
+         */
+        void blit_to_default_framebuffer(
+            int32_t target_width_pixels,
+            int32_t target_height_pixels,
+            bool blit_color = true,
+            bool blit_depth = true,
+            bool blit_stencil = true,
+            GLenum blit_filter = GL_NEAREST // `GL_NEAREST` or `GL_LINEAR`
+        );
+
+        /**
          * @brief Swaps the depth attachment with another framebuffer.
          * @param target_fb The target framebuffer to swap with.
          */

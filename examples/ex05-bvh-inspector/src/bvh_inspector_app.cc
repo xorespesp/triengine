@@ -13,7 +13,7 @@ namespace demo
     {
         XUTL_TRACE("{}() ENTER", __func__);
 
-        _vis = std::make_unique<triengine::visualization::visualizer>();
+        _vis = std::make_unique<triengine::visualization::visualizer_gui>();
         _vis->create_window("Triengine Demo - BVH Inspector"
             " (Build: " __DATE__ ", " __TIME__
 #if defined (_DEBUG)

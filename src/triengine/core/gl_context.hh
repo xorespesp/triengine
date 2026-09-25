@@ -88,9 +88,11 @@ namespace triengine::core
 
         GLFWwindow* get_glfw_window() const noexcept;
         vec2_i32 get_window_size() const;
+        vec2_i32 get_framebuffer_size() const; // in pixels (may differ from the window size on scaled displays)
         vec2_f32 get_window_dpi_scale() const;
         vec2_f32 get_cursor_screen_pos() const;
 
+        bool is_window_focused() const;
         bool get_window_close_flag() const;
         void set_window_close_flag(bool close);
         void set_window_position(int32_t xpos, int32_t ypos);

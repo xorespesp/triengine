@@ -318,6 +318,35 @@ namespace triengine::core
         ));
     }
 
+    void frame_buffer::blit_to_default_framebuffer(
+        const int32_t target_width_pixels,
+        const int32_t target_height_pixels,
+        const bool blit_color,
+        const bool blit_depth,
+        const bool blit_stencil,
+        const GLenum blit_filter)
+    {
+        if (!this->is_valid()) {
+            TRIENGINE_PANIC("Cannot blit from invalid framebuffer!");
+        }
+
+        TRIENGINE_ASSERT(!(blit_filter == GL_LINEAR && (blit_depth || blit_stencil)));
+
+        GLbitfield mask{};
+        if (blit_color) { mask |= GL_COLOR_BUFFER_BIT; }
+        if (blit_depth) { mask |= GL_DEPTH_BUFFER_BIT; }
+        if (blit_stencil) { mask |= GL_STENCIL_BUFFER_BIT; }
+
+        GLCall(::glBlitNamedFramebuffer(
+            _fbo_id,                                          /* GLuint readFramebuffer */
+            0,                                                /* GLuint drawFramebuffer (the default framebuffer) */
+            0, 0, _width_pixels, _height_pixels,              /* GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1 */
+            0, 0, target_width_pixels, target_height_pixels,  /* GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1 */
+            mask,                                             /* GLbitfield mask */
+            blit_filter                                       /* GLenum filter */
+        ));
+    }
+
     void frame_buffer::swap_depth_attachment(frame_buffer& target_fb)
     {
         if (!this->is_valid() || !target_fb.is_valid()) {

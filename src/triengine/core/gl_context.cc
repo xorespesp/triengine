@@ -556,6 +556,13 @@ namespace triengine::core
         return window_size;
     }
 
+    vec2_i32 gl_context::get_framebuffer_size() const
+    {
+        vec2_i32 framebuffer_size{};
+        ::glfwGetFramebufferSize(_glfw_window.get(), &framebuffer_size.x(), &framebuffer_size.y());
+        return framebuffer_size;
+    }
+
     vec2_f32 gl_context::get_window_dpi_scale() const
     {
         vec2_f32 dpi_scale{};
@@ -569,6 +576,11 @@ namespace triengine::core
         double xpos{}, ypos{};
         ::glfwGetCursorPos(_glfw_window.get(), &xpos, &ypos);
         return vec2_f32{ static_cast<float>(xpos), static_cast<float>(ypos) };
+    }
+
+    bool gl_context::is_window_focused() const
+    {
+        return ::glfwGetWindowAttrib(_glfw_window.get(), GLFW_FOCUSED) == GLFW_TRUE;
     }
 
     bool gl_context::get_window_close_flag() const

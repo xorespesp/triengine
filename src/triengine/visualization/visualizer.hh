@@ -1,14 +1,20 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/gui/gui_manager.hh>
+#include <triengine/core/frame_buffer.hh>
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/scene_renderer.hh>
 #include <triengine/utility/noncopyable.hh>
 
 #include <functional>
+#include <list>
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_map>
 
 namespace triengine::visualization
 {
+    // Interactive window that renders the current scene over the whole window area, without any GUI.
     class visualizer
         : utility::noncopyable
     {
@@ -29,8 +35,7 @@ namespace triengine::visualization
 
         vec2_i32 get_window_size() const;
 
-        // Scene render frame size in pixels, excluding gui regions.
-        // (use `get_window_size()` for the full window)
+        // Scene render frame size in pixels. (the whole window framebuffer here; `visualizer_gui` excludes gui regions)
         // Valid only after the first render; `{ 0, 0 }` before that.
         vec2_i32 get_frame_size() const;
 
@@ -42,6 +47,11 @@ namespace triengine::visualization
         void set_mouse_button_callback(mouse_button_callback_type cb);
         void set_mouse_move_callback(mouse_move_callback_type cb);
         void set_mouse_scroll_callback(mouse_scroll_callback_type cb);
+
+        // Whether the user can move the camera with the mouse and keyboard.
+        // Programmatic camera control and the input callbacks above are not affected.
+        bool is_camera_interaction_enabled() const noexcept { return _flag_camera_interaction; }
+        void enable_camera_interaction(bool enable) noexcept { _flag_camera_interaction = enable; }
 
         void create_window(
             const std::string& window_name,
@@ -76,29 +86,50 @@ namespace triengine::visualization
 
         bool update_window();
 
-        bool is_main_menu_enabled() const {
-            return _gui_mgr->is_main_menu_enabled();
-        }
+    protected:
+        // Framebuffer the current scene is rendered into.
+        struct scene_render_target
+        {
+            GLuint fbo_id{ 0 };
+            vec2_i32 frame_size{ 0, 0 };
+        };
 
-        void enable_main_menu(bool enable) {
-            _gui_mgr->enable_main_menu(enable);
-        }
+        // Hooks for subclasses that present the scene somewhere other than the whole window.
+        // The defaults render into the default framebuffer and treat the whole window as the scene viewport.
 
-        void add_gui_window(
-            std::shared_ptr<gui::iwindow> window,
-            gui::dock_slot slot = gui::dock_slot::floating
-        ) {
-            _gui_mgr->add_window(std::move(window), slot);
-        }
+        // Called at the end of `create_window()`, once the GL context and the scene renderer are ready.
+        virtual void _on_window_created() {}
 
-        // Override the dock area width/height ratios. 
-        // NOTE: Must be called before the first render() call; 
-        // afterwards the initial layout is already frozen.
-        void set_dock_split_ratios(const gui::dock_split_ratios& ratios) {
-            _gui_mgr->set_dock_split_ratios(ratios);
-        }
+        // Called at the start of `destroy_window()`, while the GL context is still current.
+        virtual void _on_window_destroying() {}
+
+        // Prepares and returns the render target for this frame.
+        // A zero-sized `frame_size` skips the scene render. (e.g. minimized window)
+        virtual scene_render_target _begin_scene_frame();
+
+        // Presents the rendered scene. (called after the scene render, or after its skip)
+        virtual void _end_scene_frame();
+
+        // Whether keyboard input should drive the camera. (WASD, arrow keys)
+        virtual bool _is_scene_focused() const;
+
+        // Converts a window screen position (upper-left origin) to a scene viewport position (lower-left origin).
+        // Returns `std::nullopt` when the position is outside the scene viewport.
+        // (this is also what decides whether the cursor is over the scene at all)
+        virtual std::optional<vec2_f32> _try_convert_screen_pos_2_viewport_pos(vec2_f32 screen_pos) const;
+
+        // Input filters applied before the user callbacks. Return false to drop the event.
+        // (e.g. when the event belongs to a gui widget)
+        virtual bool _accepts_keyboard_input() const { return true; }
+        virtual bool _accepts_mouse_input([[maybe_unused]] vec2_f32 cursor_screen_pos) const { return true; }
 
     private:
+        // Whether the cursor is over the scene viewport and the scene may react to it.
+        bool _is_cursor_in_scene_viewport(vec2_f32 cursor_screen_pos) const {
+            // a position that converts to a viewport position is, by definition, over the scene viewport
+            return this->_try_convert_screen_pos_2_viewport_pos(cursor_screen_pos).has_value();
+        }
+
         void _handle_close_event(bool& cancel);
         void _handle_frame_resize_event(vec2_i32 new_frame_size);
         void _handle_key_event(int32_t key, int32_t scancode, int32_t action, int32_t mods);
@@ -109,6 +140,7 @@ namespace triengine::visualization
 
     private:
         bool _flag_initialized{ false };
+        bool _flag_camera_interaction{ true };
 
         close_callback_type _cb_close;
         key_callback_type _cb_key;
@@ -116,18 +148,21 @@ namespace triengine::visualization
         mouse_move_callback_type _cb_mouse_move;
         mouse_scroll_callback_type _cb_mouse_scroll;
         dpi_change_callback_type _cb_dpi_change;
-        
+
         core::gl_context _glctx;
         core::scene_renderer _scn_renderer;
+
+        // The scene is rendered into this offscreen buffer and then blitted to the window backbuffer;
+        core::frame_buffer _scene_fb;
+
         std::list<std::shared_ptr<scene>> _scn_list;
         std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
         std::unordered_map<
-            scene_id_t, 
+            scene_id_t,
             std::list<std::shared_ptr<scene>>::iterator
         > _scn_id_map;
 
-        std::unique_ptr<gui::gui_manager> _gui_mgr;
-        std::shared_ptr<gui::scene_view_window> _scene_window;
+        vec2_i32 _frame_size{ 0, 0 }; // frame size of the last render
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };

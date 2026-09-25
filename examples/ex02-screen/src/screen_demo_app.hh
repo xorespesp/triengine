@@ -1,5 +1,5 @@
 #pragma once
-#include <triengine/visualization/visualizer.hh>
+#include <triengine/visualization/visualizer_gui.hh>
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/scene.hh>
 #include <triengine/texture_params.hh>
@@ -58,7 +58,7 @@ namespace demo
         void _fit_screen_overlay();
 
     private:
-        std::unique_ptr<triengine::visualization::visualizer> _vis;
+        std::unique_ptr<triengine::visualization::visualizer_gui> _vis;
         std::shared_ptr<triengine::gui::scene_control_window> _scene_ctrl_window;
         std::shared_ptr<screen_control_window> _screen_ctrl_window;
 
