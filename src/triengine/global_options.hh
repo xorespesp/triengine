@@ -33,8 +33,8 @@ namespace triengine
 #define _TRIENGINE_CURRENT_SOURCE_LOC() ::triengine::utility::source_loc{ __FILE__, __LINE__, __func__ }
 
 #if defined(TRIENGINE_DEBUG_MODE)
-#  define _TRIENGINE_CALL_LOGGER0(LV, STR)       ::triengine::global_options::instance()->get_logger().print(_TRIENGINE_CURRENT_SOURCE_LOC(), LV, STR)
-#  define _TRIENGINE_CALL_LOGGER1(LV, FSTR, ...) ::triengine::global_options::instance()->get_logger().printf(_TRIENGINE_CURRENT_SOURCE_LOC(), LV, FSTR, __VA_ARGS__)
+#  define _TRIENGINE_CALL_LOGGER0(LV, STR)       ::triengine::global_options::instance()->get_logger().log(_TRIENGINE_CURRENT_SOURCE_LOC(), LV, STR)
+#  define _TRIENGINE_CALL_LOGGER1(LV, FSTR, ...) ::triengine::global_options::instance()->get_logger().log_fmt(_TRIENGINE_CURRENT_SOURCE_LOC(), LV, FSTR, __VA_ARGS__)
 #  define TRIENGINE_TRACE(...)    _TRIENGINE_PP_CONCAT(_TRIENGINE_CALL_LOGGER, _TRIENGINE_PP_HAS_COMMA(__VA_ARGS__))(::triengine::utility::log_level::trace, __VA_ARGS__)
 #  define TRIENGINE_DEBUG(...)    _TRIENGINE_PP_CONCAT(_TRIENGINE_CALL_LOGGER, _TRIENGINE_PP_HAS_COMMA(__VA_ARGS__))(::triengine::utility::log_level::debug, __VA_ARGS__)
 #  define TRIENGINE_INFO(...)     _TRIENGINE_PP_CONCAT(_TRIENGINE_CALL_LOGGER, _TRIENGINE_PP_HAS_COMMA(__VA_ARGS__))(::triengine::utility::log_level::info, __VA_ARGS__)

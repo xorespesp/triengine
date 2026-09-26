@@ -2,6 +2,7 @@
 #include <triengine/utility/noncopyable.hh>
 #include <triengine/utility/string_format.hh>
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 
@@ -42,25 +43,62 @@ namespace triengine::utility
 
     class logger : utility::noncopyable
     {
+    private:
+        struct impl_t;
+        using log_callback_id_t = uint32_t;
+        static constexpr log_callback_id_t kInvalidLogCallbackId{ 0 };
+
     public:
-        using print_callback_type = std::function<void(log_level, std::string_view)>;
+        using log_callback_type = std::function<void(log_level, const std::string&)>;
+
+        // Keeps a log callback registered: the callback is removed once this subscription is
+        // unsubscribed or destroyed, so it must be stored for as long as the callback should stay
+        // alive. Outliving the logger is safe.
+        class subscription {
+        public:
+            subscription() = default;
+            ~subscription();
+            subscription(subscription&& rhs) noexcept;
+            subscription& operator=(subscription&& rhs) noexcept;
+            subscription(const subscription&) = delete;
+            subscription& operator=(const subscription&) = delete;
+
+            // Removes the callback. Does nothing when this subscription holds none.
+            void unsubscribe() noexcept;
+
+            // Gives up managing the callback: it stays registered until the logger itself dies, and nothing can remove it afterwards.
+            // Only for a callback whose captures stay valid until the process ends.
+            void detach() noexcept;
+
+            bool is_valid() const noexcept;
+            explicit operator bool() const noexcept { return this->is_valid(); }
+
+        private:
+            friend class logger;
+
+            subscription(std::weak_ptr<impl_t> impl, log_callback_id_t id) noexcept;
+
+            std::weak_ptr<impl_t> _impl;
+            log_callback_id_t _id{ kInvalidLogCallbackId };
+        };
 
     public:
         logger();
         ~logger();
-        
+
         log_level get_log_level() const;
         void set_log_level(log_level lv);
 
-        void register_print_callback(print_callback_type cb);
-        void reset_print_callback();
+        // Subscribes a log callback, kept registered by the returned subscription.
+        // Callbacks run in registration order, on the thread that logged, with the logger unlocked.
+        [[nodiscard]] subscription subscribe(log_callback_type cb);
 
-        void print(
+        void log(
             log_level lv,
             std::string_view msg_sv)
         {
             if (lv >= this->get_log_level()) {
-                this->_print_impl(
+                this->_log_impl(
                     source_loc{},
                     lv,
                     msg_sv
@@ -68,13 +106,13 @@ namespace triengine::utility
             }
         }
 
-        void print(
+        void log(
             const source_loc& src_loc,
             log_level lv,
             std::string_view msg_sv)
         {
             if (lv >= this->get_log_level()) {
-                this->_print_impl(
+                this->_log_impl(
                     src_loc,
                     lv,
                     msg_sv
@@ -83,13 +121,13 @@ namespace triengine::utility
         }
 
         template <typename... _Args>
-        void printf(
+        void log_fmt(
             log_level lv,
             const char* c_fmt,
             _Args&&... args)
         {
             if (lv >= this->get_log_level()) {
-                this->_print_impl(
+                this->_log_impl(
                     source_loc{},
                     lv,
                     utility::string::c_format(c_fmt, std::forward<_Args>(args)...)
@@ -98,14 +136,14 @@ namespace triengine::utility
         }
 
         template <typename... _Args>
-        void printf(
+        void log_fmt(
             const source_loc& src_loc,
             log_level lv,
             const char* c_fmt,
             _Args&&... args)
         {
             if (lv >= this->get_log_level()) {
-                this->_print_impl(
+                this->_log_impl(
                     src_loc,
                     lv,
                     utility::string::c_format(c_fmt, std::forward<_Args>(args)...)
@@ -114,15 +152,14 @@ namespace triengine::utility
         }
 
     private:
-        void _print_impl(
+        void _log_impl(
             const source_loc& src_loc,
             log_level lv,
             std::string_view msg_sv
         );
 
     private:
-        struct impl_t;
-        std::unique_ptr<impl_t> _impl;
+        std::shared_ptr<impl_t> _impl;
     };
 
 } // namespace

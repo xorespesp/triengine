@@ -44,7 +44,7 @@ int main(
         // Bridge triengine's internal logs into the example logger so that
         // texture create/update traces are visible on stdout.
         triengine::global_options::instance()->get_logger().set_log_level(triengine::utility::log_level::trace);
-        triengine::global_options::instance()->get_logger().register_print_callback(
+        const auto engine_log_subscription = triengine::global_options::instance()->get_logger().subscribe(
             [](triengine::utility::log_level lv, std::string_view msg_sv)
             {
                 _XUTL debug::logger::instance()->log(

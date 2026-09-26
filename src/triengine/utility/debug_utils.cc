@@ -79,7 +79,7 @@ namespace triengine::utility
             , msg_sv.data()
         );
 
-        global_options::instance()->get_logger().print(src_loc, log_level::critical, msg);
+        global_options::instance()->get_logger().log(src_loc, log_level::critical, msg);
 
 #if defined (_TRIENGINE_PLATFORM_WIN32) && defined(TRIENGINE_DEBUG_MODE)
         show_dbgrpt_mbox(dbgrpt_mbox_type::error, msg);
@@ -117,7 +117,7 @@ namespace triengine::utility
             , ::GetCurrentThreadId()
         );
 
-        global_options::instance()->get_logger().print(src_loc, log_level::critical, msg);
+        global_options::instance()->get_logger().log(src_loc, log_level::critical, msg);
         show_dbgrpt_mbox(dbgrpt_mbox_type::error, msg);
 #else // ^^^ _TRIENGINE_PLATFORM_WIN32 ^^^ / vvv !_TRIENGINE_PLATFORM_WIN32 vvv
 #  error Not implemented
