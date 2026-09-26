@@ -274,13 +274,16 @@ if (TRIENGINE_ACTIVE_LOG_LEVEL)
 endif()
 
 target_compile_definitions(${TRIENGINE_LIBRARY_NAME}
-    PUBLIC
-        NOMINMAX
-        SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
     PRIVATE
         STB_IMAGE_IMPLEMENTATION
         TINYOBJLOADER_IMPLEMENTATION
 )
+
+if (WIN32)
+    target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
+        NOMINMAX
+    )
+endif()
 
 if (TRIENGINE_FORCE_DISCRETE_GPU)
     target_compile_definitions(${TRIENGINE_LIBRARY_NAME} PUBLIC
