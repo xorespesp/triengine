@@ -38,6 +38,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/text_renderer.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/log_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_ctrl_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_view_window.cc"
 

@@ -41,6 +41,8 @@ namespace triengine::utility
         critical,
     };
 
+    inline constexpr size_t kNumLogLevels{ static_cast<size_t>(utility::log_level::critical) + 1 };
+
     class logger : utility::noncopyable
     {
     private:
