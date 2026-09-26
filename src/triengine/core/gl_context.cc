@@ -233,7 +233,7 @@ namespace triengine::core
 
         // Enable OpenGL debug context
         constexpr int kEnableGLDebugContext =
-#if defined (TRIENGINE_DEBUG_MODE)
+#if defined(TRIENGINE_DEBUG_MODE)
             GL_TRUE;
 #else  // ^^^ TRIENGINE_DEBUG_MODE ^^^ / vvv !TRIENGINE_DEBUG_MODE vvv
             GL_FALSE;
@@ -455,7 +455,7 @@ namespace triengine::core
         }
 
         constexpr int kEnableGLDebugContext =
-#if defined (TRIENGINE_DEBUG_MODE)
+#if defined(TRIENGINE_DEBUG_MODE)
             GL_TRUE;
 #else  // ^^^ TRIENGINE_DEBUG_MODE ^^^ / vvv !TRIENGINE_DEBUG_MODE vvv
             GL_FALSE;

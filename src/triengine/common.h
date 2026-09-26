@@ -1,6 +1,29 @@
 #pragma once
-#if !defined(TRIENGINE_DEBUG_MODE)
-#  define TRIENGINE_DEBUG_MODE 1
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/// Debug facilities
+//////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(TRIENGINE_DEBUG_MODE) && (TRIENGINE_DEBUG_MODE == 0)
+#  error "TRIENGINE_DEBUG_MODE is a presence switch; leave it undefined instead of defining it to 0"
+#endif
+
+// Compile-time floor of the log macros: anything below `TRIENGINE_ACTIVE_LOG_LEVEL` expands to nothing, 
+// so its arguments are not even evaluated. `logger::set_log_level()` filters at runtime on top of this.
+#define TRIENGINE_LOG_LEVEL_TRACE    0
+#define TRIENGINE_LOG_LEVEL_DEBUG    1
+#define TRIENGINE_LOG_LEVEL_INFO     2
+#define TRIENGINE_LOG_LEVEL_WARN     3
+#define TRIENGINE_LOG_LEVEL_ERROR    4
+#define TRIENGINE_LOG_LEVEL_CRITICAL 5
+#define TRIENGINE_LOG_LEVEL_OFF      6
+
+#if !defined(TRIENGINE_ACTIVE_LOG_LEVEL)
+#  if defined(TRIENGINE_DEBUG_MODE)
+#    define TRIENGINE_ACTIVE_LOG_LEVEL TRIENGINE_LOG_LEVEL_TRACE
+#  else
+#    define TRIENGINE_ACTIVE_LOG_LEVEL TRIENGINE_LOG_LEVEL_INFO
+#  endif
 #endif
 
 

@@ -1,5 +1,6 @@
 #include "logger.hh"
 
+#include <triengine/common.h>
 #include <triengine/utility/spin_lock.hh>
 #include <triengine/utility/debug_utils.hh>
 
@@ -9,6 +10,13 @@
 
 namespace triengine::utility
 {
+    static_assert(static_cast<int>(log_level::trace)    == TRIENGINE_LOG_LEVEL_TRACE,    "log level mismatch");
+    static_assert(static_cast<int>(log_level::debug)    == TRIENGINE_LOG_LEVEL_DEBUG,    "log level mismatch");
+    static_assert(static_cast<int>(log_level::info)     == TRIENGINE_LOG_LEVEL_INFO,     "log level mismatch");
+    static_assert(static_cast<int>(log_level::warn)     == TRIENGINE_LOG_LEVEL_WARN,     "log level mismatch");
+    static_assert(static_cast<int>(log_level::error)    == TRIENGINE_LOG_LEVEL_ERROR,    "log level mismatch");
+    static_assert(static_cast<int>(log_level::critical) == TRIENGINE_LOG_LEVEL_CRITICAL, "log level mismatch");
+
     struct logger::impl_t
     {
         struct sink_t

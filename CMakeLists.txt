@@ -38,9 +38,19 @@ set(TRIENGINE_PROJECT_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 # Library Configure Options
 
 option(TRIENGINE_FORCE_DISCRETE_GPU "Force usage of discrete GPU (NVIDIA Optimus, AMD PowerXpress)" ON)
+option(TRIENGINE_ENABLE_DEBUG_MODE "Enable engine debug facilities in any config" ON)
 option(TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG "Enable dynamic-debugging compile option (MSVC only)" ON)
 option(TRIENGINE_BUILD_EXAMPLES "Build examples" ON)
 option(TRIENGINE_BUILD_EXTERNAL_EXAMPLES "Build external examples" OFF)
+
+set(TRIENGINE_ACTIVE_LOG_LEVEL "" CACHE STRING "Compile-time minimum log level (TRACE/DEBUG/INFO/WARN/ERROR/CRITICAL/OFF; empty follows TRIENGINE_ENABLE_DEBUG_MODE)")
+set(_triengine_log_level_choices TRACE DEBUG INFO WARN ERROR CRITICAL OFF)
+set_property(CACHE TRIENGINE_ACTIVE_LOG_LEVEL PROPERTY STRINGS "" ${_triengine_log_level_choices})
+
+# Reject an unknown level. (it would slip through the preprocessor as 0 (= TRACE))
+if (TRIENGINE_ACTIVE_LOG_LEVEL AND NOT TRIENGINE_ACTIVE_LOG_LEVEL IN_LIST _triengine_log_level_choices)
+    message(FATAL_ERROR "TRIENGINE_ACTIVE_LOG_LEVEL must be empty or one of: ${_triengine_log_level_choices}")
+endif()
 
 message(STATUS "--------------------------------------------------")
 message(STATUS "TRIENGINE_LIBRARY_NAME: ${TRIENGINE_LIBRARY_NAME}")
@@ -48,9 +58,11 @@ message(STATUS "TRIENGINE_TARGETS_EXPORT_NAME: ${TRIENGINE_TARGETS_EXPORT_NAME}"
 message(STATUS "TRIENGINE_CONFIG_INSTALL_DIR: ${TRIENGINE_CONFIG_INSTALL_DIR}")
 message(STATUS "TRIENGINE_PROJECT_ROOT_DIR: ${TRIENGINE_PROJECT_ROOT_DIR}")
 message(STATUS "TRIENGINE_FORCE_DISCRETE_GPU: ${TRIENGINE_FORCE_DISCRETE_GPU}")
+message(STATUS "TRIENGINE_ENABLE_DEBUG_MODE: ${TRIENGINE_ENABLE_DEBUG_MODE}")
 message(STATUS "TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG: ${TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG}")
 message(STATUS "TRIENGINE_BUILD_EXAMPLES: ${TRIENGINE_BUILD_EXAMPLES}")
 message(STATUS "TRIENGINE_BUILD_EXTERNAL_EXAMPLES: ${TRIENGINE_BUILD_EXTERNAL_EXAMPLES}")
+message(STATUS "TRIENGINE_ACTIVE_LOG_LEVEL: ${TRIENGINE_ACTIVE_LOG_LEVEL}")
 message(STATUS "--------------------------------------------------")
 
 ########################################################################################
