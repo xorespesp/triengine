@@ -39,7 +39,7 @@ namespace triengine::utility
     frame_limiter::frame_limiter() noexcept = default;
     frame_limiter::~frame_limiter() = default;
 
-    void frame_limiter::set_max_fps(std::uint32_t max_fps)
+    void frame_limiter::set_max_fps(uint32_t max_fps)
     {
         if (_max_fps == max_fps) { return; }
         if (max_fps == 0) {

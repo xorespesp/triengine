@@ -10,7 +10,7 @@ namespace triengine::utility
         /// ref: http://stackoverflow.com/questions/4948780
         /// (see Mike Seymour in magic-numbers-in-boosthash-combine)
         template <class _Ty>
-        inline void _hash_combine(std::size_t& hash_seed, _Ty const& v) {
+        inline void _hash_combine(size_t& hash_seed, _Ty const& v) {
             hash_seed ^= std::hash<_Ty>()(v) 
                         + 0x9e3779b9 
                         + (hash_seed << 6) 
@@ -53,7 +53,7 @@ namespace triengine::utility
 
     template <typename _EigenMat>
     struct hash_eigen {
-        std::size_t operator()(_EigenMat const& eigen_matrix) const {
+        size_t operator()(_EigenMat const& eigen_matrix) const {
             size_t hash_seed = 0;
             for (int64_t i = 0; i < eigen_matrix.size(); ++i) {
                 auto elem = *(eigen_matrix.data() + i);
@@ -70,8 +70,8 @@ namespace triengine::utility
     // https://stackoverflow.com/a/24847480/1255535
     struct hash_enum_class {
         template <typename _Ty>
-        std::size_t operator()(_Ty t) const {
-            return static_cast<std::size_t>(t);
+        size_t operator()(_Ty t) const {
+            return static_cast<size_t>(t);
         }
     };
 

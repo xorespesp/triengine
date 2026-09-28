@@ -73,9 +73,9 @@ namespace triengine::io
          */
 
         struct tinyobj_index_hasher {
-            std::size_t operator()(const tinyobj::index_t& k) const {
+            size_t operator()(const tinyobj::index_t& k) const {
                 static_assert(sizeof(tinyobj::index_t) == 12, "!!");
-                std::size_t seed{};
+                size_t seed{};
                 std::hash<int> hasher;
                 seed ^= hasher(k.vertex_index) + 0x9e3779b97f4a7c16ULL + (seed << 6) + (seed >> 2);
                 seed ^= hasher(k.normal_index) + 0x9e3779b97f4a7c16ULL + (seed << 6) + (seed >> 2);

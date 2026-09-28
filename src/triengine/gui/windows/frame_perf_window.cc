@@ -18,8 +18,8 @@ namespace triengine::gui
         constexpr ImU32 kLightTextColor = IM_COL32(0xf5, 0xf5, 0xf2, 255);
 
         // Range of the fps drag control only; `visualizer::change_max_fps()` accepts any value.
-        constexpr std::uint32_t kMinFps = 30;
-        constexpr std::uint32_t kMaxFps = 2000;
+        constexpr uint32_t kMinFps = 30;
+        constexpr uint32_t kMaxFps = 2000;
 
         // The last segment: the part of a frame outside every stage.
         constexpr const char* kOtherSegmentName = "Other";
@@ -84,7 +84,7 @@ namespace triengine::gui
         // The value `values` would hold at `index` if sorted, in O(n); reorders `values`.
         double select_nth(std::vector<double>& values, size_t index)
         {
-            std::nth_element(values.begin(), values.begin() + static_cast<std::ptrdiff_t>(index), values.end());
+            std::nth_element(values.begin(), values.begin() + static_cast<ptrdiff_t>(index), values.end());
             return values[index];
         }
 
@@ -267,7 +267,7 @@ namespace triengine::gui
         // Mirror the applied cap as is, so a value set through the API outside the drag range is not rewritten.
         auto fps_cap = vis.get_max_fps();
         if (fps_cap != 0) { _remembered_fps_cap = fps_cap; }
-        std::uint32_t fps_input = _remembered_fps_cap;
+        uint32_t fps_input = _remembered_fps_cap;
         bool limited = fps_cap != 0;
         if (ImGui::Checkbox("Max FPS", &limited)) {
             vis.change_max_fps(limited ? _remembered_fps_cap : 0);
@@ -335,7 +335,7 @@ namespace triengine::gui
         _fps_axis.set_limits((std::max)(0.0, lower_fps - padding), upper_fps + padding);
     }
 
-    void frame_perf_window::_render_fps_plot(const float dpi_scale, const std::uint32_t fps_cap)
+    void frame_perf_window::_render_fps_plot(const float dpi_scale, const uint32_t fps_cap)
     {
         if (_samples.empty()) { return; }
         const double end = _samples.time_seconds(_samples.size() - 1);
@@ -362,7 +362,7 @@ namespace triengine::gui
     }
 
     void frame_perf_window::_render_frame_time(
-        const utility::frame_profiler& profiler, const float dpi_scale, const std::uint32_t fps_cap)
+        const utility::frame_profiler& profiler, const float dpi_scale, const uint32_t fps_cap)
     {
         const auto& stats = _statistics;
         if (_samples.empty() || stats.sample_count == 0 || !(stats.average_frame_ms > 0.0)) { return; }

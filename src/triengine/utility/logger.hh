@@ -13,7 +13,7 @@ namespace triengine::utility
     {
         constexpr source_loc() = default;
 
-        template <std::size_t N, std::size_t M>
+        template <size_t N, size_t M>
         constexpr source_loc(const char(&filepath_)[N], int line_, const char(&funcname_)[M])
             : filepath{ filepath_, N - 1 }
             , line{ line_ }

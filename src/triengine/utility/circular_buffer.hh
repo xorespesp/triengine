@@ -19,7 +19,7 @@ namespace triengine::utility
         public:
             using iterator_category = std::forward_iterator_tag;
             using value_type = _Ty;
-            using difference_type = std::ptrdiff_t;
+            using difference_type = ptrdiff_t;
             using pointer = _Value*;
             using reference = _Value&;
 

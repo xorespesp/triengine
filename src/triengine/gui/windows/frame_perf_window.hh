@@ -106,12 +106,12 @@ namespace triengine::gui
         void _render_controls(visualization::visualizer& vis);
         bool _render_plot_options(float dpi_scale);
         void _render_statistics();
-        void _render_fps_plot(float dpi_scale, std::uint32_t fps_cap);
-        void _render_frame_time(const utility::frame_profiler& profiler, float dpi_scale, std::uint32_t fps_cap);
+        void _render_fps_plot(float dpi_scale, uint32_t fps_cap);
+        void _render_frame_time(const utility::frame_profiler& profiler, float dpi_scale, uint32_t fps_cap);
 
     private:
         // Frame control
-        std::uint32_t _remembered_fps_cap{ visualization::visualizer::kDefaultMaxFps }; // Restored when the cap is re-enabled.
+        uint32_t _remembered_fps_cap{ visualization::visualizer::kDefaultMaxFps }; // Restored when the cap is re-enabled.
 
         // Samples and statistics, rebuilt on each refresh
         sample_buffer _samples;
