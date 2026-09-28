@@ -73,6 +73,11 @@ namespace triengine::core
         // while the context is still current.
         void reset_context();
 
+        // Call on the owning render thread with this context current.
+        // Reports the requested setting; the driver may override the swap interval.
+        void set_vsync_enabled(bool enabled);
+        bool is_vsync_enabled() const noexcept { return _vsync_enabled; }
+
         // Destroys the GLFW window (and its OpenGL context).
         //
         // NOTE: MUST be called on the GLFW main thread.
@@ -121,6 +126,7 @@ namespace triengine::core
     private:
         bool _window_created{ false };
         bool _context_initialized{ false };
+        bool _vsync_enabled{ false };
 
         std::shared_ptr<GLFWwindow> _glfw_window;
         std::shared_ptr<shader_loader> _shader_ldr;

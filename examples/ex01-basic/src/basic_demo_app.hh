@@ -5,6 +5,7 @@
 #include "scene_wrapper.hh"
 
 #include <triengine/gui/windows/scene_ctrl_window.hh>
+#include <triengine/gui/windows/frame_perf_window.hh>
 #include <filesystem>
 #include <memory>
 #include <vector>
@@ -28,7 +29,7 @@ namespace demo
     private:
         std::unique_ptr<triengine::visualization::visualizer_gui> _vis;
         std::shared_ptr<triengine::gui::log_window> _log_window;
-        std::shared_ptr<triengine::gui::render_stats_window> _render_stats_window;
+        std::shared_ptr<triengine::gui::frame_perf_window> _frame_perf_window;
         std::shared_ptr<triengine::gui::scene_control_window> _scene_ctrl_window;
         std::shared_ptr<demo_scene_control_window> _demo_scene_ctrl_window;
         bool _flag_animation{ true };

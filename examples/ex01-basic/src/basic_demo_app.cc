@@ -173,9 +173,9 @@ namespace demo
         _log_window->set_visible(false);
         _vis->add_gui_window(_log_window);
         
-        _render_stats_window = std::make_shared<triengine::gui::render_stats_window>();
-        _render_stats_window->set_visible(false);
-        _vis->add_gui_window(_render_stats_window);
+        _frame_perf_window = std::make_shared<triengine::gui::frame_perf_window>();
+        _frame_perf_window->set_visible(false);
+        _vis->add_gui_window(_frame_perf_window);
 
         _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>(_vis.get());
         _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
@@ -194,7 +194,7 @@ namespace demo
         XUTL_TRACE("{}() ENTER", __func__);
 
         _log_window.reset();
-        _render_stats_window.reset();
+        _frame_perf_window.reset();
         _scene_ctrl_window.reset();
         _demo_scene_ctrl_window.reset();
 

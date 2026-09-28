@@ -124,6 +124,25 @@ namespace triengine::gui
         //ImGui::GetIO().Fonts->AddFontDefault(&fontConfig);
     }
 
+    void gui_manager::enable_main_menu(bool enable) { _flag_show_main_menu = enable; }
+    bool gui_manager::is_main_menu_enabled() const { return _flag_show_main_menu; }
+
+    std::shared_ptr<gui::scene_view_window> gui_manager::get_scene_window() const { return _scene_window; }
+
+    void gui_manager::add_window(
+        std::shared_ptr<iwindow> new_window,
+        dock_slot slot)
+    {
+        if (!this->is_initialized()) {
+            TRIENGINE_PANIC("Adding a GUI window requires an initialized GUI manager");
+        }
+        if (!new_window) {
+            TRIENGINE_PANIC("Cannot add a null GUI window");
+        }
+        new_window->on_added(*_vis);
+        _windows.push_back({ std::move(new_window), slot });
+    }
+
     void gui_manager::render()
     {
         // Start the Dear ImGui frame
@@ -241,17 +260,18 @@ namespace triengine::gui
             ImGui::SetNextWindowSize(next_window_size, ImGuiCond_Once);
 
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse;
-            window->pre_render(window_flags);
+            window->on_pre_render(window_flags);
 
             if (ImGui::Begin(window->get_window_name(), &is_opened, window_flags)) {
                 window_render_context render_ctx;
                 render_ctx.dpi_scale = _dpi_scale_factor;
+                render_ctx.visualizer = _vis;
                 window->render(render_ctx);
             }
 
             // Always call a matching End() for each Begin() call, regardless of its return value!
             ImGui::End();
-            window->post_render();
+            window->on_post_render();
         }
 
         window->set_visible(is_opened);

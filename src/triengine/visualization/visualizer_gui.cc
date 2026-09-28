@@ -1,8 +1,35 @@
 #include "visualizer_gui.hh"
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
 namespace triengine::visualization
 {
+    bool visualizer_gui::is_main_menu_enabled() const
+    {
+        if (!_gui_mgr) { TRIENGINE_PANIC("GUI access requires a created window"); }
+        return _gui_mgr->is_main_menu_enabled();
+    }
+
+    void visualizer_gui::enable_main_menu(bool enable)
+    {
+        if (!_gui_mgr) { TRIENGINE_PANIC("GUI access requires a created window"); }
+        _gui_mgr->enable_main_menu(enable);
+    }
+
+    void visualizer_gui::add_gui_window(
+        std::shared_ptr<gui::iwindow> window,
+        gui::dock_slot slot)
+    {
+        if (!_gui_mgr) { TRIENGINE_PANIC("GUI access requires a created window"); }
+        _gui_mgr->add_window(std::move(window), slot);
+    }
+
+    void visualizer_gui::set_dock_split_ratios(const gui::dock_split_ratios& ratios)
+    {
+        if (!_gui_mgr) { TRIENGINE_PANIC("GUI access requires a created window"); }
+        _gui_mgr->set_dock_split_ratios(ratios);
+    }
+
     void visualizer_gui::_on_window_created()
     {
         _gui_mgr = std::make_unique<gui::gui_manager>();

@@ -2,7 +2,6 @@
 #include <triengine/gui/iwindow.hh>
 #include <triengine/gui/dock_slot.hh>
 #include <triengine/gui/windows/log_window.hh>
-#include <triengine/gui/windows/render_stats_window.hh>
 #include <triengine/gui/windows/scene_view_window.hh>
 #include <triengine/utility/noncopyable.hh>
 
@@ -33,38 +32,24 @@ namespace triengine::gui
 
         void deinitialize();
 
-        void change_dpi_scale(
-            float scale_factor
-        );
+        void change_dpi_scale(float scale_factor);
 
-        void enable_main_menu(bool enable) {
-            _flag_show_main_menu = enable;
-        }
+        void enable_main_menu(bool enable);
+        bool is_main_menu_enabled() const;
 
-        bool is_main_menu_enabled() const {
-            return _flag_show_main_menu;
-        }
-
-        std::shared_ptr<gui::scene_view_window> get_scene_window() const {
-            return _scene_window;
-        }
+        std::shared_ptr<gui::scene_view_window> get_scene_window() const;
 
         void add_window(
             std::shared_ptr<iwindow> new_window,
             dock_slot slot = dock_slot::floating
-        ) {
-            _windows.push_back({ std::move(new_window), slot });
-        }
+        );
 
         // Override the default dock split ratios.
         // NOTE: Must be called before the first render()
         // (the initial dock layout is built on the first frame only). 
         // Out-of-range values are clamped to a safe sub-range of (0, 1).
         void set_dock_split_ratios(const dock_split_ratios& ratios);
-
-        const dock_split_ratios& get_dock_split_ratios() const noexcept {
-            return _dock_ratios;
-        }
+        const dock_split_ratios& get_dock_split_ratios() const noexcept { return _dock_ratios; }
 
         void render();
 

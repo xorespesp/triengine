@@ -39,6 +39,7 @@ set(TRIENGINE_LIBRARY_SOURCES
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/log_window.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/frame_perf_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_ctrl_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_view_window.cc"
 
@@ -51,6 +52,8 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/visualization/offscreen_renderer_dx.cc"
 
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/frame_limiter.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/frame_profiler.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/logger.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/debug_utils.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/utility/gl_utils.cc"
@@ -113,7 +116,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/widgets/file_browser_widget.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/log_window.hh"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/render_stats_window.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/frame_perf_window.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/scene_ctrl_window.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/scene_view_window.hh"
 
@@ -135,7 +138,9 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/noncopyable.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/singleton.hh"
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/scrolling_buffer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/circular_buffer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/frame_limiter.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/frame_profiler.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/progress_reporter.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_format.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/string_tokenizer.hh"
@@ -339,6 +344,13 @@ target_link_libraries(${TRIENGINE_LIBRARY_NAME}
     PRIVATE
         freetype
 )
+
+if (WIN32)
+    target_link_libraries(${TRIENGINE_LIBRARY_NAME}
+        PRIVATE
+            winmm # for `timeBeginPeriod()`
+    )
+endif()
 
 ########################################################################################
 

@@ -9,10 +9,13 @@
 
 #include <functional>
 
+namespace triengine::visualization { class visualizer; }
+
 namespace triengine::gui
 {
     struct window_render_context {
         float dpi_scale{ 1.0f };
+        visualization::visualizer* visualizer{ nullptr }; // Borrowed for the current render call.
 
         window_render_context() = default;
     };
@@ -49,8 +52,10 @@ namespace triengine::gui
 
         // Draw widgets to fill your window (ImGui::Begin()/ImGui::End() will be called for you).
         virtual void render(const window_render_context& /*render_ctx*/) = 0;
-        virtual void pre_render(ImGuiWindowFlags& /*window_flags*/) {}
-        virtual void post_render() {}
+
+        virtual void on_added(visualization::visualizer& /*vis*/) {}
+        virtual void on_pre_render(ImGuiWindowFlags& /*window_flags*/) {}
+        virtual void on_post_render() {}
     };
 
 } // namespace

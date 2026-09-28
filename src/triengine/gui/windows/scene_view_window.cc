@@ -95,14 +95,14 @@ namespace triengine::gui
         );
     }
 
-    void scene_view_window::pre_render(
+    void scene_view_window::on_pre_render(
         [[maybe_unused]] ImGuiWindowFlags& window_flags)
     {
         //window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     }
 
-    void scene_view_window::post_render()
+    void scene_view_window::on_post_render()
     {
         ImGui::PopStyleVar();
     }
@@ -330,16 +330,16 @@ namespace triengine::gui
 
                 // Create data at fixed `kFPSPlotUpdateFreq`-Hz rate for the demo
                 while (_state.fps_plot_next_update_time.value() < ImGui::GetTime()) {
-                    _state.fps_plot_buffer.emplace_value(curr_dT, curr_fps);
+                    _state.fps_plot_buffer.emplace_back(curr_dT, curr_fps);
                     _state.fps_plot_next_update_time.value() += 1.0f / kFPSPlotUpdateFreq;
                 }
 
                 double curr_fps_avg{ 0.0 };
-                if (!_state.fps_plot_buffer.data.empty()) {
-                    for (const auto fps_val : _state.fps_plot_buffer.data) {
+                if (!_state.fps_plot_buffer.empty()) {
+                    for (const auto& fps_val : _state.fps_plot_buffer) {
                         curr_fps_avg += fps_val.y();
                     }
-                    curr_fps_avg /= static_cast<double>(_state.fps_plot_buffer.data.size());
+                    curr_fps_avg /= static_cast<double>(_state.fps_plot_buffer.size());
                 }
 
                 ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2{ 5.0f * render_ctx.dpi_scale, 5.0f * render_ctx.dpi_scale });
@@ -364,24 +364,24 @@ namespace triengine::gui
                     ImPlot::SetupAxisLimits(ImAxis_Y1, 0.0, 800.0, ImPlotCond_Once);
                     ImPlot::SetupAxisTicks(ImAxis_Y1, 0.0, 1000.0, 10, nullptr, false);
 
-                    if (!_state.fps_plot_buffer.data.empty())
+                    if (!_state.fps_plot_buffer.empty())
                     {
                         ImPlot::PlotShaded("##FPSShadedPlot",
-                            &_state.fps_plot_buffer.data.begin()->x(),
-                            &_state.fps_plot_buffer.data.begin()->y(),
-                            static_cast<int>(_state.fps_plot_buffer.data.size()),
+                            &_state.fps_plot_buffer.data()->x(),
+                            &_state.fps_plot_buffer.data()->y(),
+                            static_cast<int>(_state.fps_plot_buffer.size()),
                             0.0,
                             ImPlotShadedFlags_None,
-                            _state.fps_plot_buffer.offset,
+                            static_cast<int>(_state.fps_plot_buffer.head_index()),
                             sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
                         );
 
                         ImPlot::PlotLine("##FPSLinePlot",
-                            &_state.fps_plot_buffer.data.begin()->x(),
-                            &_state.fps_plot_buffer.data.begin()->y(),
-                            static_cast<int>(_state.fps_plot_buffer.data.size()),
-                            ImPlotShadedFlags_None,
-                            _state.fps_plot_buffer.offset,
+                            &_state.fps_plot_buffer.data()->x(),
+                            &_state.fps_plot_buffer.data()->y(),
+                            static_cast<int>(_state.fps_plot_buffer.size()),
+                            ImPlotLineFlags_None,
+                            static_cast<int>(_state.fps_plot_buffer.head_index()),
                             sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
                         );
                     }

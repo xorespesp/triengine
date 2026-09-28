@@ -4,6 +4,8 @@
 #include <triengine/core/gl_context.hh>
 #include <triengine/core/scene_renderer.hh>
 #include <triengine/utility/noncopyable.hh>
+#include <triengine/utility/frame_profiler.hh>
+#include <triengine/utility/frame_limiter.hh>
 
 #include <functional>
 #include <list>
@@ -19,6 +21,21 @@ namespace triengine::visualization
         : utility::noncopyable
     {
     public:
+        // Stages of the frame profiler, registered in loop order. The rest of a frame is app time.
+        struct profiling_stages {
+            using descriptor = utility::frame_profiler::stage_descriptor;
+            static constexpr descriptor kRender{ "Frame Render",
+                "CPU wall time in render(), including scene and GUI. Not GPU execution time." };
+            static constexpr descriptor kSwap{ "Swap",
+                "Buffer swap. Includes waiting for the GPU and for V-Sync, so a GPU-bound frame shows up here." };
+            static constexpr descriptor kLimiter{ "Limiter",
+                "Waiting in the fps limiter to hold the configured cap." };
+            static constexpr descriptor kEvents{ "Events",
+                "Polling window and input events." };
+        };
+
+        static constexpr uint32_t kDefaultMaxFps = 120;
+
         using close_callback_type = std::function<void(bool& cancel)>;
         using dpi_change_callback_type = std::function<void(vec2_f32 dpi_scale)>;
         using key_callback_type = std::function<void(int32_t key, int32_t scancode, int32_t action, int32_t mods, bool& handled)>;
@@ -59,8 +76,20 @@ namespace triengine::visualization
             int32_t window_width = -1,
             int32_t window_height = -1,
             bool fullscreen = false,
-            bool enable_vsync = false
+            bool enable_vsync = false,
+            uint32_t max_fps = kDefaultMaxFps // `max_fps` caps the loop driven by `update_window()`. Pass 0 for uncapped rendering.
         );
+
+        // Runtime controls: call after creation, on the owning render thread with this context current.
+        // V-Sync and the fps limiter remain independent.
+        uint32_t get_max_fps() const;
+        void change_max_fps(uint32_t max_fps); // `max_fps == 0` disables the CPU limiter.
+        bool is_vsync_enabled() const;
+        void set_vsync_enabled(bool enabled);
+
+        // NOTE: Render-thread access only; the profiler is thread-unsafe.
+        const utility::frame_profiler& get_frame_profiler() const noexcept { return _frame_profiler; }
+        utility::frame_profiler& get_frame_profiler() noexcept { return _frame_profiler; }
 
         void close_window();
 
@@ -163,6 +192,14 @@ namespace triengine::visualization
         > _scn_id_map;
 
         vec2_i32 _frame_size{ 0, 0 }; // frame size of the last render
+
+        utility::frame_limiter _frame_limiter;
+        utility::frame_profiler _frame_profiler;
+        // Registered in declaration order, which is the display order.
+        const utility::frame_profiler::stage_id_t _render_stage{ _frame_profiler.register_stage(profiling_stages::kRender) };
+        const utility::frame_profiler::stage_id_t _swap_stage{ _frame_profiler.register_stage(profiling_stages::kSwap) };
+        const utility::frame_profiler::stage_id_t _limiter_stage{ _frame_profiler.register_stage(profiling_stages::kLimiter) };
+        const utility::frame_profiler::stage_id_t _events_stage{ _frame_profiler.register_stage(profiling_stages::kEvents) };
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };

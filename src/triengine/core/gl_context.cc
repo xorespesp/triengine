@@ -490,9 +490,6 @@ namespace triengine::core
             TRIENGINE_DEBUG("GL renderer: %s", renderer);
         }
 
-        TRIENGINE_TRACE("V-Sync: %s", enable_vsync ? "enabled" : "disabled");
-        ::glfwSwapInterval((enable_vsync) ? 1 : 0);
-
         constexpr char kDefaultGLSLShaderVersion[] = "#version 450 core";
 
         _shader_ldr = std::make_shared<shader_loader>();
@@ -505,7 +502,18 @@ namespace triengine::core
         _gpu_res_mgr = std::make_shared<gpu_resource_manager>();
 
         _context_initialized = true;
+        this->set_vsync_enabled(enable_vsync);
         TRIENGINE_TRACE("gl_context context initialized.");
+    }
+
+    void gl_context::set_vsync_enabled(const bool enabled)
+    {
+        if (!_context_initialized || ::glfwGetCurrentContext() != _glfw_window.get()) {
+            TRIENGINE_PANIC("V-Sync changes require this initialized context on its render thread");
+        }
+        ::glfwSwapInterval(enabled ? 1 : 0);
+        _vsync_enabled = enabled;
+        TRIENGINE_TRACE("V-Sync requested: %s", enabled ? "enabled" : "disabled");
     }
 
     void gl_context::reset_context()
@@ -522,6 +530,7 @@ namespace triengine::core
         ::glfwMakeContextCurrent(nullptr);
 
         _context_initialized = false;
+        _vsync_enabled = false;
         TRIENGINE_TRACE("gl_context context reset.");
     }
 

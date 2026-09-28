@@ -3,6 +3,7 @@
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 
@@ -61,7 +62,8 @@ namespace triengine::visualization
         const int32_t window_width,
         const int32_t window_height,
         const bool fullscreen,
-        const bool enable_vsync)
+        const bool enable_vsync,
+        const uint32_t max_fps)
     {
         if (_flag_initialized) {
             TRIENGINE_PANIC("already created");
@@ -94,9 +96,28 @@ namespace triengine::visualization
 
         _scn_renderer.create(&_glctx);
 
-        this->_on_window_created();
+        _frame_limiter.set_max_fps(max_fps);
+        _frame_limiter.reset_schedule();
 
+        this->_on_window_created();
         _flag_initialized = true;
+    }
+
+    uint32_t visualizer::get_max_fps() const { return _frame_limiter.get_max_fps(); }
+    void visualizer::change_max_fps(const uint32_t max_fps)
+    {
+        if (!_flag_initialized || ::glfwGetCurrentContext() != _glctx.get_glfw_window()) {
+            TRIENGINE_PANIC("FPS changes require this initialized visualizer on its render thread");
+        }
+        _frame_limiter.set_max_fps(max_fps);
+    }
+
+    bool visualizer::is_vsync_enabled() const { return _glctx.is_vsync_enabled(); }
+    void visualizer::set_vsync_enabled(const bool enabled)
+    {
+        const bool changed = enabled != _glctx.is_vsync_enabled();
+        _glctx.set_vsync_enabled(enabled);
+        if (changed) { _frame_limiter.reset_schedule(); }
     }
 
     void visualizer::close_window()
@@ -116,6 +137,11 @@ namespace triengine::visualization
             _scn_renderer.destroy();
             _glctx.reset_context();
             _glctx.destroy_window();
+            _frame_limiter.set_max_fps(0);
+
+            // Drop the open frame and leave the profiler disabled for the next window.
+            _frame_profiler.request_enabled(false);
+            _frame_profiler.end_frame();
         }
     }
 
@@ -227,6 +253,7 @@ namespace triengine::visualization
 
     void visualizer::render()
     {
+        utility::frame_profiler::scoped_stage_timer render_scope(_frame_profiler, _render_stage);
         if (_curr_scn_it == _scn_list.end()) {
             TRIENGINE_PANIC("No scenes added");
         }
@@ -271,9 +298,25 @@ namespace triengine::visualization
 
     bool visualizer::update_window()
     {
-        _glctx.swap_buffers();
-        _glctx.poll_window_events();
-        return !_glctx.get_window_close_flag();
+        {
+            utility::frame_profiler::scoped_stage_timer scope(_frame_profiler, _swap_stage);
+            _glctx.swap_buffers();
+        }
+        {
+            utility::frame_profiler::scoped_stage_timer scope(_frame_profiler, _limiter_stage);
+            _frame_limiter.wait();
+        }
+        {
+            utility::frame_profiler::scoped_stage_timer scope(_frame_profiler, _events_stage);
+            _glctx.poll_window_events();
+        }
+
+        const bool keep_window_open = !_glctx.get_window_close_flag();
+
+        // Frames are measured from one `update_window()` end to the next.
+        _frame_profiler.end_frame();
+
+        return keep_window_open;
     }
 
     visualizer::scene_render_target visualizer::_begin_scene_frame()

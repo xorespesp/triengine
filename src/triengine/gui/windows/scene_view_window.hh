@@ -1,7 +1,7 @@
 #pragma once
 #include <triengine/gui/iwindow.hh>
 #include <triengine/core/frame_buffer.hh>
-#include <triengine/utility/scrolling_buffer.hh>
+#include <triengine/utility/circular_buffer.hh>
 
 #include <optional>
 #include <array>
@@ -31,7 +31,7 @@ namespace triengine::gui
             bool flag_show_overlay{ true };
             bool flag_show_overlay_debug_info{ false };
             int overlay_location{ 0 };
-            utility::scrolling_buffer<vec2_f32> fps_plot_buffer{ static_cast<int32_t>(kFPSPlotUpdateFreq * kFPSPlotHistorySize) };
+            utility::circular_buffer<vec2_f32> fps_plot_buffer{ static_cast<size_t>(kFPSPlotUpdateFreq * kFPSPlotHistorySize) };
             std::optional<double> fps_plot_next_update_time;
 
             window_state_t() = default;
@@ -69,9 +69,9 @@ namespace triengine::gui
         // Convert a win32 screen position to a gl viewport position.
         std::optional<vec2_f32> try_convert_screen_pos_2_viewport_pos(vec2_f32 screen_pos) const;
 
-        void pre_render(ImGuiWindowFlags& window_flags) override;
+        void on_pre_render(ImGuiWindowFlags& window_flags) override;
 
-        void post_render() override;
+        void on_post_render() override;
 
         void render(const window_render_context& render_ctx) override;
 
