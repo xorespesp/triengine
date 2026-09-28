@@ -239,8 +239,6 @@ namespace triengine::gui
         io.IniFilename = nullptr;
         io.ConfigWindowsMoveFromTitleBarOnly = true; // Ref: https://github.com/ocornut/imgui/issues/899#issuecomment-446170903
 
-        //io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\malgun.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesKorean());
-
         // Setup Platform/Renderer backends
         const auto glctx = vis->get_gl_context();
 
@@ -599,31 +597,29 @@ namespace triengine::gui
         icons_config.OversampleV = 1;
         icons_config.FontDataOwnedByAtlas = false;
 
-        static const ImWchar fa_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-
         ImStrncpy(font_cfg.Name, "Roboto Bold", 40);
         _fonts_map[font_cfg.Name] = io.Fonts->AddFontFromMemoryTTF(Roboto_Bold_ttf, Roboto_Bold_ttf_len, font_size_pixels, &font_cfg);
-        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
+        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config);
 
         ImStrncpy(font_cfg.Name, "Roboto Italic", 40);
         _fonts_map[font_cfg.Name] = io.Fonts->AddFontFromMemoryTTF(Roboto_Italic_ttf, Roboto_Italic_ttf_len, font_size_pixels, &font_cfg);
-        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
+        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config);
 
         ImStrncpy(font_cfg.Name, "Roboto Regular", 40);
         _fonts_map[font_cfg.Name] = io.Fonts->AddFontFromMemoryTTF(Roboto_Regular_ttf, Roboto_Regular_ttf_len, font_size_pixels, &font_cfg);
-        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
+        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config);
 
         ImStrncpy(font_cfg.Name, "Roboto Mono Bold", 40);
         _fonts_map[font_cfg.Name] = io.Fonts->AddFontFromMemoryTTF(RobotoMono_Bold_ttf, RobotoMono_Bold_ttf_len, font_size_pixels, &font_cfg);
-        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
+        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config);
 
         ImStrncpy(font_cfg.Name, "Roboto Mono Italic", 40);
         _fonts_map[font_cfg.Name] = io.Fonts->AddFontFromMemoryTTF(RobotoMono_Italic_ttf, RobotoMono_Italic_ttf_len, font_size_pixels, &font_cfg);
-        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
+        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config);
 
         ImStrncpy(font_cfg.Name, "Roboto Mono Regular", 40);
         _fonts_map[font_cfg.Name] = io.Fonts->AddFontFromMemoryTTF(RobotoMono_Regular_ttf, RobotoMono_Regular_ttf_len, font_size_pixels, &font_cfg);
-        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config, fa_ranges);
+        io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf, fa_solid_900_ttf_len, 14.0f, &icons_config);
 
         io.FontDefault = _fonts_map["Roboto Mono Bold"];
     }
@@ -674,7 +670,7 @@ namespace triengine::gui
         // Refs:
         // https://github.com/ocornut/imgui/issues/4430
         // https://gist.github.com/moebiussurfing/d7e6ec46a44985dd557d7678ddfeda99
-        // https://github.com/moebiussurfing/ofxSurfingImGui/blob/master/3_Docking/3_0_Layout_Docking2/src/ofApp.cpp#L324-L361
+        // https://github.com/moebiussurfing/ofxSurfingImGui/blob/67443bfc152bd5ea24497f3f056e0c4219f8872e/Examples_3_Engines/33_DockingRawBasic/src/ofApp.cpp#L356-L399
 
         // split ratios (user-configurable via gui_manager::set_dock_split_ratios)
         const float kSplitRatioLeft   = _dock_ratios.left;

@@ -402,12 +402,12 @@ namespace demo::scene
                     }
                 }
 
-                const char* color_map_names[IM_ARRAYSIZE(kColorizeColorMaps)];
-                for (int i = 0; i < IM_ARRAYSIZE(kColorizeColorMaps); ++i) {
+                const char* color_map_names[IM_COUNTOF(kColorizeColorMaps)];
+                for (int i = 0; i < IM_COUNTOF(kColorizeColorMaps); ++i) {
                     color_map_names[i] = kColorizeColorMaps[i].name;
                 }
                 if (ImGui::Combo("Color Map", &_colorize.color_map_index,
-                                 color_map_names, IM_ARRAYSIZE(kColorizeColorMaps))) {
+                                 color_map_names, IM_COUNTOF(kColorizeColorMaps))) {
                     colorize_changed = true;
                 }
 

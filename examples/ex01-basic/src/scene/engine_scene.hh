@@ -89,7 +89,7 @@ namespace demo::scene
             // Lighting mode (lit / unlit)
             const char* const lighting_items[] = { "Lit", "Unlit" };
             int lighting_idx = (_engine_mesh->get_lighting_mode() == lighting_mode::unlit) ? 1 : 0;
-            if (ImGui::Combo("lighting", &lighting_idx, lighting_items, IM_ARRAYSIZE(lighting_items))) {
+            if (ImGui::Combo("lighting", &lighting_idx, lighting_items, IM_COUNTOF(lighting_items))) {
                 _engine_mesh->set_lighting_mode(lighting_idx == 1 ? lighting_mode::unlit : lighting_mode::lit);
             }
 

@@ -110,15 +110,12 @@ namespace triengine::gui
     void scene_view_window::render(
         [[maybe_unused]] const window_render_context& render_ctx)
     {
+        // NOTE: Nothing is submitted yet, so the cursor sits at the content region's top-left corner.
         _state.curr_content_region = 
             []() -> ImRect {
-                ImVec2 window_pos{ ImGui::GetWindowPos() };
-                ImRect content_region{ ImGui::GetWindowContentRegionMin(), ImGui::GetWindowContentRegionMax() };
-                content_region.Min.x += window_pos.x;
-                content_region.Min.y += window_pos.y;
-                content_region.Max.x += window_pos.x;
-                content_region.Max.y += window_pos.y;
-                return content_region;
+                const ImVec2 min{ ImGui::GetCursorScreenPos() };      // layout cursor(not the mouse): where the next item goes
+                const ImVec2 avail{ ImGui::GetContentRegionAvail() }; // space left from the layout cursor to the region end
+                return ImRect{ min, ImVec2{ min.x + avail.x, min.y + avail.y } };
             }();
 
         const ImVec2
@@ -156,12 +153,8 @@ namespace triengine::gui
         }
         else
         {
-            // Refs:
-            // https://github.com/ocornut/imgui/issues/2486
-            // https://github.com/ocornut/imgui/issues/423#issuecomment-161273431
-
-            const ImVec2 local_pos = ImGui::GetWindowContentRegionMin();
-            ImGui::SetCursorPos(ImVec2(local_pos.x + 10.0f, local_pos.y + 10.0f));
+            const ImVec2 region_min = _state.curr_content_region.Min;
+            ImGui::SetCursorScreenPos(ImVec2(region_min.x + 10.0f, region_min.y + 10.0f)); // layout cursor: the text below starts 10px inside
 
             ImGui::TextColored(ImVec4(255, 255, 0, 255),
                 "curr_content_region_size: [%.2f, %.2f]\n"
@@ -328,7 +321,7 @@ namespace triengine::gui
                     _state.fps_plot_next_update_time = ImGui::GetTime();
                 }
 
-                // Create data at fixed `kFPSPlotUpdateFreq`-Hz rate for the demo
+                // Sample at a fixed `kFPSPlotUpdateFreq`-Hz rate
                 while (_state.fps_plot_next_update_time.value() < ImGui::GetTime()) {
                     _state.fps_plot_buffer.emplace_back(curr_dT, curr_fps);
                     _state.fps_plot_next_update_time.value() += 1.0f / kFPSPlotUpdateFreq;

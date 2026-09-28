@@ -476,7 +476,7 @@ namespace triengine::gui
 			                const char* scaling_type_names[] = { "Fade Out", "Perspective" };
 			                int current_type = static_cast<int>(scale_opts.scale_mode);
 			
-			                if (ImGui::Combo("Scaling Type", &current_type, scaling_type_names, IM_ARRAYSIZE(scaling_type_names))) {
+			                if (ImGui::Combo("Scaling Type", &current_type, scaling_type_names, IM_COUNTOF(scaling_type_names))) {
 				                scale_opts.scale_mode = static_cast<text_render_options::dist_scale_mode_type>(current_type);
 			                }
 

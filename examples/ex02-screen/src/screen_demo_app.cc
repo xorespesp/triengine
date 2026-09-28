@@ -120,7 +120,7 @@ namespace demo
                     "Checkerboard", "Plasma"
                 };
                 int pattern = static_cast<int>(_p.pattern);
-                ImGui::Combo("Pattern", &pattern, pattern_names, IM_ARRAYSIZE(pattern_names));
+                ImGui::Combo("Pattern", &pattern, pattern_names, IM_COUNTOF(pattern_names));
                 _p.pattern = static_cast<pattern_type>(pattern);
 
                 ImGui::SliderFloat("Animate speed", &_p.animate_speed, 0.0f, 16.0f, "%.1f px/frame");
@@ -442,7 +442,7 @@ namespace demo
 
                 const char* const lighting_items[] = { "Lit", "Unlit" };
                 int lighting_idx = (_quad3d->get_lighting_mode() == lighting_mode::unlit) ? 1 : 0;
-                if (ImGui::Combo("Lighting", &lighting_idx, lighting_items, IM_ARRAYSIZE(lighting_items))) {
+                if (ImGui::Combo("Lighting", &lighting_idx, lighting_items, IM_COUNTOF(lighting_items))) {
                     _quad3d->set_lighting_mode(lighting_idx == 1 ? lighting_mode::unlit : lighting_mode::lit);
                 }
 
@@ -474,7 +474,7 @@ namespace demo
                 // (the camera letterboxes its projection the same way).
                 const char* const fit_items[] = { "Stretch", "Cover", "Contain" };
                 int fit_idx = static_cast<int>(_bg_fit_mode);
-                if (ImGui::Combo("Background Fit", &fit_idx, fit_items, IM_ARRAYSIZE(fit_items))) {
+                if (ImGui::Combo("Background Fit", &fit_idx, fit_items, IM_COUNTOF(fit_items))) {
                     _bg_fit_mode = static_cast<triengine::background_fit_mode>(fit_idx);
                 }
 

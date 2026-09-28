@@ -152,7 +152,7 @@ namespace triengine::gui
         ImGui::PushID(label);
         ImGui::SeparatorText(label);
         ImGui::Checkbox("Auto fit", &auto_fit);
-        // Preserve partially typed input, but show linked plot limits whenever editing is inactive.
+        // Keep the value being edited (e.g. mid-drag), but show the linked plot limits otherwise.
         if (!editing) {
             input_minimum = minimum;
             input_maximum = maximum;
