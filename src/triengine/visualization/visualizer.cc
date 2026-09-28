@@ -20,6 +20,10 @@ namespace triengine::visualization
         return &_glctx;
     }
 
+    const core::graphics_device_info* visualizer::get_graphics_device_info() const noexcept {
+        return _glctx.get_device_info();
+    }
+
     vec2_i32 visualizer::get_window_size() const {
         return _glctx.get_window_size();
     }

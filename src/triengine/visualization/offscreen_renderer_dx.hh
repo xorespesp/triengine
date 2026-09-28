@@ -69,6 +69,9 @@ namespace triengine::visualization
         const core::gl_context* get_gl_context() const noexcept;
         core::gl_context* get_gl_context() noexcept;
 
+        // `nullptr` until `create()` has initialized the context.
+        const core::graphics_device_info* get_graphics_device_info() const noexcept;
+
         // GL/DX interop accessors (D3D11 device/context, target surface, frame size).
         // Valid only after `create()`.
         // NOTE: MUST be called on the render thread (these resources are created and

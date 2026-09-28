@@ -240,17 +240,13 @@ namespace triengine::gui
 
             if (_state.flag_show_overlay_debug_info)
             {
+                if (const core::graphics_device_info* const device_info = _vis->get_graphics_device_info())
                 {
-                    const GLubyte* version = ::glGetString(GL_VERSION);
-                    const GLubyte* vendor = ::glGetString(GL_VENDOR);
-                    const GLubyte* renderer = ::glGetString(GL_RENDERER);
                     sb_.appendf(
-                        "\nGL Version: %s"
-                        "\nGL Vendor: %s"
-                        "\nGL Renderer: %s"
-                        , version ? reinterpret_cast<const char*>(version) : "N/A"
-                        , vendor ? reinterpret_cast<const char*>(vendor) : "N/A"
-                        , renderer ? reinterpret_cast<const char*>(renderer) : "N/A"
+                        "\nDriver: %s"
+                        "\nDevice: %s"
+                        , device_info->driver_version.c_str()
+                        , device_info->device.c_str()
                     );
                 }
 

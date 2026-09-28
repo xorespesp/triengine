@@ -50,6 +50,9 @@ namespace triengine::visualization
         const core::gl_context* get_gl_context() const noexcept;
         core::gl_context* get_gl_context() noexcept;
 
+        // `nullptr` until `create_window()` has initialized the context.
+        const core::graphics_device_info* get_graphics_device_info() const noexcept;
+
         vec2_i32 get_window_size() const;
 
         // Scene render frame size in pixels. (the whole window framebuffer here; `visualizer_gui` excludes gui regions)

@@ -85,6 +85,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/global_options.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gl_context.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/graphics_device_info.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/texture.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/frame_buffer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader.hh"

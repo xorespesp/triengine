@@ -478,16 +478,29 @@ namespace triengine::core
             );
         }
 
-        // Log GPU information
         {
-            const GLubyte* version = ::glGetString(GL_VERSION);
-            const GLubyte* vendor = ::glGetString(GL_VENDOR);
-            const GLubyte* renderer = ::glGetString(GL_RENDERER);
-            TRIENGINE_ASSERT(version && vendor && renderer);
+            const auto gl_string = [](GLenum name) -> std::string {
+                const auto* value = reinterpret_cast<const char*>(::glGetString(name));
+                TRIENGINE_ASSERT(value);
+                return value ? value : "unavailable";
+            };
+            GLint major = 0, minor = 0;
+            ::glGetIntegerv(GL_MAJOR_VERSION, &major);
+            ::glGetIntegerv(GL_MINOR_VERSION, &minor);
 
-            TRIENGINE_DEBUG("GL version: %s", version);
-            TRIENGINE_DEBUG("GL vendor: %s", vendor);
-            TRIENGINE_DEBUG("GL renderer: %s", renderer);
+            // `GL_VERSION` is "<major>.<minor>[.<release>] [vendor-specific info]"; the tail is the driver.
+            const std::string gl_version = gl_string(GL_VERSION);
+            const size_t driver_pos = gl_version.find(' ');
+
+            _device_info.api_name = "OpenGL";
+            _device_info.api_version = std::to_string(major) + "." + std::to_string(minor);
+            _device_info.driver_version = (driver_pos != std::string::npos) ? gl_version.substr(driver_pos + 1) : std::string{};
+            _device_info.device = gl_string(GL_RENDERER);
+            _device_info.vendor = gl_string(GL_VENDOR);
+
+            TRIENGINE_DEBUG("GL version: %s", gl_version.c_str());
+            TRIENGINE_DEBUG("GL vendor: %s", _device_info.vendor.c_str());
+            TRIENGINE_DEBUG("GL renderer: %s", _device_info.device.c_str());
         }
 
         constexpr char kDefaultGLSLShaderVersion[] = "#version 450 core";
@@ -527,6 +540,7 @@ namespace triengine::core
         // then unbind the context so it can be re-initialized or the window destroyed.
         _gpu_res_mgr.reset();
         _shader_ldr.reset();
+        _device_info = {};
         ::glfwMakeContextCurrent(nullptr);
 
         _context_initialized = false;
@@ -689,6 +703,10 @@ namespace triengine::core
 
     std::shared_ptr<const gpu_resource_manager> gl_context::get_gpu_resource_manager() const noexcept {
         return _gpu_res_mgr;
+    }
+
+    const graphics_device_info* gl_context::get_device_info() const noexcept {
+        return _context_initialized ? &_device_info : nullptr;
     }
 
 } // namespace triengine

@@ -88,6 +88,11 @@ namespace triengine::visualization
         return &_glctx;
     }
 
+    const core::graphics_device_info* offscreen_renderer_dx::get_graphics_device_info() const noexcept
+    {
+        return _glctx.get_device_info();
+    }
+
     Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_dxgi_adapter() const noexcept
     {
         TRIENGINE_ASSERT(_is_created);

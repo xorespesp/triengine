@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include <triengine/core/graphics_device_info.hh>
 #include <triengine/core/shader.hh>
 #include <triengine/core/shader_loader.hh>
 #include <triengine/core/gpu_resource_manager.hh>
@@ -123,6 +124,9 @@ namespace triengine::core
         std::shared_ptr<gpu_resource_manager> get_gpu_resource_manager() noexcept;
         std::shared_ptr<const gpu_resource_manager> get_gpu_resource_manager() const noexcept;
 
+        // Queried once by `init_context()`. `nullptr` while the context is not initialized.
+        const graphics_device_info* get_device_info() const noexcept;
+
     private:
         bool _window_created{ false };
         bool _context_initialized{ false };
@@ -131,6 +135,7 @@ namespace triengine::core
         std::shared_ptr<GLFWwindow> _glfw_window;
         std::shared_ptr<shader_loader> _shader_ldr;
         std::shared_ptr<gpu_resource_manager> _gpu_res_mgr;
+        graphics_device_info _device_info;
 
         close_callback_type _cb_close;
         frame_resize_callback_type _cb_frame_resize;

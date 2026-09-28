@@ -52,20 +52,20 @@ namespace triengine::gui
             _open_requested = true;
         }
 
-        void render(float dpi_scale)
+        void render(float dpi_scale, const core::graphics_device_info* device_info)
         {
             if (_show_imgui_demo) { ImGui::ShowDemoWindow(&_show_imgui_demo); }
             if (_show_implot_demo) { ImPlot::ShowDemoWindow(&_show_implot_demo); }
-            this->_render_dialog(dpi_scale);
+            this->_render_dialog(dpi_scale, device_info);
         }
 
     private:
         using build_info_row = std::pair<const char*, std::string>;
 
         static void _draw_sierpinski(ImDrawList* draw_list, ImVec2 a, ImVec2 b, ImVec2 c, int depth, ImU32 color);
-        static std::vector<build_info_row> _collect_build_info();
+        static std::vector<build_info_row> _collect_build_info(const core::graphics_device_info* device_info);
 
-        void _render_dialog(float dpi_scale);
+        void _render_dialog(float dpi_scale, const core::graphics_device_info* device_info);
 
     private:
         bool _open_requested{ false };
@@ -87,13 +87,9 @@ namespace triengine::gui
         _draw_sierpinski(draw_list, ca, bc, c, depth - 1, color);
     }
 
-    std::vector<gui_manager::about_dialog::build_info_row> gui_manager::about_dialog::_collect_build_info()
+    std::vector<gui_manager::about_dialog::build_info_row> gui_manager::about_dialog::_collect_build_info(
+        const core::graphics_device_info* device_info)
     {
-        const auto gl_string = [](GLenum name) -> std::string {
-            const auto* value = reinterpret_cast<const char*>(::glGetString(name));
-            return value ? value : "unavailable";
-        };
-
 #if defined(_MSVC_LANG)
         constexpr long kCppStandard = _MSVC_LANG;
 #else
@@ -117,17 +113,25 @@ namespace triengine::gui
         configuration += " (debug mode)";
 #endif
 
-        return {
+        std::vector<build_info_row> rows{
             { "Build Date", __DATE__ " " __TIME__ },
             { "Configuration", configuration },
             { "Compiler", compiler + ", C++" + std::to_string((kCppStandard / 100) % 100) },
-            { "Graphics API", "OpenGL " + gl_string(GL_VERSION) },
-            { "Device", gl_string(GL_RENDERER) },
-            { "Vendor", gl_string(GL_VENDOR) },
         };
+        if (!device_info) {
+            rows.emplace_back("Graphics API", "unavailable");
+            return rows;
+        }
+        rows.emplace_back("Graphics API", device_info->api_name + " " + device_info->api_version);
+        if (!device_info->driver_version.empty()) {
+            rows.emplace_back("Driver", device_info->driver_version);
+        }
+        rows.emplace_back("Device", device_info->device);
+        rows.emplace_back("Vendor", device_info->vendor);
+        return rows;
     }
 
-    void gui_manager::about_dialog::_render_dialog(float dpi_scale)
+    void gui_manager::about_dialog::_render_dialog(float dpi_scale, const core::graphics_device_info* device_info)
     {
         constexpr const char kPopupName[] = "About Triengine";
         // Opened here rather than from the menu item, whose ID stack differs from `BeginPopupModal()`'s.
@@ -163,7 +167,7 @@ namespace triengine::gui
         ImGui::EndGroup();
 
         ImGui::Separator();
-        const auto build_info = _collect_build_info();
+        const auto build_info = _collect_build_info(device_info);
         if (ImGui::BeginTable("BuildInfo", 2, ImGuiTableFlags_SizingFixedFit)) {
             for (const auto& [label, value] : build_info) {
                 ImGui::TableNextRow();
@@ -395,7 +399,7 @@ namespace triengine::gui
         }
 
         if (_about_dialog->is_visible()) {
-            _about_dialog->render(_dpi_scale_factor);
+            _about_dialog->render(_dpi_scale_factor, _vis->get_graphics_device_info());
         }
 
         // Build the initial dock layout exactly once on the first frame. After that, ImGui

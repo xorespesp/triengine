@@ -48,8 +48,11 @@ namespace triengine::visualization
         //
         // NOTE: Safe from any thread (returns a stable pointer); GL operations
         // through the returned context follow `gl_context`'s own thread rules.
-        const core::gl_context* get_gl_context() const noexcept { return &_glctx; }
-        core::gl_context* get_gl_context() noexcept { return &_glctx; }
+        const core::gl_context* get_gl_context() const noexcept;
+        core::gl_context* get_gl_context() noexcept;
+
+        // `nullptr` until `create()` has initialized the context.
+        const core::graphics_device_info* get_graphics_device_info() const noexcept;
 
         // Initializes the GL context and sets the offscreen render target to `initial_frame_size`.
         //
