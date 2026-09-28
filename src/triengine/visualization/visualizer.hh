@@ -17,6 +17,7 @@
 namespace triengine::visualization
 {
     // Interactive window that renders the current scene over the whole window area, without any GUI.
+    // Unless documented otherwise, methods are thread-unsafe and must be called on the render thread.
     class visualizer
         : utility::noncopyable
     {

@@ -24,6 +24,8 @@ namespace triengine::visualization
     //     all on ONE render thread, in that order. `create()` must precede any
     //     scene/render call, and `destroy()` must run on that render thread before
     //     this object is destroyed.
+    //   - Unless documented otherwise, methods are thread-unsafe and must be called
+    //     on the render thread.
     // 
     // NOTE: the "GLFW main thread" is the thread that called `glfwInit()`,
     //       which is distinct from the render thread that owns the GL context.

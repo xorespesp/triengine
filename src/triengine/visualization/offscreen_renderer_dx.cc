@@ -78,13 +78,11 @@ namespace triengine::visualization
 
     const core::gl_context* offscreen_renderer_dx::get_gl_context() const noexcept
     {
-        TRIENGINE_ASSERT(_is_created);
         return &_glctx;
     }
 
     core::gl_context* offscreen_renderer_dx::get_gl_context() noexcept
     {
-        TRIENGINE_ASSERT(_is_created);
         return &_glctx;
     }
 

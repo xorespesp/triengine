@@ -27,6 +27,7 @@ namespace triengine::core
      * The OpenGL context is created together with the window by `create_window()`, 
      * but it is only made current and populated with GL resources by `init_context()`. 
      * See the per-method NOTE comments below for the exact thread and ordering constraints.
+     * Unless documented otherwise, methods are thread-unsafe and must be called on the render thread.
      */
     class gl_context
         : utility::noncopyable

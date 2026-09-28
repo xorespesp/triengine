@@ -40,6 +40,8 @@ namespace triengine::visualization
     //     all on ONE render thread, in that order. `create()` must precede any
     //     scene/render/resize use, and `destroy()` must run on that render thread
     //     before this object is destroyed.
+    //   - Unless documented otherwise, methods are thread-unsafe and must be called
+    //     on the render thread.
     // 
     // NOTE: the "GLFW main thread" is the thread that called `glfwInit()`,
     //       which is distinct from the render thread that owns the GL context.
@@ -62,7 +64,6 @@ namespace triengine::visualization
         virtual ~offscreen_renderer_dx();
 
         // Returns the owned GL context (e.g. to register window/input callbacks).
-        // Valid only after `create()`.
         //
         // NOTE: Safe from any thread (returns a stable pointer); GL operations
         // through the returned context follow `gl_context`'s own thread rules.
