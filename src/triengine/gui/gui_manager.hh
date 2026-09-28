@@ -76,9 +76,10 @@ namespace triengine::gui
         dock_split_ratios _dock_ratios{};
         bool _flag_initialized{ false };
         bool _flag_show_main_menu{ true };
-        bool _flag_show_imgui_demo_window{ false };
-        bool _flag_show_implot_demo_window{ false };
         float _dpi_scale_factor{ 1.0f };
+
+        class about_dialog;
+        std::unique_ptr<about_dialog> _about_dialog;
 
     }; // class
 

@@ -7,6 +7,9 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace triengine::gui
 {
@@ -33,7 +36,177 @@ namespace triengine::gui
         } // namespace
     }
 
-    gui_manager::gui_manager() {}
+    ////////////////////////////////////////////////////////////////////////////////
+    // gui_manager::about_dialog
+    ////////////////////////////////////////////////////////////////////////////////
+
+    class gui_manager::about_dialog
+    {
+    public:
+        // True while the dialog or a demo window it opened is shown, or the dialog is about to open.
+        bool is_visible() const noexcept {
+            return _open_requested || _show_dialog || _show_imgui_demo || _show_implot_demo;
+        }
+
+        void request_open() noexcept {
+            _open_requested = true;
+        }
+
+        void render(float dpi_scale)
+        {
+            if (_show_imgui_demo) { ImGui::ShowDemoWindow(&_show_imgui_demo); }
+            if (_show_implot_demo) { ImPlot::ShowDemoWindow(&_show_implot_demo); }
+            this->_render_dialog(dpi_scale);
+        }
+
+    private:
+        using build_info_row = std::pair<const char*, std::string>;
+
+        static void _draw_sierpinski(ImDrawList* draw_list, ImVec2 a, ImVec2 b, ImVec2 c, int depth, ImU32 color);
+        static std::vector<build_info_row> _collect_build_info();
+
+        void _render_dialog(float dpi_scale);
+
+    private:
+        bool _open_requested{ false };
+        bool _show_dialog{ false };
+        bool _show_imgui_demo{ false };
+        bool _show_implot_demo{ false };
+    };
+
+    void gui_manager::about_dialog::_draw_sierpinski(ImDrawList* draw_list, ImVec2 a, ImVec2 b, ImVec2 c, int depth, ImU32 color)
+    {
+        if (depth == 0) {
+            draw_list->AddTriangleFilled(a, b, c, color);
+            return;
+        }
+        const auto mid = [](ImVec2 p, ImVec2 q) { return ImVec2{ (p.x + q.x) * 0.5f, (p.y + q.y) * 0.5f }; };
+        const ImVec2 ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
+        _draw_sierpinski(draw_list, a, ab, ca, depth - 1, color);
+        _draw_sierpinski(draw_list, ab, b, bc, depth - 1, color);
+        _draw_sierpinski(draw_list, ca, bc, c, depth - 1, color);
+    }
+
+    std::vector<gui_manager::about_dialog::build_info_row> gui_manager::about_dialog::_collect_build_info()
+    {
+        const auto gl_string = [](GLenum name) -> std::string {
+            const auto* value = reinterpret_cast<const char*>(::glGetString(name));
+            return value ? value : "unavailable";
+        };
+
+#if defined(_MSVC_LANG)
+        constexpr long kCppStandard = _MSVC_LANG;
+#else
+        constexpr long kCppStandard = __cplusplus;
+#endif
+#if defined(_MSC_VER)
+        const std::string compiler = "MSVC " + std::to_string(_MSC_VER / 100) + "." + std::to_string(_MSC_VER % 100);
+#elif defined(__clang__)
+        const std::string compiler = "Clang " __clang_version__;
+#elif defined(__GNUC__)
+        const std::string compiler = "GCC " __VERSION__;
+#else
+        const std::string compiler = "Unknown";
+#endif
+#if defined(_DEBUG)
+        std::string configuration = "Debug";
+#else
+        std::string configuration = "Release";
+#endif
+#if defined(TRIENGINE_DEBUG_MODE)
+        configuration += " (debug mode)";
+#endif
+
+        return {
+            { "Build Date", __DATE__ " " __TIME__ },
+            { "Configuration", configuration },
+            { "Compiler", compiler + ", C++" + std::to_string((kCppStandard / 100) % 100) },
+            { "Graphics API", "OpenGL " + gl_string(GL_VERSION) },
+            { "Device", gl_string(GL_RENDERER) },
+            { "Vendor", gl_string(GL_VENDOR) },
+        };
+    }
+
+    void gui_manager::about_dialog::_render_dialog(float dpi_scale)
+    {
+        constexpr const char kPopupName[] = "About Triengine";
+        // Opened here rather than from the menu item, whose ID stack differs from `BeginPopupModal()`'s.
+        if (_open_requested) {
+            ImGui::OpenPopup(kPopupName);
+            _open_requested = false;
+            _show_dialog = true;
+        }
+
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, { 0.5f, 0.5f });
+        if (!ImGui::BeginPopupModal(kPopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
+            _show_dialog = false;
+            return;
+        }
+
+        const float logo_width = 80.0f * dpi_scale;
+        const float logo_height = logo_width * 0.8660254f; // equilateral
+        const ImVec2 origin = ImGui::GetCursorScreenPos();
+        ImGui::Dummy({ logo_width, logo_height });
+        // Clockwise, as ImGui's anti-aliased fill expects.
+        _draw_sierpinski(ImGui::GetWindowDrawList(),
+            { origin.x + logo_width * 0.5f, origin.y },
+            { origin.x + logo_width, origin.y + logo_height },
+            { origin.x, origin.y + logo_height },
+            3, ImGui::GetColorU32(ImGuiCol_Text));
+
+        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
+        ImGui::BeginGroup();
+        ImGui::SetWindowFontScale(1.6f);
+        ImGui::TextUnformatted("Triengine");
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::TextDisabled("A lightweight 3D rendering engine");
+        ImGui::EndGroup();
+
+        ImGui::Separator();
+        const auto build_info = _collect_build_info();
+        if (ImGui::BeginTable("BuildInfo", 2, ImGuiTableFlags_SizingFixedFit)) {
+            for (const auto& [label, value] : build_info) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn(); ImGui::TextDisabled("%s", label);
+                ImGui::TableNextColumn(); ImGui::TextUnformatted(value.c_str());
+            }
+            ImGui::EndTable();
+        }
+        ImGui::Separator();
+
+        if (ImGui::Button("Copy")) {
+            std::string text = "Triengine\n";
+            for (const auto& [label, value] : build_info) {
+                text.append(label).append(": ").append(value).append("\n");
+            }
+            ImGui::SetClipboardText(text.c_str());
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            ImGui::CloseCurrentPopup();
+        }
+#if defined(TRIENGINE_DEBUG_MODE)
+        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 3.0f);
+        if (ImGui::TextLink("ImGui Demo")) {
+            _show_imgui_demo = true;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::TextLink("ImPlot Demo")) {
+            _show_implot_demo = true;
+            ImGui::CloseCurrentPopup();
+        }
+#endif
+        ImGui::EndPopup();
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // gui_manager
+    ////////////////////////////////////////////////////////////////////////////////
+
+    gui_manager::gui_manager()
+        : _about_dialog{ std::make_unique<about_dialog>() }
+    {}
     gui_manager::~gui_manager() {
         if (this->is_initialized()) {
             this->deinitialize();
@@ -197,12 +370,14 @@ namespace triengine::gui
                     }
                 }
 
-                if (ImGui::BeginMenu("Demo")) {
-                    ImGui::MenuItem("ImGui Demo", nullptr, &_flag_show_imgui_demo_window);
-                    ImGui::MenuItem("ImPlot Demo", nullptr, &_flag_show_implot_demo_window);
-                    ImGui::EndMenu();
-                }
+                ImGui::EndMenu();
+            }
 
+            if (ImGui::BeginMenu("Info"))
+            {
+                if (ImGui::MenuItem("About Triengine...")) {
+                    _about_dialog->request_open();
+                }
                 ImGui::EndMenu();
             }
 
@@ -223,12 +398,8 @@ namespace triengine::gui
             }
         }
 
-        if (_flag_show_imgui_demo_window) {
-            ImGui::ShowDemoWindow(&_flag_show_imgui_demo_window);
-        }
-
-        if (_flag_show_implot_demo_window) {
-            ImPlot::ShowDemoWindow(&_flag_show_implot_demo_window);
+        if (_about_dialog->is_visible()) {
+            _about_dialog->render(_dpi_scale_factor);
         }
 
         // Build the initial dock layout exactly once on the first frame. After that, ImGui
@@ -336,8 +507,8 @@ namespace triengine::gui
         colors[ImGuiCol_DragDropTarget] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
         colors[ImGuiCol_NavHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
         colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 0.70f);
-        colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
-        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
+        colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.35f);
+        colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.55f);
 #ifdef IMGUI_HAS_DOCK
         colors[ImGuiCol_DockingPreview] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
         colors[ImGuiCol_DockingEmptyBg] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
