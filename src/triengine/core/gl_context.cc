@@ -575,21 +575,21 @@ namespace triengine::core
     vec2_i32 gl_context::get_window_size() const
     {
         vec2_i32 window_size{};
-        ::glfwGetWindowSize(_glfw_window.get(), &window_size.x(), &window_size.y());
+        ::glfwGetWindowSize(this->_get_window_or_panic(__func__), &window_size.x(), &window_size.y());
         return window_size;
     }
 
     vec2_i32 gl_context::get_framebuffer_size() const
     {
         vec2_i32 framebuffer_size{};
-        ::glfwGetFramebufferSize(_glfw_window.get(), &framebuffer_size.x(), &framebuffer_size.y());
+        ::glfwGetFramebufferSize(this->_get_window_or_panic(__func__), &framebuffer_size.x(), &framebuffer_size.y());
         return framebuffer_size;
     }
 
     vec2_f32 gl_context::get_window_dpi_scale() const
     {
         vec2_f32 dpi_scale{};
-        ::glfwGetWindowContentScale(_glfw_window.get(), &dpi_scale.x(), &dpi_scale.y());
+        ::glfwGetWindowContentScale(this->_get_window_or_panic(__func__), &dpi_scale.x(), &dpi_scale.y());
         return dpi_scale;
     }
 
@@ -597,13 +597,13 @@ namespace triengine::core
     vec2_f32 gl_context::get_cursor_screen_pos() const
     {
         double xpos{}, ypos{};
-        ::glfwGetCursorPos(_glfw_window.get(), &xpos, &ypos);
+        ::glfwGetCursorPos(this->_get_window_or_panic(__func__), &xpos, &ypos);
         return vec2_f32{ static_cast<float>(xpos), static_cast<float>(ypos) };
     }
 
     bool gl_context::is_window_focused() const
     {
-        return ::glfwGetWindowAttrib(_glfw_window.get(), GLFW_FOCUSED) == GLFW_TRUE;
+        return ::glfwGetWindowAttrib(this->_get_window_or_panic(__func__), GLFW_FOCUSED) == GLFW_TRUE;
     }
 
     bool gl_context::get_window_close_flag() const
@@ -618,36 +618,37 @@ namespace triengine::core
          * The window is however not actually destroyed and, unless you watch for this state change, nothing further happens.
          * The current state of the close flag is returned by glfwWindowShouldClose and can be set or cleared directly with glfwSetWindowShouldClose.
          */
-        return static_cast<bool>(::glfwWindowShouldClose(_glfw_window.get()));
+        return static_cast<bool>(::glfwWindowShouldClose(this->_get_window_or_panic(__func__)));
     }
 
     void gl_context::set_window_close_flag(bool close)
     {
-        ::glfwSetWindowShouldClose(_glfw_window.get(), close);
+        ::glfwSetWindowShouldClose(this->_get_window_or_panic(__func__), close);
     }
 
     void gl_context::set_window_position(int32_t xpos, int32_t ypos)
     {
-        ::glfwSetWindowPos(_glfw_window.get(), xpos, ypos);
+        ::glfwSetWindowPos(this->_get_window_or_panic(__func__), xpos, ypos);
     }
 
     void gl_context::set_window_visible(bool visible)
     {
+        GLFWwindow* const window = this->_get_window_or_panic(__func__);
         if (visible) {
-            ::glfwShowWindow(_glfw_window.get());
+            ::glfwShowWindow(window);
         } else {
-            ::glfwHideWindow(_glfw_window.get());
+            ::glfwHideWindow(window);
         }
     }
 
     void gl_context::make_context_current()
     {
-        ::glfwMakeContextCurrent(_glfw_window.get());
+        ::glfwMakeContextCurrent(this->_get_window_or_panic(__func__));
     }
 
     void gl_context::swap_buffers()
     {
-        ::glfwSwapBuffers(_glfw_window.get());
+        ::glfwSwapBuffers(this->_get_window_or_panic(__func__));
     }
 
     void gl_context::poll_window_events()
@@ -657,7 +658,7 @@ namespace triengine::core
 
     int gl_context::get_key_state(int32_t glfw_key) const
     {
-        const int state = ::glfwGetKey(_glfw_window.get(), glfw_key);
+        const int state = ::glfwGetKey(this->_get_window_or_panic(__func__), glfw_key);
         return state;
     }
 
@@ -707,6 +708,14 @@ namespace triengine::core
 
     const graphics_device_info* gl_context::get_device_info() const noexcept {
         return _context_initialized ? &_device_info : nullptr;
+    }
+
+    GLFWwindow* gl_context::_get_window_or_panic(const char* caller) const
+    {
+        if (!_window_created) {
+            TRIENGINE_PANIC("gl_context::%s() requires a window (call create_window() first)", caller);
+        }
+        return _glfw_window.get();
     }
 
 } // namespace triengine

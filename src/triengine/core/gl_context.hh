@@ -128,6 +128,10 @@ namespace triengine::core
         const graphics_device_info* get_device_info() const noexcept;
 
     private:
+        // Panics if the window has not been created (or was destroyed).
+        GLFWwindow* _get_window_or_panic(const char* caller) const;
+
+    private:
         bool _window_created{ false };
         bool _context_initialized{ false };
         bool _vsync_enabled{ false };
