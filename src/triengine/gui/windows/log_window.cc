@@ -374,7 +374,7 @@ namespace triengine::gui
 
     } // namespace
 
-    struct log_window::impl_t
+    struct log_window::impl
     {
         // --- cross-thread handoff ---
         // NOTE: Held through a `shared_ptr` so that a record in flight stays safe while the window dies.
@@ -391,7 +391,7 @@ namespace triengine::gui
         bool flag_autoscroll{ true }; // keep scrolling if already at the bottom
 
     public:
-        impl_t() = default;
+        impl() = default;
 
         void clear_records()
         {
@@ -467,14 +467,14 @@ namespace triengine::gui
     log_window::log_window(
         const bool capture_engine_logs,
         const size_t capacity)
-        : _impl{ std::make_unique<impl_t>() }
+        : _imp{ std::make_unique<impl>() }
     {
-        _impl->set_record_capacity(capacity);
+        _imp->set_record_capacity(capacity);
 
         if (capture_engine_logs)
         {
-            _impl->engine_log_subscription = global_options::instance()->get_logger().subscribe(
-                [pending_record_q = _impl->pending_record_q](const utility::log_level lv, const std::string& msg)
+            _imp->engine_log_subscription = global_options::instance()->get_logger().subscribe(
+                [pending_record_q = _imp->pending_record_q](const utility::log_level lv, const std::string& msg)
             {
                 pending_record_q->enqueue(lv, msg);
             });
@@ -487,22 +487,22 @@ namespace triengine::gui
         const utility::log_level lv,
         const std::string_view sv)
     {
-        _impl->pending_record_q->enqueue(lv, sv);
+        _imp->pending_record_q->enqueue(lv, sv);
     }
 
     void log_window::render(
         [[maybe_unused]] const window_render_context& render_ctx)
     {
-        _impl->drain_pending_records();
+        _imp->drain_pending_records();
 
         bool do_copy{ false };
-        _impl->draw_toolbar(do_copy);
+        _imp->draw_toolbar(do_copy);
 
         ImGui::Separator();
 
         if (ImGui::BeginChild("scrolling", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
         {
-            filtered_record_view& filtered_view = _impl->filtered_view;
+            filtered_record_view& filtered_view = _imp->filtered_view;
             filtered_view.refresh();
 
             const size_t visible_record_count = filtered_view.size();
@@ -538,7 +538,7 @@ namespace triengine::gui
 
             // Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
             // Using a scrollbar or mouse-wheel will take away from the bottom edge.
-            if (_impl->flag_autoscroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            if (_imp->flag_autoscroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
                 ImGui::SetScrollHereY(1.0f);
             }
         }

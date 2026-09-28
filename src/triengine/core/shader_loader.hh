@@ -40,7 +40,7 @@ namespace triengine::core
 
     private:
         struct impl;
-        std::unique_ptr<impl> _impl;
+        std::unique_ptr<impl> _imp;
     };
 
 } // namespace

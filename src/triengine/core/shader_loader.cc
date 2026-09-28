@@ -262,7 +262,7 @@ namespace triengine::core
     }; // class impl
 
     shader_loader::shader_loader()
-        : _impl{ std::make_unique<impl>() }
+        : _imp{ std::make_unique<impl>() }
     { }
 
     shader_loader::~shader_loader() = default;
@@ -274,17 +274,17 @@ namespace triengine::core
         const size_t size,
         const std::string_view glsl_shader_version)
     {
-        return _impl->initialize(data, size, glsl_shader_version);
+        return _imp->initialize(data, size, glsl_shader_version);
     }
 
     std::optional<std::string> shader_loader::load(const std::string& path_in_archive)
     {
-        return _impl->load(path_in_archive);
+        return _imp->load(path_in_archive);
     }
 
     const std::string& shader_loader::get_glsl_shader_version() const noexcept
     {
-        return _impl->get_glsl_shader_version();
+        return _imp->get_glsl_shader_version();
     }
 
 } // namespace

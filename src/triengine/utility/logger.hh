@@ -46,7 +46,7 @@ namespace triengine::utility
     class logger : utility::noncopyable
     {
     private:
-        struct impl_t;
+        struct impl;
         using log_callback_id_t = uint32_t;
         static constexpr log_callback_id_t kInvalidLogCallbackId{ 0 };
 
@@ -78,9 +78,9 @@ namespace triengine::utility
         private:
             friend class logger;
 
-            subscription(std::weak_ptr<impl_t> impl, log_callback_id_t id) noexcept;
+            subscription(std::weak_ptr<impl> imp, log_callback_id_t id) noexcept;
 
-            std::weak_ptr<impl_t> _impl;
+            std::weak_ptr<impl> _imp;
             log_callback_id_t _id{ kInvalidLogCallbackId };
         };
 
@@ -161,7 +161,7 @@ namespace triengine::utility
         );
 
     private:
-        std::shared_ptr<impl_t> _impl;
+        std::shared_ptr<impl> _imp;
     };
 
 } // namespace

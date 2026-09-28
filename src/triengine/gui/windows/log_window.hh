@@ -57,8 +57,8 @@ namespace triengine::gui
         }
 
     private:
-        struct impl_t;
-        std::unique_ptr<impl_t> _impl;
+        struct impl;
+        std::unique_ptr<impl> _imp;
 
     }; // class
 

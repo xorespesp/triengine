@@ -17,7 +17,7 @@ namespace triengine::utility
     static_assert(static_cast<int>(log_level::error)    == TRIENGINE_LOG_LEVEL_ERROR,    "log level mismatch");
     static_assert(static_cast<int>(log_level::critical) == TRIENGINE_LOG_LEVEL_CRITICAL, "log level mismatch");
 
-    struct logger::impl_t
+    struct logger::impl
     {
         struct sink_t
         {
@@ -36,7 +36,7 @@ namespace triengine::utility
         log_callback_id_t next_id{ kInvalidLogCallbackId + 1 };
         std::atomic<log_level> active_log_lv{ log_level::info };
 
-        impl_t() = default;
+        impl() = default;
 
         // NOTE: the two helpers below must be called with `lock` held.
 
@@ -67,9 +67,9 @@ namespace triengine::utility
     };
 
     logger::subscription::subscription(
-        std::weak_ptr<impl_t> impl,
+        std::weak_ptr<impl> imp,
         const log_callback_id_t id) noexcept
-        : _impl{ std::move(impl) }
+        : _imp{ std::move(imp) }
         , _id{ id }
     {}
 
@@ -79,7 +79,7 @@ namespace triengine::utility
     }
 
     logger::subscription::subscription(subscription&& rhs) noexcept
-        : _impl{ std::move(rhs._impl) } // a moved-from weak_ptr is left empty
+        : _imp{ std::move(rhs._imp) } // a moved-from weak_ptr is left empty
         , _id{ std::exchange(rhs._id, kInvalidLogCallbackId) }
     {}
 
@@ -89,7 +89,7 @@ namespace triengine::utility
         {
             this->unsubscribe();
 
-            _impl = std::move(rhs._impl);
+            _imp = std::move(rhs._imp);
             _id = std::exchange(rhs._id, kInvalidLogCallbackId);
         }
         return *this;
@@ -100,28 +100,28 @@ namespace triengine::utility
         if (_id == kInvalidLogCallbackId) { return; }
 
         // an expired logger has taken its sinks with it, so there is nothing left to remove
-        if (const std::shared_ptr<impl_t> impl = _impl.lock()) {
-            std::scoped_lock lk{ impl->lock };
-            impl->remove_sink(_id);
+        if (const std::shared_ptr<impl> imp = _imp.lock()) {
+            std::scoped_lock lk{ imp->lock };
+            imp->remove_sink(_id);
         }
 
-        _impl.reset();
+        _imp.reset();
         _id = kInvalidLogCallbackId;
     }
 
     void logger::subscription::detach() noexcept
     {
         // the sink stays in the logger; dropping what we need to remove it is the whole point
-        _impl.reset();
+        _imp.reset();
         _id = kInvalidLogCallbackId;
     }
 
     bool logger::subscription::is_valid() const noexcept
     {
-        return (_id != kInvalidLogCallbackId) && !_impl.expired();
+        return (_id != kInvalidLogCallbackId) && !_imp.expired();
     }
 
-    logger::logger() : _impl{ std::make_shared<impl_t>() }
+    logger::logger() : _imp{ std::make_shared<impl>() }
     {}
 
     logger::~logger()
@@ -131,18 +131,18 @@ namespace triengine::utility
     {
         if (!cb) { return subscription{}; }
 
-        std::scoped_lock lk{ _impl->lock };
-        return subscription{ _impl, _impl->add_sink(std::move(cb)) };
+        std::scoped_lock lk{ _imp->lock };
+        return subscription{ _imp, _imp->add_sink(std::move(cb)) };
     }
 
     log_level logger::get_log_level() const
     {
-        return _impl->active_log_lv.load();
+        return _imp->active_log_lv.load();
     }
 
     void logger::set_log_level(log_level lv)
     {
-        _impl->active_log_lv = lv;
+        _imp->active_log_lv = lv;
     }
 
     void logger::_log_impl(
@@ -150,10 +150,10 @@ namespace triengine::utility
         const log_level lv,
         const std::string_view msg_sv)
     {
-        std::shared_ptr<const impl_t::sink_list_t> sinks; {
-            std::scoped_lock lk{ _impl->lock };
-            if (!_impl->sinks || _impl->sinks->empty()) { return; }
-            sinks = _impl->sinks;
+        std::shared_ptr<const impl::sink_list_t> sinks; {
+            std::scoped_lock lk{ _imp->lock };
+            if (!_imp->sinks || _imp->sinks->empty()) { return; }
+            sinks = _imp->sinks;
         }
 
         std::string msg;
@@ -181,7 +181,7 @@ namespace triengine::utility
             );
         }
 
-        for (const impl_t::sink_t& sink : *sinks) {
+        for (const impl::sink_t& sink : *sinks) {
             sink.cb(lv, msg);
         }
     }
