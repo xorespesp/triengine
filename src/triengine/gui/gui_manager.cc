@@ -147,8 +147,15 @@ namespace triengine::gui
             return;
         }
 
+        // The auto-resized width comes from the widest content (the table), so this reads last frame's width.
+        const auto center_next_item = [](float item_width) {
+            const float offset = (ImGui::GetContentRegionAvail().x - item_width) * 0.5f;
+            if (offset > 0.0f) { ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset); }
+        };
+
         const float logo_width = 80.0f * dpi_scale;
         const float logo_height = logo_width * 0.8660254f; // equilateral
+        center_next_item(logo_width);
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         ImGui::Dummy({ logo_width, logo_height });
         // Clockwise, as ImGui's anti-aliased fill expects.
@@ -158,13 +165,14 @@ namespace triengine::gui
             { origin.x, origin.y + logo_height },
             3, ImGui::GetColorU32(ImGuiCol_Text));
 
-        ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
-        ImGui::BeginGroup();
-        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
-        ImGui::TextUnformatted("Triengine");
+        constexpr const char kTitle[] = "Triengine";
+        constexpr const char kSubtitle[] = "A lightweight 3D rendering engine";
+        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 2.2f);
+        center_next_item(ImGui::CalcTextSize(kTitle).x);
+        ImGui::TextUnformatted(kTitle);
         ImGui::PopFont();
-        ImGui::TextDisabled("A lightweight 3D rendering engine");
-        ImGui::EndGroup();
+        center_next_item(ImGui::CalcTextSize(kSubtitle).x);
+        ImGui::TextDisabled("%s", kSubtitle);
 
         ImGui::Separator();
         const auto build_info = _collect_build_info(device_info);
