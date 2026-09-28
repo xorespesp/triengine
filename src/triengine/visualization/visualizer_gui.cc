@@ -1,9 +1,13 @@
 #include "visualizer_gui.hh"
+#include <triengine/gui/gui_manager.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 
 namespace triengine::visualization
 {
+    visualizer_gui::visualizer_gui() = default;
+    visualizer_gui::~visualizer_gui() = default;
+
     bool visualizer_gui::is_main_menu_enabled() const
     {
         if (!_gui_mgr) { TRIENGINE_PANIC("GUI access requires a created window"); }

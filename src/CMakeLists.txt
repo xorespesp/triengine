@@ -113,7 +113,6 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/mesh_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/text_renderer.hh"
 
-    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/dock_slot.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/widgets/file_browser_widget.hh"
@@ -155,6 +154,8 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
 
 # library headers (private)
 set(TRIENGINE_LIBRARY_HEADERS_PRIVATE
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
+
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/fonts/Fonts.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/fonts/IconsFontAwesome5.h"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/fonts/IconsFontAwesome5Brands.h"

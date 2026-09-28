@@ -5,6 +5,7 @@
 #include <triengine/visualization/visualizer_gui.hh>
 #include <triengine/gui/windows/scene_ctrl_window.hh>
 #include <triengine/gui/windows/frame_perf_window.hh>
+#include <triengine/gui/windows/log_window.hh>
 
 #include "bvh_inspector_window.hh"
 

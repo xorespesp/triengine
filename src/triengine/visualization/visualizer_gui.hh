@@ -1,8 +1,15 @@
 #pragma once
 #include <triengine/visualization/visualizer.hh>
-#include <triengine/gui/gui_manager.hh>
+#include <triengine/gui/iwindow.hh>
+#include <triengine/gui/dock_slot.hh>
 
 #include <memory>
+
+// forward declaration
+namespace triengine::gui {
+    class gui_manager;
+    class scene_view_window;
+}
 
 namespace triengine::visualization
 {
@@ -11,8 +18,8 @@ namespace triengine::visualization
         : public visualizer
     {
     public:
-        visualizer_gui() = default;
-        ~visualizer_gui() override = default;
+        visualizer_gui();
+        ~visualizer_gui() override;
 
         bool is_main_menu_enabled() const;
         void enable_main_menu(bool enable);
