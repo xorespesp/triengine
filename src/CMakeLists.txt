@@ -114,6 +114,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/text_renderer.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/dock_slot.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/widgets/file_browser_widget.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/log_window.hh"
