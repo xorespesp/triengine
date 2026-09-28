@@ -35,6 +35,7 @@ namespace triengine::visualization
         _gui_mgr = std::make_unique<gui::gui_manager>();
         _gui_mgr->initialize(
             this,
+            this->_get_gl_context(),
             this->get_window_dpi_scale().x()
         );
 

@@ -12,16 +12,12 @@ namespace triengine::visualization
     visualizer::visualizer()
     { }
 
-    const core::gl_context* visualizer::get_gl_context() const noexcept {
-        return &_glctx;
-    }
-
-    core::gl_context* visualizer::get_gl_context() noexcept {
-        return &_glctx;
-    }
-
     const core::graphics_device_info* visualizer::get_graphics_device_info() const noexcept {
         return _glctx.get_device_info();
+    }
+
+    core::gl_context& visualizer::_get_gl_context() noexcept {
+        return _glctx;
     }
 
     vec2_i32 visualizer::get_window_size() const {

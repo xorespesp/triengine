@@ -231,6 +231,7 @@ namespace triengine::gui
 
     void gui_manager::initialize(
         visualization::visualizer* const vis,
+        core::gl_context& glctx,
         const float dpi_scale_factor)
     {
         TRIENGINE_ASSERT(vis != nullptr);
@@ -252,13 +253,11 @@ namespace triengine::gui
         io.ConfigWindowsMoveFromTitleBarOnly = true; // Ref: https://github.com/ocornut/imgui/issues/899#issuecomment-446170903
 
         // Setup Platform/Renderer backends
-        const auto glctx = vis->get_gl_context();
-
-        if (!::ImGui_ImplGlfw_InitForOpenGL(glctx->get_glfw_window(), true)) {
+        if (!::ImGui_ImplGlfw_InitForOpenGL(glctx.get_glfw_window(), true)) {
             TRIENGINE_PANIC("ImGui_ImplGlfw_InitForOpenGL failed");
         }
 
-        if (!::ImGui_ImplOpenGL3_Init(glctx->get_shader_loader()->get_glsl_shader_version().c_str())) {
+        if (!::ImGui_ImplOpenGL3_Init(glctx.get_shader_loader()->get_glsl_shader_version().c_str())) {
             TRIENGINE_PANIC("ImGui_ImplOpenGL3_Init failed");
         }
 

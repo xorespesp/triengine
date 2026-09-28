@@ -76,16 +76,6 @@ namespace triengine::visualization
         _glctx.destroy_window();
     }
 
-    const core::gl_context* offscreen_renderer_dx::get_gl_context() const noexcept
-    {
-        return &_glctx;
-    }
-
-    core::gl_context* offscreen_renderer_dx::get_gl_context() noexcept
-    {
-        return &_glctx;
-    }
-
     const core::graphics_device_info* offscreen_renderer_dx::get_graphics_device_info() const noexcept
     {
         return _glctx.get_device_info();

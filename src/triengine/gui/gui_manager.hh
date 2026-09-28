@@ -10,9 +10,9 @@
 #include <vector>
 #include <map>
 
-namespace triengine::visualization {
-    class visualizer; // forward declaration
-}
+// forward declaration
+namespace triengine::core { class gl_context; }
+namespace triengine::visualization { class visualizer; }
 
 namespace triengine::gui
 {
@@ -27,6 +27,7 @@ namespace triengine::gui
 
         void initialize(
             visualization::visualizer* vis,
+            core::gl_context& glctx,
             float dpi_scale_factor = 1.0f
         );
 

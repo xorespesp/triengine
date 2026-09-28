@@ -63,13 +63,6 @@ namespace triengine::visualization
         //       `destroy()` must run on the render thread before this object is destroyed.
         virtual ~offscreen_renderer_dx();
 
-        // Returns the owned GL context (e.g. to register window/input callbacks).
-        //
-        // NOTE: Safe from any thread (returns a stable pointer); GL operations
-        // through the returned context follow `gl_context`'s own thread rules.
-        const core::gl_context* get_gl_context() const noexcept;
-        core::gl_context* get_gl_context() noexcept;
-
         // `nullptr` until `create()` has initialized the context.
         const core::graphics_device_info* get_graphics_device_info() const noexcept;
 

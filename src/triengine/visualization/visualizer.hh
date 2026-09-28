@@ -48,9 +48,6 @@ namespace triengine::visualization
         visualizer();
         virtual ~visualizer() = default;
 
-        const core::gl_context* get_gl_context() const noexcept;
-        core::gl_context* get_gl_context() noexcept;
-
         // `nullptr` until `create_window()` has initialized the context.
         const core::graphics_device_info* get_graphics_device_info() const noexcept;
 
@@ -158,6 +155,9 @@ namespace triengine::visualization
         // (e.g. when the event belongs to a gui widget)
         virtual bool _accepts_keyboard_input() const { return true; }
         virtual bool _accepts_mouse_input([[maybe_unused]] vec2_f32 cursor_screen_pos) const { return true; }
+
+        // For subclasses that drive backend-specific layers on top of the scene. (e.g. the GUI renderer)
+        core::gl_context& _get_gl_context() noexcept;
 
     private:
         // Whether the cursor is over the scene viewport and the scene may react to it.
