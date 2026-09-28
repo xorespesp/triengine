@@ -30,6 +30,7 @@ namespace triengine::visualization
     protected:
         void _on_window_created() override;
         void _on_window_destroying() override;
+        void _on_dpi_changed(vec2_f32 dpi_scale) override;
 
         scene_render_target _begin_scene_frame() override;
         void _end_scene_frame() override;

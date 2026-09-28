@@ -132,6 +132,9 @@ namespace triengine::visualization
         // Called at the start of `destroy_window()`, while the GL context is still current.
         virtual void _on_window_destroying() {}
 
+        // Called when the window moves to a monitor with a different content scale, before the user callback.
+        virtual void _on_dpi_changed([[maybe_unused]] vec2_f32 dpi_scale) {}
+
         // Prepares and returns the render target for this frame.
         // A zero-sized `frame_size` skips the scene render. (e.g. minimized window)
         virtual scene_render_target _begin_scene_frame();

@@ -77,6 +77,7 @@ namespace triengine::gui
         bool _flag_initialized{ false };
         bool _flag_show_main_menu{ true };
         float _dpi_scale_factor{ 1.0f };
+        ImGuiStyle _unscaled_imgui_style{};
 
         class about_dialog;
         std::unique_ptr<about_dialog> _about_dialog;

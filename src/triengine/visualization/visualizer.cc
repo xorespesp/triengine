@@ -560,6 +560,7 @@ namespace triengine::visualization
 
     void visualizer::_handle_dpi_change_event(const vec2_f32 dpi_scale)
     {
+        this->_on_dpi_changed(dpi_scale);
         if (_cb_dpi_change) {
             _cb_dpi_change(dpi_scale);
         }

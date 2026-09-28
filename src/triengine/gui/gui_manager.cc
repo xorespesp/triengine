@@ -255,6 +255,9 @@ namespace triengine::gui
         this->setup_imgui_style();
         this->setup_imgui_fonts();
 
+        // `ScaleAllSizes()` multiplies in place, so each DPI change rescales from this.
+        _unscaled_imgui_style = ImGui::GetStyle();
+
         _flag_initialized = true;
         this->change_dpi_scale(dpi_scale_factor);
 
@@ -285,13 +288,11 @@ namespace triengine::gui
 
         _dpi_scale_factor = scale_factor;
 
+        ImGuiStyle& style = ImGui::GetStyle();
+        style = _unscaled_imgui_style; // `ScaleAllSizes()` multiplies in place, so each DPI change rescales from this.
+        style.ScaleAllSizes(scale_factor);
         // Fonts are rasterized on demand at the scaled size, so only the scale factor changes.
-        ImGui::GetStyle().FontScaleDpi = scale_factor;
-
-        // FIXME: handle dpi change correctly
-        // https://github.com/ocornut/imgui/issues/3757
-        // https://github.com/ocornut/imgui/issues/1676
-        ImGui::GetStyle().ScaleAllSizes(scale_factor);
+        style.FontScaleDpi = scale_factor;
     }
 
     void gui_manager::enable_main_menu(bool enable) { _flag_show_main_menu = enable; }

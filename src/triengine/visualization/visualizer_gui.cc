@@ -41,6 +41,11 @@ namespace triengine::visualization
         _scene_window = _gui_mgr->get_scene_window();
     }
 
+    void visualizer_gui::_on_dpi_changed(const vec2_f32 dpi_scale)
+    {
+        if (_gui_mgr) { _gui_mgr->change_dpi_scale(dpi_scale.x()); }
+    }
+
     void visualizer_gui::_on_window_destroying()
     {
         _gui_mgr->deinitialize();
