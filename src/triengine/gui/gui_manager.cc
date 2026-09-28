@@ -511,6 +511,9 @@ namespace triengine::gui
         colors[ImGuiCol_DockingPreview] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
         colors[ImGuiCol_DockingEmptyBg] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
 #endif
+        colors[ImGuiCol_CheckboxSelectedBg] = ImVec4(0.15f, 0.16f, 0.17f, 0.84f); // 65% from FrameBg to FrameBgActive
+        colors[ImGuiCol_TreeLines] = colors[ImGuiCol_Border];
+        colors[ImGuiCol_InputTextCursor] = colors[ImGuiCol_Text];
 
         ImGuiStyle& style = ImGui::GetStyle();
         style.WindowPadding = ImVec2(8.00f, 8.00f);
