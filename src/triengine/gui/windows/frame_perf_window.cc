@@ -65,12 +65,17 @@ namespace triengine::gui
                 ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
                 ImPlot::SetupAxesLimits(x_min, x_max, 0.0, y_max, ImPlotCond_Always);
                 if (reference_y) {
-                    ImPlot::SetNextLineStyle(ImGui::ColorConvertU32ToFloat4(reference_color), 1.0f);
-                    ImPlot::PlotInfLines("##reference", reference_y, 1, ImPlotInfLinesFlags_Horizontal);
+                    ImPlot::PlotInfLines("##reference", reference_y, 1, ImPlotSpec(
+                        ImPlotProp_LineColor, reference_color,
+                        ImPlotProp_Flags, ImPlotInfLinesFlags_Horizontal));
                 }
-                ImPlot::SetNextLineStyle(ImGui::ColorConvertU32ToFloat4(color), 1.0f);
-                ImPlot::SetNextFillStyle(ImGui::ColorConvertU32ToFloat4(color), 0.25f);
-                ImPlot::PlotLine("##value", xs, ys, count, ImPlotLineFlags_Shaded, 0, stride);
+                // FIXME: ImPlot applies `FillAlpha` twice on shaded plots (epezent/implot#717), so the fill alpha goes into the color.
+                const ImU32 fill_color = (color & ~IM_COL32_A_MASK) | IM_COL32(0, 0, 0, 64);
+                ImPlot::PlotLine("##value", xs, ys, count, ImPlotSpec(
+                    ImPlotProp_LineColor, color,
+                    ImPlotProp_FillColor, fill_color,
+                    ImPlotProp_Stride, stride,
+                    ImPlotProp_Flags, ImPlotLineFlags_Shaded));
                 ImPlot::EndPlot();
             }
             ImPlot::PopStyleVar();
@@ -342,13 +347,16 @@ namespace triengine::gui
         _fps_axis.setup_y_axis("FPS");
         ImPlot::SetupAxisLimits(ImAxis_X1, begin, (std::max)(end, begin + 0.001), ImPlotCond_Always);
         ImPlot::SetupLegend(ImPlotLocation_NorthEast, ImPlotLegendFlags_Horizontal | ImPlotLegendFlags_Outside);
-        ImPlot::SetNextLineStyle(ImGui::ColorConvertU32ToFloat4(kFpsColor), 1.5f);
-        ImPlot::PlotLine("FPS", _samples.time_column(), _samples.fps_column(),
-            static_cast<int>(_samples.size()), 0, 0, _samples.stride_bytes());
+        ImPlot::PlotLine("FPS", _samples.time_column(), _samples.fps_column(), static_cast<int>(_samples.size()), ImPlotSpec(
+            ImPlotProp_LineColor, kFpsColor,
+            ImPlotProp_LineWeight, 1.5f,
+            ImPlotProp_Stride, _samples.stride_bytes()));
         if (fps_cap) {
             const double target = static_cast<double>(fps_cap);
-            ImPlot::SetNextLineStyle(ImGui::ColorConvertU32ToFloat4(kCapColor), 1.5f);
-            ImPlot::PlotInfLines("Cap", &target, 1, ImPlotInfLinesFlags_Horizontal);
+            ImPlot::PlotInfLines("Cap", &target, 1, ImPlotSpec(
+                ImPlotProp_LineColor, kCapColor,
+                ImPlotProp_LineWeight, 1.5f,
+                ImPlotProp_Flags, ImPlotInfLinesFlags_Horizontal));
         }
         ImPlot::EndPlot();
     }

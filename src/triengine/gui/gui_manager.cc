@@ -31,7 +31,7 @@ namespace triengine::gui
             static constexpr const char kMainDockSpaceName[] = "MyMainDockSpace";
 
             inline float GetTitleBarHeight() {
-                return ImGui::GetFont()->FontSize + ImGui::GetStyle().FramePadding.y * 2;
+                return ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.y * 2;
             }
         } // namespace
     }
@@ -156,9 +156,9 @@ namespace triengine::gui
 
         ImGui::SameLine(0.0f, ImGui::GetStyle().ItemSpacing.x * 2.0f);
         ImGui::BeginGroup();
-        ImGui::SetWindowFontScale(1.6f);
+        ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
         ImGui::TextUnformatted("Triengine");
-        ImGui::SetWindowFontScale(1.0f);
+        ImGui::PopFont();
         ImGui::TextDisabled("A lightweight 3D rendering engine");
         ImGui::EndGroup();
 
@@ -253,6 +253,7 @@ namespace triengine::gui
         }
 
         this->setup_imgui_style();
+        this->setup_imgui_fonts();
 
         _flag_initialized = true;
         this->change_dpi_scale(dpi_scale_factor);
@@ -284,17 +285,13 @@ namespace triengine::gui
 
         _dpi_scale_factor = scale_factor;
 
-        this->setup_imgui_fonts(scale_factor);
+        // Fonts are rasterized on demand at the scaled size, so only the scale factor changes.
+        ImGui::GetStyle().FontScaleDpi = scale_factor;
 
         // FIXME: handle dpi change correctly
         // https://github.com/ocornut/imgui/issues/3757
         // https://github.com/ocornut/imgui/issues/1676
         ImGui::GetStyle().ScaleAllSizes(scale_factor);
-
-        // ImGui doesn't automatically scale fonts, so we have to do that ourselves
-        //ImFontConfig fontConfig{};
-        //fontConfig.SizePixels = kDefaultFontSize * scale_factor;
-        //ImGui::GetIO().Fonts->AddFontDefault(&fontConfig);
     }
 
     void gui_manager::enable_main_menu(bool enable) { _flag_show_main_menu = enable; }
@@ -491,9 +488,9 @@ namespace triengine::gui
         colors[ImGuiCol_ResizeGripActive] = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
         colors[ImGuiCol_Tab] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
         colors[ImGuiCol_TabHovered] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-        colors[ImGuiCol_TabActive] = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
-        colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
-        colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+        colors[ImGuiCol_TabSelected] = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
+        colors[ImGuiCol_TabDimmed] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+        colors[ImGuiCol_TabDimmedSelected] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
         colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
         colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
         colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
@@ -505,7 +502,7 @@ namespace triengine::gui
         colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
         colors[ImGuiCol_TextSelectedBg] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
         colors[ImGuiCol_DragDropTarget] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-        colors[ImGuiCol_NavHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+        colors[ImGuiCol_NavCursor] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
         colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 0.70f);
         colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.35f);
         colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.55f);
@@ -548,8 +545,6 @@ namespace triengine::gui
         pcolors[ImPlotCol_Selection] = ImVec4(0.821f, 1.000f, 0.000f, 1.000f);;
         pcolors[ImPlotCol_Crosshairs] = colors[ImGuiCol_Text];
 
-        ImPlot::GetStyle().DigitalBitHeight = 20;
-
         auto& pstyle = ImPlot::GetStyle();
         pstyle.PlotPadding = { 12, 12 };
         pstyle.LabelPadding = { 6, 6 };
@@ -577,7 +572,7 @@ namespace triengine::gui
         ImPlot::GetStyle().Colormap = custom_colormap;
     }
 
-    void gui_manager::setup_imgui_fonts(const float scale_factor)
+    void gui_manager::setup_imgui_fonts()
     {
         ImGuiIO& io = ImGui::GetIO();
 
@@ -585,8 +580,8 @@ namespace triengine::gui
         io.Fonts->Clear();
         _fonts_map.clear();
 
-        // ImGui doesn't automatically scale fonts, so we have to do that ourselves
-        const float font_size_pixels = detail::kDefaultFontSize * scale_factor;
+        // Unscaled size; `style.FontScaleDpi` applies the DPI scale (see `change_dpi_scale()`).
+        const float font_size_pixels = detail::kDefaultFontSize;
 
         ImFontConfig font_cfg;
         font_cfg.FontDataOwnedByAtlas = false;

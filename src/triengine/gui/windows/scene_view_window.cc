@@ -343,12 +343,8 @@ namespace triengine::gui
                 }
 
                 ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2{ 5.0f * render_ctx.dpi_scale, 5.0f * render_ctx.dpi_scale });
-                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.1f);
-                ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 1.0f);
                 ImPlot::PushStyleColor(ImPlotCol_FrameBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
                 ImPlot::PushStyleColor(ImPlotCol_PlotBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-                ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4{ 1.0f, 1.0f, 1.0f, 0.5f });
-                ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f });
 
                 const ImVec2 plot_size{ 150.0f * render_ctx.dpi_scale, 40.0f * render_ctx.dpi_scale };
                 if (ImPlot::BeginPlot("##FPSPlot", plot_size, ImPlotFlags_NoFrame | ImPlotFlags_NoMouseText))
@@ -366,24 +362,24 @@ namespace triengine::gui
 
                     if (!_state.fps_plot_buffer.empty())
                     {
-                        ImPlot::PlotShaded("##FPSShadedPlot",
-                            &_state.fps_plot_buffer.data()->x(),
-                            &_state.fps_plot_buffer.data()->y(),
-                            static_cast<int>(_state.fps_plot_buffer.size()),
-                            0.0,
-                            ImPlotShadedFlags_None,
-                            static_cast<int>(_state.fps_plot_buffer.head_index()),
-                            sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
-                        );
+                        const auto& buffer = _state.fps_plot_buffer;
+                        const float* const xs = &buffer.data()->x();
+                        const float* const ys = &buffer.data()->y();
+                        const int count = static_cast<int>(buffer.size());
 
-                        ImPlot::PlotLine("##FPSLinePlot",
-                            &_state.fps_plot_buffer.data()->x(),
-                            &_state.fps_plot_buffer.data()->y(),
-                            static_cast<int>(_state.fps_plot_buffer.size()),
-                            ImPlotLineFlags_None,
-                            static_cast<int>(_state.fps_plot_buffer.head_index()),
-                            sizeof(std::decay_t<decltype(_state.fps_plot_buffer)>::value_type)
-                        );
+                        // FIXME: ImPlot applies `FillAlpha` twice on shaded plots (epezent/implot#717), so the fill alpha goes into the color.
+                        ImPlotSpec shaded_spec;
+                        shaded_spec.FillColor = ImVec4{ 1.0f, 1.0f, 1.0f, 0.1f };
+                        shaded_spec.Offset = static_cast<int>(buffer.head_index());
+                        shaded_spec.Stride = sizeof(std::decay_t<decltype(buffer)>::value_type);
+                        ImPlot::PlotShaded("##FPSShadedPlot", xs, ys, count, 0.0, shaded_spec);
+
+                        ImPlotSpec line_spec;
+                        line_spec.LineColor = ImVec4{ 1.0f, 1.0f, 1.0f, 0.5f };
+                        line_spec.LineWeight = 1.0f;
+                        line_spec.Offset = shaded_spec.Offset;
+                        line_spec.Stride = shaded_spec.Stride;
+                        ImPlot::PlotLine("##FPSLinePlot", xs, ys, count, line_spec);
                     }
 
                     if (ImDrawList* const draw_list{ ImPlot::GetPlotDrawList() };
@@ -417,8 +413,8 @@ namespace triengine::gui
                     ImPlot::EndPlot();
                 }
 
-                ImPlot::PopStyleColor(4);
-                ImPlot::PopStyleVar(3);
+                ImPlot::PopStyleColor(2);
+                ImPlot::PopStyleVar(1);
             } // fps plot
 
             // right-click context menu

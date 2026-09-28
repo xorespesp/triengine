@@ -62,7 +62,7 @@ namespace triengine::gui
         bool render_window(std::shared_ptr<iwindow> window);
 
         void setup_imgui_style();
-        void setup_imgui_fonts(float scale_factor);
+        void setup_imgui_fonts();
         void setup_dock_space(
             ImGuiID main_dockspace_id,
             ImGuiViewport* viewport
