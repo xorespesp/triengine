@@ -2,7 +2,7 @@
 #include <triengine/math/math3d.hh>
 #include <triengine/io/file_bvh_loader.hh>
 #include <triengine/geometry/skeleton_object.hh>
-#include <triengine/gui/widgets/file_browser_widget.hh>
+#include <triengine/gui/widgets/file_browser_dialog.hh>
 #include <triengine/gui/iwindow.hh>
 #include <triengine/scene.hh>
 
@@ -47,15 +47,20 @@ namespace demo
             bool fl_rebuild_skeleton{ true }; // hierarchy/appearance changed -> recreate skeleton
             bool fl_pose_dirty{ false }; // only the pose changed -> in-place skeleton pose update
 
+            bool fl_visualize_joint_names{ false };
+            triengine::color3_f32 joint_label_color{ 0.0f, 1.0f, 0.0f };
+            float joint_label_scale{ 0.1f };
+
             ui_state_t() = default;
         };
 
         ui_state_t _state;
-        triengine::gui::widgets::file_browser_widget _file_browser;
+        triengine::gui::widgets::file_browser_dialog _bvh_dialog{ "Load BVH" };
 
         std::shared_ptr<triengine::scene> _scene;
         std::shared_ptr<triengine::geometry::mesh_object> _origin_axis;
         std::shared_ptr<triengine::geometry::skeleton_object> _bvh_skeleton;
+        std::vector<std::shared_ptr<triengine::text_3d_object>> _joint_labels;
 
     public:
         bvh_inspector_window(std::shared_ptr<triengine::scene> target_scene);
@@ -80,7 +85,16 @@ namespace demo
         void render(const triengine::gui::window_render_context& render_ctx) override;
 
     private:
+        // Replaces the current bvh data and resets the playback state.
+        void _load_bvh(const std::filesystem::path& bvh_path);
+
         void _render_hierarchy_tree(triengine::io::bvh_joint_id_t bvh_jid);
+
+        void _clear_joint_labels();
+        void _update_joint_labels(
+            const triengine::io::bvh_file_t& bvh_file,
+            const triengine::io::bvh_motion_frame_t& bvh_frame
+        );
 
         // Builds a fresh skeleton object whose hierarchy and appearance come from the
         // current ui state; `ref_frame` provides the initial pose and bone lengths.

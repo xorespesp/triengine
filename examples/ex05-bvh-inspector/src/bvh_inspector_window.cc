@@ -28,6 +28,7 @@ namespace demo
         scn->get_render_config()->light_opts.bloom.strength = 0.05f;
         scn->get_render_config()->light_opts.hdr.exposure = 0.3f;
         scn->get_render_config()->inf_plane_opts.max_view_distance = 35.0f;
+        scn->get_render_config()->text_render_opts.depth_test_opts.enabled = false;
 
         {
             scn->get_render_config()->show_origin_xz_grid = true;
@@ -43,12 +44,9 @@ namespace demo
         _origin_axis = geometry::mesh_object::create_coordinate_frame(0.5f);
         scn->add_geometry(_origin_axis);
 
-        _file_browser.register_file_filters({ "*.bvh", "*.*" });
-        _file_browser.set_active_file_filter(0);
-        _file_browser.set_max_visible_items(25);
-
         const std::filesystem::path curr_image_dir_path{ _XUTL string::get_current_module_image_path().parent_path() };
-        _file_browser.set_cwd(curr_image_dir_path);
+        _bvh_dialog.get_browser().register_file_filters({ "*.bvh", "*.*" });
+        _bvh_dialog.get_browser().set_cwd(curr_image_dir_path);
     }
 
     const char* bvh_inspector_window::get_window_name() const {
@@ -154,6 +152,12 @@ namespace demo
                 }
 
                 this->get_scene()->add_geometry(_bvh_skeleton);
+
+                this->_update_joint_labels(bvh_data, bvh_data.frames[_state.current_frame_index]);
+            }
+            else
+            {
+                this->_clear_joint_labels();
             }
 
             _state.fl_rebuild_skeleton = false;
@@ -166,6 +170,10 @@ namespace demo
             _bvh_skeleton->set_pose(
                 this->_make_skeleton_pose(bvh_data.frames[_state.current_frame_index])
             );
+
+            // Joint name labels track the pose, so refresh them too.
+            this->_update_joint_labels(bvh_data, bvh_data.frames[_state.current_frame_index]);
+
             _state.fl_pose_dirty = false;
         }
     }
@@ -173,6 +181,10 @@ namespace demo
     void bvh_inspector_window::render(
         [[maybe_unused]] const gui::window_render_context& render_ctx)
     {
+        if (_bvh_dialog.show()) {
+            this->_load_bvh(_bvh_dialog.get_browser().get_selected_path());
+        }
+
         if (this->is_loaded())
         {
             const io::bvh_file_t& bvh_data = *_state.bvh_data;
@@ -283,6 +295,22 @@ namespace demo
                     _state.fl_rebuild_skeleton = true;
                 }
 
+                ImGui::Separator();
+
+                if (ImGui::Checkbox("Show Joint Names", &_state.fl_visualize_joint_names)) {
+                    _state.fl_rebuild_skeleton = true;
+                }
+
+                if (_state.fl_visualize_joint_names) {
+                    if (ImGui::ColorEdit3("Joint Label Color", _state.joint_label_color.data(), ImGuiColorEditFlags_NoAlpha)) {
+                        _state.fl_rebuild_skeleton = true;
+                    }
+
+                    if (ImGui::DragFloat("Joint Label Scale", &_state.joint_label_scale, 0.01f, 0.05f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp)) {
+                        _state.fl_rebuild_skeleton = true;
+                    }
+                }
+
                 ImGui::Unindent();
             }
 
@@ -358,35 +386,86 @@ namespace demo
         }
         else //if (!_state.bvh_data)
         {
-            ImGui::Text("Select BVH file to play...");
-
-            if (_file_browser.show())
-            {
-                _state.bvh_data = std::make_unique<io::bvh_file_t>();
-                if (!io::load_skeleton_from_bvh(
-                    _file_browser.get_selected_path(),
-                    *_state.bvh_data
-                )) {
-                    XUTL_PANIC("failed to load skeletons from bvh file");
-                }
-
-                // Build(rebuild) hierarchy cache
-                _state.hierarchy_map_cache.clear();
-                for (const auto [child_bvh_jid, parent_bvh_jid] : _state.bvh_data->joints_parent_map) {
-                    if (child_bvh_jid == parent_bvh_jid) { continue; }
-                    _state.hierarchy_map_cache[parent_bvh_jid].push_back(child_bvh_jid);
-                }
-
-                //Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
-                //R = Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
-                //    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
-                //    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
-                //Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
-                //Tr.block<3, 3>(0, 0) = R;
-                //_state.offset_transform = Tr;
-
-                _state.fl_rebuild_skeleton = true;
+            if (ImGui::Button("Load BVH...")) {
+                _bvh_dialog.open();
             }
+        }
+    }
+
+    void bvh_inspector_window::_load_bvh(const std::filesystem::path& bvh_path)
+    {
+        auto bvh_data = std::make_unique<io::bvh_file_t>();
+        if (!io::load_skeleton_from_bvh(bvh_path, *bvh_data)) {
+            XUTL_PANIC("failed to load skeletons from bvh file");
+        }
+        _state.bvh_data = std::move(bvh_data);
+
+        // Frame index and joint selection belong to the previous file.
+        _state.current_frame_index = 0;
+        _state.selected_joint_id.reset();
+        _state.playback_state = playback_state_type::paused;
+
+        // Build(rebuild) hierarchy cache
+        _state.hierarchy_map_cache.clear();
+        for (const auto [child_bvh_jid, parent_bvh_jid] : _state.bvh_data->joints_parent_map) {
+            if (child_bvh_jid == parent_bvh_jid) { continue; }
+            _state.hierarchy_map_cache[parent_bvh_jid].push_back(child_bvh_jid);
+        }
+
+        //Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
+        //R = Eigen::AngleAxisf(math::deg2rad(180.0f), Eigen::Vector3f::UnitZ())
+        //    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitY())
+        //    * Eigen::AngleAxisf(math::deg2rad(0.0f), Eigen::Vector3f::UnitX());
+        //Eigen::Matrix4f Tr{ Eigen::Matrix4f::Identity() };
+        //Tr.block<3, 3>(0, 0) = R;
+        //_state.offset_transform = Tr;
+
+        _state.fl_rebuild_skeleton = true;
+    }
+
+    void bvh_inspector_window::_clear_joint_labels()
+    {
+        for (auto& label : _joint_labels) {
+            this->get_scene()->remove_label_3d(label->get_id());
+        }
+        _joint_labels.clear();
+    }
+
+    void bvh_inspector_window::_update_joint_labels(
+        const io::bvh_file_t& bvh_file,
+        const io::bvh_motion_frame_t& bvh_frame)
+    {
+        this->_clear_joint_labels();
+
+        if (!_state.fl_visualize_joint_names) {
+            return;
+        }
+
+        constexpr double kScaleCM2M = 0.01;
+
+        for (const auto& [bvh_jid, bvh_jdata] : bvh_frame.skeleton)
+        {
+            const io::bvh_joint_info_t& bvh_jinfo = bvh_file.joints[bvh_jid];
+
+            vec3_f32 world_pos = (bvh_jdata.world_position * kScaleCM2M).cast<float>().eval();
+            if (_state.offset_transform) {
+                vec4_f32 transformed = _state.offset_transform.value() * world_pos.homogeneous();
+                world_pos = transformed.head<3>();
+            }
+
+            const bool is_selected = _state.selected_joint_id.has_value() && _state.selected_joint_id.value() == bvh_jid;
+            const auto& label_color = is_selected ? _state.selected_joint_color : _state.joint_label_color;
+
+            auto label = this->get_scene()->add_label_3d(
+                bvh_jinfo.name,
+                world_pos,
+                _state.joint_label_scale,
+                label_color,
+                text_alignment_type::center,
+                true
+            );
+
+            _joint_labels.push_back(label);
         }
     }
 

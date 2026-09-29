@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -12,7 +13,8 @@
 
 namespace triengine::gui::widgets
 {
-    enum class file_browser_flags : uint32_t {
+    enum class file_browser_flags : uint32_t
+    {
         none                   = 0,
         select_on_single_click = 1 << 0, // single click sets the selected path (default: single click highlights, double click selects)
     };
@@ -42,11 +44,12 @@ namespace triengine::gui::widgets
 
         class file_item_t {
         public:
-            std::string display_name;
+            std::string display_name; // UTF-8 file name ("..": parent link)
             std::filesystem::path full_path;
             bool is_directory{ false };
             bool is_parent_link{ false }; // ".." entry
-            std::string size_text; // files only, e.g. "12.3 KB"
+            std::string size_text; // files only, e.g. "12.34 KB"
+            std::string modified_text; // local time, e.g. "2026/09/29 14:05:09"
 
             file_item_t(
                 std::string display_name_, 
@@ -79,7 +82,7 @@ namespace triengine::gui::widgets
         const std::filesystem::path& get_cwd() const noexcept { return _cwd_path; }
         void set_cwd(const std::filesystem::path& new_path);
 
-        void set_max_visible_items(size_t num_visible_items);
+        void set_max_visible_items(size_t num_visible_items); // 0: the list fills the remaining height
 
         // set file type filters. e.g: { "*.txt", "file?.txt", "file_*.txt" }
         // ("*.*" matches any file types)
@@ -98,6 +101,9 @@ namespace triengine::gui::widgets
     private:
         void _show_cwd_bar();
         bool _open_item(const file_item_t& item);
+        bool _open_typed_path();
+        void _set_highlight(const file_item_t& item);
+        std::filesystem::path _resolve_user_path(std::string_view text) const;
         void _change_cwd(std::filesystem::path new_dir_path);
         bool _test_file_filter(const std::filesystem::path& file_path) const;
 
@@ -114,6 +120,10 @@ namespace triengine::gui::widgets
         std::vector<std::filesystem::path> _root_dirs;
         std::filesystem::path _sel_path;
         std::filesystem::path _hl_path; // highlighted item, confirmed or not
+        std::filesystem::path _context_item_path; // item of the right-click menu
+        std::optional<std::string> _typed_name; // UTF-8, typed by the user; otherwise the input shows the highlighted file
+        std::vector<char> _file_name_buff; // ImGui buffer of the file name input
+        bool _file_name_active{ false }; // the input was being edited in the previous frame
 
         std::vector<file_item_t> _cwd_items;
         bool _cwd_items_scroll_reset{ false }; // scroll the list back to the top after the directory changes

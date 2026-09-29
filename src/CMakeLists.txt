@@ -40,6 +40,7 @@ set(TRIENGINE_LIBRARY_SOURCES
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/widgets/file_browser_widget.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/widgets/file_browser_dialog.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/log_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/frame_perf_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_ctrl_window.cc"
@@ -118,6 +119,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/dock_slot.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/widgets/file_browser_widget.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/widgets/file_browser_dialog.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/log_window.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/frame_perf_window.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/windows/scene_ctrl_window.hh"
