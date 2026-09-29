@@ -11,6 +11,7 @@
 #include <xutl/debug/assert.hh>
 
 #include <chrono>
+#include <optional>
 
 namespace demo::scene
 {

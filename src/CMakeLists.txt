@@ -39,6 +39,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/text_renderer.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/widgets/file_browser_widget.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/log_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/frame_perf_window.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/windows/scene_ctrl_window.cc"
@@ -136,6 +137,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/logger.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/preprocessor.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/enum_flags.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/color_map.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/hash_utils.hh"
@@ -354,7 +356,9 @@ target_link_libraries(${TRIENGINE_LIBRARY_NAME}
 if (WIN32)
     target_link_libraries(${TRIENGINE_LIBRARY_NAME}
         PRIVATE
-            winmm # for `timeBeginPeriod()`
+            winmm   # for `timeBeginPeriod()`
+            shell32 # for `SHGetKnownFolderPath()`
+            ole32   # for `CoTaskMemFree()`
     )
 endif()
 
