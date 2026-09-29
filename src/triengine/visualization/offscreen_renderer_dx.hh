@@ -99,6 +99,9 @@ namespace triengine::visualization
         // NOTE: MUST be called on the render thread that called `create()`.
         void destroy();
 
+        // Current frame-rate cap (0 == uncapped).
+        uint32_t get_max_fps() const noexcept;
+
         // Updates the frame-rate cap at runtime (0 disables it).
         //
         // NOTE: MUST be called on the render thread.

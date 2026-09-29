@@ -3,6 +3,7 @@
 #  include <timeapi.h>
 #endif
 #include "frame_limiter.hh"
+#include <triengine/global_options.hh>
 #include <algorithm>
 #include <system_error>
 #include <thread>
@@ -54,6 +55,12 @@ namespace triengine::utility
             _deadline = std::chrono::steady_clock::now() + _interval;
         }
         _max_fps = max_fps;
+
+        if (max_fps > 0) {
+            TRIENGINE_DEBUG("Frame rate cap set to %u FPS", max_fps);
+        } else {
+            TRIENGINE_DEBUG("Frame rate cap disabled");
+        }
     }
 
     void frame_limiter::wait()
