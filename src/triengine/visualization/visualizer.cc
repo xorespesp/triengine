@@ -39,7 +39,8 @@ namespace triengine::visualization
         utility::frame_limiter _frame_limiter;
         utility::frame_profiler _frame_profiler;
         // Registered in declaration order, which is the display order.
-        const utility::frame_profiler::stage_id_t _render_stage{ _frame_profiler.register_stage(profiling_stages::kRender) };
+        const utility::frame_profiler::stage_id_t _scene_render_stage{ _frame_profiler.register_stage(profiling_stages::kSceneRender) };
+        const utility::frame_profiler::stage_id_t _present_stage{ _frame_profiler.register_stage(profiling_stages::kPresent) };
         const utility::frame_profiler::stage_id_t _swap_stage{ _frame_profiler.register_stage(profiling_stages::kSwap) };
         const utility::frame_profiler::stage_id_t _limiter_stage{ _frame_profiler.register_stage(profiling_stages::kLimiter) };
         const utility::frame_profiler::stage_id_t _events_stage{ _frame_profiler.register_stage(profiling_stages::kEvents) };
@@ -264,48 +265,53 @@ namespace triengine::visualization
 
     void visualizer::render()
     {
-        utility::frame_profiler::scoped_stage_timer render_scope(_imp->_frame_profiler, _imp->_render_stage);
-        const std::shared_ptr<scene> curr_scn = _imp->_scenes.current();
-        if (!curr_scn) {
-            TRIENGINE_PANIC("No scenes added");
-        }
-
-        // Calculate frame delta time
-        const double curr_frame_time = ::glfwGetTime();
-        _imp->_frame_time_delta = curr_frame_time - _imp->_last_frame_time;
-        _imp->_last_frame_time = curr_frame_time;
-        const float frame_delta_f32 = static_cast<float>(_imp->_frame_time_delta);
-
-        const scene_render_target render_target = this->_begin_scene_frame();
-        _imp->_frame_size = render_target.frame_size;
-
-        // Render Scene (skipped while the frame has no area, e.g. minimized window)
-        if (render_target.frame_size.x() > 0 && render_target.frame_size.y() > 0)
         {
-            scene& target_scn = *curr_scn;
-            abstract_camera& target_scn_camera = *target_scn.get_camera();
-            target_scn_camera.set_viewport(view_port{ 0, 0, render_target.frame_size.x(), render_target.frame_size.y() });
-
-            // Process camera input
-            target_scn_camera.update_animation(frame_delta_f32);
-            if (_imp->_flag_camera_interaction && this->_is_scene_focused()) {
-                if (_imp->_glctx.get_key_state(GLFW_KEY_W) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::forward, frame_delta_f32); }
-                if (_imp->_glctx.get_key_state(GLFW_KEY_S) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::backward, frame_delta_f32); }
-                if (_imp->_glctx.get_key_state(GLFW_KEY_A) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::left, frame_delta_f32); }
-                if (_imp->_glctx.get_key_state(GLFW_KEY_D) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::right, frame_delta_f32); }
-                if (_imp->_glctx.get_key_state(GLFW_KEY_UP) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::up, frame_delta_f32); }
-                if (_imp->_glctx.get_key_state(GLFW_KEY_DOWN) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::down, frame_delta_f32); }
+            utility::frame_profiler::scoped_stage_timer scene_render_scope(_imp->_frame_profiler, _imp->_scene_render_stage);
+            const std::shared_ptr<scene> curr_scn = _imp->_scenes.current();
+            if (!curr_scn) {
+                TRIENGINE_PANIC("No scenes added");
             }
 
-            _imp->_scn_renderer.render(
-                render_target.fbo_id,
-                render_target.frame_size.x(),
-                render_target.frame_size.y(),
-                target_scn
-            );
-        }
+            // Calculate frame delta time
+            const double curr_frame_time = ::glfwGetTime();
+            _imp->_frame_time_delta = curr_frame_time - _imp->_last_frame_time;
+            _imp->_last_frame_time = curr_frame_time;
+            const float frame_delta_f32 = static_cast<float>(_imp->_frame_time_delta);
 
-        this->_end_scene_frame();
+            const scene_render_target render_target = this->_begin_scene_frame();
+            _imp->_frame_size = render_target.frame_size;
+
+            // Render Scene (skipped while the frame has no area, e.g. minimized window)
+            if (render_target.frame_size.x() > 0 && render_target.frame_size.y() > 0)
+            {
+                scene& target_scn = *curr_scn;
+                abstract_camera& target_scn_camera = *target_scn.get_camera();
+                target_scn_camera.set_viewport(view_port{ 0, 0, render_target.frame_size.x(), render_target.frame_size.y() });
+
+                // Process camera input
+                target_scn_camera.update_animation(frame_delta_f32);
+                if (_imp->_flag_camera_interaction && this->_is_scene_focused()) {
+                    if (_imp->_glctx.get_key_state(GLFW_KEY_W) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::forward, frame_delta_f32); }
+                    if (_imp->_glctx.get_key_state(GLFW_KEY_S) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::backward, frame_delta_f32); }
+                    if (_imp->_glctx.get_key_state(GLFW_KEY_A) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::left, frame_delta_f32); }
+                    if (_imp->_glctx.get_key_state(GLFW_KEY_D) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::right, frame_delta_f32); }
+                    if (_imp->_glctx.get_key_state(GLFW_KEY_UP) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::up, frame_delta_f32); }
+                    if (_imp->_glctx.get_key_state(GLFW_KEY_DOWN) == GLFW_PRESS) { target_scn_camera.process_keyboard_translation(camera_movement_type::down, frame_delta_f32); }
+                }
+
+                _imp->_scn_renderer.render(
+                    render_target.fbo_id,
+                    render_target.frame_size.x(),
+                    render_target.frame_size.y(),
+                    target_scn
+                );
+            }
+        }
+        {
+            utility::frame_profiler::scoped_stage_timer present_scope(_imp->_frame_profiler, _imp->_present_stage);
+            // NOTE: `_end_scene_frame()` is virtual; `visualizer_gui` overrides it to render the GUI, so that cost lands here.
+            this->_end_scene_frame();
+        }
     }
 
     bool visualizer::update_window()

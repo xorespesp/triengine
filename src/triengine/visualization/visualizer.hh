@@ -24,8 +24,10 @@ namespace triengine::visualization
         // Stages of the frame profiler, registered in loop order. The rest of a frame is app time.
         struct profiling_stages {
             using descriptor = utility::frame_profiler::stage_descriptor;
-            static constexpr descriptor kRender{ "Frame Render",
-                "CPU wall time in render(), including scene and GUI. Not GPU execution time." };
+            static constexpr descriptor kSceneRender{ "Scene Render",
+                "CPU wall time in render() for the scene. Not GPU execution time." };
+            static constexpr descriptor kPresent{ "Present",
+                "CPU wall time presenting the rendered scene to the window, including the GUI when there is one." };
             static constexpr descriptor kSwap{ "Swap",
                 "Buffer swap. Includes waiting for the GPU and for V-Sync, so a GPU-bound frame shows up here." };
             static constexpr descriptor kLimiter{ "Limiter",
