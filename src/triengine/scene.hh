@@ -11,6 +11,7 @@
 #include <triengine/geometry/skeleton_object.hh>
 #include <triengine/utility/noncopyable.hh>
 #include <triengine/core/gpu_resource_manager.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <optional>
 #include <unordered_map>

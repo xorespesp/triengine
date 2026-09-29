@@ -134,6 +134,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/bit_cast.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/spin_lock.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/logger.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/preprocessor.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/debug_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/gl_utils.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/utility/color_map.hh"

@@ -1,6 +1,7 @@
 #include "text_renderer.hh"
 
 #include <triengine/camera.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <fstream>
 #include <unordered_map>

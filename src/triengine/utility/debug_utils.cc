@@ -1,5 +1,6 @@
 #pragma once
 #include "debug_utils.hh"
+#include <triengine/common.h>
 
 #include <triengine/global_options.hh>
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <triengine/common.h>
 #include <triengine/math/math3d.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/noncopyable.hh>
 
 #include <string>

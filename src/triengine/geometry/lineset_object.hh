@@ -1,5 +1,6 @@
 #pragma once
 #include <triengine/geometry/geometry_object_base.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <vector>
 #include <memory>

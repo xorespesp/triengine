@@ -1,6 +1,6 @@
 #include "camera.hh"
 
-#include <triengine/utility/logger.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <algorithm>
 #include <optional>
 

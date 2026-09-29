@@ -4,6 +4,7 @@
 #include <optional>
 #include <fstream>
 #include <algorithm>
+#include <stdexcept>
 
 namespace triengine::core
 {

@@ -3,7 +3,7 @@
 #  include <timeapi.h>
 #endif
 #include "frame_limiter.hh"
-#include <triengine/global_options.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <algorithm>
 #include <system_error>
 #include <thread>

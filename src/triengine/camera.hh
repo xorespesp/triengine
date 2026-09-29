@@ -2,6 +2,7 @@
 #include <triengine/common.h>
 #include <triengine/math/constants.hh>
 #include <triengine/math/math3d.hh>
+#include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/string_format.hh>
 #include <triengine/utility/noncopyable.hh>
 

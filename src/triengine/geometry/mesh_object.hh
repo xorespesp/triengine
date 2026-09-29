@@ -1,6 +1,7 @@
 #pragma once
 #include <triengine/geometry/geometry_object_base.hh>
 #include <triengine/texture_params.hh>
+#include <triengine/utility/debug_utils.hh>
 
 #include <unordered_map>
 #include <vector>

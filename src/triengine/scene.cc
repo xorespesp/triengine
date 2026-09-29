@@ -1,4 +1,5 @@
 #include "scene.hh"
+#include <triengine/utility/debug_utils.hh>
 
 #include <atomic>
 

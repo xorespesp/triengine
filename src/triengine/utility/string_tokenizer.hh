@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 #include <set>
+#include <type_traits>
+#include <vector>
 
 namespace triengine::string
 {

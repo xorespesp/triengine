@@ -1,7 +1,6 @@
 #include "gl_context.hh"
 
 #include <triengine_generated/packed_shaders_data.h> // auto-generated header
-#include <triengine/utility/logger.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/singleton.hh>

@@ -12,7 +12,6 @@
 #include <triengine/utility/string_format.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/utility/gl_utils.hh>
-#include <triengine/utility/logger.hh>
 #include <triengine/utility/frame_limiter.hh>
 
 #include <iostream>

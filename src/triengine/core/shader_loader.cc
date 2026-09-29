@@ -1,5 +1,6 @@
 #include "shader_loader.hh"
 #include <unordered_map>
+#include <vector>
 #include <triengine/core/shader_preprocessor.hh>
 #include <triengine/utility/debug_utils.hh>
 #include <triengine/extern/miniz/miniz.h>

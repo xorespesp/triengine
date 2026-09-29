@@ -165,3 +165,5 @@ namespace triengine::utility
     };
 
 } // namespace
+
+#define _TRIENGINE_CURRENT_SOURCE_LOC() ::triengine::utility::source_loc{ __FILE__, __LINE__, __func__ }
