@@ -441,9 +441,7 @@ namespace triengine::gui
             window->on_pre_render(window_flags);
 
             if (ImGui::Begin(window->get_window_name(), &is_opened, window_flags)) {
-                window_render_context render_ctx;
-                render_ctx.dpi_scale = _dpi_scale_factor;
-                render_ctx.visualizer = _vis;
+                const window_render_context render_ctx{ _dpi_scale_factor, *_vis };
                 window->render(render_ctx);
             }
 

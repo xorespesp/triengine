@@ -595,7 +595,7 @@ namespace demo
         _init_screen2d_scene(screen2d_scene);
         _init_screen_overlay_scene(overlay_scene);
 
-        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>(_vis.get());
+        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>();
         _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
 
         _screen_ctrl_window = std::make_shared<screen_control_window>();

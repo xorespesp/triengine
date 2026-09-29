@@ -2,20 +2,13 @@
 #include <triengine/gui/iwindow.hh>
 #include <triengine/core/frame_buffer.hh>
 
-namespace triengine::visualization {
-    class visualizer; // forward declaration
-}
-
 namespace triengine::gui
 {
     class scene_control_window
         : public gui::iwindow
     {
-    private:
-        visualization::visualizer* _vis{ nullptr };
-
     public:
-        scene_control_window(visualization::visualizer* vis);
+        scene_control_window() = default;
         virtual ~scene_control_window() = default;
 
         const char* get_window_name() const override {

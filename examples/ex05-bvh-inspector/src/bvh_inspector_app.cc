@@ -32,7 +32,7 @@ namespace demo
         _frame_perf_window->set_visible(false);
         _vis->add_gui_window(_frame_perf_window);
 
-        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>(_vis.get());
+        _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>();
         _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
 
         auto scn = _vis->add_scene();

@@ -505,15 +505,11 @@ namespace triengine::gui
 
     void frame_perf_window::render(const window_render_context& render_ctx)
     {
-        auto* vis = render_ctx.visualizer;
-        if (!vis) {
-            ImGui::TextDisabled("Register this window with a visualizer to access frame controls.");
-            return;
-        }
-        this->_render_controls(*vis);
+        auto& vis = render_ctx.vis;
+        this->_render_controls(vis);
         if (!ImGui::CollapsingHeader("Profiling", ImGuiTreeNodeFlags_DefaultOpen)) { return; }
 
-        auto& profiler = vis->get_frame_profiler();
+        auto& profiler = vis.get_frame_profiler();
         bool measuring = profiler.is_enabled();
         if (ImGui::Checkbox("Enable profiling", &measuring)) {
             profiler.request_enabled(measuring);
@@ -547,8 +543,8 @@ namespace triengine::gui
         }
         ImGui::SeparatorText("Statistics");
         this->_render_statistics();
-        this->_render_fps_plot(render_ctx.dpi_scale, vis->get_max_fps());
-        this->_render_frame_time(profiler, render_ctx.dpi_scale, vis->get_max_fps());
+        this->_render_fps_plot(render_ctx.dpi_scale, vis.get_max_fps());
+        this->_render_frame_time(profiler, render_ctx.dpi_scale, vis.get_max_fps());
         ImGui::TextDisabled("CPU wall time only; GPU execution time is not measured.");
     }
 
