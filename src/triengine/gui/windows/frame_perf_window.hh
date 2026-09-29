@@ -96,7 +96,6 @@ namespace triengine::gui
         const char* get_window_name() const override { return "Frame Performance"; }
         ImVec2 get_initial_window_size() const override { return { 620.0f, 800.0f }; }
         void render(const window_render_context& render_ctx) override;
-        void on_added(visualization::visualizer& vis) override;
 
     private:
         void _refresh_samples(const utility::frame_profiler& profiler);

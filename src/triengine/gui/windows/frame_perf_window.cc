@@ -548,15 +548,4 @@ namespace triengine::gui
         ImGui::TextDisabled("CPU wall time only; GPU execution time is not measured.");
     }
 
-    void frame_perf_window::on_added(visualization::visualizer& vis)
-    {
-        _next_refresh_time = 0.0;
-        _samples.clear();
-        _statistics = {};
-        _fps_axis_needs_fit = true;
-        const auto fps_cap = vis.get_max_fps();
-        _remembered_fps_cap = fps_cap ? fps_cap : visualization::visualizer::kDefaultMaxFps;
-        vis.get_frame_profiler().request_enabled(true);
-    }
-
 }

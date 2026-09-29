@@ -319,7 +319,6 @@ namespace triengine::gui
         if (!new_window) {
             TRIENGINE_PANIC("Cannot add a null GUI window");
         }
-        new_window->on_added(*_vis);
         _windows.push_back({ std::move(new_window), slot });
     }
 

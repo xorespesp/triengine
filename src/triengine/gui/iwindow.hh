@@ -52,8 +52,6 @@ namespace triengine::gui
         // Draw widgets to fill your window (ImGui::Begin()/ImGui::End() will be called for you).
         virtual void render(const window_render_context& /*render_ctx*/) = 0;
 
-        // NOTE: `vis` is borrowed for this call only; do not store it.
-        virtual void on_added(visualization::visualizer& /*vis*/) {}
         virtual void on_pre_render(ImGuiWindowFlags& /*window_flags*/) {}
         virtual void on_post_render() {}
     };

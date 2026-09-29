@@ -176,6 +176,7 @@ namespace demo
         _frame_perf_window = std::make_shared<triengine::gui::frame_perf_window>();
         _frame_perf_window->set_visible(false);
         _vis->add_gui_window(_frame_perf_window);
+        _vis->get_frame_profiler().request_enabled(true); // auto-collect from startup, even while the window is hidden
 
         _scene_ctrl_window = std::make_shared<triengine::gui::scene_control_window>();
         _vis->add_gui_window(_scene_ctrl_window, triengine::gui::dock_slot::left);
