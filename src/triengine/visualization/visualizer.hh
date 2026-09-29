@@ -1,18 +1,17 @@
 #pragma once
 #include <triengine/common.h>
-#include <triengine/core/frame_buffer.hh>
-#include <triengine/core/gl_context.hh>
-#include <triengine/core/scene_renderer.hh>
+#include <triengine/scene.hh>
+#include <triengine/core/graphics_device_info.hh>
 #include <triengine/utility/noncopyable.hh>
 #include <triengine/utility/frame_profiler.hh>
-#include <triengine/utility/frame_limiter.hh>
 
 #include <functional>
-#include <list>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
+
+// forward declaration
+namespace triengine::core { class gl_context; }
 
 namespace triengine::visualization
 {
@@ -46,7 +45,7 @@ namespace triengine::visualization
 
     public:
         visualizer();
-        virtual ~visualizer() = default;
+        virtual ~visualizer();
 
         // `nullptr` until `create_window()` has initialized the context.
         const core::graphics_device_info* get_graphics_device_info() const noexcept;
@@ -68,8 +67,8 @@ namespace triengine::visualization
 
         // Whether the user can move the camera with the mouse and keyboard.
         // Programmatic camera control and the input callbacks above are not affected.
-        bool is_camera_interaction_enabled() const noexcept { return _flag_camera_interaction; }
-        void enable_camera_interaction(bool enable) noexcept { _flag_camera_interaction = enable; }
+        bool is_camera_interaction_enabled() const noexcept;
+        void enable_camera_interaction(bool enable) noexcept;
 
         void create_window(
             const std::string& window_name,
@@ -89,8 +88,8 @@ namespace triengine::visualization
         void set_vsync_enabled(bool enabled);
 
         // NOTE: Render-thread access only; the profiler is thread-unsafe.
-        const utility::frame_profiler& get_frame_profiler() const noexcept { return _frame_profiler; }
-        utility::frame_profiler& get_frame_profiler() noexcept { return _frame_profiler; }
+        const utility::frame_profiler& get_frame_profiler() const noexcept;
+        utility::frame_profiler& get_frame_profiler() noexcept;
 
         void close_window();
 
@@ -120,7 +119,7 @@ namespace triengine::visualization
         // Framebuffer the current scene is rendered into.
         struct scene_render_target
         {
-            GLuint fbo_id{ 0 };
+            unsigned int fbo_id{ 0 };
             vec2_i32 frame_size{ 0, 0 };
         };
 
@@ -175,43 +174,8 @@ namespace triengine::visualization
         void _handle_dpi_change_event(vec2_f32 dpi_scale);
 
     private:
-        bool _flag_initialized{ false };
-        bool _flag_camera_interaction{ true };
-
-        close_callback_type _cb_close;
-        key_callback_type _cb_key;
-        mouse_button_callback_type _cb_mouse_button;
-        mouse_move_callback_type _cb_mouse_move;
-        mouse_scroll_callback_type _cb_mouse_scroll;
-        dpi_change_callback_type _cb_dpi_change;
-
-        core::gl_context _glctx;
-        core::scene_renderer _scn_renderer;
-
-        // The scene is rendered into this offscreen buffer and then blitted to the window backbuffer;
-        core::frame_buffer _scene_fb;
-
-        std::list<std::shared_ptr<scene>> _scn_list;
-        std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
-        std::unordered_map<
-            scene_id_t,
-            std::list<std::shared_ptr<scene>>::iterator
-        > _scn_id_map;
-
-        vec2_i32 _frame_size{ 0, 0 }; // frame size of the last render
-
-        utility::frame_limiter _frame_limiter;
-        utility::frame_profiler _frame_profiler;
-        // Registered in declaration order, which is the display order.
-        const utility::frame_profiler::stage_id_t _render_stage{ _frame_profiler.register_stage(profiling_stages::kRender) };
-        const utility::frame_profiler::stage_id_t _swap_stage{ _frame_profiler.register_stage(profiling_stages::kSwap) };
-        const utility::frame_profiler::stage_id_t _limiter_stage{ _frame_profiler.register_stage(profiling_stages::kLimiter) };
-        const utility::frame_profiler::stage_id_t _events_stage{ _frame_profiler.register_stage(profiling_stages::kEvents) };
-
-        // frame time calculation
-        double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
-
-        std::optional<vec2_f32> _begin_click_cursor_screen_pos;
+        struct impl;
+        std::unique_ptr<impl> _imp;
 
     }; // class
 

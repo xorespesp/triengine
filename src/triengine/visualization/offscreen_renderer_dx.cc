@@ -1,4 +1,7 @@
 #include "offscreen_renderer_dx.hh"
+#include <triengine/scene_list.hh>
+#include <triengine/core/gl_context.hh>
+#include <triengine/core/scene_renderer.hh>
 
 #include <d3dcompiler.h>
 #pragma comment(lib, "d3d11.lib")
@@ -11,6 +14,7 @@
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/utility/logger.hh>
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 
@@ -49,75 +53,47 @@ namespace triengine::visualization
 
     } // namespace
 
-    offscreen_renderer_dx::offscreen_renderer_dx()
+    struct offscreen_renderer_dx::impl
     {
-        // Window half (GLFW main thread): create the hidden window and its GL context
-        // now. GL and the DX interop pipeline are built later by `create()` on the
-        // render thread. The window is only a carrier for the GL context; output
-        // goes to a D3D11 shared surface sized by `create()`/`resize_frame()`, so a
-        // 1x1 placeholder window is enough here and the real size is committed
-        // later.
-        _glctx.create_window(
-            "",
-            false, // hidden window: offscreen output only
-            1, 1,  // placeholder size; the render target is sized by `create()`
-            false  // not fullscreen
-        );
-    }
+        bool is_created{ false };
+        vec2_i32 curr_frame_size{};
 
-    offscreen_renderer_dx::~offscreen_renderer_dx()
-    {
-        // `destroy()` must run on the render thread before this object is destroyed;
-        // the destructor (GLFW main thread) cannot tear down the GL/DX pipeline safely.
-        // A failure here means `destroy()` was skipped, leaving the GL context and
-        // DX interop to be released in a disorderly way (see the class threading
-        // contract).
-        TRIENGINE_ASSERT(!_is_created);
-        _glctx.destroy_window();
-    }
+        // DX Resources
+        Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter; // Target DXGI Adapter for OpenGL Interop
+        Microsoft::WRL::ComPtr<ID3D11Device2> dx11_device2;
+        Microsoft::WRL::ComPtr<ID3D11DeviceContext2> dx11_device_context2;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> dx11_interop_color_tex; // Shared texture for OpenGL Interop (RGBA format)
+        shared_win32_handle dx11_interop_color_tex_handle; // Shared texture NT Handle for OpenGL Interop texture
 
-    const core::graphics_device_info* offscreen_renderer_dx::get_graphics_device_info() const noexcept
-    {
-        return _glctx.get_device_info();
-    }
+        // GL Resources
+        core::gl_context glctx;
+        GLuint gl_fbo{}; // Main FBO
+        GLuint gl_interop_color_tex{}; // OpenGL - DirectX11 interop texture (shared texture, RGBA format)
+        GLuint gl_interop_color_tex_mem_object{}; // GL EXT_external_objects variables
+        core::scene_renderer scn_renderer;
+        scene_list scenes;
 
-    Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_dxgi_adapter() const noexcept
-    {
-        TRIENGINE_ASSERT(_is_created);
-        TRIENGINE_ASSERT(_dxgi_adapter != nullptr);
-        return _dxgi_adapter;
-    }
+        // frame time calculation
+        double frame_time_delta{ 0.0 }, last_frame_time{ 0.0 };
 
-    Microsoft::WRL::ComPtr<ID3D11Device2> offscreen_renderer_dx::get_dx11_device() const noexcept
-    {
-        TRIENGINE_ASSERT(_is_created);
-        TRIENGINE_ASSERT(_dx11_device2 != nullptr);
-        return _dx11_device2;
-    }
+        // frame rate cap (software pacing; offscreen has no display vblank)
+        std::chrono::nanoseconds target_frame_interval{ 0 }; // 0 == uncapped
+        std::chrono::steady_clock::time_point next_frame_deadline{};
+        shared_win32_handle frame_timer; // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION handle
 
-    Microsoft::WRL::ComPtr<ID3D11DeviceContext2> offscreen_renderer_dx::get_dx11_device_context() const noexcept
-    {
-        TRIENGINE_ASSERT(_is_created);
-        TRIENGINE_ASSERT(_dx11_device_context2 != nullptr);
-        return _dx11_device_context2;
-    }
+    public:
+        void create(vec2_i32 initial_frame_size, uint32_t max_fps);
+        void destroy();
+        bool render(uint64_t mutex_key);
 
-    vec2_i32 offscreen_renderer_dx::get_frame_size() const noexcept
-    {
-        TRIENGINE_ASSERT(_is_created);
-        return _curr_frame_size;
-    }
+        void rebuild_frame_resources(vec2_i32 new_frame_size);
+        void apply_frame_rate_cap(uint32_t max_fps);
+        void throttle_frame_rate();
+    };
 
-    shared_win32_handle offscreen_renderer_dx::get_surface_handle() const
+    void offscreen_renderer_dx::impl::create(const vec2_i32 initial_frame_size, const uint32_t max_fps)
     {
-        TRIENGINE_ASSERT(_is_created);
-        TRIENGINE_ASSERT(_dx11_interop_color_tex_handle != nullptr);
-        return _dx11_interop_color_tex_handle;
-    }
-
-    void offscreen_renderer_dx::create(const vec2_i32 initial_frame_size, const uint32_t max_fps)
-    {
-        if (_is_created) {
+        if (is_created) {
             TRIENGINE_PANIC("offscreen_renderer_dx::create() called again without a matching destroy()");
         }
 
@@ -132,7 +108,7 @@ namespace triengine::visualization
 
         // Context half (render thread):
         // make the context current and load GL on this thread.
-        _glctx.init_context();
+        glctx.init_context();
 
         TRIENGINE_DEBUG("Checking OpenGL compatibility...");
 
@@ -288,7 +264,7 @@ namespace triengine::visualization
             }
         }
 
-        _dxgi_adapter = selected_adapter0;
+        dxgi_adapter = selected_adapter0;
 
         ComPtr<ID3D11Device> dx11_device0;
         ComPtr<ID3D11DeviceContext> dx11_device_context0;
@@ -314,218 +290,104 @@ namespace triengine::visualization
         }
 
         // Convert `ID3D11Device` -> `ID3D11Device2` (Higher version object)
-        ASSERT_HR(dx11_device0.As(&_dx11_device2));
+        ASSERT_HR(dx11_device0.As(&dx11_device2));
 
         // Convert `ID3D11DeviceContext` -> `ID3D11DeviceContext2` (Higher version object)
-        ASSERT_HR(dx11_device_context0.As(&_dx11_device_context2));
+        ASSERT_HR(dx11_device_context0.As(&dx11_device_context2));
 
-        if (!_dx11_device2) {
+        if (!dx11_device2) {
             TRIENGINE_PANIC("Failed to create DX11 device2");
         }
 
-        if (!_dx11_device_context2) {
+        if (!dx11_device_context2) {
             TRIENGINE_PANIC("Failed to create DX11 device context2");
         }
 
         // Create FBO
-        ::glCreateFramebuffers(1, &_gl_fbo);
+        ::glCreateFramebuffers(1, &gl_fbo);
 
-        _glctx.set_frame_resize_callback(std::bind(&offscreen_renderer_dx::_resize_frame, this,
-            std::placeholders::_1));
+        glctx.set_frame_resize_callback([this](const vec2_i32 new_frame_size) {
+            this->rebuild_frame_resources(new_frame_size);
+        });
 
         // Initial resize: create the shared color surface + GL/DX interop at the
         // requested render target size.
-        this->_resize_frame(initial_frame_size);
+        this->rebuild_frame_resources(initial_frame_size);
 
-        _scn_renderer.create(&_glctx);
+        scn_renderer.create(&glctx);
 
         // Configure the optional software frame-rate cap (0 == uncapped).
-        this->_apply_frame_rate_cap(max_fps);
+        this->apply_frame_rate_cap(max_fps);
 
         TRIENGINE_TRACE("%s() LEAVE", __func__);
-        _is_created = true;
+        is_created = true;
     }
 
-    void offscreen_renderer_dx::change_max_fps(const uint32_t max_fps)
+    void offscreen_renderer_dx::impl::destroy()
     {
-        TRIENGINE_ASSERT(_is_created);
-        this->_apply_frame_rate_cap(max_fps);
-    }
-
-    void offscreen_renderer_dx::destroy()
-    {
-        if (_is_created)
+        if (is_created)
         {
-            _is_created = false;
+            is_created = false;
 
             // Clear D3D11 device context state if available
-            if (_dx11_device_context2) {
-                _dx11_device_context2->ClearState();
-                _dx11_device_context2->Flush();
+            if (dx11_device_context2) {
+                dx11_device_context2->ClearState();
+                dx11_device_context2->Flush();
             }
 
             // Clean up EXT_external_objects resources first
-            if (_gl_interop_color_tex_mem_object) {
-                ::glDeleteMemoryObjectsEXT(1, &_gl_interop_color_tex_mem_object);
-                _gl_interop_color_tex_mem_object = 0;
+            if (gl_interop_color_tex_mem_object) {
+                ::glDeleteMemoryObjectsEXT(1, &gl_interop_color_tex_mem_object);
+                gl_interop_color_tex_mem_object = 0;
             }
 
             // Clean up shared texture handle
-            _dx11_interop_color_tex_handle.reset();
+            dx11_interop_color_tex_handle.reset();
 
             // Clean up OpenGL resources
-            if (_gl_fbo) {
-                ::glDeleteFramebuffers(1, &_gl_fbo);
-                _gl_fbo = 0;
+            if (gl_fbo) {
+                ::glDeleteFramebuffers(1, &gl_fbo);
+                gl_fbo = 0;
             }
 
-            if (_gl_interop_color_tex) {
-                ::glDeleteTextures(1, &_gl_interop_color_tex);
-                _gl_interop_color_tex = 0;
+            if (gl_interop_color_tex) {
+                ::glDeleteTextures(1, &gl_interop_color_tex);
+                gl_interop_color_tex = 0;
             }
 
             // Clean up D3D11 resources (COM objects will auto-release)
-            _dx11_interop_color_tex.Reset();
-            _dx11_device_context2.Reset();
-            _dx11_device2.Reset();
-            _dxgi_adapter.Reset();
+            dx11_interop_color_tex.Reset();
+            dx11_device_context2.Reset();
+            dx11_device2.Reset();
+            dxgi_adapter.Reset();
 
-            _scn_renderer.destroy();
-            _glctx.reset_context();
+            scn_renderer.destroy();
+            glctx.reset_context();
 
             // Release the frame-pacing timer and disable the cap
-            _frame_timer.reset();
-            _target_frame_interval = std::chrono::nanoseconds(0);
+            frame_timer.reset();
+            target_frame_interval = std::chrono::nanoseconds(0);
         }
     }
 
-    std::shared_ptr<scene> offscreen_renderer_dx::add_scene()
+    bool offscreen_renderer_dx::impl::render(const uint64_t mutex_key)
     {
-        auto new_scn = std::make_shared<scene>(_glctx.get_gpu_resource_manager());
-        if (_scn_id_map.count(new_scn->get_id())) {
-            TRIENGINE_PANIC("Failed to add scene (id #%X already exists)", new_scn->get_id());
-        }
+        TRIENGINE_ASSERT(is_created);
 
-        const bool is_first{ _scn_list.empty() };
-
-        _scn_list.push_back(new_scn);
-        _scn_id_map[new_scn->get_id()] = std::prev(_scn_list.end());
-
-        if (is_first) {
-            _curr_scn_it = std::prev(_scn_list.end());
-        }
-
-        return new_scn;
-    }
-
-    void offscreen_renderer_dx::remove_scene(scene_id_t scn_id)
-    {
-        auto map_it = _scn_id_map.find(scn_id);
-        if (map_it != _scn_id_map.end()) {
-            // erase invalidates iterator, so we must check it before the erase.
-            const bool removing_curr_scn = (_curr_scn_it == map_it->second);
-            _scn_list.erase(map_it->second);
-            _scn_id_map.erase(map_it);
-            if (removing_curr_scn) {
-                _curr_scn_it = _scn_id_map.empty()
-                    ? _scn_list.end()
-                    : _scn_list.begin();
-            }
-        } else {
-            TRIENGINE_WARN("Failed to remove scene #%X (not found)", scn_id);
-        }
-    }
-
-    void offscreen_renderer_dx::switch_scene(scene_id_t scn_id)
-    {
-        auto map_it = _scn_id_map.find(scn_id);
-        if (map_it == _scn_id_map.end()) {
-            TRIENGINE_PANIC("Failed to change scene (invalid scene id #%X)", scn_id);
-        }
-        _curr_scn_it = map_it->second;
-    }
-
-    void offscreen_renderer_dx::switch_to_previous_scene()
-    {
-        if (_curr_scn_it != _scn_list.end()) {
-            _curr_scn_it = std::prev((_curr_scn_it != _scn_list.begin())
-                ? _curr_scn_it
-                : _scn_list.end()
-            );
-        }
-    }
-
-    void offscreen_renderer_dx::switch_to_next_scene()
-    {
-        if (_curr_scn_it != _scn_list.end()) {
-            const auto next_it = std::next(_curr_scn_it);
-            _curr_scn_it = (next_it != _scn_list.end())
-                ? next_it
-                : _scn_list.begin();
-        }
-    }
-
-    std::shared_ptr<const scene> offscreen_renderer_dx::find_scene(scene_id_t scn_id) const
-    {
-        auto map_it = _scn_id_map.find(scn_id);
-        return (map_it != _scn_id_map.end())
-            ? *(map_it->second)
-            : nullptr;
-    }
-
-    std::shared_ptr<scene> offscreen_renderer_dx::find_scene(scene_id_t scn_id)
-    {
-        auto map_it = _scn_id_map.find(scn_id);
-        return (map_it != _scn_id_map.end())
-            ? *(map_it->second)
-            : nullptr;
-    }
-
-    std::shared_ptr<const scene> offscreen_renderer_dx::get_current_scene() const
-    {
-        return (_curr_scn_it != _scn_list.end())
-            ? *_curr_scn_it
-            : nullptr;
-    }
-
-    std::shared_ptr<scene> offscreen_renderer_dx::get_current_scene()
-    {
-        return (_curr_scn_it != _scn_list.end())
-            ? *_curr_scn_it
-            : nullptr;
-    }
-
-    shared_win32_handle offscreen_renderer_dx::resize_frame(const vec2_i32 new_frame_size)
-    {
-        TRIENGINE_ASSERT(_is_created);
-        TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
-
-        ::glfwSetWindowSize(
-            _glctx.get_glfw_window(),
-            new_frame_size.x(),
-            new_frame_size.y()
-        );
-
-        return _dx11_interop_color_tex_handle;
-    }
-
-    bool offscreen_renderer_dx::render(const uint64_t mutex_key)
-    {
-        TRIENGINE_ASSERT(_is_created);
-
-        if (_curr_scn_it == _scn_list.end()) {
+        const std::shared_ptr<scene> curr_scn = scenes.current();
+        if (!curr_scn) {
             TRIENGINE_PANIC("No scenes added");
         }
 
         // Calculate frame delta time
         const double curr_frame_time = ::glfwGetTime();
-        _frame_time_delta = curr_frame_time - _last_frame_time;
-        _last_frame_time = curr_frame_time;
-        const float frame_delta_f32 = static_cast<float>(_frame_time_delta);
+        frame_time_delta = curr_frame_time - last_frame_time;
+        last_frame_time = curr_frame_time;
+        const float frame_delta_f32 = static_cast<float>(frame_time_delta);
 
-        scene& target_scn = *(_curr_scn_it->get());
+        scene& target_scn = *curr_scn;
         abstract_camera& target_scn_camera = *target_scn.get_camera();
-        target_scn_camera.set_viewport(view_port{ 0, 0, _curr_frame_size.x(), _curr_frame_size.y() });
+        target_scn_camera.set_viewport(view_port{ 0, 0, curr_frame_size.x(), curr_frame_size.y() });
 
         // Process camera input
         target_scn_camera.update_animation(frame_delta_f32);
@@ -537,7 +399,7 @@ namespace triengine::visualization
         // No error is generated if the operation failed because it timed out.
         constexpr uint32_t mutex_wait_timeout = UINT32_MAX; // Wait infinitely for the mutex to become available
         if (const GLboolean mutex_acquired = ::glAcquireKeyedMutexWin32EXT(
-            _gl_interop_color_tex_mem_object, // GLuint64 handle
+            gl_interop_color_tex_mem_object, // GLuint64 handle
             mutex_key, // Key
             mutex_wait_timeout// GLuint64 timeout
         ); !mutex_acquired) {
@@ -555,10 +417,10 @@ namespace triengine::visualization
         }
 
         // Render scene directly to the shared interop texture
-        _scn_renderer.render(
-            _gl_fbo,
-            _curr_frame_size.x(),
-            _curr_frame_size.y(),
+        scn_renderer.render(
+            gl_fbo,
+            curr_frame_size.x(),
+            curr_frame_size.y(),
             target_scn
         );
 
@@ -566,7 +428,7 @@ namespace triengine::visualization
         // TRUE is returned if the release operation succeeded.
         // FALSE is returned if the release operation failed.
         if (const GLboolean mutex_released = ::glReleaseKeyedMutexWin32EXT(
-            _gl_interop_color_tex_mem_object,
+            gl_interop_color_tex_mem_object,
             mutex_key
         ); !mutex_released) {
             // Failed to release the mutex
@@ -577,26 +439,26 @@ namespace triengine::visualization
             return false;
         }
 
-        _glctx.swap_buffers();
-        _glctx.poll_window_events();
+        glctx.swap_buffers();
+        glctx.poll_window_events();
 
         // Throttle the present to the configured frame-rate cap (no-op if uncapped)
-        if (_target_frame_interval.count() > 0) {
-            this->_throttle_frame_rate();
+        if (target_frame_interval.count() > 0) {
+            this->throttle_frame_rate();
         }
 
         return true;
     }
 
-    void offscreen_renderer_dx::_resize_frame(const vec2_i32 new_frame_size)
+    void offscreen_renderer_dx::impl::rebuild_frame_resources(const vec2_i32 new_frame_size)
     {
         TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
 
-        if (_is_created && _curr_frame_size == new_frame_size) {
+        if (is_created && curr_frame_size == new_frame_size) {
             return; // No need to resize if the size is the same
         }
 
-        _curr_frame_size = new_frame_size;
+        curr_frame_size = new_frame_size;
 
         // Recreate dx11 interop color texture
         {
@@ -613,17 +475,17 @@ namespace triengine::visualization
             dx11_interop_texture_desc.CPUAccessFlags = 0;
             dx11_interop_texture_desc.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE;
 
-            THROW_IF_FAILED(_dx11_device2->CreateTexture2D(
+            THROW_IF_FAILED(dx11_device2->CreateTexture2D(
                 &dx11_interop_texture_desc,
                 nullptr,
-                &_dx11_interop_color_tex
+                &dx11_interop_color_tex
             ));
         }
 
         // Get the native handle of the new dx11 interop color texture
         {
             ComPtr<IDXGIResource1> dxgiResource1;
-            ASSERT_HR(_dx11_interop_color_tex.As(&dxgiResource1));
+            ASSERT_HR(dx11_interop_color_tex.As(&dxgiResource1));
             HANDLE new_shared_handle{};
             THROW_IF_FAILED(dxgiResource1->CreateSharedHandle(
                 nullptr, // SECURITY_ATTRIBUTES
@@ -631,27 +493,27 @@ namespace triengine::visualization
                 nullptr, // Name; Name is optional, but if specified, it should be unique across processes, can be accessed via `OpenSharedResourceByName`
                 &new_shared_handle
             ));
-            _dx11_interop_color_tex_handle.reset(
+            dx11_interop_color_tex_handle.reset(
                 new_shared_handle,
                 ::CloseHandle
             );
 
-            TRIENGINE_ASSERT(_dx11_interop_color_tex_handle != nullptr);
+            TRIENGINE_ASSERT(dx11_interop_color_tex_handle != nullptr);
         }
 
         // Recreate OpenGL interop memory object
         // and import the D3D11 texture into OpenGL memory object
-        if (_gl_interop_color_tex_mem_object) {
+        if (gl_interop_color_tex_mem_object) {
             // Wait for all OpenGL commands to complete before deleting the memory object
             ::glFinish();
-            ::glDeleteMemoryObjectsEXT(1, &_gl_interop_color_tex_mem_object);
+            ::glDeleteMemoryObjectsEXT(1, &gl_interop_color_tex_mem_object);
         }
-        ::glCreateMemoryObjectsEXT(1, &_gl_interop_color_tex_mem_object);
+        ::glCreateMemoryObjectsEXT(1, &gl_interop_color_tex_mem_object);
         ::glImportMemoryWin32HandleEXT( // Reimport
-            _gl_interop_color_tex_mem_object,
+            gl_interop_color_tex_mem_object,
             0, // texture memory size; Pass 0 to let OpenGL query it from D3D11 resource
             GL_HANDLE_TYPE_D3D11_IMAGE_EXT,
-            _dx11_interop_color_tex_handle.get()
+            dx11_interop_color_tex_handle.get()
         );
 
         // Check for reimport errors
@@ -661,53 +523,53 @@ namespace triengine::visualization
         }
 
         // Recreate gl interop color texture using the imported memory
-        if (_gl_interop_color_tex) {
-            ::glDeleteTextures(1, &_gl_interop_color_tex);
+        if (gl_interop_color_tex) {
+            ::glDeleteTextures(1, &gl_interop_color_tex);
         }
-        ::glCreateTextures(GL_TEXTURE_2D, 1, &_gl_interop_color_tex);
+        ::glCreateTextures(GL_TEXTURE_2D, 1, &gl_interop_color_tex);
         ::glTextureStorageMem2DEXT(
-            _gl_interop_color_tex, // GLuint texture
+            gl_interop_color_tex, // GLuint texture
             1, // GLsizei levels
             GL_RGBA8, // GLenum internalformat - Use RGBA8 as internal format (matching DirectX side)
             static_cast<GLsizei>(new_frame_size.x()), // GLsizei width
             static_cast<GLsizei>(new_frame_size.y()), // GLsizei height
-            _gl_interop_color_tex_mem_object, // GLuint memory
+            gl_interop_color_tex_mem_object, // GLuint memory
             0 // GLuint64 offset
         );
 
         // Set texture parameters for interop texture
-        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        ::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        //::glTextureParameteri(_gl_interop_color_tex, GL_TEXTURE_TILING_EXT, GL_OPTIMAL_TILING_EXT); // D3D11 side is D3D11_TEXTURE_LAYOUT_UNDEFINED
+        ::glTextureParameteri(gl_interop_color_tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        ::glTextureParameteri(gl_interop_color_tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        ::glTextureParameteri(gl_interop_color_tex, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        ::glTextureParameteri(gl_interop_color_tex, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        //::glTextureParameteri(gl_interop_color_tex, GL_TEXTURE_TILING_EXT, GL_OPTIMAL_TILING_EXT); // D3D11 side is D3D11_TEXTURE_LAYOUT_UNDEFINED
 
         // Attach the shared interop texture directly to the FBO for rendering
         ::glNamedFramebufferTexture(
-            _gl_fbo, 
+            gl_fbo, 
             GL_COLOR_ATTACHMENT0, 
-            _gl_interop_color_tex, 
+            gl_interop_color_tex, 
             0
         );
 
         // Check FBO completeness
-        if (const auto status = ::glCheckNamedFramebufferStatus(_gl_fbo, GL_FRAMEBUFFER);
+        if (const auto status = ::glCheckNamedFramebufferStatus(gl_fbo, GL_FRAMEBUFFER);
             status != GL_FRAMEBUFFER_COMPLETE) {
             TRIENGINE_PANIC("Framebuffer is not complete (status: 0x%X)", static_cast<uint32_t>(status));
         }
 
         // Resize viewport
-        ::glViewport(0, 0, _curr_frame_size.x(), _curr_frame_size.y());
+        ::glViewport(0, 0, curr_frame_size.x(), curr_frame_size.y());
     }
 
     // Applies a frame-rate cap: computes the target frame interval and lazily creates the
     // high-resolution waitable timer. A zero `max_fps` disables the cap and releases the timer.
-    void offscreen_renderer_dx::_apply_frame_rate_cap(const uint32_t max_fps)
+    void offscreen_renderer_dx::impl::apply_frame_rate_cap(const uint32_t max_fps)
     {
         if (max_fps > 0) {
-            _target_frame_interval = std::chrono::nanoseconds(1'000'000'000ull / max_fps);
+            target_frame_interval = std::chrono::nanoseconds(1'000'000'000ull / max_fps);
 
-            if (!_frame_timer) {
+            if (!frame_timer) {
                 HANDLE timer = ::CreateWaitableTimerExW(
                     nullptr,
                     nullptr,
@@ -717,14 +579,14 @@ namespace triengine::visualization
                 if (!timer) {
                     TRIENGINE_PANIC("Failed to create high-resolution waitable timer (last error: %u)", ::GetLastError());
                 }
-                _frame_timer.reset(timer, ::CloseHandle);
+                frame_timer.reset(timer, ::CloseHandle);
             }
-            _next_frame_deadline = std::chrono::steady_clock::now();
+            next_frame_deadline = std::chrono::steady_clock::now();
 
             TRIENGINE_DEBUG("Frame rate cap set to %u FPS", max_fps);
         } else {
-            _target_frame_interval = std::chrono::nanoseconds(0);
-            _frame_timer.reset();
+            target_frame_interval = std::chrono::nanoseconds(0);
+            frame_timer.reset();
 
             TRIENGINE_DEBUG("Frame rate cap disabled");
         }
@@ -737,36 +599,185 @@ namespace triengine::visualization
     // consumer run as two independent loops, so this cap bounds the production rate only,
     // not the end-to-end present latency (see `create()`'s doc comment for why
     // over-producing reduces input latency).
-    void offscreen_renderer_dx::_throttle_frame_rate()
+    void offscreen_renderer_dx::impl::throttle_frame_rate()
     {
         using namespace std::chrono;
 
         // Advance the absolute deadline so the cadence converges to the target rate
         // without accumulating drift.
         const auto now = steady_clock::now();
-        _next_frame_deadline += _target_frame_interval;
+        next_frame_deadline += target_frame_interval;
 
         // If we have fallen behind by more than one interval, reset the deadline to avoid
         // a burst of catch-up frames.
-        if (_next_frame_deadline < now) {
-            _next_frame_deadline = now + _target_frame_interval;
+        if (next_frame_deadline < now) {
+            next_frame_deadline = now + target_frame_interval;
         }
 
         // Wait the bulk of the remaining time on the high-resolution timer (parks the
         // thread, ~0.5ms accuracy, no busy-wait).
-        const auto remaining = _next_frame_deadline - steady_clock::now();
+        const auto remaining = next_frame_deadline - steady_clock::now();
         if (remaining > nanoseconds(0)) {
             LARGE_INTEGER due_time;
             due_time.QuadPart = -(remaining.count() / 100); // 100ns units, negative == relative time
-            if (::SetWaitableTimer(_frame_timer.get(), &due_time, 0, nullptr, nullptr, FALSE)) {
-                ::WaitForSingleObject(_frame_timer.get(), INFINITE);
+            if (::SetWaitableTimer(frame_timer.get(), &due_time, 0, nullptr, nullptr, FALSE)) {
+                ::WaitForSingleObject(frame_timer.get(), INFINITE);
             }
         }
 
         // Absorb any sub-millisecond timer undershoot with a brief spin to the deadline.
-        while (steady_clock::now() < _next_frame_deadline) {
+        while (steady_clock::now() < next_frame_deadline) {
             ::YieldProcessor();
         }
+    }
+
+    offscreen_renderer_dx::offscreen_renderer_dx()
+        : _imp{ std::make_unique<impl>() }
+    {
+        // Window half (GLFW main thread): create the hidden window and its GL context
+        // now. GL and the DX interop pipeline are built later by `create()` on the
+        // render thread. The window is only a carrier for the GL context; output
+        // goes to a D3D11 shared surface sized by `create()`/`resize_frame()`, so a
+        // 1x1 placeholder window is enough here and the real size is committed
+        // later.
+        _imp->glctx.create_window(
+            "",
+            false, // hidden window: offscreen output only
+            1, 1,  // placeholder size; the render target is sized by `create()`
+            false  // not fullscreen
+        );
+    }
+
+    offscreen_renderer_dx::~offscreen_renderer_dx()
+    {
+        // `destroy()` must run on the render thread before this object is destroyed;
+        // the destructor (GLFW main thread) cannot tear down the GL/DX pipeline safely.
+        // A failure here means `destroy()` was skipped, leaving the GL context and
+        // DX interop to be released in a disorderly way (see the class threading
+        // contract).
+        TRIENGINE_ASSERT(!_imp->is_created);
+        _imp->glctx.destroy_window();
+    }
+
+    const core::graphics_device_info* offscreen_renderer_dx::get_graphics_device_info() const noexcept
+    {
+        return _imp->glctx.get_device_info();
+    }
+
+    Microsoft::WRL::ComPtr<IDXGIAdapter> offscreen_renderer_dx::get_dxgi_adapter() const noexcept
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        TRIENGINE_ASSERT(_imp->dxgi_adapter != nullptr);
+        return _imp->dxgi_adapter;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11Device2> offscreen_renderer_dx::get_dx11_device() const noexcept
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        TRIENGINE_ASSERT(_imp->dx11_device2 != nullptr);
+        return _imp->dx11_device2;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11DeviceContext2> offscreen_renderer_dx::get_dx11_device_context() const noexcept
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        TRIENGINE_ASSERT(_imp->dx11_device_context2 != nullptr);
+        return _imp->dx11_device_context2;
+    }
+
+    vec2_i32 offscreen_renderer_dx::get_frame_size() const noexcept
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        return _imp->curr_frame_size;
+    }
+
+    shared_win32_handle offscreen_renderer_dx::get_surface_handle() const
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        TRIENGINE_ASSERT(_imp->dx11_interop_color_tex_handle != nullptr);
+        return _imp->dx11_interop_color_tex_handle;
+    }
+
+    void offscreen_renderer_dx::create(const vec2_i32 initial_frame_size, const uint32_t max_fps)
+    {
+        _imp->create(initial_frame_size, max_fps);
+    }
+
+    void offscreen_renderer_dx::change_max_fps(const uint32_t max_fps)
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        _imp->apply_frame_rate_cap(max_fps);
+    }
+
+    void offscreen_renderer_dx::destroy()
+    {
+        _imp->destroy();
+    }
+
+    std::shared_ptr<scene> offscreen_renderer_dx::add_scene()
+    {
+        auto new_scn = std::make_shared<scene>(_imp->glctx.get_gpu_resource_manager());
+        _imp->scenes.add(new_scn);
+        return new_scn;
+    }
+
+    void offscreen_renderer_dx::remove_scene(scene_id_t scn_id)
+    {
+        _imp->scenes.remove(scn_id);
+    }
+
+    void offscreen_renderer_dx::switch_scene(scene_id_t scn_id)
+    {
+        _imp->scenes.switch_to(scn_id);
+    }
+
+    void offscreen_renderer_dx::switch_to_previous_scene()
+    {
+        _imp->scenes.switch_to_previous();
+    }
+
+    void offscreen_renderer_dx::switch_to_next_scene()
+    {
+        _imp->scenes.switch_to_next();
+    }
+
+    std::shared_ptr<const scene> offscreen_renderer_dx::find_scene(scene_id_t scn_id) const
+    {
+        return _imp->scenes.find(scn_id);
+    }
+
+    std::shared_ptr<scene> offscreen_renderer_dx::find_scene(scene_id_t scn_id)
+    {
+        return _imp->scenes.find(scn_id);
+    }
+
+    std::shared_ptr<const scene> offscreen_renderer_dx::get_current_scene() const
+    {
+        return _imp->scenes.current();
+    }
+
+    std::shared_ptr<scene> offscreen_renderer_dx::get_current_scene()
+    {
+        return _imp->scenes.current();
+    }
+
+    shared_win32_handle offscreen_renderer_dx::resize_frame(const vec2_i32 new_frame_size)
+    {
+        TRIENGINE_ASSERT(_imp->is_created);
+        TRIENGINE_ASSERT(new_frame_size.x() > 0 && new_frame_size.y() > 0);
+
+        ::glfwSetWindowSize(
+            _imp->glctx.get_glfw_window(),
+            new_frame_size.x(),
+            new_frame_size.y()
+        );
+
+        return _imp->dx11_interop_color_tex_handle;
+    }
+
+    bool offscreen_renderer_dx::render(const uint64_t mutex_key)
+    {
+        return _imp->render(mutex_key);
     }
 
 } // namespace

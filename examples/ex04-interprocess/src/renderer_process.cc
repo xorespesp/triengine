@@ -10,6 +10,8 @@
 #include <xutl/concurrency/spin_lock.hh>
 #include <xutl/debug/logger.hh>
 
+#include <chrono>
+
 namespace surface_proto = triengine_interop::surface::proto;
 
 // The per-session interface the surface producer drives. Created once and hosted for the
@@ -345,7 +347,7 @@ private:
         triengine::scene* const scn = this->_current_scene();
         if (!scn) { return; }
 
-        const double now = ::glfwGetTime();
+        const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
         const float frame_delta = _last_key_update_time
             ? static_cast<float>(now - *_last_key_update_time)
             : 0.0f;

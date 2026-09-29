@@ -5,6 +5,8 @@
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/io/file_obj_loader.hh>
 
+#include <chrono>
+
 namespace demo::scene
 {
     using namespace triengine;
@@ -14,6 +16,7 @@ namespace demo::scene
     {
         std::shared_ptr<geometry::mesh_object> _skull_mesh;
         std::shared_ptr<geometry::mesh_object> _skull_mesh2;
+        const std::chrono::steady_clock::time_point _start_time{ std::chrono::steady_clock::now() };
 
     public:
         main_scene(
@@ -94,7 +97,7 @@ namespace demo::scene
         void update_animation() override
         {
             constexpr float rotSpeed = math::pi<float>() / 8.0f;
-            const float dT = static_cast<float>(::glfwGetTime());
+            const float dT = std::chrono::duration<float>(std::chrono::steady_clock::now() - _start_time).count();
 
             Eigen::Matrix3f R1, R2;
             R1 = Eigen::AngleAxisf(rotSpeed * dT, Eigen::Vector3f::UnitY());

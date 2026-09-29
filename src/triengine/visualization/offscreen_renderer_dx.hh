@@ -9,16 +9,11 @@
 #include <d3d11_2.h> // DX11.2 API header
 #include <wrl/client.h> // Microsoft::WRL::ComPtr
 
-#include <triengine/core/gl_context.hh>
-#include <triengine/core/scene_renderer.hh>
+#include <triengine/scene.hh>
+#include <triengine/core/graphics_device_info.hh>
 #include <triengine/utility/noncopyable.hh>
 
-#include <functional>
-#include <unordered_map>
 #include <memory>
-#include <array>
-#include <list>
-#include <chrono>
 
 namespace triengine
 {
@@ -140,41 +135,8 @@ namespace triengine::visualization
         shared_win32_handle resize_frame(vec2_i32 new_frame_size);
 
     private:
-        void _resize_frame(vec2_i32 new_frame_size);
-        void _apply_frame_rate_cap(uint32_t max_fps);
-        void _throttle_frame_rate();
-
-    private:
-        bool _is_created{ false };
-        vec2_i32 _curr_frame_size{};
-
-        // DX Resources
-        Microsoft::WRL::ComPtr<IDXGIAdapter> _dxgi_adapter; // Target DXGI Adapter for OpenGL Interop
-        Microsoft::WRL::ComPtr<ID3D11Device2> _dx11_device2;
-        Microsoft::WRL::ComPtr<ID3D11DeviceContext2> _dx11_device_context2;
-        Microsoft::WRL::ComPtr<ID3D11Texture2D> _dx11_interop_color_tex; // Shared texture for OpenGL Interop (RGBA format)
-        shared_win32_handle _dx11_interop_color_tex_handle; // Shared texture NT Handle for OpenGL Interop texture
-
-        // GL Resources
-        core::gl_context _glctx;
-        GLuint _gl_fbo{}; // Main FBO
-        GLuint _gl_interop_color_tex{}; // OpenGL - DirectX11 interop texture (shared texture, RGBA format)
-        GLuint _gl_interop_color_tex_mem_object{}; // GL EXT_external_objects variables
-        core::scene_renderer _scn_renderer;
-        std::list<std::shared_ptr<scene>> _scn_list;
-        std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
-        std::unordered_map<
-            scene_id_t,
-            std::list<std::shared_ptr<scene>>::iterator
-        > _scn_id_map;
-
-        // frame time calculation
-        double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
-
-        // frame rate cap (software pacing; offscreen has no display vblank)
-        std::chrono::nanoseconds _target_frame_interval{ 0 }; // 0 == uncapped
-        std::chrono::steady_clock::time_point _next_frame_deadline{};
-        shared_win32_handle _frame_timer; // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION handle
+        struct impl;
+        std::unique_ptr<impl> _imp;
 
     }; // class
 

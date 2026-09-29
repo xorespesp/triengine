@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <array>
+#include <chrono>
 
 #include <iostream>
 #include <conio.h>
@@ -153,13 +154,14 @@ namespace demo
 #endif // ^^^ EXAMPLE_HAS_OPENCV ^^^
 
             triengine::image_buffer render_frame;
+            const auto start_time = std::chrono::steady_clock::now();
             for(bool flag_stop{ false }; !flag_stop;)
             {
                 // for testing
                 if (_obj_texcolor_mesh)
                 {
                     constexpr float rotSpeed = triengine::math::pi<float>() / 8.0f;
-                    const float dT = static_cast<float>(::glfwGetTime());
+                    const float dT = std::chrono::duration<float>(std::chrono::steady_clock::now() - start_time).count();
 
                     Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
                     //R = Eigen::AngleAxisf(rotSpeed * dT * 0.1f, Eigen::Vector3f::UnitZ()) *

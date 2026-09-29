@@ -11,6 +11,8 @@
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/io/file_obj_loader.hh>
 
+#include <chrono>
+
 namespace scene
 {
     using namespace triengine;
@@ -81,7 +83,7 @@ namespace scene
         void update([[maybe_unused]] vec2_i32 frame_size) override
         {
             constexpr float rotSpeed = math::pi<float>() / 8.0f;
-            const float dT = static_cast<float>(::glfwGetTime());
+            const float dT = std::chrono::duration<float>(std::chrono::steady_clock::now() - _start_time).count();
 
             Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
             R = Eigen::AngleAxisf(math::deg2rad(-90.0f), Eigen::Vector3f::UnitX()) *
@@ -95,6 +97,7 @@ namespace scene
     private:
         std::shared_ptr<geometry::mesh_object> _skull_mesh;
         std::shared_ptr<geometry::mesh_object> _skull_mesh2;
+        const std::chrono::steady_clock::time_point _start_time{ std::chrono::steady_clock::now() };
 
     }; // class
 

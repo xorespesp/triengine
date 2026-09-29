@@ -3,6 +3,7 @@
 #include <triengine/gui/dock_slot.hh>
 #include <triengine/gui/windows/log_window.hh>
 #include <triengine/gui/windows/scene_view_window.hh>
+#include <triengine/core/gl_context.hh>
 #include <triengine/utility/noncopyable.hh>
 
 #include <memory>
@@ -11,7 +12,6 @@
 #include <map>
 
 // forward declaration
-namespace triengine::core { class gl_context; }
 namespace triengine::visualization { class visualizer; }
 
 namespace triengine::gui

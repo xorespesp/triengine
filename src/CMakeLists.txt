@@ -8,6 +8,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/image_format.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/image_buffer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/scene.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/scene_list.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/text_object.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/global_options.cc"
 
@@ -154,6 +155,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
 
 # library headers (private)
 set(TRIENGINE_LIBRARY_HEADERS_PRIVATE
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/scene_list.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/gui_manager.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/extern/fonts/Fonts.h"

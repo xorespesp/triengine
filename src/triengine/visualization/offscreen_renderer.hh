@@ -1,13 +1,11 @@
 #pragma once
 #include <triengine/common.h>
+#include <triengine/scene.hh>
 #include <triengine/image_buffer.hh>
-#include <triengine/core/gl_context.hh>
-#include <triengine/core/scene_renderer.hh>
+#include <triengine/core/graphics_device_info.hh>
 #include <triengine/utility/noncopyable.hh>
 
-#include <functional>
-#include <unordered_map>
-#include <array>
+#include <memory>
 
 namespace triengine::visualization
 {
@@ -93,29 +91,8 @@ namespace triengine::visualization
         );
 
     private:
-        void _begin_frame();
-        void _end_frame();
-        
-    private:
-        bool _is_created{ false };
-        bool _flag_invalidate_fbo{ true };
-
-        core::gl_context _glctx;
-        vec2_i32 _curr_frame_size{};
-
-        core::scene_renderer _scn_renderer;
-        
-        std::list<std::shared_ptr<scene>> _scn_list;
-        std::list<std::shared_ptr<scene>>::iterator _curr_scn_it{ _scn_list.end() };
-        std::unordered_map<
-            scene_id_t, 
-            std::list<std::shared_ptr<scene>>::iterator
-        > _scn_id_map;
-
-        core::frame_buffer _fb_main;
-
-        // frame time calculation
-        double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
+        struct impl;
+        std::unique_ptr<impl> _imp;
 
     }; // class
 

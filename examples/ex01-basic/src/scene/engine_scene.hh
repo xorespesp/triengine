@@ -5,6 +5,8 @@
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/io/file_obj_loader.hh>
 
+#include <chrono>
+
 namespace demo::scene
 {
     using namespace triengine;
@@ -13,6 +15,7 @@ namespace demo::scene
         : public scene_wrapper
     {
         std::shared_ptr<geometry::mesh_object> _engine_mesh;
+        const std::chrono::steady_clock::time_point _start_time{ std::chrono::steady_clock::now() };
         color3_f32 _engine_color{ 0.8f, 0.8f, 0.8f }; // base color applied on demand via the gui
 
     public:
@@ -63,7 +66,7 @@ namespace demo::scene
         void update_animation() override
         {
             constexpr float rotSpeed = math::pi<float>() / 8.0f;
-            const float dT = static_cast<float>(::glfwGetTime());
+            const float dT = std::chrono::duration<float>(std::chrono::steady_clock::now() - _start_time).count();
 
             Eigen::Matrix3f R; // Z-Y-X (Yaw-Pitch-Roll) Order
             //R = Eigen::AngleAxisf(rotSpeed * dT * 0.1f, Eigen::Vector3f::UnitZ()) *
