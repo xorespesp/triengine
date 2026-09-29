@@ -27,42 +27,42 @@ namespace triengine::utility
 
         using sink_list_t = std::vector<sink_t>;
 
-        mutable utility::spin_lock lock;
+        mutable utility::spin_lock _lock;
 
         // Copy-on-write: printing takes a snapshot of this list, so callbacks run unlocked while
         // registration/removal swaps in a fresh list.
-        std::shared_ptr<const sink_list_t> sinks;
+        std::shared_ptr<const sink_list_t> _sinks;
 
-        log_callback_id_t next_id{ kInvalidLogCallbackId + 1 };
-        std::atomic<log_level> active_log_lv{ log_level::info };
+        log_callback_id_t _next_id{ kInvalidLogCallbackId + 1 };
+        std::atomic<log_level> _active_log_lv{ log_level::info };
 
         impl() = default;
 
-        // NOTE: the two helpers below must be called with `lock` held.
+        // NOTE: the two helpers below must be called with `_lock` held.
 
         log_callback_id_t add_sink(log_callback_type cb)
         {
-            auto new_sinks = (sinks != nullptr)
-                ? std::make_shared<sink_list_t>(*sinks)
+            auto new_sinks = (_sinks != nullptr)
+                ? std::make_shared<sink_list_t>(*_sinks)
                 : std::make_shared<sink_list_t>();
 
-            const log_callback_id_t new_id = next_id++;
+            const log_callback_id_t new_id = _next_id++;
             new_sinks->push_back(sink_t{ new_id, std::move(cb) });
-            sinks = std::move(new_sinks);
+            _sinks = std::move(new_sinks);
 
             return new_id;
         }
 
         void remove_sink(const log_callback_id_t id)
         {
-            if (id == kInvalidLogCallbackId || sinks == nullptr) { return; }
+            if (id == kInvalidLogCallbackId || _sinks == nullptr) { return; }
 
             auto new_sinks = std::make_shared<sink_list_t>();
-            new_sinks->reserve(sinks->size());
-            for (const sink_t& sink : *sinks) {
+            new_sinks->reserve(_sinks->size());
+            for (const sink_t& sink : *_sinks) {
                 if (sink.id != id) { new_sinks->push_back(sink); }
             }
-            sinks = std::move(new_sinks);
+            _sinks = std::move(new_sinks);
         }
     };
 
@@ -101,7 +101,7 @@ namespace triengine::utility
 
         // an expired logger has taken its sinks with it, so there is nothing left to remove
         if (const std::shared_ptr<impl> imp = _imp.lock()) {
-            std::scoped_lock lk{ imp->lock };
+            std::scoped_lock lk{ imp->_lock };
             imp->remove_sink(_id);
         }
 
@@ -131,18 +131,18 @@ namespace triengine::utility
     {
         if (!cb) { return subscription{}; }
 
-        std::scoped_lock lk{ _imp->lock };
+        std::scoped_lock lk{ _imp->_lock };
         return subscription{ _imp, _imp->add_sink(std::move(cb)) };
     }
 
     log_level logger::get_log_level() const
     {
-        return _imp->active_log_lv.load();
+        return _imp->_active_log_lv.load();
     }
 
     void logger::set_log_level(log_level lv)
     {
-        _imp->active_log_lv = lv;
+        _imp->_active_log_lv = lv;
     }
 
     void logger::_log_impl(
@@ -151,9 +151,9 @@ namespace triengine::utility
         const std::string_view msg_sv)
     {
         std::shared_ptr<const impl::sink_list_t> sinks; {
-            std::scoped_lock lk{ _imp->lock };
-            if (!_imp->sinks || _imp->sinks->empty()) { return; }
-            sinks = _imp->sinks;
+            std::scoped_lock lk{ _imp->_lock };
+            if (!_imp->_sinks || _imp->_sinks->empty()) { return; }
+            sinks = _imp->_sinks;
         }
 
         std::string msg;

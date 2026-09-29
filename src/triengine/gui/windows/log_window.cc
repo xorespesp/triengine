@@ -378,50 +378,50 @@ namespace triengine::gui
     {
         // --- cross-thread handoff ---
         // NOTE: Held through a `shared_ptr` so that a record in flight stays safe while the window dies.
-        std::shared_ptr<pending_record_queue> pending_record_q{ std::make_shared<pending_record_queue>() };
+        std::shared_ptr<pending_record_queue> _pending_record_q{ std::make_shared<pending_record_queue>() };
 
         // NOTE: drops the engine subscription on destruction
-        utility::logger::subscription engine_log_subscription;
+        utility::logger::subscription _engine_log_subscription;
 
         // --- records ---
-        record_storage records;
-        filtered_record_view filtered_view{ records }; // NOTE: reads `records`, so declared after it
+        record_storage _records;
+        filtered_record_view _filtered_view{ _records }; // NOTE: reads `_records`, so declared after it
 
         // --- view options ---
-        bool flag_autoscroll{ true }; // keep scrolling if already at the bottom
+        bool _flag_autoscroll{ true }; // keep scrolling if already at the bottom
 
     public:
         impl() = default;
 
         void clear_records()
         {
-            pending_record_q->clear();
-            records.clear();
+            _pending_record_q->clear();
+            _records.clear();
         }
 
         void set_record_capacity(const size_t capacity)
         {
             const size_t effective_capacity = std::clamp(capacity, kMinLogCapacity, kMaxLogCapacity);
             // Keeps the pending queue on the same capacity, so neither side outgrows the other.
-            pending_record_q->set_capacity(effective_capacity);
-            records.set_capacity(effective_capacity);
+            _pending_record_q->set_capacity(effective_capacity);
+            _records.set_capacity(effective_capacity);
         }
 
         void drain_pending_records()
         {
-            std::deque<record_t> pending_records = pending_record_q->dequeue_all();
+            std::deque<record_t> pending_records = _pending_record_q->dequeue_all();
             if (pending_records.empty()) { return; }
 
-            records.append(std::move(pending_records));
+            _records.append(std::move(pending_records));
         }
 
         // `do_copy` is set when clipboard copy button was pressed.
         void draw_toolbar(bool& do_copy)
         {
             if (ImGui::BeginPopup("Options")) {
-                ImGui::Checkbox("Auto-scroll", &flag_autoscroll);
+                ImGui::Checkbox("Auto-scroll", &_flag_autoscroll);
 
-                int capacity = static_cast<int>(records.capacity());
+                int capacity = static_cast<int>(_records.capacity());
                 ImGui::SetNextItemWidth(160.0f);
                 if (ImGui::DragInt("Capacity", &capacity, 10.0f
                     , static_cast<int>(kMinLogCapacity), static_cast<int>(kMaxLogCapacity)
@@ -448,19 +448,19 @@ namespace triengine::gui
             for (size_t i = 0; i < utility::kNumLogLevels; ++i)
             {
                 const auto lv = static_cast<utility::log_level>(i);
-                const size_t level_count = records.level_count(lv);
-                bool shown = filtered_view.is_level_shown(lv);
+                const size_t level_count = _records.level_count(lv);
+                bool shown = _filtered_view.is_level_shown(lv);
 
                 ImGui::SameLine();
                 const std::string label = utility::string::c_format("%s %zu###lv%zu", level_tag(lv), level_count, i);
                 if (ImGui::Checkbox(label.c_str(), &shown)) {
-                    filtered_view.set_level_shown(lv, shown);
+                    _filtered_view.set_level_shown(lv, shown);
                 }
                 ImGui::SetItemTooltip("%s: %zu record(s) buffered", level_tag(lv), level_count);
             }
 
             ImGui::SameLine();
-            filtered_view.draw_text_filter("Filter", -100.0f);
+            _filtered_view.draw_text_filter("Filter", -100.0f);
         }
     };
 
@@ -473,8 +473,8 @@ namespace triengine::gui
 
         if (capture_engine_logs)
         {
-            _imp->engine_log_subscription = global_options::instance()->get_logger().subscribe(
-                [pending_record_q = _imp->pending_record_q](const utility::log_level lv, const std::string& msg)
+            _imp->_engine_log_subscription = global_options::instance()->get_logger().subscribe(
+                [pending_record_q = _imp->_pending_record_q](const utility::log_level lv, const std::string& msg)
             {
                 pending_record_q->enqueue(lv, msg);
             });
@@ -487,7 +487,7 @@ namespace triengine::gui
         const utility::log_level lv,
         const std::string_view sv)
     {
-        _imp->pending_record_q->enqueue(lv, sv);
+        _imp->_pending_record_q->enqueue(lv, sv);
     }
 
     void log_window::render(
@@ -502,7 +502,7 @@ namespace triengine::gui
 
         if (ImGui::BeginChild("scrolling", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar))
         {
-            filtered_record_view& filtered_view = _imp->filtered_view;
+            filtered_record_view& filtered_view = _imp->_filtered_view;
             filtered_view.refresh();
 
             const size_t visible_record_count = filtered_view.size();
@@ -538,7 +538,7 @@ namespace triengine::gui
 
             // Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
             // Using a scrollbar or mouse-wheel will take away from the bottom edge.
-            if (_imp->flag_autoscroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
+            if (_imp->_flag_autoscroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) {
                 ImGui::SetScrollHereY(1.0f);
             }
         }

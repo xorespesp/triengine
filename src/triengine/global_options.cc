@@ -7,9 +7,9 @@ namespace triengine
 {
     struct global_options::impl
     {
-        mutable utility::spin_lock lock;
-        std::filesystem::path resource_dir_path;
-        utility::logger logger;
+        mutable utility::spin_lock _lock;
+        std::filesystem::path _resource_dir_path;
+        utility::logger _logger;
 
         impl() = default;
     };
@@ -27,26 +27,26 @@ namespace triengine
             TRIENGINE_PANIC("Invalid resource directory path");
         }
 
-        std::scoped_lock lk{ _imp->lock };
-        _imp->resource_dir_path = std::move(resource_dir_path);
+        std::scoped_lock lk{ _imp->_lock };
+        _imp->_resource_dir_path = std::move(resource_dir_path);
     }
 
     std::filesystem::path global_options::get_resource_directory() const
     {
-        std::scoped_lock lk{ _imp->lock };
-        return _imp->resource_dir_path;
+        std::scoped_lock lk{ _imp->_lock };
+        return _imp->_resource_dir_path;
     }
 
     const utility::logger& global_options::get_logger() const
     {
-        //std::scoped_lock lk{ _imp->lock };
-        return _imp->logger; // logger is thread-safe
+        //std::scoped_lock lk{ _imp->_lock };
+        return _imp->_logger; // logger is thread-safe
     }
 
     utility::logger& global_options::get_logger()
     {
-        //std::scoped_lock lk{ _imp->lock };
-        return _imp->logger; // logger is thread-safe
+        //std::scoped_lock lk{ _imp->_lock };
+        return _imp->_logger; // logger is thread-safe
     }
 
 } // namespace
