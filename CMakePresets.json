@@ -68,6 +68,17 @@
     },
 
     {
+      "name": "win64-rel-bench",
+      "displayName": "WIN64-REL (Bench)",
+      "inherits": "win64-base-rel",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF",
+        "TRIENGINE_BUILD_BENCH": "ON",
+        "TRIENGINE_ENABLE_DEBUG_MODE": "OFF"
+      }
+    },
+
+    {
       "name": "win64-dbg",
       "displayName": "WIN64-DBG",
       "inherits": "win64-base-dbg"
@@ -102,6 +113,10 @@
     {
       "name": "win64-rel-ext",
       "configurePreset": "win64-rel-ext"
+    },
+    {
+      "name": "win64-rel-bench",
+      "configurePreset": "win64-rel-bench"
     },
 
     {

@@ -42,6 +42,7 @@ option(TRIENGINE_ENABLE_DEBUG_MODE "Enable engine debug facilities in any config
 option(TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG "Enable dynamic-debugging compile option (MSVC only)" ON)
 option(TRIENGINE_BUILD_EXAMPLES "Build examples" ON)
 option(TRIENGINE_BUILD_EXTERNAL_EXAMPLES "Build external examples" OFF)
+option(TRIENGINE_BUILD_BENCH "Build benchmarks" OFF)
 
 set(TRIENGINE_ACTIVE_LOG_LEVEL "" CACHE STRING "Compile-time minimum log level (TRACE/DEBUG/INFO/WARN/ERROR/CRITICAL/OFF; empty follows TRIENGINE_ENABLE_DEBUG_MODE)")
 set(_triengine_log_level_choices TRACE DEBUG INFO WARN ERROR CRITICAL OFF)
@@ -62,6 +63,7 @@ message(STATUS "TRIENGINE_ENABLE_DEBUG_MODE: ${TRIENGINE_ENABLE_DEBUG_MODE}")
 message(STATUS "TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG: ${TRIENGINE_ENABLE_MSVC_DYNAMIC_DEBUG}")
 message(STATUS "TRIENGINE_BUILD_EXAMPLES: ${TRIENGINE_BUILD_EXAMPLES}")
 message(STATUS "TRIENGINE_BUILD_EXTERNAL_EXAMPLES: ${TRIENGINE_BUILD_EXTERNAL_EXAMPLES}")
+message(STATUS "TRIENGINE_BUILD_BENCH: ${TRIENGINE_BUILD_BENCH}")
 message(STATUS "TRIENGINE_ACTIVE_LOG_LEVEL: ${TRIENGINE_ACTIVE_LOG_LEVEL}")
 message(STATUS "--------------------------------------------------")
 
@@ -165,6 +167,10 @@ add_subdirectory(src)
 
 if (TRIENGINE_BUILD_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+if (TRIENGINE_BUILD_BENCH)
+    add_subdirectory(bench)
 endif()
 
 ########################################################################################
