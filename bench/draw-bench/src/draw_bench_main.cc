@@ -4,6 +4,8 @@
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/visualization/visualizer.hh>
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -11,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -30,7 +33,10 @@ namespace
     constexpr float kGridSpacing = 0.5f;
     constexpr double kReportIntervalSeconds = 1.0;
 #if defined(TRIENGINE_DEBUG_MODE)
+    constexpr bool kDebugMode = true;
     constexpr size_t kTopGlCallSites = 8;
+#else
+    constexpr bool kDebugMode = false;
 #endif
 
     // Sweep timing per object count. The warm-up discards the first frames, which upload the new boxes.
@@ -40,19 +46,28 @@ namespace
     constexpr size_t kMaxGpuResultWaitFrames = 16;
 
     using bench_clock = std::chrono::steady_clock;
+    using json = nlohmann::ordered_json;
+
+    // Microsecond resolution, as on the console. `NaN` (no samples) stays `NaN`, which the JSON file shows as `null`.
+    double round_ms(const double ms)
+    {
+        return std::round(ms * 1000.0) / 1000.0;
+    }
 
     struct bench_options {
         size_t object_count{ 10000 };
         std::vector<size_t> sweep_object_counts; // empty: report every second for `object_count` until closed
+        std::string json_path; // sweep results, written when the bench exits
         bool postfx{ false }; // bloom and SMAA; off keeps the GPU cost small next to the submission cost
     };
 
     void print_usage()
     {
         std::fprintf(stderr,
-            "usage: draw-bench [--n <object count> | --sweep <count,count,...>] [--postfx on|off]\n"
+            "usage: draw-bench [--n <object count> | --sweep <count,count,...> [--json <path>]] [--postfx on|off]\n"
             "  --n       number of boxes, reported every second until closed (default 10000)\n"
             "  --sweep   measure each number of boxes in turn, then exit\n"
+            "  --json    write the sweep results to a JSON file\n"
             "  --postfx  bloom and SMAA (default off)\n");
     }
 
@@ -102,6 +117,9 @@ namespace
                 }
                 opts.sweep_object_counts = std::move(*counts);
             }
+            else if (std::strcmp(argv[i], "--json") == 0 && has_value) {
+                opts.json_path = argv[++i];
+            }
             else if (std::strcmp(argv[i], "--postfx") == 0 && has_value) {
                 const std::string value{ argv[++i] };
                 if (value != "on" && value != "off") {
@@ -112,6 +130,9 @@ namespace
             else {
                 return std::nullopt;
             }
+        }
+        if (!opts.json_path.empty() && opts.sweep_object_counts.empty()) {
+            return std::nullopt; // only a sweep has one result per object count to write
         }
         return opts;
     }
@@ -167,9 +188,14 @@ namespace
         return values[k];
     }
 
-    // Median of a stage over the records with a frame ID in `[first_id, last_id]`; `NaN` when there is none.
+    struct stage_stats {
+        double p50_ms{ std::numeric_limits<double>::quiet_NaN() };
+        double max_ms{ std::numeric_limits<double>::quiet_NaN() };
+    };
+
+    // Median and maximum of a stage over the records with a frame ID in `[first_id, last_id]`; `NaN` when there is none.
     template <class _Profiler>
-    double stage_p50(const _Profiler& profiler, const size_t stage, const uint64_t first_id, const uint64_t last_id,
+    stage_stats get_stage_stats(const _Profiler& profiler, const size_t stage, const uint64_t first_id, const uint64_t last_id,
         std::vector<double>& samples)
     {
         samples.clear();
@@ -183,13 +209,16 @@ namespace
                 samples.push_back(ms);
             }
         }
-        return samples.empty() ? std::numeric_limits<double>::quiet_NaN() : quantile(samples, 0.50);
+        if (samples.empty()) {
+            return {};
+        }
+        return stage_stats{ quantile(samples, 0.50), *std::max_element(samples.begin(), samples.end()) };
     }
 
     struct pass_summary {
         std::string name;
-        double cpu_p50_ms{};
-        double gpu_p50_ms{};
+        stage_stats cpu;
+        stage_stats gpu;
     };
 
     // Timings of the frames with an ID in a closed range.
@@ -201,6 +230,24 @@ namespace
         double swap_p50_ms{};
         std::vector<pass_summary> passes; // passes skipped in all of the frames are left out
         size_t gpu_dropped_frames{};
+    };
+
+#if defined(TRIENGINE_DEBUG_MODE)
+    // `GLCall()` calls of one frame.
+    struct gl_call_counts {
+        uint64_t total{};
+        uint64_t uniform{}; // glProgramUniform*
+        uint64_t draw{}; // glDraw*
+        uint64_t bind_vertex_array{};
+    };
+#endif
+
+    struct sweep_result {
+        size_t object_count{};
+        frames_summary frames;
+#if defined(TRIENGINE_DEBUG_MODE)
+        gl_call_counts gl_calls;
+#endif
     };
 
     class draw_bench_app
@@ -274,6 +321,9 @@ namespace
                     this->_report();
                 }
             }
+            if (!_opts.json_path.empty()) {
+                this->_write_json(); // also when the window was closed before the sweep finished
+            }
         }
 
     private:
@@ -325,11 +375,16 @@ namespace
                     break;
                 }
 
-                std::printf("objects=%zu\n", _opts.sweep_object_counts[_sweep_index]);
-                this->_print_summary(this->_summarize(_measure_first_frame_id, _measure_last_frame_id));
+                sweep_result result;
+                result.object_count = _opts.sweep_object_counts[_sweep_index];
+                result.frames = this->_summarize(_measure_first_frame_id, _measure_last_frame_id);
+                std::printf("objects=%zu\n", result.object_count);
+                this->_print_summary(result.frames);
 #if defined(TRIENGINE_DEBUG_MODE)
+                result.gl_calls = this->_count_gl_calls();
                 this->_report_gl_calls(false/* top call sites */);
 #endif
+                _sweep_results.push_back(std::move(result));
                 if (++_sweep_index == _opts.sweep_object_counts.size()) {
                     _vis->close_window();
                 } else {
@@ -413,12 +468,12 @@ namespace
             const auto& cpu_profiler = _vis->get_pass_cpu_profiler();
             const auto& gpu_profiler = _vis->get_pass_gpu_profiler();
             for (size_t stage = 0; stage < cpu_profiler.stage_count(); ++stage) {
-                const double cpu_ms = stage_p50(cpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
-                const double gpu_ms = stage_p50(gpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
-                if (std::isnan(cpu_ms) && std::isnan(gpu_ms)) {
+                const stage_stats cpu = get_stage_stats(cpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                const stage_stats gpu = get_stage_stats(gpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                if (std::isnan(cpu.p50_ms) && std::isnan(gpu.p50_ms)) {
                     continue; // pass skipped in these frames
                 }
-                summary.passes.push_back(pass_summary{ cpu_profiler.get_stage(stage).name, cpu_ms, gpu_ms });
+                summary.passes.push_back(pass_summary{ cpu_profiler.get_stage(stage).name, cpu, gpu });
             }
             summary.gpu_dropped_frames = gpu_profiler.dropped_frame_count();
             return summary;
@@ -434,7 +489,7 @@ namespace
 
             std::printf("  pass p50 cpu/gpu ms:");
             for (const auto& pass : summary.passes) {
-                std::printf("  %s %.3f/%.3f", pass.name.c_str(), pass.cpu_p50_ms, pass.gpu_p50_ms);
+                std::printf("  %s %.3f/%.3f", pass.name.c_str(), pass.cpu.p50_ms, pass.gpu.p50_ms);
             }
             if (summary.gpu_dropped_frames > 0) {
                 std::printf("  (gpu dropped %zu)", summary.gpu_dropped_frames);
@@ -445,19 +500,30 @@ namespace
 #if defined(TRIENGINE_DEBUG_MODE)
         // GL call counting needs `TRIENGINE_ENABLE_DEBUG_MODE`, which the `-ship` presets turn off.
         // Call counts are deterministic, so the last frame stands for the whole report.
-        void _report_gl_calls(const bool with_top_sites)
+        gl_call_counts _count_gl_calls() const
         {
             const auto& gl_calls = _vis->get_last_frame_gl_calls();
+            gl_call_counts counts;
+            counts.total = gl_calls.total_calls();
+            counts.uniform = gl_calls.calls_with_prefix("glProgramUniform");
+            counts.draw = gl_calls.calls_with_prefix("glDraw");
+            counts.bind_vertex_array = gl_calls.calls_with_prefix("glBindVertexArray");
+            return counts;
+        }
 
+        void _report_gl_calls(const bool with_top_sites)
+        {
+            const gl_call_counts counts = this->_count_gl_calls();
             std::printf("  gl calls/frame: total %llu  glProgramUniform* %llu  glDraw* %llu  glBindVertexArray %llu\n",
-                static_cast<unsigned long long>(gl_calls.total_calls()),
-                static_cast<unsigned long long>(gl_calls.calls_with_prefix("glProgramUniform")),
-                static_cast<unsigned long long>(gl_calls.calls_with_prefix("glDraw")),
-                static_cast<unsigned long long>(gl_calls.calls_with_prefix("glBindVertexArray")));
+                static_cast<unsigned long long>(counts.total),
+                static_cast<unsigned long long>(counts.uniform),
+                static_cast<unsigned long long>(counts.draw),
+                static_cast<unsigned long long>(counts.bind_vertex_array));
 
             if (!with_top_sites) {
                 return;
             }
+            const auto& gl_calls = _vis->get_last_frame_gl_calls();
             std::vector<triengine::utility::gl_call_site_id_t> sites(gl_calls.site_count());
             for (triengine::utility::gl_call_site_id_t id = 0; id < sites.size(); ++id) {
                 sites[id] = id;
@@ -477,6 +543,70 @@ namespace
             }
         }
 #endif
+
+        // { "meta": { build and settings }, "runs": [ one object per measured object count ] }
+        void _write_json() const
+        {
+            json meta;
+            meta["debug_mode"] = kDebugMode;
+            meta["postfx"] = _opts.postfx;
+            meta["warmup_s"] = kSweepWarmup.count();
+            meta["measure_s"] = kSweepMeasure.count();
+            if (const auto* device = _vis->get_graphics_device_info()) {
+                meta["device"] = device->device;
+                meta["driver_version"] = device->driver_version;
+            }
+            meta["object_counts"] = _opts.sweep_object_counts;
+            meta["complete"] = _sweep_results.size() == _opts.sweep_object_counts.size();
+
+            json runs = json::array();
+            for (const sweep_result& result : _sweep_results) {
+                runs.push_back(_to_json(result));
+            }
+
+            std::ofstream file{ _opts.json_path };
+            if (!file) {
+                std::fprintf(stderr, "error: cannot write %s\n", _opts.json_path.c_str());
+                return;
+            }
+            file << json{ { "meta", std::move(meta) }, { "runs", std::move(runs) } }.dump(2) << '\n';
+            std::printf("wrote %s\n", _opts.json_path.c_str());
+        }
+
+        static json _to_json(const sweep_result& result)
+        {
+            const frames_summary& frames = result.frames;
+
+            json passes = json::object();
+            for (const pass_summary& pass : frames.passes) {
+                passes[pass.name] = {
+                    { "cpu_p50_ms", round_ms(pass.cpu.p50_ms) },
+                    { "cpu_max_ms", round_ms(pass.cpu.max_ms) },
+                    { "gpu_p50_ms", round_ms(pass.gpu.p50_ms) },
+                    { "gpu_max_ms", round_ms(pass.gpu.max_ms) },
+                };
+            }
+
+            json run = {
+                { "objects", result.object_count },
+                { "frames", frames.frames },
+                { "frame_p50_ms", round_ms(frames.frame_p50_ms) },
+                { "frame_p95_ms", round_ms(frames.frame_p95_ms) },
+                { "scene_render_p50_ms", round_ms(frames.scene_render_p50_ms) },
+                { "swap_p50_ms", round_ms(frames.swap_p50_ms) },
+                { "gpu_dropped_frames", frames.gpu_dropped_frames },
+                { "passes", std::move(passes) },
+            };
+#if defined(TRIENGINE_DEBUG_MODE)
+            run["gl_calls"] = {
+                { "total", result.gl_calls.total },
+                { "uniform", result.gl_calls.uniform },
+                { "draw", result.gl_calls.draw },
+                { "bind_vertex_array", result.gl_calls.bind_vertex_array },
+            };
+#endif
+            return run;
+        }
 
     private:
         enum class sweep_phase { warmup, measure, wait_gpu_results };
@@ -502,6 +632,7 @@ namespace
         uint64_t _measure_first_frame_id{};
         uint64_t _measure_last_frame_id{};
         size_t _gpu_result_wait_frames{};
+        std::vector<sweep_result> _sweep_results;
 
         // Samples of the frames in one summary; cleared and refilled each time, kept to reuse their capacity.
         std::vector<double> _frame_ms_samples;

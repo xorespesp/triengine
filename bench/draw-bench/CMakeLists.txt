@@ -8,8 +8,11 @@ target_sources(${TARGET_NAME}
 
 target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
+include(FetchNlohmannJson)
+
 target_link_libraries(${TARGET_NAME} PRIVATE
-    Triengine::triengine)
+    Triengine::triengine
+    nlohmann_json::nlohmann_json)
 
 install(
     TARGETS ${TARGET_NAME}
