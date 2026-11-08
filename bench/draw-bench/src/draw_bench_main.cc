@@ -4,6 +4,7 @@
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/visualization/visualizer.hh>
 
+#include <GLFW/glfw3.h>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -18,6 +19,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,6 +33,8 @@ namespace
     constexpr uint32_t kSceneSeed = 20261108;
     constexpr float kBoxSize = 0.2f;
     constexpr float kGridSpacing = 0.5f;
+    constexpr int32_t kWindowWidth = 1280;
+    constexpr int32_t kWindowHeight = 720;
     constexpr double kReportIntervalSeconds = 1.0;
 #if defined(TRIENGINE_DEBUG_MODE)
     constexpr bool kDebugMode = true;
@@ -58,17 +62,19 @@ namespace
         size_t object_count{ 10000 };
         std::vector<size_t> sweep_object_counts; // empty: report every second for `object_count` until closed
         std::string json_path; // sweep results, written when the bench exits
+        std::optional<size_t> monitor_index; // `nullopt`: the primary monitor
         bool postfx{ false }; // bloom and SMAA; off keeps the GPU cost small next to the submission cost
     };
 
     void print_usage()
     {
         std::fprintf(stderr,
-            "usage: draw-bench [--n <object count> | --sweep <count,count,...> [--json <path>]] [--postfx on|off]\n"
-            "  --n       number of boxes, reported every second until closed (default 10000)\n"
-            "  --sweep   measure each number of boxes in turn, then exit\n"
-            "  --json    write the sweep results to a JSON file\n"
-            "  --postfx  bloom and SMAA (default off)\n");
+            "usage: draw-bench [--n <object count> | --sweep <count,count,...> [--json <path>]] [--postfx on|off] [--monitor <index>]\n"
+            "  --n        number of boxes, reported every second until closed (default 10000)\n"
+            "  --sweep    measure each number of boxes in turn, then exit\n"
+            "  --json     write the sweep results to a JSON file\n"
+            "  --postfx   bloom and SMAA (default off)\n"
+            "  --monitor  open the window centered on this monitor, from 0 (default: the primary monitor)\n");
     }
 
     std::optional<size_t> parse_object_count(const char* text)
@@ -79,6 +85,16 @@ namespace
             return std::nullopt;
         }
         return static_cast<size_t>(n);
+    }
+
+    std::optional<size_t> parse_index(const char* text)
+    {
+        char* end{};
+        const unsigned long long index = std::strtoull(text, &end, 10);
+        if (end == text || *end != '\0') {
+            return std::nullopt;
+        }
+        return static_cast<size_t>(index);
     }
 
     // "100,1000,10000" -> { 100, 1000, 10000 }
@@ -120,6 +136,12 @@ namespace
             else if (std::strcmp(argv[i], "--json") == 0 && has_value) {
                 opts.json_path = argv[++i];
             }
+            else if (std::strcmp(argv[i], "--monitor") == 0 && has_value) {
+                opts.monitor_index = parse_index(argv[++i]);
+                if (!opts.monitor_index) {
+                    return std::nullopt;
+                }
+            }
             else if (std::strcmp(argv[i], "--postfx") == 0 && has_value) {
                 const std::string value{ argv[++i] };
                 if (value != "on" && value != "off") {
@@ -135,6 +157,45 @@ namespace
             return std::nullopt; // only a sweep has one result per object count to write
         }
         return opts;
+    }
+
+    struct window_placement {
+        std::string monitor_name;
+        int refresh_hz{};
+        int32_t x{};
+        int32_t y{};
+    };
+
+    // Centers a `width` x `height` window in the work area of monitor `index` (`nullopt`: the primary monitor).
+    // Needs GLFW initialized. On a bad index, lists the monitors and throws.
+    window_placement place_on_monitor(const std::optional<size_t> index, const int32_t width, const int32_t height)
+    {
+        int count = 0;
+        GLFWmonitor* const* const monitors = ::glfwGetMonitors(&count);
+        GLFWmonitor* monitor = index ? nullptr : ::glfwGetPrimaryMonitor();
+        if (index && *index < static_cast<size_t>(count)) {
+            monitor = monitors[*index];
+        }
+        if (!monitor) {
+            for (int i = 0; i < count; ++i) {
+                const GLFWvidmode* const mode = ::glfwGetVideoMode(monitors[i]);
+                std::fprintf(stderr, "  monitor %d: %s, %d Hz%s",
+                    i, ::glfwGetMonitorName(monitors[i]), mode ? mode->refreshRate : 0, i == 0 ? " (primary)\n" : "\n");
+            }
+            throw std::runtime_error("no such monitor");
+        }
+
+        int32_t area_x{}, area_y{}, area_width{}, area_height{};
+        ::glfwGetMonitorWorkarea(monitor, &area_x, &area_y, &area_width, &area_height);
+        const GLFWvidmode* const mode = ::glfwGetVideoMode(monitor);
+        const char* const name = ::glfwGetMonitorName(monitor);
+
+        window_placement placement;
+        placement.monitor_name = name ? name : "";
+        placement.refresh_hz = mode ? mode->refreshRate : 0;
+        placement.x = area_x + (area_width - width) / 2;
+        placement.y = area_y + (area_height - height) / 2;
+        return placement;
     }
 
     // Lays the boxes out on a cube-shaped grid centered at the origin.
@@ -267,8 +328,12 @@ namespace
         void create()
         {
             _vis = std::make_unique<triengine::visualization::visualizer>();
-            _vis->create_window("Triengine Draw Bench", true, 1280, 720,
+            // Created hidden and shown once placed, so the window never appears on another monitor first.
+            _vis->create_window("Triengine Draw Bench", false/* show_window */, kWindowWidth, kWindowHeight,
                 false/* fullscreen */, false/* enable_vsync */, 0/* max_fps: uncapped */);
+            _placement = place_on_monitor(_opts.monitor_index, kWindowWidth, kWindowHeight);
+            _vis->set_window_position(_placement.x, _placement.y);
+            _vis->set_window_visible(true);
             _vis->enable_camera_interaction(false);
 
             _vis->set_key_callback(
@@ -302,7 +367,8 @@ namespace
             _vis->get_pass_cpu_profiler().request_enabled(true);
             _vis->get_pass_gpu_profiler().request_enabled(true);
 
-            std::printf("postfx=%s\n", _opts.postfx ? "on" : "off");
+            std::printf("monitor=%s (%d Hz) postfx=%s\n",
+                _placement.monitor_name.c_str(), _placement.refresh_hz, _opts.postfx ? "on" : "off");
             if (this->_is_sweep()) {
                 this->_start_sweep_step();
             } else {
@@ -599,6 +665,7 @@ namespace
             json meta;
             meta["debug_mode"] = kDebugMode;
             meta["postfx"] = _opts.postfx;
+            meta["monitor"] = { { "name", _placement.monitor_name }, { "refresh_hz", _placement.refresh_hz } };
             meta["warmup_s"] = kSweepWarmup.count();
             meta["measure_s"] = kSweepMeasure.count();
             if (const auto* device = _vis->get_graphics_device_info()) {
@@ -672,6 +739,7 @@ namespace
         bench_options _opts;
         std::unique_ptr<triengine::visualization::visualizer> _vis;
         std::shared_ptr<triengine::scene> _scene;
+        window_placement _placement;
 
         std::optional<size_t> _scene_render_stage;
         std::optional<size_t> _swap_stage;
