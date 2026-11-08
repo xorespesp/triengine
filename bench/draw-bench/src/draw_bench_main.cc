@@ -221,6 +221,11 @@ namespace
         stage_stats gpu;
     };
 
+    struct frame_stage_summary {
+        std::string name;
+        stage_stats cpu;
+    };
+
     // Timings of the frames with an ID in a closed range.
     struct frames_summary {
         size_t frames{};
@@ -228,6 +233,8 @@ namespace
         double frame_p95_ms{};
         double scene_render_p50_ms{};
         double swap_p50_ms{};
+        // `visualizer` stages, then "Untracked": the part of each frame outside every stage.
+        std::vector<frame_stage_summary> frame_stages;
         std::vector<pass_summary> passes; // passes skipped in all of the frames are left out
         size_t gpu_dropped_frames{};
     };
@@ -465,6 +472,14 @@ namespace
             summary.scene_render_p50_ms = _scene_render_ms_samples.empty() ? 0.0 : quantile(_scene_render_ms_samples, 0.50);
             summary.swap_p50_ms = _swap_ms_samples.empty() ? 0.0 : quantile(_swap_ms_samples, 0.50);
 
+            for (size_t stage = 0; stage < profiler.stage_count(); ++stage) {
+                const stage_stats cpu = get_stage_stats(profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                if (!std::isnan(cpu.p50_ms)) {
+                    summary.frame_stages.push_back(frame_stage_summary{ profiler.get_stage(stage).name, cpu });
+                }
+            }
+            summary.frame_stages.push_back(frame_stage_summary{ "Untracked", this->_untracked_stats(first_frame_id, last_frame_id) });
+
             const auto& cpu_profiler = _vis->get_pass_cpu_profiler();
             const auto& gpu_profiler = _vis->get_pass_gpu_profiler();
             for (size_t stage = 0; stage < cpu_profiler.stage_count(); ++stage) {
@@ -479,6 +494,34 @@ namespace
             return summary;
         }
 
+        // Frame time minus the sum of the measured stages, per frame.
+        stage_stats _untracked_stats(const uint64_t first_frame_id, const uint64_t last_frame_id)
+        {
+            const auto& profiler = _vis->get_cpu_frame_profiler();
+            _pass_ms_samples.clear();
+            for (size_t i = profiler.record_count(); i-- > 0;) {
+                const auto record = profiler.get_record(i);
+                if (record.frame_id() < first_frame_id) {
+                    break;
+                }
+                if (record.frame_id() > last_frame_id) {
+                    continue;
+                }
+                double untracked_ms = record.frame_ms();
+                for (size_t stage = 0; stage < profiler.stage_count(); ++stage) {
+                    const double ms = record.stage_ms(stage);
+                    if (!std::isnan(ms)) {
+                        untracked_ms -= ms;
+                    }
+                }
+                _pass_ms_samples.push_back(untracked_ms);
+            }
+            if (_pass_ms_samples.empty()) {
+                return {};
+            }
+            return stage_stats{ quantile(_pass_ms_samples, 0.50), *std::max_element(_pass_ms_samples.begin(), _pass_ms_samples.end()) };
+        }
+
         static void _print_summary(const frames_summary& summary)
         {
             if (summary.frames == 0) {
@@ -486,6 +529,12 @@ namespace
             }
             std::printf("frames=%4zu  frame p50=%7.3f ms p95=%7.3f ms  scene_render p50=%7.3f ms  swap p50=%7.3f ms\n",
                 summary.frames, summary.frame_p50_ms, summary.frame_p95_ms, summary.scene_render_p50_ms, summary.swap_p50_ms);
+
+            std::printf("  frame stage p50/max ms:");
+            for (const auto& stage : summary.frame_stages) {
+                std::printf("  %s %.3f/%.3f", stage.name.c_str(), stage.cpu.p50_ms, stage.cpu.max_ms);
+            }
+            std::printf("\n");
 
             std::printf("  pass p50 cpu/gpu ms:");
             for (const auto& pass : summary.passes) {
@@ -577,6 +626,14 @@ namespace
         {
             const frames_summary& frames = result.frames;
 
+            json frame_stages = json::object();
+            for (const frame_stage_summary& stage : frames.frame_stages) {
+                frame_stages[stage.name] = {
+                    { "p50_ms", round_ms(stage.cpu.p50_ms) },
+                    { "max_ms", round_ms(stage.cpu.max_ms) },
+                };
+            }
+
             json passes = json::object();
             for (const pass_summary& pass : frames.passes) {
                 passes[pass.name] = {
@@ -595,6 +652,7 @@ namespace
                 { "scene_render_p50_ms", round_ms(frames.scene_render_p50_ms) },
                 { "swap_p50_ms", round_ms(frames.swap_p50_ms) },
                 { "gpu_dropped_frames", frames.gpu_dropped_frames },
+                { "frame_stages", std::move(frame_stages) },
                 { "passes", std::move(passes) },
             };
 #if defined(TRIENGINE_DEBUG_MODE)
