@@ -5,6 +5,7 @@
 #include <triengine/visualization/visualizer.hh>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -15,6 +16,7 @@
 #include <optional>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -31,17 +33,54 @@ namespace
     constexpr size_t kTopGlCallSites = 8;
 #endif
 
+    // Sweep timing per object count. The warm-up discards the first frames, which upload the new boxes.
+    constexpr std::chrono::seconds kSweepWarmup{ 2 };
+    constexpr std::chrono::seconds kSweepMeasure{ 5 };
+    // Frames rendered after a measurement at most, waiting for its last GPU results.
+    constexpr size_t kMaxGpuResultWaitFrames = 16;
+
+    using bench_clock = std::chrono::steady_clock;
+
     struct bench_options {
         size_t object_count{ 10000 };
+        std::vector<size_t> sweep_object_counts; // empty: report every second for `object_count` until closed
         bool postfx{ false }; // bloom and SMAA; off keeps the GPU cost small next to the submission cost
     };
 
     void print_usage()
     {
         std::fprintf(stderr,
-            "usage: draw-bench [--n <object count>] [--postfx on|off]\n"
-            "  --n       number of boxes (default 10000)\n"
+            "usage: draw-bench [--n <object count> | --sweep <count,count,...>] [--postfx on|off]\n"
+            "  --n       number of boxes, reported every second until closed (default 10000)\n"
+            "  --sweep   measure each number of boxes in turn, then exit\n"
             "  --postfx  bloom and SMAA (default off)\n");
+    }
+
+    std::optional<size_t> parse_object_count(const char* text)
+    {
+        char* end{};
+        const unsigned long long n = std::strtoull(text, &end, 10);
+        if (end == text || *end != '\0' || n == 0) {
+            return std::nullopt;
+        }
+        return static_cast<size_t>(n);
+    }
+
+    // "100,1000,10000" -> { 100, 1000, 10000 }
+    std::optional<std::vector<size_t>> parse_object_counts(const std::string& text)
+    {
+        std::vector<size_t> counts;
+        size_t begin = 0;
+        while (begin <= text.size()) {
+            const size_t end = std::min(text.find(',', begin), text.size());
+            const auto n = parse_object_count(text.substr(begin, end - begin).c_str());
+            if (!n) {
+                return std::nullopt;
+            }
+            counts.push_back(*n);
+            begin = end + 1;
+        }
+        return counts;
     }
 
     std::optional<bench_options> parse_args(const int argc, char** argv)
@@ -50,12 +89,18 @@ namespace
         for (int i = 1; i < argc; ++i) {
             const bool has_value = i + 1 < argc;
             if (std::strcmp(argv[i], "--n") == 0 && has_value) {
-                char* end{};
-                const unsigned long long n = std::strtoull(argv[++i], &end, 10);
-                if (*end != '\0' || n == 0) {
+                const auto n = parse_object_count(argv[++i]);
+                if (!n) {
                     return std::nullopt;
                 }
-                opts.object_count = static_cast<size_t>(n);
+                opts.object_count = *n;
+            }
+            else if (std::strcmp(argv[i], "--sweep") == 0 && has_value) {
+                auto counts = parse_object_counts(argv[++i]);
+                if (!counts) {
+                    return std::nullopt;
+                }
+                opts.sweep_object_counts = std::move(*counts);
             }
             else if (std::strcmp(argv[i], "--postfx") == 0 && has_value) {
                 const std::string value{ argv[++i] };
@@ -141,6 +186,23 @@ namespace
         return samples.empty() ? std::numeric_limits<double>::quiet_NaN() : quantile(samples, 0.50);
     }
 
+    struct pass_summary {
+        std::string name;
+        double cpu_p50_ms{};
+        double gpu_p50_ms{};
+    };
+
+    // Timings of the frames with an ID in a closed range.
+    struct frames_summary {
+        size_t frames{};
+        double frame_p50_ms{};
+        double frame_p95_ms{};
+        double scene_render_p50_ms{};
+        double swap_p50_ms{};
+        std::vector<pass_summary> passes; // passes skipped in all of the frames are left out
+        size_t gpu_dropped_frames{};
+    };
+
     class draw_bench_app
     {
     public:
@@ -168,11 +230,10 @@ namespace
                     }
                 });
 
-            auto scn = _vis->add_scene();
-            auto& render_config = *scn->get_render_config();
+            _scene = _vis->add_scene();
+            auto& render_config = *_scene->get_render_config();
             render_config.enable_anti_aliasing = _opts.postfx;
             render_config.light_opts.bloom.enabled = _opts.postfx;
-            populate_scene(*scn, _opts.object_count);
 
             auto& profiler = _vis->get_cpu_frame_profiler();
             for (size_t id = 0; id < profiler.stage_count(); ++id) {
@@ -187,11 +248,18 @@ namespace
             _vis->get_pass_cpu_profiler().request_enabled(true);
             _vis->get_pass_gpu_profiler().request_enabled(true);
 
-            std::printf("objects=%zu postfx=%s\n", _opts.object_count, _opts.postfx ? "on" : "off");
+            std::printf("postfx=%s\n", _opts.postfx ? "on" : "off");
+            if (this->_is_sweep()) {
+                this->_start_sweep_step();
+            } else {
+                populate_scene(*_scene, _opts.object_count);
+                std::printf("objects=%zu\n", _opts.object_count);
+            }
         }
 
         void destroy()
         {
+            _scene.reset();
             _vis->destroy_window();
             _vis.reset();
         }
@@ -200,12 +268,79 @@ namespace
         {
             while (_vis->update_window()) {
                 _vis->render();
-                _report();
+                if (this->_is_sweep()) {
+                    this->_step_sweep();
+                } else {
+                    this->_report();
+                }
             }
         }
 
     private:
-        // Prints the median and p95 of the frames recorded since the last report.
+        bool _is_sweep() const noexcept { return !_opts.sweep_object_counts.empty(); }
+
+        // Rebuilds the scene with the next object count and starts its warm-up.
+        void _start_sweep_step()
+        {
+            const size_t object_count = _opts.sweep_object_counts[_sweep_index];
+            _scene->clear_geometries();
+            populate_scene(*_scene, object_count);
+
+            _sweep_phase = sweep_phase::warmup;
+            _sweep_phase_started = bench_clock::now();
+        }
+
+        // Called after every frame: warm-up, measurement, then waiting for the GPU results of the measured frames.
+        void _step_sweep()
+        {
+            const auto& profiler = _vis->get_cpu_frame_profiler();
+            if (profiler.record_count() == 0) {
+                return;
+            }
+            const uint64_t newest_frame_id = profiler.get_record(profiler.record_count() - 1).frame_id();
+            const auto now = bench_clock::now();
+
+            switch (_sweep_phase) {
+            case sweep_phase::warmup:
+                if (now - _sweep_phase_started >= kSweepWarmup) {
+                    _measure_first_frame_id = newest_frame_id + 1;
+                    _sweep_phase = sweep_phase::measure;
+                    _sweep_phase_started = now;
+                }
+                break;
+
+            case sweep_phase::measure:
+                if (now - _sweep_phase_started >= kSweepMeasure) {
+                    _measure_last_frame_id = newest_frame_id;
+                    _sweep_phase = sweep_phase::wait_gpu_results;
+                    _gpu_result_wait_frames = 0;
+                }
+                break;
+
+            case sweep_phase::wait_gpu_results: {
+                const auto& gpu_profiler = _vis->get_pass_gpu_profiler();
+                const bool arrived = gpu_profiler.record_count() > 0
+                    && gpu_profiler.get_record(gpu_profiler.record_count() - 1).frame_id() >= _measure_last_frame_id;
+                if (!arrived && ++_gpu_result_wait_frames < kMaxGpuResultWaitFrames) {
+                    break;
+                }
+
+                std::printf("objects=%zu\n", _opts.sweep_object_counts[_sweep_index]);
+                this->_print_summary(this->_summarize(_measure_first_frame_id, _measure_last_frame_id));
+#if defined(TRIENGINE_DEBUG_MODE)
+                this->_report_gl_calls(false/* top call sites */);
+#endif
+                if (++_sweep_index == _opts.sweep_object_counts.size()) {
+                    _vis->close_window();
+                } else {
+                    this->_start_sweep_step();
+                }
+                break;
+            }
+            }
+        }
+
+        // Prints the frames recorded since the last report, once a second.
         void _report()
         {
             const auto& profiler = _vis->get_cpu_frame_profiler();
@@ -222,17 +357,39 @@ namespace
                 return;
             }
 
-            _frame_ms_samples.clear();
-            _scene_render_ms_samples.clear();
-            _swap_ms_samples.clear();
             const size_t first_index = profiler.find_first_record_after(_last_report_time);
             if (first_index == profiler.record_count()) {
                 return;
             }
             const uint64_t first_frame_id = profiler.get_record(first_index).frame_id();
             const uint64_t last_frame_id = profiler.get_record(profiler.record_count() - 1).frame_id();
-            for (size_t i = first_index; i < profiler.record_count(); ++i) {
+            _last_report_time = newest_time;
+
+            this->_print_summary(this->_summarize(first_frame_id, last_frame_id));
+#if defined(TRIENGINE_DEBUG_MODE)
+            // The busiest call sites, once, after the warm-up report.
+            this->_report_gl_calls(++_gl_call_reports == 2);
+#endif
+        }
+
+        // Frame, scene render and swap times of the frames in `[first_frame_id, last_frame_id]`, and the per-pass
+        // CPU and GPU medians of the same frames. GPU results arrive a few frames late, so the newest frames of
+        // the range may have CPU values only.
+        frames_summary _summarize(const uint64_t first_frame_id, const uint64_t last_frame_id)
+        {
+            const auto& profiler = _vis->get_cpu_frame_profiler();
+
+            _frame_ms_samples.clear();
+            _scene_render_ms_samples.clear();
+            _swap_ms_samples.clear();
+            for (size_t i = profiler.record_count(); i-- > 0;) {
                 const auto record = profiler.get_record(i);
+                if (record.frame_id() < first_frame_id) {
+                    break;
+                }
+                if (record.frame_id() > last_frame_id) {
+                    continue;
+                }
                 _frame_ms_samples.push_back(record.frame_ms());
                 // `NaN` marks a stage that was not measured in that frame.
                 if (_scene_render_stage && !std::isnan(record.stage_ms(*_scene_render_stage))) {
@@ -242,29 +399,53 @@ namespace
                     _swap_ms_samples.push_back(record.stage_ms(*_swap_stage));
                 }
             }
-            _last_report_time = newest_time;
 
-            if (_frame_ms_samples.empty()) {
+            frames_summary summary;
+            summary.frames = _frame_ms_samples.size();
+            if (summary.frames == 0) {
+                return summary;
+            }
+            summary.frame_p50_ms = quantile(_frame_ms_samples, 0.50);
+            summary.frame_p95_ms = quantile(_frame_ms_samples, 0.95);
+            summary.scene_render_p50_ms = _scene_render_ms_samples.empty() ? 0.0 : quantile(_scene_render_ms_samples, 0.50);
+            summary.swap_p50_ms = _swap_ms_samples.empty() ? 0.0 : quantile(_swap_ms_samples, 0.50);
+
+            const auto& cpu_profiler = _vis->get_pass_cpu_profiler();
+            const auto& gpu_profiler = _vis->get_pass_gpu_profiler();
+            for (size_t stage = 0; stage < cpu_profiler.stage_count(); ++stage) {
+                const double cpu_ms = stage_p50(cpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                const double gpu_ms = stage_p50(gpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                if (std::isnan(cpu_ms) && std::isnan(gpu_ms)) {
+                    continue; // pass skipped in these frames
+                }
+                summary.passes.push_back(pass_summary{ cpu_profiler.get_stage(stage).name, cpu_ms, gpu_ms });
+            }
+            summary.gpu_dropped_frames = gpu_profiler.dropped_frame_count();
+            return summary;
+        }
+
+        static void _print_summary(const frames_summary& summary)
+        {
+            if (summary.frames == 0) {
                 return;
             }
-            const size_t frames = _frame_ms_samples.size();
-            const double frame_p50 = quantile(_frame_ms_samples, 0.50);
-            const double frame_p95 = quantile(_frame_ms_samples, 0.95);
-            const double render_p50 = _scene_render_ms_samples.empty() ? 0.0 : quantile(_scene_render_ms_samples, 0.50);
-            const double swap_p50 = _swap_ms_samples.empty() ? 0.0 : quantile(_swap_ms_samples, 0.50);
             std::printf("frames=%4zu  frame p50=%7.3f ms p95=%7.3f ms  scene_render p50=%7.3f ms  swap p50=%7.3f ms\n",
-                frames, frame_p50, frame_p95, render_p50, swap_p50);
+                summary.frames, summary.frame_p50_ms, summary.frame_p95_ms, summary.scene_render_p50_ms, summary.swap_p50_ms);
 
-            this->_report_passes(first_frame_id, last_frame_id);
-#if defined(TRIENGINE_DEBUG_MODE)
-            this->_report_gl_calls();
-#endif
+            std::printf("  pass p50 cpu/gpu ms:");
+            for (const auto& pass : summary.passes) {
+                std::printf("  %s %.3f/%.3f", pass.name.c_str(), pass.cpu_p50_ms, pass.gpu_p50_ms);
+            }
+            if (summary.gpu_dropped_frames > 0) {
+                std::printf("  (gpu dropped %zu)", summary.gpu_dropped_frames);
+            }
+            std::printf("\n");
         }
 
 #if defined(TRIENGINE_DEBUG_MODE)
         // GL call counting needs `TRIENGINE_ENABLE_DEBUG_MODE`, which the `-ship` presets turn off.
         // Call counts are deterministic, so the last frame stands for the whole report.
-        void _report_gl_calls()
+        void _report_gl_calls(const bool with_top_sites)
         {
             const auto& gl_calls = _vis->get_last_frame_gl_calls();
 
@@ -274,8 +455,7 @@ namespace
                 static_cast<unsigned long long>(gl_calls.calls_with_prefix("glDraw")),
                 static_cast<unsigned long long>(gl_calls.calls_with_prefix("glBindVertexArray")));
 
-            // The busiest call sites, once, after the warm-up report.
-            if (++_gl_call_reports != 2) {
+            if (!with_top_sites) {
                 return;
             }
             std::vector<triengine::utility::gl_call_site_id_t> sites(gl_calls.site_count());
@@ -298,45 +478,36 @@ namespace
         }
 #endif
 
-        // Prints the per-pass CPU and GPU medians of the same frames. GPU results arrive a few frames
-        // late, so the newest frames of the range may have CPU values only.
-        void _report_passes(const uint64_t first_frame_id, const uint64_t last_frame_id)
-        {
-            const auto& cpu_profiler = _vis->get_pass_cpu_profiler();
-            const auto& gpu_profiler = _vis->get_pass_gpu_profiler();
-
-            std::printf("  pass p50 cpu/gpu ms:");
-            for (size_t stage = 0; stage < cpu_profiler.stage_count(); ++stage) {
-                const double cpu_ms = stage_p50(cpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
-                const double gpu_ms = stage_p50(gpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
-                if (std::isnan(cpu_ms) && std::isnan(gpu_ms)) {
-                    continue; // pass skipped in these frames
-                }
-                std::printf("  %s %.3f/%.3f", cpu_profiler.get_stage(stage).name.c_str(), cpu_ms, gpu_ms);
-            }
-            if (gpu_profiler.dropped_frame_count() > 0) {
-                std::printf("  (gpu dropped %zu)", gpu_profiler.dropped_frame_count());
-            }
-            std::printf("\n");
-        }
-
     private:
+        enum class sweep_phase { warmup, measure, wait_gpu_results };
+
         bench_options _opts;
         std::unique_ptr<triengine::visualization::visualizer> _vis;
+        std::shared_ptr<triengine::scene> _scene;
 
         std::optional<size_t> _scene_render_stage;
         std::optional<size_t> _swap_stage;
+
+        // Per-second reports
         size_t _report_epoch{};
         double _last_report_time{};
+#if defined(TRIENGINE_DEBUG_MODE)
+        size_t _gl_call_reports{};
+#endif
 
-        // Samples of the frames in one report; cleared and refilled each time, kept to reuse their capacity.
+        // Sweep: `_sweep_index` is the object count being measured.
+        size_t _sweep_index{};
+        sweep_phase _sweep_phase{ sweep_phase::warmup };
+        bench_clock::time_point _sweep_phase_started{};
+        uint64_t _measure_first_frame_id{};
+        uint64_t _measure_last_frame_id{};
+        size_t _gpu_result_wait_frames{};
+
+        // Samples of the frames in one summary; cleared and refilled each time, kept to reuse their capacity.
         std::vector<double> _frame_ms_samples;
         std::vector<double> _scene_render_ms_samples;
         std::vector<double> _swap_ms_samples;
         std::vector<double> _pass_ms_samples;
-#if defined(TRIENGINE_DEBUG_MODE)
-        size_t _gl_call_reports{};
-#endif
     };
 
 } // namespace
