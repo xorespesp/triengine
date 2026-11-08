@@ -86,7 +86,6 @@ namespace triengine::core
             frame.stage_measured.assign(_stages.size(), false);
         }
         _current_inflight_slot = 0;
-        _frame_open = false;
     }
 
     void gpu_frame_profiler::destroy()
@@ -98,7 +97,6 @@ namespace triengine::core
         _query_ids.clear();
 
         // A later `create()` starts disabled, with an empty history.
-        _frame_open = false;
         _profiling_enabled = false;
         _requested_enabled.reset();
         _reset_requested = false;
@@ -109,7 +107,7 @@ namespace triengine::core
     bool gpu_frame_profiler::_begin_measure(stage_id_t id)
     {
         if (id >= _stages.size()) { TRIENGINE_PANIC("Invalid GPU frame profiler stage ID"); }
-        if (!_frame_open) { return false; }
+        if (!_profiling_enabled) { return false; }
         if (_active_stage) { TRIENGINE_PANIC("GPU frame profiler stages must not nest"); }
 
         inflight_frame& frame = _inflight_frames[_current_inflight_slot];
@@ -119,6 +117,7 @@ namespace triengine::core
             return false;
         }
 
+        // Non-blocking: queues a command; the GPU writes its clock into the query when it reaches it.
         GLCall(::glQueryCounter(this->_query_id(_current_inflight_slot, stage_begin_query(id)), GL_TIMESTAMP));
         _active_stage = id;
         return true;
@@ -140,7 +139,8 @@ namespace triengine::core
         const bool toggles = _requested_enabled.has_value() && *_requested_enabled != _profiling_enabled;
         const bool discard = toggles || _reset_requested;
 
-        if (_frame_open) {
+        // The enabled state only changes at a boundary, so an enabled profiler opened this frame.
+        if (_profiling_enabled) {
             inflight_frame& frame = _inflight_frames[_current_inflight_slot];
             GLCall(::glQueryCounter(this->_query_id(_current_inflight_slot, kEndBoundaryQuery), GL_TIMESTAMP));
             frame.frame_id = frame_id;
@@ -163,7 +163,6 @@ namespace triengine::core
         if (_profiling_enabled) {
             this->_open_frame();
         }
-        _frame_open = _profiling_enabled;
     }
 
     void gpu_frame_profiler::_open_frame()
@@ -198,11 +197,13 @@ namespace triengine::core
     {
         const auto is_available = [this, slot](const size_t query_index) {
             GLint available{ GL_FALSE };
+            // Non-blocking: reports whether the GPU has written the result yet.
             GLCall(::glGetQueryObjectiv(this->_query_id(slot, query_index), GL_QUERY_RESULT_AVAILABLE, &available));
             return available != GL_FALSE;
         };
         const auto read_ns = [this, slot](const size_t query_index) {
             GLuint64 ns{};
+            // Blocking until the result arrives; only called once `is_available()` holds, so it returns at once.
             GLCall(::glGetQueryObjectui64v(this->_query_id(slot, query_index), GL_QUERY_RESULT, &ns));
             return ns;
         };

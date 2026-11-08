@@ -11,7 +11,7 @@
 #include <string>
 
 // forward declaration
-namespace triengine::core { class gl_context; }
+namespace triengine::core { class gl_context; class gpu_frame_profiler; }
 
 namespace triengine::visualization
 {
@@ -92,6 +92,13 @@ namespace triengine::visualization
         // NOTE: Render-thread access only; the profiler is thread-unsafe.
         const utility::cpu_frame_profiler& get_cpu_frame_profiler() const noexcept;
         utility::cpu_frame_profiler& get_cpu_frame_profiler() noexcept;
+
+        // Per-pass timings of the scene render, keyed by the same frame IDs as `get_cpu_frame_profiler()`.
+        // See `core::scene_renderer::profiling_stages` for the stages.
+        const utility::cpu_frame_profiler& get_pass_cpu_profiler() const noexcept;
+        utility::cpu_frame_profiler& get_pass_cpu_profiler() noexcept;
+        const core::gpu_frame_profiler& get_pass_gpu_profiler() const noexcept;
+        core::gpu_frame_profiler& get_pass_gpu_profiler() noexcept;
 
         void close_window();
 

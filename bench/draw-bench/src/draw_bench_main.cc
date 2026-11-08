@@ -1,4 +1,5 @@
 #include <triengine/global_options.hh>
+#include <triengine/core/gpu_frame_profiler.hh>
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/visualization/visualizer.hh>
 
@@ -8,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <random>
@@ -116,6 +118,25 @@ namespace
         return values[k];
     }
 
+    // Median of a stage over the records with a frame ID in `[first_id, last_id]`; `NaN` when there is none.
+    template <class _Profiler>
+    double stage_p50(const _Profiler& profiler, const size_t stage, const uint64_t first_id, const uint64_t last_id,
+        std::vector<double>& samples)
+    {
+        samples.clear();
+        for (size_t i = profiler.record_count(); i-- > 0;) {
+            const auto record = profiler.get_record(i);
+            if (record.frame_id() < first_id) {
+                break;
+            }
+            const double ms = record.stage_ms(stage);
+            if (record.frame_id() <= last_id && !std::isnan(ms)) {
+                samples.push_back(ms);
+            }
+        }
+        return samples.empty() ? std::numeric_limits<double>::quiet_NaN() : quantile(samples, 0.50);
+    }
+
     class draw_bench_app
     {
     public:
@@ -159,6 +180,8 @@ namespace
                 }
             }
             profiler.request_enabled(true);
+            _vis->get_pass_cpu_profiler().request_enabled(true);
+            _vis->get_pass_gpu_profiler().request_enabled(true);
 
             std::printf("objects=%zu postfx=%s\n", _opts.object_count, _opts.postfx ? "on" : "off");
         }
@@ -195,32 +218,62 @@ namespace
                 return;
             }
 
-            _frame_ms.clear();
-            _scene_render_ms.clear();
-            _swap_ms.clear();
-            for (size_t i = profiler.find_first_record_after(_last_report_time); i < profiler.record_count(); ++i) {
+            _frame_ms_samples.clear();
+            _scene_render_ms_samples.clear();
+            _swap_ms_samples.clear();
+            const size_t first_index = profiler.find_first_record_after(_last_report_time);
+            if (first_index == profiler.record_count()) {
+                return;
+            }
+            const uint64_t first_frame_id = profiler.get_record(first_index).frame_id();
+            const uint64_t last_frame_id = profiler.get_record(profiler.record_count() - 1).frame_id();
+            for (size_t i = first_index; i < profiler.record_count(); ++i) {
                 const auto record = profiler.get_record(i);
-                _frame_ms.push_back(record.frame_ms());
+                _frame_ms_samples.push_back(record.frame_ms());
                 // `NaN` marks a stage that was not measured in that frame.
                 if (_scene_render_stage && !std::isnan(record.stage_ms(*_scene_render_stage))) {
-                    _scene_render_ms.push_back(record.stage_ms(*_scene_render_stage));
+                    _scene_render_ms_samples.push_back(record.stage_ms(*_scene_render_stage));
                 }
                 if (_swap_stage && !std::isnan(record.stage_ms(*_swap_stage))) {
-                    _swap_ms.push_back(record.stage_ms(*_swap_stage));
+                    _swap_ms_samples.push_back(record.stage_ms(*_swap_stage));
                 }
             }
             _last_report_time = newest_time;
 
-            if (_frame_ms.empty()) {
+            if (_frame_ms_samples.empty()) {
                 return;
             }
-            const size_t frames = _frame_ms.size();
-            const double frame_p50 = quantile(_frame_ms, 0.50);
-            const double frame_p95 = quantile(_frame_ms, 0.95);
-            const double render_p50 = _scene_render_ms.empty() ? 0.0 : quantile(_scene_render_ms, 0.50);
-            const double swap_p50 = _swap_ms.empty() ? 0.0 : quantile(_swap_ms, 0.50);
+            const size_t frames = _frame_ms_samples.size();
+            const double frame_p50 = quantile(_frame_ms_samples, 0.50);
+            const double frame_p95 = quantile(_frame_ms_samples, 0.95);
+            const double render_p50 = _scene_render_ms_samples.empty() ? 0.0 : quantile(_scene_render_ms_samples, 0.50);
+            const double swap_p50 = _swap_ms_samples.empty() ? 0.0 : quantile(_swap_ms_samples, 0.50);
             std::printf("frames=%4zu  frame p50=%7.3f ms p95=%7.3f ms  scene_render p50=%7.3f ms  swap p50=%7.3f ms\n",
                 frames, frame_p50, frame_p95, render_p50, swap_p50);
+
+            this->_report_passes(first_frame_id, last_frame_id);
+        }
+
+        // Prints the per-pass CPU and GPU medians of the same frames. GPU results arrive a few frames
+        // late, so the newest frames of the range may have CPU values only.
+        void _report_passes(const uint64_t first_frame_id, const uint64_t last_frame_id)
+        {
+            const auto& cpu_profiler = _vis->get_pass_cpu_profiler();
+            const auto& gpu_profiler = _vis->get_pass_gpu_profiler();
+
+            std::printf("  pass p50 cpu/gpu ms:");
+            for (size_t stage = 0; stage < cpu_profiler.stage_count(); ++stage) {
+                const double cpu_ms = stage_p50(cpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                const double gpu_ms = stage_p50(gpu_profiler, stage, first_frame_id, last_frame_id, _pass_ms_samples);
+                if (std::isnan(cpu_ms) && std::isnan(gpu_ms)) {
+                    continue; // pass skipped in these frames
+                }
+                std::printf("  %s %.3f/%.3f", cpu_profiler.get_stage(stage).name.c_str(), cpu_ms, gpu_ms);
+            }
+            if (gpu_profiler.dropped_frame_count() > 0) {
+                std::printf("  (gpu dropped %zu)", gpu_profiler.dropped_frame_count());
+            }
+            std::printf("\n");
         }
 
     private:
@@ -232,10 +285,11 @@ namespace
         size_t _report_epoch{};
         double _last_report_time{};
 
-        // Reused per report
-        std::vector<double> _frame_ms;
-        std::vector<double> _scene_render_ms;
-        std::vector<double> _swap_ms;
+        // Samples of the frames in one report; cleared and refilled each time, kept to reuse their capacity.
+        std::vector<double> _frame_ms_samples;
+        std::vector<double> _scene_render_ms_samples;
+        std::vector<double> _swap_ms_samples;
+        std::vector<double> _pass_ms_samples;
     };
 
 } // namespace

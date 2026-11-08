@@ -71,7 +71,8 @@ namespace triengine::utility
         const bool toggles = _requested_enabled.has_value() && *_requested_enabled != _profiling_enabled;
         const bool discard = toggles || _reset_requested;
 
-        if (_profiling_enabled && _frame_open && !discard)
+        // The enabled state only changes at a boundary, so an enabled profiler timed this whole frame.
+        if (_profiling_enabled && !discard)
         {
             const size_t slot = this->_acquire_ring_slot();
 
@@ -101,7 +102,6 @@ namespace triengine::utility
         }
 
         _last_frame_boundary = now;
-        _frame_open = _profiling_enabled;
     }
 
     cpu_frame_profiler::record_view cpu_frame_profiler::get_record(size_t index) const

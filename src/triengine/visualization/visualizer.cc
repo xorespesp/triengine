@@ -66,6 +66,22 @@ namespace triengine::visualization
         _imp->_flag_camera_interaction = enable;
     }
 
+    const utility::cpu_frame_profiler& visualizer::get_pass_cpu_profiler() const noexcept {
+        return _imp->_scn_renderer.get_pass_cpu_profiler();
+    }
+
+    utility::cpu_frame_profiler& visualizer::get_pass_cpu_profiler() noexcept {
+        return _imp->_scn_renderer.get_pass_cpu_profiler();
+    }
+
+    const core::gpu_frame_profiler& visualizer::get_pass_gpu_profiler() const noexcept {
+        return _imp->_scn_renderer.get_pass_gpu_profiler();
+    }
+
+    core::gpu_frame_profiler& visualizer::get_pass_gpu_profiler() noexcept {
+        return _imp->_scn_renderer.get_pass_gpu_profiler();
+    }
+
     const utility::cpu_frame_profiler& visualizer::get_cpu_frame_profiler() const noexcept {
         return _imp->_cpu_frame_profiler;
     }
@@ -304,7 +320,8 @@ namespace triengine::visualization
                     render_target.fbo_id,
                     render_target.frame_size.x(),
                     render_target.frame_size.y(),
-                    target_scn
+                    target_scn,
+                    _imp->_frame_id
                 );
             }
         }

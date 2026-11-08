@@ -76,11 +76,37 @@ namespace triengine::core
             ));
         }
 
+        // Times one pass on both pass profilers: CPU submission and GPU execution.
+        class pass_scope {
+        public:
+            pass_scope(
+                utility::cpu_frame_profiler& cpu_profiler, 
+                gpu_frame_profiler& gpu_profiler, 
+                const size_t stage)
+                : _cpu_timer{ cpu_profiler, stage }
+                , _gpu_timer{ gpu_profiler, stage }
+            {}
+
+        private:
+            utility::cpu_frame_profiler::scoped_stage_timer _cpu_timer;
+            gpu_frame_profiler::scoped_stage_timer _gpu_timer;
+        };
+
     } // namespace
+
+    scene_renderer::stage_id_t scene_renderer::_register_pass_stage(
+        const utility::cpu_frame_profiler::stage_descriptor& descriptor)
+    {
+        const stage_id_t id = _pass_cpu_profiler.register_stage(descriptor);
+        [[maybe_unused]] const stage_id_t gpu_id = _pass_gpu_profiler.register_stage(descriptor);
+        TRIENGINE_ASSERT(id == gpu_id);
+        return id;
+    }
 
     void scene_renderer::create(gl_context* glctx)
     {
         _glctx = glctx;
+        _pass_gpu_profiler.create();
 
         //
         // Context Settings (global state)
@@ -223,6 +249,9 @@ namespace triengine::core
     void scene_renderer::destroy()
     {
         _glctx = nullptr;
+        if (_pass_gpu_profiler.is_valid()) {
+            _pass_gpu_profiler.destroy();
+        }
 
         _inf_plane_renderer.destroy();
         _light_source_renderer.destroy();
@@ -262,9 +291,14 @@ namespace triengine::core
         const GLuint target_fbo_id,
         const int32_t frame_width_pixels,
         const int32_t frame_height_pixels,
-        scene& scn)
+        scene& scn,
+        const uint64_t frame_id)
     {
-        _glctx->get_gpu_resource_manager()->process_pending_requests();
+        {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _resource_uploads_stage };
+
+            _glctx->get_gpu_resource_manager()->process_pending_requests();
+        }
 
         const abstract_camera& scn_camera = *scn.get_camera();
         scene_render_config& scn_render_config = *scn.get_render_config();
@@ -363,6 +397,8 @@ namespace triengine::core
         // render scene's geometry to G-Buffer
         // ---------------------------------------------------------------------------------
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _deferred_geometry_stage };
+
             render_ctx.curr_render_pass = renderer::render_pass_type::deferred_opaque_pass;
 
             // bind gbuffer framebuffer
@@ -446,6 +482,8 @@ namespace triengine::core
         // pixel-by-pixel using the gbuffer's content.
         // ---------------------------------------------------------------------------------
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _deferred_lighting_stage };
+
             // bind main framebuffer
             GLCall(::glBindFramebuffer(GL_FRAMEBUFFER, _wboit_fb.fbo_id()));
 
@@ -500,6 +538,8 @@ namespace triengine::core
         // render objects that need forward rendering (like transparent objects, light sources)
         // ---------------------------------------------------------------------------------
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _forward_stage };
+
             //
             // Clear background color
             // NOTE: `glClear()` function is not affected by the stencil test(`glStencilFunc()` function),
@@ -667,6 +707,8 @@ namespace triengine::core
         // ---------------------------------------------------------------------------------
         if (overlay_render_pass_required)
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _overlay_stage };
+
             render_ctx.curr_render_pass = renderer::render_pass_type::forward_opaque_pass;
 
             // resize overlay framebuffer
@@ -722,6 +764,8 @@ namespace triengine::core
         // ---------------------------------------------------------------------------------
         if (scn_render_config.light_opts.bloom.enabled)
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _bloom_stage };
+
             // NOTE: At this point, the target scene texture’s FBO(`_wboit_fb`) 
             //       MUST be bound before applying the bloom effect.
             _bloom_effect.resize({ frame_width_pixels, frame_height_pixels });
@@ -765,6 +809,8 @@ namespace triengine::core
 
         if (scn_render_config.enable_anti_aliasing)
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _smaa_stage };
+
             const vec4_f32 smaa_rt_metrics{
                 1.0f / static_cast<float>(_smaa_fb.width_pixels()),
                 1.0f / static_cast<float>(_smaa_fb.height_pixels()),
@@ -875,6 +921,8 @@ namespace triengine::core
         // ---------------------------------------------------------------------------------
         if (scn_render_config.text_render_opts.enabled)
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _text_stage };
+
             const auto depth_stencil_attachment = _wboit_fb.depth_stencil_attachment();
             TRIENGINE_ASSERT(depth_stencil_attachment != nullptr);
             _text_renderer.render(
@@ -890,6 +938,8 @@ namespace triengine::core
         // final pass (draw to backbuffer)
         // ---------------------------------------------------------------------------------
         {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _final_stage };
+
             // configure render states (global state)
             GLCall(::glDisable(GL_DEPTH_TEST));
             GLCall(::glDepthMask(GL_TRUE)); // enable depth buffer writes so glClear won't ignore clearing the depth buffer
@@ -932,6 +982,9 @@ namespace triengine::core
             GLCall(::glBindVertexArray(_vao_screen_quad));
             GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
         }
+
+        _pass_cpu_profiler.end_frame(frame_id);
+        _pass_gpu_profiler.end_frame(frame_id);
     }
 
 } // namespace

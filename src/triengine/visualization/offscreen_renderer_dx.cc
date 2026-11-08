@@ -74,6 +74,7 @@ namespace triengine::visualization
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
+        uint64_t _frame_id{}; // Frame number for the profiler records; advances at each render.
 
         // frame rate cap (software pacing; offscreen has no display vblank)
         utility::frame_limiter _frame_limiter;
@@ -416,7 +417,8 @@ namespace triengine::visualization
             _gl_fbo,
             _curr_frame_size.x(),
             _curr_frame_size.y(),
-            target_scn
+            target_scn,
+            _frame_id++
         );
 
         // Release KeyedMutex for the interop texture

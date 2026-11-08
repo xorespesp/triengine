@@ -33,6 +33,7 @@ namespace triengine::visualization
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
+        uint64_t _frame_id{}; // Frame number for the profiler records; advances at each render.
 
     public:
         void render(image_buffer& frame_image, image_format_type frame_image_format);
@@ -69,7 +70,8 @@ namespace triengine::visualization
             _fb_main.fbo_id(),
             _fb_main.width_pixels(),
             _fb_main.height_pixels(),
-            target_scn
+            target_scn,
+            _frame_id++
         );
         this->end_frame();
 

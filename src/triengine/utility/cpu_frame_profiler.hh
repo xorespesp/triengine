@@ -138,7 +138,6 @@ namespace triengine::utility
         // Current frame
         std::optional<active_stage> _active_stage; // At most one, as stages do not nest.
         std::vector<std::optional<clock::duration>> _frame_stage_times; // Per stage; `nullopt` if not measured.
-        bool _frame_open{}; // started while profiling was enabled
         clock::time_point _last_frame_boundary{};
 
         // State, and requests applied at the next `end_frame()`

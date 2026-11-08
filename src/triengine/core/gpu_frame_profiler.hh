@@ -163,7 +163,6 @@ namespace triengine::core
 
         // Current frame
         std::optional<stage_id_t> _active_stage; // At most one, as stages do not nest.
-        bool _frame_open{}; // started while profiling was enabled
 
         // State, and requests applied at the next `end_frame()`
         bool _profiling_enabled{};
