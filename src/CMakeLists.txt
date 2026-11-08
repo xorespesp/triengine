@@ -95,6 +95,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/frame_buffer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_block_layout.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_block_layout_impl.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_preprocessor.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_loader.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/render_target.hh"
