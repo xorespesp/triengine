@@ -22,6 +22,7 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gpu_resource_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/scene_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/bloom_effect.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/core/gpu_frame_profiler.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/geometry_object_base.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/geometry/lineset_object.cc"
@@ -100,6 +101,7 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gpu_resource_manager.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/scene_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/bloom_effect.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/gpu_frame_profiler.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/geometry_object_base.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/geometry/lineset_object.hh"
