@@ -1,5 +1,6 @@
 #include <triengine/global_options.hh>
 #include <triengine/core/gpu_frame_profiler.hh>
+#include <triengine/utility/gl_utils.hh>
 #include <triengine/geometry/mesh_object.hh>
 #include <triengine/visualization/visualizer.hh>
 
@@ -26,6 +27,9 @@ namespace
     constexpr float kBoxSize = 0.2f;
     constexpr float kGridSpacing = 0.5f;
     constexpr double kReportIntervalSeconds = 1.0;
+#if defined(TRIENGINE_DEBUG_MODE)
+    constexpr size_t kTopGlCallSites = 8;
+#endif
 
     struct bench_options {
         size_t object_count{ 10000 };
@@ -252,7 +256,47 @@ namespace
                 frames, frame_p50, frame_p95, render_p50, swap_p50);
 
             this->_report_passes(first_frame_id, last_frame_id);
+#if defined(TRIENGINE_DEBUG_MODE)
+            this->_report_gl_calls();
+#endif
         }
+
+#if defined(TRIENGINE_DEBUG_MODE)
+        // GL call counting needs `TRIENGINE_ENABLE_DEBUG_MODE`, which the `-ship` presets turn off.
+        // Call counts are deterministic, so the last frame stands for the whole report.
+        void _report_gl_calls()
+        {
+            const auto& gl_calls = _vis->get_last_frame_gl_calls();
+
+            std::printf("  gl calls/frame: total %llu  glProgramUniform* %llu  glDraw* %llu  glBindVertexArray %llu\n",
+                static_cast<unsigned long long>(gl_calls.total_calls()),
+                static_cast<unsigned long long>(gl_calls.calls_with_prefix("glProgramUniform")),
+                static_cast<unsigned long long>(gl_calls.calls_with_prefix("glDraw")),
+                static_cast<unsigned long long>(gl_calls.calls_with_prefix("glBindVertexArray")));
+
+            // The busiest call sites, once, after the warm-up report.
+            if (++_gl_call_reports != 2) {
+                return;
+            }
+            std::vector<triengine::utility::gl_call_site_id_t> sites(gl_calls.site_count());
+            for (triengine::utility::gl_call_site_id_t id = 0; id < sites.size(); ++id) {
+                sites[id] = id;
+            }
+            const size_t shown = std::min<size_t>(kTopGlCallSites, sites.size());
+            std::partial_sort(sites.begin(), sites.begin() + static_cast<ptrdiff_t>(shown), sites.end(),
+                [&](const auto a, const auto b) { return gl_calls.site_calls(a) > gl_calls.site_calls(b); });
+
+            std::printf("  top gl call sites:\n");
+            for (size_t i = 0; i < shown; ++i) {
+                const auto site = triengine::utility::get_gl_call_site(sites[i]);
+                const std::string_view file = site.location.filename();
+                std::printf("    %8llu  %.*s  %.*s:%d\n",
+                    static_cast<unsigned long long>(gl_calls.site_calls(sites[i])),
+                    static_cast<int>(site.function_name.size()), site.function_name.data(),
+                    static_cast<int>(file.size()), file.data(), site.location.line);
+            }
+        }
+#endif
 
         // Prints the per-pass CPU and GPU medians of the same frames. GPU results arrive a few frames
         // late, so the newest frames of the range may have CPU values only.
@@ -290,6 +334,9 @@ namespace
         std::vector<double> _scene_render_ms_samples;
         std::vector<double> _swap_ms_samples;
         std::vector<double> _pass_ms_samples;
+#if defined(TRIENGINE_DEBUG_MODE)
+        size_t _gl_call_reports{};
+#endif
     };
 
 } // namespace

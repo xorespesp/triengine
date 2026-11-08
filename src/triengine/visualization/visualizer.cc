@@ -82,6 +82,12 @@ namespace triengine::visualization
         return _imp->_scn_renderer.get_pass_gpu_profiler();
     }
 
+#if defined(TRIENGINE_DEBUG_MODE)
+    const utility::gl_call_stats& visualizer::get_last_frame_gl_calls() const noexcept {
+        return _imp->_scn_renderer.get_last_frame_gl_calls();
+    }
+#endif
+
     const utility::cpu_frame_profiler& visualizer::get_cpu_frame_profiler() const noexcept {
         return _imp->_cpu_frame_profiler;
     }

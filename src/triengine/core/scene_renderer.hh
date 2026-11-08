@@ -18,6 +18,7 @@
 #include <triengine/renderer/text_renderer.hh>
 
 #include <triengine/utility/cpu_frame_profiler.hh>
+#include <triengine/utility/gl_utils.hh>
 
 #include <cstdint>
 #include <memory>
@@ -72,6 +73,11 @@ namespace triengine::core
         const gpu_frame_profiler& get_pass_gpu_profiler() const noexcept { return _pass_gpu_profiler; }
         gpu_frame_profiler& get_pass_gpu_profiler() noexcept { return _pass_gpu_profiler; }
 
+#if defined(TRIENGINE_DEBUG_MODE)
+        // `GLCall()` calls made by the last `render()`, per call site.
+        const utility::gl_call_stats& get_last_frame_gl_calls() const noexcept { return _frame_gl_calls; }
+#endif
+
     private:
         using stage_id_t = utility::cpu_frame_profiler::stage_id_t;
 
@@ -93,6 +99,10 @@ namespace triengine::core
         const stage_id_t _smaa_stage{ this->_register_pass_stage(profiling_stages::kSmaa) };
         const stage_id_t _text_stage{ this->_register_pass_stage(profiling_stages::kText) };
         const stage_id_t _final_stage{ this->_register_pass_stage(profiling_stages::kFinal) };
+
+#if defined(TRIENGINE_DEBUG_MODE)
+        utility::gl_call_stats _frame_gl_calls;
+#endif
 
         renderer::infinite_plane_renderer _inf_plane_renderer;
         renderer::light_source_renderer _light_source_renderer;

@@ -2,8 +2,10 @@
 #include <triengine/common.h>
 #include <triengine/scene.hh>
 #include <triengine/core/graphics_device_info.hh>
+#include <triengine/core/gpu_frame_profiler.hh>
 #include <triengine/utility/noncopyable.hh>
 #include <triengine/utility/cpu_frame_profiler.hh>
+#include <triengine/utility/gl_utils.hh>
 
 #include <functional>
 #include <memory>
@@ -11,7 +13,7 @@
 #include <string>
 
 // forward declaration
-namespace triengine::core { class gl_context; class gpu_frame_profiler; }
+namespace triengine::core { class gl_context; }
 
 namespace triengine::visualization
 {
@@ -99,6 +101,11 @@ namespace triengine::visualization
         utility::cpu_frame_profiler& get_pass_cpu_profiler() noexcept;
         const core::gpu_frame_profiler& get_pass_gpu_profiler() const noexcept;
         core::gpu_frame_profiler& get_pass_gpu_profiler() noexcept;
+
+#if defined(TRIENGINE_DEBUG_MODE)
+        // `GLCall()` calls made by the last scene render, per call site. Render thread only.
+        const utility::gl_call_stats& get_last_frame_gl_calls() const noexcept;
+#endif
 
         void close_window();
 

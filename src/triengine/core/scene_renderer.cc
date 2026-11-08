@@ -294,6 +294,10 @@ namespace triengine::core
         scene& scn,
         const uint64_t frame_id)
     {
+#if defined(TRIENGINE_DEBUG_MODE)
+        _frame_gl_calls.begin();
+#endif
+
         {
             const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _resource_uploads_stage };
 
@@ -982,6 +986,10 @@ namespace triengine::core
             GLCall(::glBindVertexArray(_vao_screen_quad));
             GLCall(::glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(quadVertices.size())));
         }
+
+#if defined(TRIENGINE_DEBUG_MODE)
+        _frame_gl_calls.end();
+#endif
 
         _pass_cpu_profiler.end_frame(frame_id);
         _pass_gpu_profiler.end_frame(frame_id);

@@ -43,6 +43,13 @@
         "TRIENGINE_BUILD_EXTERNAL_EXAMPLES": "OFF"
       }
     },
+    {
+      "name": "engine-ship",
+      "hidden": true,
+      "cacheVariables": {
+        "TRIENGINE_ENABLE_DEBUG_MODE": "OFF"
+      }
+    },
 
     {
       "name": "win64-rel",
@@ -73,8 +80,30 @@
       "inherits": "win64-base-rel",
       "cacheVariables": {
         "TRIENGINE_BUILD_EXAMPLES": "OFF",
-        "TRIENGINE_BUILD_BENCH": "ON",
-        "TRIENGINE_ENABLE_DEBUG_MODE": "OFF"
+        "TRIENGINE_BUILD_BENCH": "ON"
+      }
+    },
+
+    {
+      "name": "win64-rel-ship",
+      "displayName": "WIN64-REL (Ship)",
+      "inherits": [ "win64-base-rel", "engine-ship" ]
+    },
+    {
+      "name": "win64-rel-ship-min",
+      "displayName": "WIN64-REL (Ship, Min)",
+      "inherits": "win64-rel-ship",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "win64-rel-ship-bench",
+      "displayName": "WIN64-REL (Ship, Bench)",
+      "inherits": "win64-rel-ship",
+      "cacheVariables": {
+        "TRIENGINE_BUILD_EXAMPLES": "OFF",
+        "TRIENGINE_BUILD_BENCH": "ON"
       }
     },
 
@@ -117,6 +146,19 @@
     {
       "name": "win64-rel-bench",
       "configurePreset": "win64-rel-bench"
+    },
+
+    {
+      "name": "win64-rel-ship",
+      "configurePreset": "win64-rel-ship"
+    },
+    {
+      "name": "win64-rel-ship-min",
+      "configurePreset": "win64-rel-ship-min"
+    },
+    {
+      "name": "win64-rel-ship-bench",
+      "configurePreset": "win64-rel-ship-bench"
     },
 
     {
