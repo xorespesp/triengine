@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,10 +17,12 @@ namespace triengine::utility
     private:
         using clock = std::chrono::steady_clock;
 
-        // Offsets within a record: [time_seconds, frame_ms, stage_ms...]
-        static constexpr size_t kRecordTimeSecondsOffset = 0;
-        static constexpr size_t kRecordFrameMsOffset = 1;
-        static constexpr size_t kRecordStageMsOffset = 2;
+        // Per-frame values whose count does not depend on the registered stages.
+        struct record_header {
+            uint64_t frame_id;
+            double time_seconds;
+            double frame_ms;
+        };
 
     public:
         static constexpr size_t kRecordsCapacity = 32768;
@@ -36,29 +39,36 @@ namespace triengine::utility
             std::string description;
         };
 
-        // Read-only view of one recorded frame. Valid until the next `end_frame()`.
+        // One recorded frame, read in place from the history. Invalidated by the next `end_frame()`.
         class record_view {
         public:
-            // Seconds since the start of the current epoch.
-            double time_seconds() const noexcept { return _values[kRecordTimeSecondsOffset]; }
-            double frame_ms() const noexcept { return _values[kRecordFrameMsOffset]; }
+            // Frame number the host passed to `end_frame()` for this frame.
+            uint64_t frame_id() const noexcept { return _ring_header->frame_id; }
+
+            // Recording time of this frame, in seconds from the start of the current epoch.
+            double time_seconds() const noexcept { return _ring_header->time_seconds; }
+
+            // Time from the previous frame boundary to this one.
+            double frame_ms() const noexcept { return _ring_header->frame_ms; }
 
             size_t stage_count() const noexcept { return _stage_count; }
 
-            // `NaN` when the stage was not measured in this frame.
+            // Total time of the stage in this frame; `NaN` if it was not measured.
             double stage_ms(stage_id_t id) const noexcept {
                 TRIENGINE_ASSERT(id < _stage_count);
-                return _values[kRecordStageMsOffset + id];
+                return _ring_stage_row[id];
             }
 
         private:
             friend class cpu_frame_profiler;
 
-            record_view(const double* values, size_t stage_count) noexcept
-                : _values{ values }, _stage_count{ stage_count }
+            record_view(const record_header* ring_header, const double* ring_stage_row, size_t stage_count) noexcept
+                : _ring_header{ ring_header }, _ring_stage_row{ ring_stage_row }, _stage_count{ stage_count }
             {}
 
-            const double* _values;
+            // Point into the profiler's record ring, not copies.
+            const record_header* _ring_header; // `_ring_headers[slot]`
+            const double* _ring_stage_row; // `_ring_stage_ms` row of the slot, `stage_count` values
             size_t _stage_count;
         };
 
@@ -91,10 +101,11 @@ namespace triengine::utility
         size_t history_epoch() const noexcept { return _history_epoch; }
 
         // Frame boundary: records the frame that just ended, then applies pending requests.
-        void end_frame();
+        // `frame_id` is the host's frame number; profilers stepped by the same host share it, so their records can be joined.
+        void end_frame(uint64_t frame_id);
 
         // Oldest first, in time order.
-        size_t record_count() const noexcept { return _record_count; }
+        size_t record_count() const noexcept { return _ring_count; }
         record_view get_record(size_t index) const;
 
         // Index of the first record newer than `time_seconds`; `record_count()` when there is none.
@@ -112,11 +123,12 @@ namespace triengine::utility
         void _apply_enabled(bool enabled, clock::time_point now);
         void _clear(clock::time_point now) noexcept;
 
-        // Values of the record at logical `index` (0 = oldest).
-        const double* _record_at(size_t index) const noexcept;
+        // Ring slot holding the `index`-th record, counting from the oldest.
+        size_t _ring_slot(size_t index) const noexcept;
 
-        // Newest record's values, reusing the oldest slot when full; the caller must write every value.
-        double* _acquire_record_slot() noexcept;
+        // Takes the slot for a new newest record, evicting the oldest record once the ring is full.
+        // The caller fills in the header and every stage time of that slot.
+        size_t _acquire_ring_slot() noexcept;
 
     private:
         // Stages
@@ -135,11 +147,12 @@ namespace triengine::utility
         bool _reset_requested{};
         size_t _history_epoch{};
 
-        // Ring of `kRecordsCapacity` records, `_values_per_record` doubles each; allocated once on first enable.
-        std::vector<double> _record_storage;
-        size_t _values_per_record{};
-        size_t _oldest_record_slot{}; // Stays 0 until the ring is full.
-        size_t _record_count{};
+        // Record ring of `kRecordsCapacity` slots, allocated on first enable.
+        // Slot `s` holds header `_ring_headers[s]` and stage `i` time `_ring_stage_ms[s * stage_count() + i]`.
+        std::vector<record_header> _ring_headers;
+        std::vector<double> _ring_stage_ms;
+        size_t _ring_oldest_slot{}; // Stays 0 until the ring is full.
+        size_t _ring_count{};
         clock::time_point _recording_started_at{};
     };
 }

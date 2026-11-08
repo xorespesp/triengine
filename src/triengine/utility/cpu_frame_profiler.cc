@@ -63,7 +63,7 @@ namespace triengine::utility
         _active_stage.reset();
     }
 
-    void cpu_frame_profiler::end_frame()
+    void cpu_frame_profiler::end_frame(const uint64_t frame_id)
     {
         if (_active_stage) { TRIENGINE_PANIC("End the frame after all measurements have ended"); }
 
@@ -71,13 +71,19 @@ namespace triengine::utility
         const bool toggles = _requested_enabled.has_value() && *_requested_enabled != _profiling_enabled;
         const bool discard = toggles || _reset_requested;
 
-        if (_profiling_enabled && _frame_open && !discard) {
-            double* const values = this->_acquire_record_slot();
-            values[kRecordTimeSecondsOffset] = std::chrono::duration<double>(now - _recording_started_at).count();
-            values[kRecordFrameMsOffset] = std::chrono::duration<double, std::milli>(now - _last_frame_boundary).count();
+        if (_profiling_enabled && _frame_open && !discard)
+        {
+            const size_t slot = this->_acquire_ring_slot();
+
+            record_header& header = _ring_headers[slot];
+            header.frame_id = frame_id;
+            header.time_seconds = std::chrono::duration<double>(now - _recording_started_at).count();
+            header.frame_ms = std::chrono::duration<double, std::milli>(now - _last_frame_boundary).count();
+
+            double* const stage_ms = _ring_stage_ms.data() + slot * _stages.size();
             for (stage_id_t id = 0; id < _frame_stage_times.size(); ++id) {
                 const auto& stage_time = _frame_stage_times[id];
-                values[kRecordStageMsOffset + id] = stage_time
+                stage_ms[id] = stage_time
                     ? std::chrono::duration<double, std::milli>(*stage_time).count()
                     : std::numeric_limits<double>::quiet_NaN();
             }
@@ -100,16 +106,17 @@ namespace triengine::utility
 
     cpu_frame_profiler::record_view cpu_frame_profiler::get_record(size_t index) const
     {
-        if (index >= _record_count) { TRIENGINE_PANIC("Invalid frame profiler record index"); }
-        return record_view{ this->_record_at(index), _stages.size() };
+        if (index >= _ring_count) { TRIENGINE_PANIC("Invalid frame profiler record index"); }
+        const size_t slot = this->_ring_slot(index);
+        return record_view{ &_ring_headers[slot], _ring_stage_ms.data() + slot * _stages.size(), _stages.size() };
     }
 
     size_t cpu_frame_profiler::find_first_record_after(double time_seconds) const
     {
-        size_t first = 0, last = _record_count;
+        size_t first = 0, last = _ring_count;
         while (first < last) {
             const size_t middle = first + (last - first) / 2;
-            if (this->_record_at(middle)[kRecordTimeSecondsOffset] > time_seconds) {
+            if (_ring_headers[this->_ring_slot(middle)].time_seconds > time_seconds) {
                 last = middle;
             } else {
                 first = middle + 1;
@@ -122,10 +129,10 @@ namespace triengine::utility
     {
         if (_profiling_enabled == enabled) { return; }
         if (enabled && !_stage_registration_closed) {
-            // Allocate before closing registration so a failed allocation leaves the profiler unchanged.
-            const size_t values_per_record = kRecordStageMsOffset + _stages.size();
-            _record_storage.resize(kRecordsCapacity * values_per_record);
-            _values_per_record = values_per_record;
+            // The stage count fixes the row width, so it must not change once the history exists.
+            // Allocating first means a throwing allocation leaves registration open and profiling off.
+            _ring_headers.resize(kRecordsCapacity);
+            _ring_stage_ms.resize(kRecordsCapacity * _stages.size());
             _stage_registration_closed = true;
         }
         _profiling_enabled = enabled;
@@ -134,26 +141,26 @@ namespace triengine::utility
 
     void cpu_frame_profiler::_clear(clock::time_point now) noexcept
     {
-        _oldest_record_slot = 0;
-        _record_count = 0;
+        _ring_oldest_slot = 0;
+        _ring_count = 0;
         _recording_started_at = now;
         ++_history_epoch;
     }
 
-    const double* cpu_frame_profiler::_record_at(size_t index) const noexcept
+    size_t cpu_frame_profiler::_ring_slot(size_t index) const noexcept
     {
-        return _record_storage.data() + ((_oldest_record_slot + index) % kRecordsCapacity) * _values_per_record;
+        return (_ring_oldest_slot + index) % kRecordsCapacity;
     }
 
-    double* cpu_frame_profiler::_acquire_record_slot() noexcept
+    size_t cpu_frame_profiler::_acquire_ring_slot() noexcept
     {
         size_t slot;
-        if (_record_count < kRecordsCapacity) {
-            slot = _record_count++;
+        if (_ring_count < kRecordsCapacity) {
+            slot = _ring_count++;
         } else {
-            slot = _oldest_record_slot;
-            _oldest_record_slot = (_oldest_record_slot + 1) % kRecordsCapacity;
+            slot = _ring_oldest_slot;
+            _ring_oldest_slot = (_ring_oldest_slot + 1) % kRecordsCapacity;
         }
-        return _record_storage.data() + slot * _values_per_record;
+        return slot;
     }
 }

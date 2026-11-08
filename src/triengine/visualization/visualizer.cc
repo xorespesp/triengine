@@ -44,6 +44,7 @@ namespace triengine::visualization
         const utility::cpu_frame_profiler::stage_id_t _swap_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kSwap) };
         const utility::cpu_frame_profiler::stage_id_t _limiter_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kLimiter) };
         const utility::cpu_frame_profiler::stage_id_t _events_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kEvents) };
+        uint64_t _frame_id{}; // Frame number for the profiler records; advances at each frame boundary.
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
@@ -202,7 +203,7 @@ namespace triengine::visualization
 
             // Drop the open frame and leave the profiler disabled for the next window.
             _imp->_cpu_frame_profiler.request_enabled(false);
-            _imp->_cpu_frame_profiler.end_frame();
+            _imp->_cpu_frame_profiler.end_frame(_imp->_frame_id++);
         }
     }
 
@@ -332,7 +333,7 @@ namespace triengine::visualization
         const bool keep_window_open = !_imp->_glctx.get_window_close_flag();
 
         // Frames are measured from one `update_window()` end to the next.
-        _imp->_cpu_frame_profiler.end_frame();
+        _imp->_cpu_frame_profiler.end_frame(_imp->_frame_id++);
 
         return keep_window_open;
     }
