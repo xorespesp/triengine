@@ -271,90 +271,90 @@ namespace triengine::core
         _subroutine_functions_index_name_map.clear();
     }
 
-    GLint shader_program::get_uniform_location(const std::string& uniform_name) const
+    GLint shader_program::get_uniform_location(const std::string_view uniform_name) const
     {
         TRIENGINE_ASSERT(this->is_valid());
 
         // use cache if possible
-        const auto it = _uniforms_location_map.find(uniform_name);
-        if (it != _uniforms_location_map.end()) {
-            return it->second;
+        if (const GLint* const location = _uniforms_location_map.find(uniform_name)) {
+            return *location;
         }
 
-        TRIENGINE_PANIC("Uniform '%s' not found in cache."
-            , uniform_name.c_str());
+        TRIENGINE_PANIC("Uniform '%.*s' not found in cache."
+            , static_cast<int>(uniform_name.size())
+            , uniform_name.data());
 
         return -1; // Not found
     }
 
-    const shader_program::this_type& shader_program::set_uniform_int(const std::string& uniform_name, int value) const {
+    const shader_program::this_type& shader_program::set_uniform_int(const std::string_view uniform_name, int value) const {
         GLCall(::glProgramUniform1i(_program_id, this->get_uniform_location(uniform_name), value));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_bool(const std::string& uniform_name, bool value) const {
+    const shader_program::this_type& shader_program::set_uniform_bool(const std::string_view uniform_name, bool value) const {
         GLCall(::glProgramUniform1i(_program_id, this->get_uniform_location(uniform_name), static_cast<int>(value)));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_float(const std::string& uniform_name, float value) const {
+    const shader_program::this_type& shader_program::set_uniform_float(const std::string_view uniform_name, float value) const {
         GLCall(::glProgramUniform1f(_program_id, this->get_uniform_location(uniform_name), value));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_vec2(const std::string& uniform_name, float v0, float v1) const {
+    const shader_program::this_type& shader_program::set_uniform_vec2(const std::string_view uniform_name, float v0, float v1) const {
         GLCall(::glProgramUniform2f(_program_id, this->get_uniform_location(uniform_name), v0, v1));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_vec3(const std::string& uniform_name, float v0, float v1, float v2) const {
+    const shader_program::this_type& shader_program::set_uniform_vec3(const std::string_view uniform_name, float v0, float v1, float v2) const {
         GLCall(::glProgramUniform3f(_program_id, this->get_uniform_location(uniform_name), v0, v1, v2));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_vec4(const std::string& uniform_name, float v0, float v1, float v2, float v3) const {
+    const shader_program::this_type& shader_program::set_uniform_vec4(const std::string_view uniform_name, float v0, float v1, float v2, float v3) const {
         GLCall(::glProgramUniform4f(_program_id, this->get_uniform_location(uniform_name), v0, v1, v2, v3));
         return *this;
     }
 
     // Eigen helpers
-    const shader_program::this_type& shader_program::set_uniform_vec2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector2f>& value) const {
+    const shader_program::this_type& shader_program::set_uniform_vec2(const std::string_view uniform_name, const Eigen::Ref<const Eigen::Vector2f>& value) const {
         GLCall(::glProgramUniform2fv(_program_id, this->get_uniform_location(uniform_name), 1, value.data()));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_vec3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector3f>& value) const {
+    const shader_program::this_type& shader_program::set_uniform_vec3(const std::string_view uniform_name, const Eigen::Ref<const Eigen::Vector3f>& value) const {
         GLCall(::glProgramUniform3fv(_program_id, this->get_uniform_location(uniform_name), 1, value.data()));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_vec4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector4f>& value) const {
+    const shader_program::this_type& shader_program::set_uniform_vec4(const std::string_view uniform_name, const Eigen::Ref<const Eigen::Vector4f>& value) const {
         GLCall(::glProgramUniform4fv(_program_id, this->get_uniform_location(uniform_name), 1, value.data()));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_mat2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const {
+    const shader_program::this_type& shader_program::set_uniform_mat2(const std::string_view uniform_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const {
         GLCall(::glProgramUniformMatrix2fv(_program_id, this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_mat3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const {
+    const shader_program::this_type& shader_program::set_uniform_mat3(const std::string_view uniform_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const {
         GLCall(::glProgramUniformMatrix3fv(_program_id, this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
         return *this;
     }
-    const shader_program::this_type& shader_program::set_uniform_mat4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const {
+    const shader_program::this_type& shader_program::set_uniform_mat4(const std::string_view uniform_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const {
         GLCall(::glProgramUniformMatrix4fv(_program_id, this->get_uniform_location(uniform_name), 1, GL_FALSE, value.data()));
         return *this;
     }
 
     GLint shader_program::get_subroutine_uniform_location(
         const shader_object_type stage_type,
-        const std::string& uniform_name) const
+        const std::string_view uniform_name) const
     {
         TRIENGINE_ASSERT(this->is_valid());
         const GLenum stage_enum = static_cast<GLenum>(stage_type);
 
         const auto stage_cache_it = _subroutine_uniforms_name_location_map.find(stage_enum);
         if (stage_cache_it != _subroutine_uniforms_name_location_map.end()) {
-            auto uniform_it = stage_cache_it->second.find(uniform_name);
-            if (uniform_it != stage_cache_it->second.end()) {
-                return uniform_it->second;
+            if (const GLint* const location = stage_cache_it->second.find(uniform_name)) {
+                return *location;
             }
         }
 
-        TRIENGINE_PANIC("Subroutine uniform '%s' not found in cache for stage 0x%X."
-            , uniform_name.c_str()
+        TRIENGINE_PANIC("Subroutine uniform '%.*s' not found in cache for stage 0x%X."
+            , static_cast<int>(uniform_name.size())
+            , uniform_name.data()
             , stage_enum);
 
         return -1; // Not found
@@ -362,7 +362,7 @@ namespace triengine::core
 
     void shader_program::set_active_subroutine(
         const shader_object_type stage_type,
-        const std::string& subroutine_uniform_name, 
+        const std::string_view subroutine_uniform_name, 
         const GLuint subroutine_function_index)
     {
         TRIENGINE_ASSERT(this->is_valid());
@@ -408,8 +408,8 @@ namespace triengine::core
 
     void shader_program::set_active_subroutine(
         const shader_object_type stage_type, 
-        const std::string& subroutine_uniform_name, 
-        const std::string& subroutine_function_name)
+        const std::string_view subroutine_uniform_name, 
+        const std::string_view subroutine_function_name)
     {
         TRIENGINE_ASSERT(this->is_valid());
 
@@ -417,22 +417,24 @@ namespace triengine::core
 
         const auto stage_it = _subroutine_functions_name_index_map.find(stage_enum);
         if (stage_it == _subroutine_functions_name_index_map.end()) {
-            TRIENGINE_PANIC("Cache for stage 0x%X not found or stage has no subroutine functions. (Cannot find function '%s')"
+            TRIENGINE_PANIC("Cache for stage 0x%X not found or stage has no subroutine functions. (Cannot find function '%.*s')"
                 , stage_enum
-                , subroutine_function_name.c_str());
+                , static_cast<int>(subroutine_function_name.size())
+                , subroutine_function_name.data());
         }
 
-        const auto function_index_it = stage_it->second.find(subroutine_function_name);
-        if (function_index_it == stage_it->second.end()) {
-            TRIENGINE_PANIC("Subroutine function '%s' not found in cache for stage 0x%X"
-                , subroutine_function_name.c_str()
+        const GLuint* const function_index = stage_it->second.find(subroutine_function_name);
+        if (!function_index) {
+            TRIENGINE_PANIC("Subroutine function '%.*s' not found in cache for stage 0x%X"
+                , static_cast<int>(subroutine_function_name.size())
+                , subroutine_function_name.data()
                 , stage_enum);
         }
 
         this->set_active_subroutine(
             stage_type,
             subroutine_uniform_name,
-            function_index_it->second
+            *function_index
         );
     }
 
@@ -502,11 +504,8 @@ namespace triengine::core
                 , uniform_location);
 
             // cache for later use
-            const auto [_, success] = _uniforms_location_map.insert(
-                std::make_pair(std::move(uniform_name_buff), uniform_location)
-            );
-
-            TRIENGINE_ASSERT(success);
+            [[maybe_unused]] const bool inserted = _uniforms_location_map.insert(uniform_name_buff, uniform_location);
+            TRIENGINE_ASSERT(inserted);
         }
     }
 
@@ -572,7 +571,7 @@ namespace triengine::core
 
                 if (uniform_location != -1) // Should always be found if iterating active ones
                 {
-                    _subroutine_uniforms_name_location_map[curr_stage][uniform_name] = uniform_location;
+                    _subroutine_uniforms_name_location_map[curr_stage].insert(uniform_name, uniform_location);
                 }
                 else 
                 {
@@ -599,7 +598,7 @@ namespace triengine::core
 
                 if (func_index != GL_INVALID_INDEX)
                 {
-                    _subroutine_functions_name_index_map[curr_stage][func_name] = func_index;
+                    _subroutine_functions_name_index_map[curr_stage].insert(func_name, func_index);
                     _subroutine_functions_index_name_map[curr_stage][func_index] = func_name;
                 }
                 else 

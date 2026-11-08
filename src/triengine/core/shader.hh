@@ -3,6 +3,7 @@
 #include <triengine/utility/noncopyable.hh>
 #include <glad/gl.h>
 
+#include <deque>
 #include <initializer_list>
 #include <unordered_map>
 #include <filesystem>
@@ -84,40 +85,83 @@ namespace triengine::core
         void use();
         void destroy() noexcept;
 
-        GLint get_uniform_location(const std::string& uniform_name) const;
-        GLint get_subroutine_uniform_location(shader_object_type stage_type, const std::string& uniform_name) const;
+        GLint get_uniform_location(std::string_view uniform_name) const;
+        GLint get_subroutine_uniform_location(shader_object_type stage_type, std::string_view uniform_name) const;
 
         //
         // Utility uniform functions
         //
 
-        const this_type& set_uniform_int(const std::string& uniform_name, int value) const;
-        const this_type& set_uniform_bool(const std::string& uniform_name, bool value) const;
-        const this_type& set_uniform_float(const std::string& uniform_name, float value) const;
-        const this_type& set_uniform_vec2(const std::string& uniform_name, float v0, float v1) const;
-        const this_type& set_uniform_vec3(const std::string& uniform_name, float v0, float v1, float v2) const;
-        const this_type& set_uniform_vec4(const std::string& uniform_name, float v0, float v1, float v2, float v3) const;
+        const this_type& set_uniform_int(std::string_view uniform_name, int value) const;
+        const this_type& set_uniform_bool(std::string_view uniform_name, bool value) const;
+        const this_type& set_uniform_float(std::string_view uniform_name, float value) const;
+        const this_type& set_uniform_vec2(std::string_view uniform_name, float v0, float v1) const;
+        const this_type& set_uniform_vec3(std::string_view uniform_name, float v0, float v1, float v2) const;
+        const this_type& set_uniform_vec4(std::string_view uniform_name, float v0, float v1, float v2, float v3) const;
 
         // Eigen helpers
-        const this_type& set_uniform_vec2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector2f>& value) const;
-        const this_type& set_uniform_vec3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector3f>& value) const;
-        const this_type& set_uniform_vec4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Vector4f>& value) const;
-        const this_type& set_uniform_mat2(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const;
-        const this_type& set_uniform_mat3(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const;
-        const this_type& set_uniform_mat4(const std::string& uniform_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const;
+        const this_type& set_uniform_vec2(std::string_view uniform_name, const Eigen::Ref<const Eigen::Vector2f>& value) const;
+        const this_type& set_uniform_vec3(std::string_view uniform_name, const Eigen::Ref<const Eigen::Vector3f>& value) const;
+        const this_type& set_uniform_vec4(std::string_view uniform_name, const Eigen::Ref<const Eigen::Vector4f>& value) const;
+        const this_type& set_uniform_mat2(std::string_view uniform_name, const Eigen::Ref<const Eigen::Matrix2f>& value) const;
+        const this_type& set_uniform_mat3(std::string_view uniform_name, const Eigen::Ref<const Eigen::Matrix3f>& value) const;
+        const this_type& set_uniform_mat4(std::string_view uniform_name, const Eigen::Ref<const Eigen::Matrix4f>& value) const;
 
         // Sets the active subroutine function for a specific subroutine uniform in a given shader stage.
         void set_active_subroutine(
             shader_object_type stage_type,
-            const std::string& subroutine_uniform_name,
+            std::string_view subroutine_uniform_name,
             GLuint subroutine_function_index
         );
         
         void set_active_subroutine(
             shader_object_type stage_type,
-            const std::string& subroutine_uniform_name,
-            const std::string& subroutine_function_name
+            std::string_view subroutine_uniform_name,
+            std::string_view subroutine_function_name
         );
+
+    private:
+        // Name-keyed cache that is looked up by `std::string_view` without building a `std::string`.
+        // The keys view the names in `_names`; a deque never relocates its elements, so they stay valid
+        // as names are added and when the cache is moved. Copying would leave the keys viewing the source.
+        template <class _Value>
+        class name_cache final
+        {
+        public:
+            name_cache() = default;
+            name_cache(const name_cache&) = delete;
+            name_cache& operator=(const name_cache&) = delete;
+            name_cache(name_cache&&) noexcept = default;
+            name_cache& operator=(name_cache&&) noexcept = default;
+
+            // `false` if `name` is already cached.
+            bool insert(const std::string_view name, const _Value value)
+            {
+                if (_values.count(name) != 0) {
+                    return false;
+                }
+                const std::string& owned_name = _names.emplace_back(name);
+                _values.emplace(owned_name, value);
+                return true;
+            }
+
+            // `nullptr` if `name` is not cached.
+            const _Value* find(const std::string_view name) const
+            {
+                const auto it = _values.find(name);
+                return it != _values.end() ? &it->second : nullptr;
+            }
+
+            void clear() noexcept
+            {
+                _values.clear();
+                _names.clear();
+            }
+
+        private:
+            std::deque<std::string> _names;
+            std::unordered_map<std::string_view, _Value> _values;
+        };
 
     private:
         void _attach_shader(shader_object&& new_shader);
@@ -132,7 +176,7 @@ namespace triengine::core
     private:
         GLuint _program_id{ kInvalidGLShaderProgramID }; // program id
         std::vector<shader_object> _attached_shaders;
-        std::unordered_map<std::string, GLint/* uniform location */> _uniforms_location_map;
+        name_cache<GLint/* uniform location */> _uniforms_location_map;
 
         ////////////////////////////////////////////////////////////////////////////////
         // --- Subroutine Cache Members ---
@@ -145,12 +189,12 @@ namespace triengine::core
 
         std::unordered_map<
             GLenum/* shader stage */, 
-            std::unordered_map<std::string/* subroutine uniform name */, GLint/* uniform location */>
+            name_cache<GLint/* uniform location */> // keyed by subroutine uniform name
         > _subroutine_uniforms_name_location_map;
 
         std::unordered_map<
             GLenum/* shader stage */, 
-            std::unordered_map<std::string/* subroutine function name */, GLuint/* function index */>
+            name_cache<GLuint/* function index */> // keyed by subroutine function name
         > _subroutine_functions_name_index_map;
 
         std::unordered_map<
