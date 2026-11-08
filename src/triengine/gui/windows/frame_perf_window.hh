@@ -16,7 +16,7 @@ namespace triengine::gui
         class sample_buffer {
         public:
             void clear() noexcept;
-            void refresh(const utility::frame_profiler& profiler, double seconds);
+            void refresh(const utility::cpu_frame_profiler& profiler, double seconds);
 
             size_t size() const noexcept { return _count; }
             bool empty() const noexcept { return _count == 0; }
@@ -98,7 +98,7 @@ namespace triengine::gui
         void render(const window_render_context& render_ctx) override;
 
     private:
-        void _refresh_samples(const utility::frame_profiler& profiler);
+        void _refresh_samples(const utility::cpu_frame_profiler& profiler);
         void _refresh_statistics();
         void _fit_fps_axis();
 
@@ -106,7 +106,7 @@ namespace triengine::gui
         bool _render_plot_options(float dpi_scale);
         void _render_statistics();
         void _render_fps_plot(float dpi_scale, uint32_t fps_cap);
-        void _render_frame_time(const utility::frame_profiler& profiler, float dpi_scale, uint32_t fps_cap);
+        void _render_frame_time(const utility::cpu_frame_profiler& profiler, float dpi_scale, uint32_t fps_cap);
 
     private:
         // Frame control

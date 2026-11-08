@@ -11,7 +11,7 @@
 namespace triengine::utility
 {
     // Render-thread ownership only. Stages must not nest; register them before profiling is first enabled.
-    class frame_profiler
+    class cpu_frame_profiler
     {
     private:
         using clock = std::chrono::steady_clock;
@@ -52,7 +52,7 @@ namespace triengine::utility
             }
 
         private:
-            friend class frame_profiler;
+            friend class cpu_frame_profiler;
 
             record_view(const double* values, size_t stage_count) noexcept
                 : _values{ values }, _stage_count{ stage_count }
@@ -64,19 +64,19 @@ namespace triengine::utility
 
         class scoped_stage_timer {
         public:
-            scoped_stage_timer(frame_profiler& profiler, stage_id_t stage_id);
+            scoped_stage_timer(cpu_frame_profiler& profiler, stage_id_t stage_id);
             ~scoped_stage_timer();
             scoped_stage_timer(const scoped_stage_timer&) = delete;
             scoped_stage_timer& operator=(const scoped_stage_timer&) = delete;
         private:
-            frame_profiler* _profiler{};
+            cpu_frame_profiler* _profiler{};
             stage_id_t _stage_id{};
         };
 
     public:
-        frame_profiler() = default;
-        frame_profiler(const frame_profiler&) = delete;
-        frame_profiler& operator=(const frame_profiler&) = delete;
+        cpu_frame_profiler() = default;
+        cpu_frame_profiler(const cpu_frame_profiler&) = delete;
+        cpu_frame_profiler& operator=(const cpu_frame_profiler&) = delete;
 
         stage_id_t register_stage(const stage_descriptor& descriptor);
         const stage_info& get_stage(stage_id_t id) const;

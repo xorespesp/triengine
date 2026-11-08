@@ -3,7 +3,7 @@
 #include <triengine/scene.hh>
 #include <triengine/core/graphics_device_info.hh>
 #include <triengine/utility/noncopyable.hh>
-#include <triengine/utility/frame_profiler.hh>
+#include <triengine/utility/cpu_frame_profiler.hh>
 
 #include <functional>
 #include <memory>
@@ -23,7 +23,7 @@ namespace triengine::visualization
     public:
         // Stages of the frame profiler, registered in loop order. The rest of a frame is app time.
         struct profiling_stages {
-            using descriptor = utility::frame_profiler::stage_descriptor;
+            using descriptor = utility::cpu_frame_profiler::stage_descriptor;
             static constexpr descriptor kSceneRender{ "Scene Render",
                 "CPU wall time in render() for the scene. Not GPU execution time." };
             static constexpr descriptor kPresent{ "Present",
@@ -90,8 +90,8 @@ namespace triengine::visualization
         void set_vsync_enabled(bool enabled);
 
         // NOTE: Render-thread access only; the profiler is thread-unsafe.
-        const utility::frame_profiler& get_frame_profiler() const noexcept;
-        utility::frame_profiler& get_frame_profiler() noexcept;
+        const utility::cpu_frame_profiler& get_cpu_frame_profiler() const noexcept;
+        utility::cpu_frame_profiler& get_cpu_frame_profiler() noexcept;
 
         void close_window();
 

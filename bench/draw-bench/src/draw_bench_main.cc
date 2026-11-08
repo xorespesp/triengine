@@ -149,7 +149,7 @@ namespace
             render_config.light_opts.bloom.enabled = _opts.postfx;
             populate_scene(*scn, _opts.object_count);
 
-            auto& profiler = _vis->get_frame_profiler();
+            auto& profiler = _vis->get_cpu_frame_profiler();
             for (size_t id = 0; id < profiler.stage_count(); ++id) {
                 const std::string& name = profiler.get_stage(id).name;
                 if (name == triengine::visualization::visualizer::profiling_stages::kSceneRender.name) {
@@ -181,7 +181,7 @@ namespace
         // Prints the median and p95 of the frames recorded since the last report.
         void _report()
         {
-            const auto& profiler = _vis->get_frame_profiler();
+            const auto& profiler = _vis->get_cpu_frame_profiler();
             if (profiler.history_epoch() != _report_epoch) {
                 _report_epoch = profiler.history_epoch();
                 _last_report_time = 0.0;

@@ -37,13 +37,13 @@ namespace triengine::visualization
         vec2_i32 _frame_size{ 0, 0 }; // frame size of the last render
 
         utility::frame_limiter _frame_limiter;
-        utility::frame_profiler _frame_profiler;
+        utility::cpu_frame_profiler _cpu_frame_profiler;
         // Registered in declaration order, which is the display order.
-        const utility::frame_profiler::stage_id_t _scene_render_stage{ _frame_profiler.register_stage(profiling_stages::kSceneRender) };
-        const utility::frame_profiler::stage_id_t _present_stage{ _frame_profiler.register_stage(profiling_stages::kPresent) };
-        const utility::frame_profiler::stage_id_t _swap_stage{ _frame_profiler.register_stage(profiling_stages::kSwap) };
-        const utility::frame_profiler::stage_id_t _limiter_stage{ _frame_profiler.register_stage(profiling_stages::kLimiter) };
-        const utility::frame_profiler::stage_id_t _events_stage{ _frame_profiler.register_stage(profiling_stages::kEvents) };
+        const utility::cpu_frame_profiler::stage_id_t _scene_render_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kSceneRender) };
+        const utility::cpu_frame_profiler::stage_id_t _present_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kPresent) };
+        const utility::cpu_frame_profiler::stage_id_t _swap_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kSwap) };
+        const utility::cpu_frame_profiler::stage_id_t _limiter_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kLimiter) };
+        const utility::cpu_frame_profiler::stage_id_t _events_stage{ _cpu_frame_profiler.register_stage(profiling_stages::kEvents) };
 
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
@@ -65,12 +65,12 @@ namespace triengine::visualization
         _imp->_flag_camera_interaction = enable;
     }
 
-    const utility::frame_profiler& visualizer::get_frame_profiler() const noexcept {
-        return _imp->_frame_profiler;
+    const utility::cpu_frame_profiler& visualizer::get_cpu_frame_profiler() const noexcept {
+        return _imp->_cpu_frame_profiler;
     }
 
-    utility::frame_profiler& visualizer::get_frame_profiler() noexcept {
-        return _imp->_frame_profiler;
+    utility::cpu_frame_profiler& visualizer::get_cpu_frame_profiler() noexcept {
+        return _imp->_cpu_frame_profiler;
     }
 
     const core::graphics_device_info* visualizer::get_graphics_device_info() const noexcept {
@@ -201,8 +201,8 @@ namespace triengine::visualization
             _imp->_frame_limiter.set_max_fps(0);
 
             // Drop the open frame and leave the profiler disabled for the next window.
-            _imp->_frame_profiler.request_enabled(false);
-            _imp->_frame_profiler.end_frame();
+            _imp->_cpu_frame_profiler.request_enabled(false);
+            _imp->_cpu_frame_profiler.end_frame();
         }
     }
 
@@ -266,7 +266,7 @@ namespace triengine::visualization
     void visualizer::render()
     {
         {
-            utility::frame_profiler::scoped_stage_timer scene_render_scope(_imp->_frame_profiler, _imp->_scene_render_stage);
+            utility::cpu_frame_profiler::scoped_stage_timer scene_render_scope(_imp->_cpu_frame_profiler, _imp->_scene_render_stage);
             const std::shared_ptr<scene> curr_scn = _imp->_scenes.current();
             if (!curr_scn) {
                 TRIENGINE_PANIC("No scenes added");
@@ -308,7 +308,7 @@ namespace triengine::visualization
             }
         }
         {
-            utility::frame_profiler::scoped_stage_timer present_scope(_imp->_frame_profiler, _imp->_present_stage);
+            utility::cpu_frame_profiler::scoped_stage_timer present_scope(_imp->_cpu_frame_profiler, _imp->_present_stage);
             // NOTE: `_end_scene_frame()` is virtual; `visualizer_gui` overrides it to render the GUI, so that cost lands here.
             this->_end_scene_frame();
         }
@@ -317,22 +317,22 @@ namespace triengine::visualization
     bool visualizer::update_window()
     {
         {
-            utility::frame_profiler::scoped_stage_timer scope(_imp->_frame_profiler, _imp->_swap_stage);
+            utility::cpu_frame_profiler::scoped_stage_timer scope(_imp->_cpu_frame_profiler, _imp->_swap_stage);
             _imp->_glctx.swap_buffers();
         }
         {
-            utility::frame_profiler::scoped_stage_timer scope(_imp->_frame_profiler, _imp->_limiter_stage);
+            utility::cpu_frame_profiler::scoped_stage_timer scope(_imp->_cpu_frame_profiler, _imp->_limiter_stage);
             _imp->_frame_limiter.wait();
         }
         {
-            utility::frame_profiler::scoped_stage_timer scope(_imp->_frame_profiler, _imp->_events_stage);
+            utility::cpu_frame_profiler::scoped_stage_timer scope(_imp->_cpu_frame_profiler, _imp->_events_stage);
             _imp->_glctx.poll_window_events();
         }
 
         const bool keep_window_open = !_imp->_glctx.get_window_close_flag();
 
         // Frames are measured from one `update_window()` end to the next.
-        _imp->_frame_profiler.end_frame();
+        _imp->_cpu_frame_profiler.end_frame();
 
         return keep_window_open;
     }

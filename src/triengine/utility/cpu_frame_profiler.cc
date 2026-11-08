@@ -1,4 +1,4 @@
-#include "frame_profiler.hh"
+#include "cpu_frame_profiler.hh"
 #include <triengine/utility/debug_utils.hh>
 
 #include <limits>
@@ -6,7 +6,7 @@
 
 namespace triengine::utility
 {
-    frame_profiler::scoped_stage_timer::scoped_stage_timer(frame_profiler& profiler, stage_id_t stage_id)
+    cpu_frame_profiler::scoped_stage_timer::scoped_stage_timer(cpu_frame_profiler& profiler, stage_id_t stage_id)
     {
         if (!profiler.is_enabled()) { return; }
         profiler._begin_measure(stage_id);
@@ -14,13 +14,13 @@ namespace triengine::utility
         _stage_id = stage_id;
     }
 
-    frame_profiler::scoped_stage_timer::~scoped_stage_timer()
+    cpu_frame_profiler::scoped_stage_timer::~scoped_stage_timer()
     {
         // The enabled state only changes at `end_frame()`, which requires no open measurement.
         if (_profiler) { _profiler->_end_measure(_stage_id); }
     }
 
-    frame_profiler::stage_id_t frame_profiler::register_stage(const stage_descriptor& descriptor)
+    cpu_frame_profiler::stage_id_t cpu_frame_profiler::register_stage(const stage_descriptor& descriptor)
     {
         if (_stage_registration_closed) {
             TRIENGINE_PANIC("Register stages before enabling profiling");
@@ -42,20 +42,20 @@ namespace triengine::utility
         return _stages.size() - 1;
     }
 
-    const frame_profiler::stage_info& frame_profiler::get_stage(stage_id_t id) const
+    const cpu_frame_profiler::stage_info& cpu_frame_profiler::get_stage(stage_id_t id) const
     {
         if (id >= _stages.size()) { TRIENGINE_PANIC("Invalid frame profiler stage ID"); }
         return _stages[id];
     }
 
-    void frame_profiler::_begin_measure(stage_id_t id)
+    void cpu_frame_profiler::_begin_measure(stage_id_t id)
     {
         if (id >= _stages.size()) { TRIENGINE_PANIC("Invalid frame profiler stage ID"); }
         if (_active_stage) { TRIENGINE_PANIC("Frame profiler stages must not nest"); }
         _active_stage = active_stage{ id, clock::now() };
     }
 
-    void frame_profiler::_end_measure(stage_id_t id)
+    void cpu_frame_profiler::_end_measure(stage_id_t id)
     {
         TRIENGINE_ASSERT(_active_stage && _active_stage->id == id);
         auto& stage_time = _frame_stage_times[id];
@@ -63,7 +63,7 @@ namespace triengine::utility
         _active_stage.reset();
     }
 
-    void frame_profiler::end_frame()
+    void cpu_frame_profiler::end_frame()
     {
         if (_active_stage) { TRIENGINE_PANIC("End the frame after all measurements have ended"); }
 
@@ -98,13 +98,13 @@ namespace triengine::utility
         _frame_open = _profiling_enabled;
     }
 
-    frame_profiler::record_view frame_profiler::get_record(size_t index) const
+    cpu_frame_profiler::record_view cpu_frame_profiler::get_record(size_t index) const
     {
         if (index >= _record_count) { TRIENGINE_PANIC("Invalid frame profiler record index"); }
         return record_view{ this->_record_at(index), _stages.size() };
     }
 
-    size_t frame_profiler::find_first_record_after(double time_seconds) const
+    size_t cpu_frame_profiler::find_first_record_after(double time_seconds) const
     {
         size_t first = 0, last = _record_count;
         while (first < last) {
@@ -118,7 +118,7 @@ namespace triengine::utility
         return first;
     }
 
-    void frame_profiler::_apply_enabled(bool enabled, clock::time_point now)
+    void cpu_frame_profiler::_apply_enabled(bool enabled, clock::time_point now)
     {
         if (_profiling_enabled == enabled) { return; }
         if (enabled && !_stage_registration_closed) {
@@ -132,7 +132,7 @@ namespace triengine::utility
         this->_clear(now);
     }
 
-    void frame_profiler::_clear(clock::time_point now) noexcept
+    void cpu_frame_profiler::_clear(clock::time_point now) noexcept
     {
         _oldest_record_slot = 0;
         _record_count = 0;
@@ -140,12 +140,12 @@ namespace triengine::utility
         ++_history_epoch;
     }
 
-    const double* frame_profiler::_record_at(size_t index) const noexcept
+    const double* cpu_frame_profiler::_record_at(size_t index) const noexcept
     {
         return _record_storage.data() + ((_oldest_record_slot + index) % kRecordsCapacity) * _values_per_record;
     }
 
-    double* frame_profiler::_acquire_record_slot() noexcept
+    double* cpu_frame_profiler::_acquire_record_slot() noexcept
     {
         size_t slot;
         if (_record_count < kRecordsCapacity) {

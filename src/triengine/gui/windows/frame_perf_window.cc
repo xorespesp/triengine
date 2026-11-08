@@ -26,18 +26,18 @@ namespace triengine::gui
         constexpr const char* kOtherSegmentDescription =
             "Time in the frame outside the measured stages: application work and waits.";
 
-        const char* segment_name(const utility::frame_profiler& profiler, size_t segment)
+        const char* segment_name(const utility::cpu_frame_profiler& profiler, size_t segment)
         {
             return segment < profiler.stage_count() ? profiler.get_stage(segment).name.c_str() : kOtherSegmentName;
         }
 
-        const char* segment_description(const utility::frame_profiler& profiler, size_t segment)
+        const char* segment_description(const utility::cpu_frame_profiler& profiler, size_t segment)
         {
             return segment < profiler.stage_count() ? profiler.get_stage(segment).description.c_str() : kOtherSegmentDescription;
         }
 
         // Stages sample Viridis in stage order, skipping its dark end that would sink into the background.
-        ImU32 segment_color(const utility::frame_profiler& profiler, size_t segment)
+        ImU32 segment_color(const utility::cpu_frame_profiler& profiler, size_t segment)
         {
             const size_t stage_count = profiler.stage_count();
             if (segment >= stage_count) { return kOtherColor; }
@@ -110,7 +110,7 @@ namespace triengine::gui
         _count = 0;
     }
 
-    void frame_perf_window::sample_buffer::refresh(const utility::frame_profiler& profiler, double seconds)
+    void frame_perf_window::sample_buffer::refresh(const utility::cpu_frame_profiler& profiler, double seconds)
     {
         const size_t stage_count = profiler.stage_count();
         _stride = kSampleSegmentMsOffset + stage_count + 1;
@@ -134,7 +134,7 @@ namespace triengine::gui
             values[kSampleFpsOffset] = 1000.0 / frame_ms;
 
             double other_ms = frame_ms;
-            for (utility::frame_profiler::stage_id_t stage = 0; stage < stage_count; ++stage) {
+            for (utility::cpu_frame_profiler::stage_id_t stage = 0; stage < stage_count; ++stage) {
                 const double stage_ms = record.stage_ms(stage);
                 values[kSampleSegmentMsOffset + stage] = stage_ms;
                 if (!std::isnan(stage_ms)) { other_ms -= stage_ms; }
@@ -248,7 +248,7 @@ namespace triengine::gui
         }
     }
 
-    void frame_perf_window::_refresh_samples(const utility::frame_profiler& profiler)
+    void frame_perf_window::_refresh_samples(const utility::cpu_frame_profiler& profiler)
     {
         _samples.refresh(profiler, _history_seconds);
         _next_refresh_time = ImGui::GetTime() + 1.0 / 60.0;
@@ -317,7 +317,7 @@ namespace triengine::gui
         help("Percentiles use raw frame times, not smoothed FPS. "
              "P99 means 99% of these frames completed within this time.");
         ImGui::TextDisabled("%zu frames / %.2f s retained (up to %zu frames)",
-            stats.sample_count, stats.duration_seconds, utility::frame_profiler::kRecordsCapacity);
+            stats.sample_count, stats.duration_seconds, utility::cpu_frame_profiler::kRecordsCapacity);
 
     }
 
@@ -362,7 +362,7 @@ namespace triengine::gui
     }
 
     void frame_perf_window::_render_frame_time(
-        const utility::frame_profiler& profiler, const float dpi_scale, const uint32_t fps_cap)
+        const utility::cpu_frame_profiler& profiler, const float dpi_scale, const uint32_t fps_cap)
     {
         const auto& stats = _statistics;
         if (_samples.empty() || stats.sample_count == 0 || !(stats.average_frame_ms > 0.0)) { return; }
@@ -509,7 +509,7 @@ namespace triengine::gui
         this->_render_controls(vis);
         if (!ImGui::CollapsingHeader("Profiling", ImGuiTreeNodeFlags_DefaultOpen)) { return; }
 
-        auto& profiler = vis.get_frame_profiler();
+        auto& profiler = vis.get_cpu_frame_profiler();
         bool measuring = profiler.is_enabled();
         if (ImGui::Checkbox("Enable profiling", &measuring)) {
             profiler.request_enabled(measuring);
