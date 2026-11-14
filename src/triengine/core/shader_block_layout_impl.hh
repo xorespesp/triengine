@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <utility>
@@ -407,6 +408,175 @@ namespace triengine::core::shader_block
             return (block.*(std::get<last>(_Block::shader_block_fields()).memptr)).size();
         }
 
+        // ---------------------------------------------------------------------------------
+        // Driver check (runtime)
+        //   get_expected_variables<rule, B>()    every variable the driver should report for B, under the name it uses
+        //   compare_with_driver()                queries the driver and compares (shader_block_layout.cc)
+        // Naming follows "Naming Active Resources" (OpenGL 4.6 core profile spec, 7.3.1.1).
+        // ---------------------------------------------------------------------------------
+
+        // Component type of a GLSL type: float, int or uint.
+        enum class scalar_type { f32, i32, u32 };
+
+        // A member of a shader storage block that is an array of structs, around the variables of its element 0.
+        // The driver lists only that element, and reports the array's size and stride on each of its variables.
+        struct top_level_array_info {
+            bool present = false; // the variable is inside such an array
+            size_t size = 0;      // elements; 0 if runtime-sized
+            size_t stride = 0;    // distance between elements
+        };
+
+        // One variable as the driver should report it.
+        struct expected_variable {
+            std::string name;               // e.g. `intensity`, `lights[1].color`; an array of basic types as one `splits[0]`
+            size_t offset;                  // from the block start
+            scalar_type component;          // GLSL type: component, columns and rows
+            uint32_t columns;
+            uint32_t rows;
+            size_t array_size;              // elements of an array of basic types; 0 if runtime-sized; 1 for anything else
+            size_t array_stride;            // distance between those elements; 0 for anything else
+            size_t matrix_stride;           // distance between matrix columns; 0 for a non-matrix
+            top_level_array_info top_level;
+        };
+
+        // What `compare_with_driver` compares the driver's report with.
+        struct expected_block {
+            layout_rule rule;
+            bool has_runtime_array;
+            size_t data_size;                         // block bytes, counting one runtime-sized array element as the driver does,
+                                                      // padded to the block alignment (some drivers pad the end, some do not)
+            std::vector<expected_variable> variables; // in GLSL declaration order
+        };
+
+        void compare_with_driver(
+            uint32_t program, 
+            block_type type, 
+            std::string_view block_name, 
+            uint32_t binding, 
+            const expected_block& expected
+        );
+
+        template <class _Type>
+        struct is_array_of_structs : std::false_type {};
+
+        template <class _Element, size_t _Count>
+        struct is_array_of_structs<std::array<_Element, _Count>> : std::bool_constant<is_shader_block_struct_v<_Element>> {};
+
+        template <class _Element, class _Alloc>
+        struct is_array_of_structs<std::vector<_Element, _Alloc>> : std::bool_constant<is_shader_block_struct_v<_Element>> {};
+
+        // Declared element count of an array field; 0 for the runtime-sized array.
+        template <class _Array>
+        constexpr size_t get_array_count() noexcept
+        {
+            if constexpr (is_std_vector<_Array>::value) {
+                return 0;
+            } else {
+                return std::tuple_size_v<_Array>;
+            }
+        }
+
+        // An entry for a variable of GLSL scalar, vector or matrix type `_Type`, or an array of them.
+        template <class _Type>
+        expected_variable make_expected_variable(
+            std::string name,
+            const size_t offset,
+            const size_t array_size,
+            const size_t array_stride,
+            const top_level_array_info& top_level)
+        {
+            using glsl_type = typename glsl_type_of<_Type>::type;
+            using component_type = typename glsl_type::component_type;
+            const scalar_type component = std::is_same_v<component_type, float> ? scalar_type::f32
+                : std::is_same_v<component_type, int32_t> ? scalar_type::i32 : scalar_type::u32;
+            return {
+                std::move(name), offset,
+                component, glsl_type::columns, glsl_type::rows,
+                array_size, array_stride, glsl_type::column_stride,
+                top_level,
+            };
+        }
+
+        // Appends the variables of a field of type `_Type` named `name` at `offset`, below the members of the block itself.
+        template <layout_rule _Rule, class _Type>
+        void collect_variables(
+            std::vector<expected_variable>& variables,
+            const std::string& name,
+            const size_t offset,
+            const top_level_array_info& top_level)
+        {
+            if constexpr (is_shader_block_struct_v<_Type>)
+            {
+                // Shader block struct: each field as `name.field`.
+                constexpr auto info = get_struct_layout<_Rule, _Type>();
+                size_t index = 0;
+                const auto collect_field = [&](const auto& field) {
+                    using field_type = typename std::decay_t<decltype(field)>::field_type;
+                    const size_t field_offset = offset + info.field_offsets[index++];
+                    collect_variables<_Rule, field_type>(variables, name + "." + std::string(field.name), field_offset, top_level);
+                };
+                std::apply(
+                    [&](const auto&... fields) { (collect_field(fields), ...); },
+                    _Type::shader_block_fields()
+                );
+            }
+            else if constexpr (is_array_of_structs<_Type>::value)
+            {
+                // Array of structs: each element as `name[i]`.
+                using element_type = typename _Type::value_type;
+                constexpr size_t stride = get_array_layout<_Rule, element_type>().stride;
+                for (size_t i = 0; i < get_array_count<_Type>(); ++i) {
+                    collect_variables<_Rule, element_type>(variables, utility::string::c_format("%s[%zu]", name.c_str(), i), offset + i * stride, top_level);
+                }
+            }
+            else if constexpr (is_std_array<_Type>::value || is_std_vector<_Type>::value)
+            {
+                // Array of basic types: one entry `name[0]` for the whole array.
+                using element_type = typename _Type::value_type;
+                constexpr size_t stride = get_array_layout<_Rule, element_type>().stride;
+                variables.push_back(make_expected_variable<element_type>(name + "[0]", offset, get_array_count<_Type>(), stride, top_level));
+            }
+            else
+            {
+                // GLSL scalar, vector or matrix.
+                variables.push_back(make_expected_variable<_Type>(name, offset, 1, 0, top_level));
+            }
+        }
+
+        // Every variable the driver should report for `_Block`. A member of the block itself is named by its field name,
+        // except that a shader storage block member that is an array of structs is listed only for element 0: a top-level
+        // array (OpenGL 4.6 spec 7.3.1.1). Uniform blocks list every element to keep the indices of the older
+        // `glGetActiveUniform`; see ARB_program_interface_query, issues (4) to (6).
+        template <layout_rule _Rule, class _Block>
+        std::vector<expected_variable> get_expected_variables(const block_type type)
+        {
+            constexpr auto info = get_struct_layout<_Rule, _Block>();
+            std::vector<expected_variable> variables;
+            size_t index = 0;
+            const auto collect_member = [&](const auto& field) {
+                using field_type = typename std::decay_t<decltype(field)>::field_type;
+                const std::string name{ field.name };
+                const size_t offset = info.field_offsets[index++];
+                if constexpr (is_array_of_structs<field_type>::value) {
+                    if (type == block_type::shader_storage) {
+                        // Array of structs in a shader storage block: element 0 only, with the array's size and stride.
+                        using element_type = typename field_type::value_type;
+                        constexpr size_t stride = get_array_layout<_Rule, element_type>().stride;
+                        const top_level_array_info top_level{ true, get_array_count<field_type>(), stride };
+                        collect_variables<_Rule, element_type>(variables, name + "[0]", offset, top_level);
+                        return;
+                    }
+                }
+                // Any other member: as below the block's members.
+                collect_variables<_Rule, field_type>(variables, name, offset, top_level_array_info{});
+            };
+            std::apply(
+                [&](const auto&... fields) { (collect_member(fields), ...); },
+                _Block::shader_block_fields()
+            );
+            return variables;
+        }
+
     } // namespace
 
     template <layout_rule _Rule, class _Block>
@@ -489,6 +659,23 @@ namespace triengine::core::shader_block
         }
         const size_t element_count = info.has_runtime_array ? (byte_count - info.size) / info.runtime_array_stride : 0;
         detail::read_value<_Rule>(bytes, element_count, block);
+    }
+
+    template <layout_rule _Rule, class _Block>
+    void block_layout<_Rule, _Block>::verify(
+        const uint32_t program,
+        const block_type type,
+        const std::string_view block_name,
+        const uint32_t binding)
+    {
+        constexpr auto info = detail::get_struct_layout<_Rule, _Block>();
+        const detail::expected_block expected{
+            _Rule,
+            info.has_runtime_array,
+            round_up(size_for(info.has_runtime_array ? 1 : 0), info.alignment),
+            detail::get_expected_variables<_Rule, _Block>(type),
+        };
+        detail::compare_with_driver(program, type, block_name, binding, expected);
     }
 
 } // namespace

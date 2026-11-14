@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -17,6 +18,12 @@ namespace triengine::core::shader_block
     enum class layout_rule {
         std140, // uniform blocks; array strides and structs are rounded up to 16 bytes
         std430, // shader storage blocks only; no such rounding
+    };
+
+    // The two types of GLSL interface block. Each has its own set of binding points.
+    enum class block_type {
+        uniform,        // `uniform Name { ... }`, bound to `GL_UNIFORM_BUFFER`
+        shader_storage, // `buffer Name { ... }`, bound to `GL_SHADER_STORAGE_BUFFER`
     };
 
     inline constexpr size_t kVec4Alignment = 16;
@@ -111,6 +118,7 @@ namespace triengine::core::shader_block
     //   another shader block struct                                 a nested struct
     //   `std::vector<T>` as the last field of the outermost struct  T[], the runtime-sized array of a shader storage block
     // List the fields in GLSL declaration order, with the GLSL member names.
+    // The compiler cannot tell a field missing from the list; `block_layout::verify` catches it against the driver.
     // Each field once, and only fields declared in the struct itself: shader block structs do not inherit.
     // Put the macro in a public section (anywhere in a `struct`); a private one does not compile.
     // The macro keeps the struct an aggregate.
@@ -121,6 +129,7 @@ namespace triengine::core::shader_block
     //   using lights_layout = block_layout<layout_rule::std430, lights_block>;
     //   static_assert(lights_layout::offset_of<&lights_block::lights>() == 16);
     //   lights_layout::serialize(block, bytes);
+    //   lights_layout::verify(program, block_type::shader_storage, "LightsBlock", 2); // once, after linking
     template <layout_rule _Rule, class _Block>
     class block_layout final
     {
@@ -153,6 +162,12 @@ namespace triengine::core::shader_block
 
         // Reads a block back; the runtime-sized array gets as many elements as `byte_count` holds.
         static void deserialize(const std::byte* bytes, size_t byte_count, _Block& block);
+
+        // Compares the GLSL block `block_name` of a linked `program` with this layout, as the driver reports it,
+        // and panics on any difference: a member missing on either side, an offset, stride, type or array size,
+        // a row-major matrix, the binding point, or a driver-required block size larger than this layout's.
+        // Call it once after linking; it only queries the driver.
+        static void verify(uint32_t program, block_type type, std::string_view block_name, uint32_t binding);
     };
 }
 
