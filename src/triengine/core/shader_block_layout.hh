@@ -143,7 +143,7 @@ namespace triengine::core::shader_block
     //   using lights_layout = block_layout<layout_rule::std430, lights_block>;
     //   static_assert(lights_layout::offset_of<&lights_block::lights>() == 16);
     //   lights_layout::serialize(block, bytes);
-    //   lights_layout::verify(program, block_type::shader_storage, "LightsBlock", 2); // once, after linking
+    //   lights_layout::verify(program_id, block_type::shader_storage, "LightsBlock", 2); // once, after linking
     template <layout_rule _Rule, class _Block>
     class block_layout final
     {
@@ -161,6 +161,10 @@ namespace triengine::core::shader_block
         // Bytes of the block with `element_count` runtime-sized array elements.
         static constexpr size_t size_for(size_t element_count) noexcept;
 
+        // Bytes a buffer needs to back the block with `element_count` runtime-sized array elements: at least one
+        // element, as drivers count a runtime-sized array, and padded to the block alignment, as some drivers require.
+        static constexpr size_t buffer_size_for(size_t element_count) noexcept;
+
         // Offset of a field of `_Block`, e.g. `offset_of<&lights_block::lights>()`.
         template <auto _FieldPointer>
         static constexpr size_t offset_of() noexcept;
@@ -177,11 +181,11 @@ namespace triengine::core::shader_block
         // Reads a block back; the runtime-sized array gets as many elements as `byte_count` holds.
         static void deserialize(const std::byte* bytes, size_t byte_count, _Block& block);
 
-        // Compares the GLSL block `block_name` of a linked `program` with this layout, as the driver reports it,
+        // Compares the GLSL block `block_name` of a linked program with this layout, as the driver reports it,
         // and panics on any difference: a member missing on either side, an offset, stride, type or array size,
         // a row-major matrix, the binding point, or a driver-required block size larger than this layout's.
         // Call it once after linking; it only queries the driver.
-        static void verify(uint32_t program, block_type type, std::string_view block_name, uint32_t binding);
+        static void verify(uint32_t program_id, block_type type, std::string_view block_name, uint32_t binding_point_index);
     };
 }
 

@@ -15,10 +15,10 @@
 namespace triengine::core::shader_block::detail
 {
     void compare_with_driver(
-        const uint32_t program,
+        const uint32_t program_id,
         const block_type type,
         const std::string_view block_name_sv,
-        const uint32_t binding,
+        const uint32_t binding_point_index,
         const expected_block& expected)
     {
         using utility::string::c_format;
@@ -91,18 +91,18 @@ namespace triengine::core::shader_block::detail
         const GLenum block_interface = is_storage ? GL_SHADER_STORAGE_BLOCK : GL_UNIFORM_BLOCK;
         const GLenum variable_interface = is_storage ? GL_BUFFER_VARIABLE : GL_UNIFORM;
 
-        const GLuint block_index = ::glGetProgramResourceIndex(program, block_interface, block_name.c_str()); // No GLCall, GL_INVALID_INDEX possible
+        const GLuint block_index = ::glGetProgramResourceIndex(program_id, block_interface, block_name.c_str()); // No GLCall, GL_INVALID_INDEX possible
         if (block_index == GL_INVALID_INDEX) {
             TRIENGINE_PANIC("%s '%s' is not in program %u: a wrong block name, or no shader of the program uses the block"
                 , block_type_name
                 , block_name.c_str()
-                , program);
+                , program_id);
         }
 
         // The block: binding point, required size, variables.
         constexpr std::array<GLenum, 3> kBlockProps{ GL_BUFFER_BINDING, GL_BUFFER_DATA_SIZE, GL_NUM_ACTIVE_VARIABLES };
         std::array<GLint, kBlockProps.size()> block_values{};
-        GLCall(::glGetProgramResourceiv(program, block_interface, block_index,
+        GLCall(::glGetProgramResourceiv(program_id, block_interface, block_index,
             static_cast<GLsizei>(kBlockProps.size()), kBlockProps.data(),
             static_cast<GLsizei>(block_values.size()), nullptr, block_values.data()));
         const GLint gl_binding = block_values[0];
@@ -111,7 +111,7 @@ namespace triengine::core::shader_block::detail
 
         std::vector<GLint> variable_indices(static_cast<size_t>(variable_count));
         constexpr GLenum kActiveVariables = GL_ACTIVE_VARIABLES;
-        GLCall(::glGetProgramResourceiv(program, block_interface, block_index,
+        GLCall(::glGetProgramResourceiv(program_id, block_interface, block_index,
             1, &kActiveVariables,
             variable_count, nullptr, variable_indices.data()));
 
@@ -127,13 +127,13 @@ namespace triengine::core::shader_block::detail
         for (const GLint variable_index : variable_indices)
         {
             std::array<GLint, kVariableProps.size()> values{};
-            GLCall(::glGetProgramResourceiv(program, variable_interface, static_cast<GLuint>(variable_index),
+            GLCall(::glGetProgramResourceiv(program_id, variable_interface, static_cast<GLuint>(variable_index),
                 variable_prop_count, kVariableProps.data(),
                 variable_prop_count, nullptr, values.data()));
 
             std::string name(static_cast<size_t>(values[0]), '\0'); // the length counts the null terminator
             GLsizei name_length = 0;
-            GLCall(::glGetProgramResourceName(program, variable_interface, static_cast<GLuint>(variable_index),
+            GLCall(::glGetProgramResourceName(program_id, variable_interface, static_cast<GLuint>(variable_index),
                 values[0], &name_length, name.data()));
             name.resize(static_cast<size_t>(name_length));
             if (name.compare(0, instance_prefix.size(), instance_prefix) == 0) {
@@ -148,8 +148,8 @@ namespace triengine::core::shader_block::detail
         // Compare. Every member of a std140 or std430 block is active, so the driver lists them all.
         std::vector<std::string> problems;
 
-        if (gl_binding != static_cast<GLint>(binding)) {
-            problems.push_back(c_format("binding point: C++ %u, GL %d", binding, gl_binding));
+        if (gl_binding != static_cast<GLint>(binding_point_index)) {
+            problems.push_back(c_format("binding point: C++ %u, GL %d", binding_point_index, gl_binding));
         }
         if (static_cast<size_t>(gl_data_size) > expected.data_size) {
             problems.push_back(c_format("block size: GL requires %d bytes, C++ lays out %zu", gl_data_size, expected.data_size));
@@ -215,7 +215,7 @@ namespace triengine::core::shader_block::detail
             , block_type_name
             , block_name.c_str()
             , rule_name
-            , binding
+            , binding_point_index
             , expected.variables.size()
             , gl_data_size);
     }
@@ -315,9 +315,20 @@ namespace triengine::core::shader_block
         };
         static_assert(is_glsl_block_v<lights_block> && lights_block::glsl_block_name() == "LightsBlock");
         static_assert(has_glsl_fields_v<point_light> && !is_glsl_block_v<point_light>);
+
+        // buffer { vec4 header; float values[]; }: one element ends at 20; the buffer size is padded to the block alignment, 32
+        struct header_then_floats {
+            vec4_f32 header;
+            std::vector<float> values;
+            TRIENGINE_GLSL_STRUCT(header_then_floats, header, values)
+        };
+        static_assert(block_layout<std430, header_then_floats>::size_for(1) == 20);
+        static_assert(block_layout<std430, header_then_floats>::buffer_size_for(0) == 32 && block_layout<std430, header_then_floats>::buffer_size_for(5) == 48);
+        static_assert(block_layout<std140, point_light>::buffer_size_for(0) == block_layout<std140, point_light>::size()); // no runtime-sized array
         static_assert(block_layout<std430, lights_block>::offset_of<&lights_block::lights>() == 16);
         static_assert(block_layout<std430, lights_block>::size() == 16 && block_layout<std430, lights_block>::runtime_array_stride() == 32);
         static_assert(block_layout<std430, lights_block>::size_for(3) == 112);
+        static_assert(block_layout<std430, lights_block>::buffer_size_for(0) == 48 && block_layout<std430, lights_block>::buffer_size_for(3) == 112);
 
         // struct { bool a; bool b; float c; }: a bool takes 4 bytes like a uint, not the 1 byte of a C++ bool
         struct bools_then_float {

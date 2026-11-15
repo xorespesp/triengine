@@ -475,10 +475,10 @@ namespace triengine::core::shader_block
         };
 
         void compare_with_driver(
-            uint32_t program, 
+            uint32_t program_id, 
             block_type type, 
             std::string_view block_name, 
-            uint32_t binding, 
+            uint32_t binding_point_index, 
             const expected_block& expected
         );
 
@@ -624,6 +624,12 @@ namespace triengine::core::shader_block
     }
 
     template <layout_rule _Rule, class _Block>
+    constexpr size_t block_layout<_Rule, _Block>::buffer_size_for(const size_t element_count) noexcept {
+        constexpr auto info = detail::get_struct_layout<_Rule, _Block>();
+        return round_up(size_for(info.has_runtime_array ? std::max<size_t>(element_count, 1) : 0), info.alignment);
+    }
+
+    template <layout_rule _Rule, class _Block>
     template <auto _FieldPointer>
     constexpr size_t block_layout<_Rule, _Block>::offset_of() noexcept
     {
@@ -690,19 +696,19 @@ namespace triengine::core::shader_block
 
     template <layout_rule _Rule, class _Block>
     void block_layout<_Rule, _Block>::verify(
-        const uint32_t program,
+        const uint32_t program_id,
         const block_type type,
         const std::string_view block_name,
-        const uint32_t binding)
+        const uint32_t binding_point_index)
     {
         constexpr auto info = detail::get_struct_layout<_Rule, _Block>();
         const detail::expected_block expected{
             _Rule,
             info.has_runtime_array,
-            round_up(size_for(info.has_runtime_array ? 1 : 0), info.alignment),
+            buffer_size_for(0),
             detail::get_expected_variables<_Rule, _Block>(type),
         };
-        detail::compare_with_driver(program, type, block_name, binding, expected);
+        detail::compare_with_driver(program_id, type, block_name, binding_point_index, expected);
     }
 
 } // namespace
