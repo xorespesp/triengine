@@ -491,6 +491,19 @@ namespace triengine::core
             }
 
             uniform_name_buff.resize(uniform_name_len);
+
+            // A member of a uniform block has no location; its value comes from the block's buffer.
+            const GLuint uniform_index{ static_cast<GLuint>(uniform_idx) };
+            GLint uniform_block_index{ -1 };
+            GLCall(::glGetActiveUniformsiv(_program_id, 1, &uniform_index, GL_UNIFORM_BLOCK_INDEX, &uniform_block_index));
+            if (uniform_block_index != -1) {
+                TRIENGINE_TRACE("#%d : '%s' is a member of uniform block %d, not cached"
+                    , uniform_idx
+                    , uniform_name_buff.c_str()
+                    , uniform_block_index);
+                continue;
+            }
+
             const GLint uniform_location{ ::glGetUniformLocation(_program_id, uniform_name_buff.c_str()) };
             if (uniform_location == -1) {
                 TRIENGINE_PANIC("Could not get location for active uniform '%s'"
