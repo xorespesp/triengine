@@ -14,7 +14,6 @@ namespace triengine::core::shader_block
     // NOTE: Create, use and destroy it on the thread where the GL context is current.
     //
     //   uniform_buffer<frame_block> frame_ubo{ 0 };   // layout(std140, binding = 0) uniform FrameBlock { ... };
-    //   frame_ubo.verify(program_id);                 // once per program that uses the block, after linking
     //   frame_ubo.update(frame);                      // each frame
     //   frame_ubo.bind();
     template <block_type _Type, layout_rule _Rule, class _Block>
@@ -29,6 +28,8 @@ namespace triengine::core::shader_block
 
         static_assert(layout::runtime_array_stride() == 0, "block buffers do not take a runtime-sized array yet");
 
+        static constexpr block_type type() noexcept { return _Type; }
+
         // Allocates the buffer, filled with zeros. `binding_point_index` is the `binding` of the GLSL block.
         explicit block_buffer(uint32_t binding_point_index);
         ~block_buffer();
@@ -41,9 +42,6 @@ namespace triengine::core::shader_block
         void update(const _Block& block);
 
         void bind() const;
-
-        // verify this buffer's block type, block name and binding point.
-        void verify(uint32_t program_id) const;
 
         uint32_t buffer_id() const noexcept { return _buffer_id; }
         uint32_t binding_point_index() const noexcept { return _binding_point_index; }

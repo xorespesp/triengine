@@ -21,8 +21,7 @@ out VS_OUT
 // shader uniforms
 ////////////////////////////////////////////
 uniform mat4 u_model; // model matrix
-uniform mat4 u_view; // view matrix
-uniform mat4 u_proj; // projection matrix
+#include "includes/camera_block.glsl" // u_view, u_proj
 uniform mat3 u_nmv; // normal matrix in view-space; `mat3(transpose(inverse(u_view * u_model)))`
 
 void main()

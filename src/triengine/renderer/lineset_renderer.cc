@@ -1,4 +1,6 @@
 #include "lineset_renderer.hh"
+#include <triengine/renderer/camera_block.hh>
+#include <triengine/renderer/lighting_block.hh>
 
 #include <triengine/utility/debug_utils.hh>
 
@@ -32,6 +34,8 @@ namespace triengine::renderer
             .attach_vertex_shader({ shader_ldr->load("lineset_forward_opaque_pass.vert")->c_str() })
             .attach_fragment_shader({ shader_ldr->load("lineset_forward_opaque_pass.frag")->c_str() })
             .link();
+        verify_camera_block(_shader);
+        verify_lighting_block(_shader);
     }
 
     void lineset_renderer::destroy_impl()
@@ -69,13 +73,6 @@ namespace triengine::renderer
         //GLCall(::glEnable(GL_LINE_SMOOTH));
 
         GLCall(::glLineWidth(1.0f));
-
-        // Update view/projective matrices in shader
-        draw_shader.set_uniform_mat4("u_view", render_ctx.view);
-        draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
-
-        // Update simple fog options in shader
-        render_ctx.light_opts->simple_fog.apply_to_shader(draw_shader, render_ctx.simple_fog_color);
 
         auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
         for (const auto& object : render_obj_list)

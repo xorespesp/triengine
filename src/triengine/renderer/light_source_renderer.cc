@@ -1,4 +1,5 @@
 #include "light_source_renderer.hh"
+#include <triengine/renderer/camera_block.hh>
 
 #include <triengine/math/constants.hh>
 #include <triengine/utility/debug_utils.hh>
@@ -105,6 +106,7 @@ namespace triengine::renderer
             .attach_vertex_shader({ shader_ldr->load("point_light_forward_opaque_pass.vert")->c_str() })
             .attach_fragment_shader({ shader_ldr->load("point_light_forward_opaque_pass.frag")->c_str() })
             .link();
+        verify_camera_block(_point_light_source_shader);
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -210,10 +212,6 @@ namespace triengine::renderer
 
             auto& draw_shader = _point_light_source_shader;
             draw_shader.use();
-    
-            // Update view/projective matrices in shader
-            draw_shader.set_uniform_mat4("u_view", render_ctx.view);
-            draw_shader.set_uniform_mat4("u_proj", render_ctx.projection);
     
             // Update model(transform) matrix in shader
             draw_shader.set_uniform_mat4("u_model", model);

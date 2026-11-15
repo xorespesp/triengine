@@ -71,10 +71,4 @@ namespace triengine::core::shader_block
         detail::bind_buffer(_Type, _binding_point_index, _buffer_id);
     }
 
-    template <block_type _Type, layout_rule _Rule, class _Block>
-    void block_buffer<_Type, _Rule, _Block>::verify(const uint32_t program_id) const
-    {
-        layout::verify(program_id, _Type, _Block::glsl_block_name(), _binding_point_index);
-    }
-
 } // namespace

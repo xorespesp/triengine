@@ -119,6 +119,9 @@ namespace triengine::core
         GLCall(::glClearDepth(1.0f));
         GLCall(::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)); // or GL_LINE
 
+        _camera_ubo.emplace(renderer::kCameraBlockBindingPointIndex);
+        _lighting_ubo.emplace(renderer::kLightingBlockBindingPointIndex);
+
         auto shader_ldr = glctx->get_shader_loader();
 
         _inf_plane_renderer.create(*glctx);
@@ -139,6 +142,7 @@ namespace triengine::core
             .attach_vertex_shader({ shader_ldr->load("deferred_lighting_pass.vert")->c_str() })
             .attach_fragment_shader({ shader_ldr->load("deferred_lighting_pass.frag")->c_str() })
             .link();
+        renderer::verify_lighting_block(_deferred_lighting_shader);
 
         _wboit_composite_shader
             .attach_vertex_shader({ shader_ldr->load("wboit_composite_pass.vert")->c_str() })
@@ -263,6 +267,9 @@ namespace triengine::core
 
         _bloom_effect.destroy();
 
+        _camera_ubo.reset();
+        _lighting_ubo.reset();
+
         _wboit_fb.destroy();
         _gbuffer_fb.destroy();
         _overlay_fb.destroy();
@@ -298,12 +305,6 @@ namespace triengine::core
         _frame_gl_calls.begin();
 #endif
 
-        {
-            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _resource_uploads_stage };
-
-            _glctx->get_gpu_resource_manager()->process_pending_requests();
-        }
-
         const abstract_camera& scn_camera = *scn.get_camera();
         scene_render_config& scn_render_config = *scn.get_render_config();
         if (scn_render_config.light_opts.dir_light.follow_camera) {
@@ -320,6 +321,18 @@ namespace triengine::core
             render_ctx.simple_fog_color.b() = scn_render_config.bg_color.b();
 
             render_ctx.camera = &scn_camera;
+        }
+
+        {
+            const pass_scope scope{ _pass_cpu_profiler, _pass_gpu_profiler, _resource_uploads_stage };
+
+            _glctx->get_gpu_resource_manager()->process_pending_requests();
+
+            // Uploads only the bytes that changed since the last frame.
+            _camera_ubo->update(renderer::make_camera_block(render_ctx));
+            _camera_ubo->bind();
+            _lighting_ubo->update(renderer::make_lighting_block(render_ctx));
+            _lighting_ubo->bind();
         }
 
         // set viewport (global state)
@@ -516,11 +529,6 @@ namespace triengine::core
 
             auto& draw_shader = _deferred_lighting_shader;
             draw_shader.use();
-
-            // Update light options in shader
-            render_ctx.light_opts->dir_light.apply_to_shader(draw_shader, render_ctx.view);
-            render_ctx.light_opts->point_light.apply_to_shader(draw_shader, render_ctx.view);
-            render_ctx.light_opts->simple_fog.apply_to_shader(draw_shader, render_ctx.simple_fog_color);
 
             GLCall(::glBindTextureUnit(0, _gbuffer_fb.color_attachment(0)->buffer_id));
             GLCall(::glBindTextureUnit(1, _gbuffer_fb.color_attachment(1)->buffer_id));

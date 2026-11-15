@@ -27,18 +27,14 @@ layout (location = 1) out float fso_reveal;
 // shader uniforms
 ////////////////////////////////////////////
 
-// --- lights ---
-uniform DirLight u_dirLight;
-uniform PointLight u_pointLight;
+// --- lights and fog ---
+#include "includes/lighting_block.glsl" // u_dirLight, u_pointLight, u_simpleFog
 
 // --- materials ---
 layout(binding = 0) uniform sampler2D u_diffuseMap; // diffuse color map (RGB)
 layout(binding = 1) uniform sampler2D u_specularMap; // specular color map (grayscale)
 uniform PhongShadedObjectMaterial u_phongMaterial;
 uniform float u_alpha; // object transparency (for WBOIT transparent pass)
-
-// --- simple fog ---
-uniform SimpleFogOptions u_simpleFog;
 
 void main()
 {

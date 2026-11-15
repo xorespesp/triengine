@@ -8,6 +8,7 @@
 #include <triengine/core/frame_buffer.hh>
 #include <triengine/core/bloom_effect.hh>
 #include <triengine/core/gpu_frame_profiler.hh>
+#include <triengine/core/shader_block_buffer.hh>
 
 #include <triengine/renderer/infinite_plane_renderer.hh>
 #include <triengine/renderer/light_source_renderer.hh>
@@ -16,12 +17,15 @@
 #include <triengine/renderer/pcd_renderer.hh>
 #include <triengine/renderer/skeleton_renderer.hh>
 #include <triengine/renderer/text_renderer.hh>
+#include <triengine/renderer/camera_block.hh>
+#include <triengine/renderer/lighting_block.hh>
 
 #include <triengine/utility/cpu_frame_profiler.hh>
 #include <triengine/utility/gl_utils.hh>
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace triengine::core
 {
@@ -33,7 +37,7 @@ namespace triengine::core
         struct profiling_stages {
             using descriptor = utility::cpu_frame_profiler::stage_descriptor;
             static constexpr descriptor kResourceUploads{ "Resource Uploads",
-                "Pending GPU resource creations and updates." };
+                "Pending GPU resource work and per-frame uploads." };
             static constexpr descriptor kDeferredGeometry{ "Deferred Geometry",
                 "Opaque lit geometry into the G-buffer." };
             static constexpr descriptor kDeferredLighting{ "Deferred Lighting",
@@ -113,6 +117,10 @@ namespace triengine::core
         renderer::text_renderer _text_renderer;
 
         phys_bloom_effect _bloom_effect;
+
+        // Camera and lighting of the frame, read by every program that declares their blocks
+        std::optional<renderer::camera_uniform_buffer> _camera_ubo;
+        std::optional<renderer::lighting_uniform_buffer> _lighting_ubo;
 
         frame_buffer _wboit_fb;
         frame_buffer _gbuffer_fb;

@@ -1,4 +1,6 @@
 #include "pcd_renderer.hh"
+#include <triengine/renderer/camera_block.hh>
+#include <triengine/renderer/lighting_block.hh>
 
 #include <triengine/utility/debug_utils.hh>
 
@@ -34,11 +36,14 @@ namespace triengine::renderer
             .attach_vertex_shader({ shader_ldr->load("pcd_deferred_geom_pass.vert")->c_str() })
             .attach_fragment_shader({ shader_ldr->load("pcd_deferred_geom_pass.frag")->c_str() })
             .link();
+        verify_camera_block(_deferred_opaque_pass_shader);
 
         _forward_trans_pass_shader
             .attach_vertex_shader({ shader_ldr->load("pcd_forward_trans_pass.vert")->c_str() })
             .attach_fragment_shader({ shader_ldr->load("pcd_forward_trans_pass.frag")->c_str() })
             .link();
+        verify_camera_block(_forward_trans_pass_shader);
+        verify_lighting_block(_forward_trans_pass_shader);
     }
 
     void pcd_renderer::destroy_impl()
@@ -81,10 +86,6 @@ namespace triengine::renderer
             auto* const draw_shader = &_deferred_opaque_pass_shader;
 
             draw_shader->use();
-
-            // Update view/projective matrices in shader
-            draw_shader->set_uniform_mat4("u_view", render_ctx.view);
-            draw_shader->set_uniform_mat4("u_proj", render_ctx.projection);
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_obj_list)
@@ -146,15 +147,6 @@ namespace triengine::renderer
             auto* const draw_shader = &_forward_trans_pass_shader;
 
             draw_shader->use();
-
-            // Update view/projective matrices in shader
-            draw_shader->set_uniform_mat4("u_view", render_ctx.view);
-            draw_shader->set_uniform_mat4("u_proj", render_ctx.projection);
-
-            // Update light options in shader
-            render_ctx.light_opts->dir_light.apply_to_shader(*draw_shader, render_ctx.view);
-            render_ctx.light_opts->point_light.apply_to_shader(*draw_shader, render_ctx.view);
-            render_ctx.light_opts->simple_fog.apply_to_shader(*draw_shader, render_ctx.simple_fog_color);
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_obj_list)

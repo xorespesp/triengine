@@ -27,12 +27,8 @@ layout(binding = 1) uniform sampler2D u_gBufferNormal;     // [1]: normal buffer
 layout(binding = 2) uniform sampler2D u_gBufferAlbedoSpec; // [2]: color buffer; albedoColor(RGB), specularColor(A)
 layout(binding = 3) uniform sampler2D u_gBufferMaterial;   // [3]: material buffer; ambientIntensity(R), diffuseIntensity(G), specularIntensity(B), shininess(A)
 
-// --- lights ---
-uniform DirLight u_dirLight;
-uniform PointLight u_pointLight;
-
-// --- simple fog ---
-uniform SimpleFogOptions u_simpleFog;
+// --- lights and fog ---
+#include "includes/lighting_block.glsl" // u_dirLight, u_pointLight, u_simpleFog
 
 void main()
 {

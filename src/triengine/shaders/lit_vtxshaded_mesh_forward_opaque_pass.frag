@@ -26,16 +26,12 @@ out vec4 fso_fragColor;
 // shader uniforms
 ////////////////////////////////////////////
 
-// --- lights ---
-uniform DirLight u_dirLight;
-uniform PointLight u_pointLight;
+// --- lights and fog ---
+#include "includes/lighting_block.glsl" // u_dirLight, u_pointLight, u_simpleFog
 
 // --- materials ---
 uniform PhongShadedObjectMaterial u_phongMaterial;
 uniform float u_alpha; // object transparency (WBOIT)
-
-// --- simple fog ---
-uniform SimpleFogOptions u_simpleFog;
 
 void main()
 {

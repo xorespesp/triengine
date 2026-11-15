@@ -25,9 +25,7 @@ out VS_OUT
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform mat4 u_view; // view matrix
-uniform mat4 u_proj; // projection matrix
-uniform vec3 u_eyePosInWorld; // camera position in world-space
+#include "includes/camera_block.glsl" // u_view, u_proj, u_eyePosInWorld
 uniform float u_planeHalfSize = 100.0; // half-size of the entire plane in world space (max view distance; unit: [m])
 uniform float u_gridCellSize = 1.0; // plane grid cell size in world space (unit: [m])
 

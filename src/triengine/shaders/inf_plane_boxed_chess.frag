@@ -37,7 +37,7 @@ out vec4 fso_fragColor;
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in vertex shader)
+#include "includes/camera_block.glsl" // u_eyePosInWorld
 uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
 uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
 
@@ -45,15 +45,11 @@ uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m])
 uniform vec3  u_gridCellColor1 = vec3(0.82, 0.82, 0.82); // 체스보드 색상 1 (vec4 형태로 RGBA)
 uniform vec3  u_gridCellColor2 = vec3(0.90, 0.90, 0.90); // 체스보드 색상 2 (vec4 형태로 RGBA)
 
-// --- lights ---
-uniform DirLight u_dirLight;
-uniform PointLight u_pointLight;
+// --- lights and fog ---
+#include "includes/lighting_block.glsl" // u_dirLight, u_pointLight, u_simpleFog
 
 // --- materials ---
 uniform PhongShadedObjectMaterial u_phongMaterial;
-
-// --- simple fog ---
-uniform SimpleFogOptions u_simpleFog;
 
 // saturation function
 float sat_f32(float x) {

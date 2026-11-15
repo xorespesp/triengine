@@ -40,6 +40,8 @@ set(TRIENGINE_LIBRARY_SOURCES
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/skeleton_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/mesh_renderer.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/text_renderer.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/camera_block.cc"
+    "${TRIENGINE_LIBRARY_SOURCES_DIR}/renderer/lighting_block.cc"
 
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/gui_manager.cc"
     "${TRIENGINE_LIBRARY_SOURCES_DIR}/gui/widgets/file_browser_widget.cc"
@@ -123,6 +125,8 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/skeleton_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/mesh_renderer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/text_renderer.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/camera_block.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/renderer/lighting_block.hh"
 
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/dock_slot.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/gui/iwindow.hh"

@@ -27,7 +27,7 @@ out vec4 fso_fragColor;
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform vec3 u_eyePosInWorld; // camera position in world-space (pre-defined in vertex shader)
+#include "includes/camera_block.glsl" // u_eyePosInWorld
 uniform float u_planeHalfSize; // half-size of the entire plane in world space (max view distance; unit: [m]) (pre-defined in vertex shader)
 uniform float u_gridCellSize; // plane grid cell size in world space (unit: [m]) (pre-defined in vertex shader)
 
@@ -36,7 +36,7 @@ uniform float u_gridMinPixelsBetweenCells = 2.0;
 uniform vec3  u_gridLineColor = vec3(0.0, 1.0, 0.0);
 
 // --- simple fog ---
-uniform SimpleFogOptions u_simpleFog;
+#include "includes/lighting_block.glsl" // u_simpleFog
 
 // modulo function; returns the value of x modulo y.
 // (equivalent of: https://registry.khronos.org/OpenGL-Refpages/gl4/html/mod.xhtml)

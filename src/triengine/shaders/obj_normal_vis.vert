@@ -19,7 +19,7 @@ out VS_OUT {
 // shader uniforms
 ////////////////////////////////////////////
 uniform mat4 u_model; // model matrix
-uniform mat4 u_view_proj; // view-projection matrix; `u_proj * u_view`
+#include "includes/camera_block.glsl" // u_view, u_proj
 uniform mat3 u_nm; // normal matrix; `mat3(transpose(inverse(u_model)))`
 
 const float kNormalMagnitude = 0.03; // Unit: [m]
@@ -39,9 +39,9 @@ void main()
     vso.vertex_color = (normal_world * 0.5) + 0.5;
 
     // Transform the normal end position to clip space
-    vso.normal_end_position_clip = u_view_proj * normal_end_world;
+    vso.normal_end_position_clip = u_proj * (u_view * normal_end_world);
 
     // Transform vertex position to clip space
     // and set gl_Position for the vertex shader pipeline
-    gl_Position = u_view_proj * vertex_position_world;
+    gl_Position = u_proj * (u_view * vertex_position_world);
 }

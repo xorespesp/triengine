@@ -20,7 +20,7 @@ out vec4 fso_fragColor;
 ////////////////////////////////////////////
 
 // --- simple fog ---
-uniform SimpleFogOptions u_simpleFog;
+#include "includes/lighting_block.glsl" // u_simpleFog
 
 void main()
 {

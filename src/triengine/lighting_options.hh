@@ -18,37 +18,6 @@ namespace triengine
         float specular_intensity{ 0.2f }; // specular intensity (global intensity)
 
         directional_light_options() = default;
-
-        void apply_to_shader(
-            core::shader_program& shader,
-            const mat4_f32& view_mat) const
-        {
-#if defined (TRIENGINE_DEBUG_MODE)
-            //{
-            //    // Ref: https://stackoverflow.com/a/62663705
-            //    GLint curr_shader_id{ -1 };
-            //    GLCall(::glGetIntegerv(GL_CURRENT_PROGRAM, &curr_shader_id));
-            //    TRIENGINE_ASSERT(shader.id() == static_cast<GLuint>(curr_shader_id));
-            //}
-#endif // ^^^ TRIENGINE_DEBUG_MODE ^^^
-
-            shader.set_uniform_bool("u_dirLight.enabled", enabled);
-            if (!enabled) { return; }
-
-            shader.set_uniform_vec3("u_dirLight.color", color.to_eigen());
-
-            // Transform world-space light direction to view-space light direction
-            // NOTE: `w = 0.0` is used for the direction vector (translation is ignored)
-            const vec3_f32 light_dir_in_view = 
-                (view_mat * (vec4_f32{} << (-direction).normalized(), 0.0f).finished())
-                .head<3>()
-                .normalized(); // `normalize(vec3(viewMat * vec4(normalize(-light.direction), 0.0)))`
-
-            shader.set_uniform_vec3("u_dirLight.directionInView", light_dir_in_view);
-            shader.set_uniform_float("u_dirLight.ambientIntensity", ambient_intensity);
-            shader.set_uniform_float("u_dirLight.diffuseIntensity", diffuse_intensity);
-            shader.set_uniform_float("u_dirLight.specularIntensity", specular_intensity);
-        }
     };
 
     struct point_light_options
@@ -71,39 +40,6 @@ namespace triengine
         float specular_intensity{ 0.7f }; // specular intensity (global intensity)
 
         point_light_options() = default;
-
-        void apply_to_shader(
-            core::shader_program& shader,
-            const mat4_f32& view_mat) const
-        {
-#if defined (TRIENGINE_DEBUG_MODE)
-            //{
-            //    // Ref: https://stackoverflow.com/a/62663705
-            //    GLint curr_shader_id{ -1 };
-            //    GLCall(::glGetIntegerv(GL_CURRENT_PROGRAM, &curr_shader_id));
-            //    TRIENGINE_ASSERT(shader.id() == static_cast<GLuint>(curr_shader_id));
-            //}
-#endif // ^^^ TRIENGINE_DEBUG_MODE ^^^
-
-            shader.set_uniform_bool("u_pointLight.enabled", enabled);
-            if (!enabled) { return; }
-
-            shader.set_uniform_vec3("u_pointLight.color", color.to_eigen());
-
-            // Transform world-space light position to view-space light position
-            // NOTE: `w = 1.0` is used for the position vector (translation is applied)
-            const vec3_f32 light_pos_in_view = 
-                (view_mat * position.homogeneous())
-                .head<3>(); // `vec3(viewMat * vec4(light.position, 1.0))`
-
-            shader.set_uniform_vec3("u_pointLight.positionInView", light_pos_in_view);
-            shader.set_uniform_float("u_pointLight.Kc", Kc);
-            shader.set_uniform_float("u_pointLight.Kl", Kl);
-            shader.set_uniform_float("u_pointLight.Kq", Kq);
-            shader.set_uniform_float("u_pointLight.ambientIntensity", ambient_intensity);
-            shader.set_uniform_float("u_pointLight.diffuseIntensity", diffuse_intensity);
-            shader.set_uniform_float("u_pointLight.specularIntensity", specular_intensity);
-        }
     };
 
     struct simple_fog_options
@@ -111,16 +47,6 @@ namespace triengine
         bool enabled{ true };
         float fog_density{ 0.045f };
         float fog_start_dist{ 6.0f };
-
-        void apply_to_shader(
-            const core::shader_program& shader,
-            const color3_f32& fog_color/* NOTE: must be the same as background color */) const
-        {
-            shader.set_uniform_bool("u_simpleFog.enabled", enabled);
-            shader.set_uniform_vec3("u_simpleFog.color", fog_color.to_eigen());
-            shader.set_uniform_float("u_simpleFog.density", fog_density);
-            shader.set_uniform_float("u_simpleFog.startDist", fog_start_dist);
-        }
     };
 
     struct bloom_options
