@@ -42,6 +42,7 @@ namespace triengine::core::shader_block
     template <> struct glsl_type_of<float> { using type = glsl::float_; };
     template <> struct glsl_type_of<int32_t> { using type = glsl::int_; };
     template <> struct glsl_type_of<uint32_t> { using type = glsl::uint_; };
+    template <> struct glsl_type_of<bool> { using type = glsl::bool_; };
     template <> struct glsl_type_of<color3_f32> { using type = glsl::vec3; };
     template <> struct glsl_type_of<color4_f32> { using type = glsl::vec4; };
 
@@ -314,6 +315,12 @@ namespace triengine::core::shader_block
                     write_value<_Rule>(dst + i * stride, value[i]);
                 }
             }
+            else if constexpr (std::is_same_v<_Type, bool>)
+            {
+                // bool: written as a uint, 0 or 1.
+                const uint32_t bits = value ? 1u : 0u;
+                std::memcpy(dst, &bits, sizeof(bits));
+            }
             else
             {
                 // GLSL scalar, vector or matrix: copies the components.
@@ -375,6 +382,13 @@ namespace triengine::core::shader_block
                     read_value<_Rule>(src + i * stride, 0, value[i]);
                 }
             }
+            else if constexpr (std::is_same_v<_Type, bool>)
+            {
+                // bool: any non-zero uint is true.
+                uint32_t bits = 0;
+                std::memcpy(&bits, src, sizeof(bits));
+                value = bits != 0;
+            }
             else
             {
                 // GLSL scalar, vector or matrix: copies the components back, skipping the padding.
@@ -415,8 +429,8 @@ namespace triengine::core::shader_block
         // Naming follows "Naming Active Resources" (OpenGL 4.6 core profile spec, 7.3.1.1).
         // ---------------------------------------------------------------------------------
 
-        // Component type of a GLSL type: float, int or uint.
-        enum class scalar_type { f32, i32, u32 };
+        // Component type of a GLSL type: float, int, uint or bool.
+        enum class scalar_type { f32, i32, u32, b32 };
 
         // A member of a shader storage block that is an array of structs, around the variables of its element 0.
         // The driver lists only that element, and reports the array's size and stride on each of its variables.
@@ -488,7 +502,8 @@ namespace triengine::core::shader_block
             using glsl_type = typename glsl_type_of<_Type>::type;
             using component_type = typename glsl_type::component_type;
             const scalar_type component = std::is_same_v<component_type, float> ? scalar_type::f32
-                : std::is_same_v<component_type, int32_t> ? scalar_type::i32 : scalar_type::u32;
+                : std::is_same_v<component_type, int32_t> ? scalar_type::i32
+                : std::is_same_v<component_type, uint32_t> ? scalar_type::u32 : scalar_type::b32;
             return {
                 std::move(name), offset,
                 component, glsl_type::columns, glsl_type::rows,

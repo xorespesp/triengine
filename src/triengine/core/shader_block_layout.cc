@@ -57,6 +57,7 @@ namespace triengine::core::shader_block::detail
             gl_type_info{ GL_UNSIGNED_INT_VEC2, scalar_type::u32, 1, 2, "uvec2" },
             gl_type_info{ GL_UNSIGNED_INT_VEC3, scalar_type::u32, 1, 3, "uvec3" },
             gl_type_info{ GL_UNSIGNED_INT_VEC4, scalar_type::u32, 1, 4, "uvec4" },
+            gl_type_info{ GL_BOOL,              scalar_type::b32, 1, 1, "bool" },
             gl_type_info{ GL_FLOAT_MAT3,        scalar_type::f32, 3, 3, "mat3" },
             gl_type_info{ GL_FLOAT_MAT4,        scalar_type::f32, 4, 4, "mat4" },
         };
@@ -237,7 +238,9 @@ namespace triengine::core::shader_block
             glsl::vec2, glsl::ivec2, glsl::uvec2,
             glsl::vec3, glsl::ivec3, glsl::uvec3,
             glsl::vec4, glsl::ivec4, glsl::uvec4,
-            glsl::mat3, glsl::mat4>());
+            glsl::mat3, glsl::mat4,
+            glsl::bool_
+        >());
 
         // struct { float a; float b; }  ->  std140: alignment 16, size 16 / std430: alignment 4, size 8
         static_assert(struct_alignment(4, std140) == 16 && struct_size(8, struct_alignment(4, std140)) == 16);
@@ -313,5 +316,26 @@ namespace triengine::core::shader_block
         static_assert(block_layout<std430, lights_block>::offset_of<&lights_block::lights>() == 16);
         static_assert(block_layout<std430, lights_block>::size() == 16 && block_layout<std430, lights_block>::runtime_array_stride() == 32);
         static_assert(block_layout<std430, lights_block>::size_for(3) == 112);
+
+        // struct { bool a; bool b; float c; }: a bool takes 4 bytes like a uint, not the 1 byte of a C++ bool
+        struct bools_then_float {
+            bool a;
+            bool b;
+            float c;
+            TRIENGINE_SHADER_BLOCK_FIELDS(bools_then_float, a, b, c)
+        };
+        static_assert(block_layout<std430, bools_then_float>::offset_of<&bools_then_float::b>() == 4);
+        static_assert(block_layout<std430, bools_then_float>::offset_of<&bools_then_float::c>() == 8 && block_layout<std430, bools_then_float>::size() == 12);
+
+        // struct { vec3 color; bool enabled; bool flags[2]; }: the bool fills the gap after the vec3; std140 pads bool array elements to 16
+        struct vec3_then_bools {
+            vec3_f32 color;
+            bool enabled;
+            std::array<bool, 2> flags;
+            TRIENGINE_SHADER_BLOCK_FIELDS(vec3_then_bools, color, enabled, flags)
+        };
+        static_assert(block_layout<std140, vec3_then_bools>::offset_of<&vec3_then_bools::enabled>() == 12);
+        static_assert(block_layout<std140, vec3_then_bools>::offset_of<&vec3_then_bools::flags>() == 16 && block_layout<std140, vec3_then_bools>::size() == 48);
+        static_assert(block_layout<std430, vec3_then_bools>::offset_of<&vec3_then_bools::flags>() == 16 && block_layout<std430, vec3_then_bools>::size() == 32);
     }
 }

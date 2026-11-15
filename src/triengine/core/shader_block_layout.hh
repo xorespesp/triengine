@@ -35,6 +35,9 @@ namespace triengine::core::shader_block
     // `_Columns > 1` is a col-major matrix, laid out as an array of its column vectors.
     namespace glsl
     {
+        // A GLSL bool as a buffer holds it: one uint, 0 or 1
+        enum class bool32 : uint32_t {};
+
         template <
             class _Component, 
             uint32_t _Columns, uint32_t _Rows,
@@ -43,8 +46,13 @@ namespace triengine::core::shader_block
         >
         struct type
         {
-            static_assert(std::is_same_v<_Component, float> || std::is_same_v<_Component, int32_t> || std::is_same_v<_Component, uint32_t>,
-                "GLSL component must be float, int or uint");
+            static_assert(
+                std::is_same_v<_Component, float> 
+                || std::is_same_v<_Component, int32_t> 
+                || std::is_same_v<_Component, uint32_t>
+                || std::is_same_v<_Component, bool32>, 
+                "GLSL component must be float, int, uint or bool"
+            );
             static_assert(_Columns >= 1 && _Columns <= 4 && _Rows >= 1 && _Rows <= 4, "GLSL types have 1 to 4 columns and rows");
             static_assert(_Columns == 1 || (_Rows >= 2 && std::is_same_v<_Component, float>), "GLSL matrices are float with 2 to 4 rows");
             static_assert(sizeof(_Component) == 4, "GLSL components are 32-bit");
@@ -72,6 +80,7 @@ namespace triengine::core::shader_block
         using float_ = type<float,    1, 1,         4,    4,                    16,     4>;
         using int_   = type<int32_t,  1, 1,         4,    4,                    16,     4>;
         using uint_  = type<uint32_t, 1, 1,         4,    4,                    16,     4>;
+        using bool_  = type<bool32,   1, 1,         4,    4,                    16,     4>;
         using vec2   = type<float,    1, 2,         8,    8,                    16,     8>;
         using ivec2  = type<int32_t,  1, 2,         8,    8,                    16,     8>;
         using uvec2  = type<uint32_t, 1, 2,         8,    8,                    16,     8>;
@@ -111,6 +120,7 @@ namespace triengine::core::shader_block
     //
     // Field types and their GLSL types:
     //   `float`, `int32_t`, `uint32_t`                              float, int, uint
+    //   `bool`                                                      bool (stored as a uint, 0 or 1)
     //   Eigen column vectors of 2 to 4 of them                      vec*, ivec*, uvec*
     //   Eigen column-major 3x3 / 4x4 float matrices                 mat3, mat4
     //   `color3_f32`, `color4_f32`                                  vec3, vec4
