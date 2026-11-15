@@ -109,29 +109,33 @@ namespace triengine::core::shader_block
     }
 
     // ---------------------------------------------------------------------------------
-    // Shader block structs: plain C++ structs whose fields are listed with `TRIENGINE_SHADER_BLOCK_FIELDS`.
+    // C++ structs that mirror a GLSL struct or block, with their fields listed by a macro:
     //
-    //   struct point_light {
+    //   struct point_light {        // struct PointLight { vec3 position; float intensity; vec3 color; };
     //       vec3_f32 position;
     //       float intensity;
     //       vec3_f32 color;
-    //       TRIENGINE_SHADER_BLOCK_FIELDS(point_light, position, intensity, color)
+    //       TRIENGINE_GLSL_STRUCT(point_light, position, intensity, color)
     //   };
     //
-    // Field types and their GLSL types:
-    //   `float`, `int32_t`, `uint32_t`                              float, int, uint
-    //   `bool`                                                      bool (stored as a uint, 0 or 1)
-    //   Eigen column vectors of 2 to 4 of them                      vec*, ivec*, uvec*
-    //   Eigen column-major 3x3 / 4x4 float matrices                 mat3, mat4
-    //   `color3_f32`, `color4_f32`                                  vec3, vec4
-    //   `std::array<T, N>`                                          T[N] (no arrays of arrays)
-    //   another shader block struct                                 a nested struct
-    //   `std::vector<T>` as the last field of the outermost struct  T[], the runtime-sized array of a shader storage block
-    // List the fields in GLSL declaration order, with the GLSL member names.
-    // The compiler cannot tell a field missing from the list; `block_layout::verify` catches it against the driver.
-    // Each field once, and only fields declared in the struct itself: shader block structs do not inherit.
-    // Put the macro in a public section (anywhere in a `struct`); a private one does not compile.
-    // The macro keeps the struct an aggregate.
+    //   struct lights_block {       // buffer LightsBlock { uint count; PointLight lights[]; };
+    //       uint32_t count;
+    //       std::vector<point_light> lights;
+    //       TRIENGINE_GLSL_BLOCK(lights_block, "LightsBlock", count, lights)
+    //   };
+    //
+    // List the fields in GLSL declaration order, under the GLSL member names. A missing field is caught by
+    // `block_layout::verify`, not by the compiler. The structs stay aggregates and do not inherit.
+    //
+    // Field types:
+    //   `float`, `int32_t`, `uint32_t`                        float, int, uint
+    //   Eigen column vectors of 2 to 4 of them                vec*, ivec*, uvec*
+    //   Eigen column-major 3x3 / 4x4 float matrices           mat3, mat4
+    //   `color3_f32`, `color4_f32`                            vec3, vec4
+    //   `bool`                                                bool (4 bytes, 0 or 1)
+    //   `std::array<T, N>`                                    T[N] (no arrays of arrays)
+    //   a `TRIENGINE_GLSL_STRUCT` struct                      a nested struct (a block cannot be nested)
+    //   `std::vector<T>`, last field of the outermost struct  T[] (shader storage blocks)
     // ---------------------------------------------------------------------------------
 
     // Layout of `_Block` under `_Rule`, and its serialization. Everything is static:
@@ -181,10 +185,19 @@ namespace triengine::core::shader_block
     };
 }
 
-// Lists the fields of a shader block struct, inside its definition. Up to 32 fields.
-#define TRIENGINE_SHADER_BLOCK_FIELDS(STRUCT, ...) \
-    static constexpr auto shader_block_fields() noexcept { \
+// Lists the fields of a struct that mirrors a GLSL struct, inside its definition. Up to 32 fields.
+#define TRIENGINE_GLSL_STRUCT(STRUCT, ...) \
+    static constexpr auto glsl_fields() noexcept { \
         return ::std::make_tuple(_TRIENGINE_SHADER_BLOCK_FOR_EACH(_TRIENGINE_SHADER_BLOCK_FIELD, STRUCT, __VA_ARGS__)); \
+    }
+
+// Lists the fields of a struct that mirrors a uniform or shader storage block, inside its definition, with the
+// block name: `"FrameBlock"` for `uniform FrameBlock { ... }`. Up to 32 fields.
+#define TRIENGINE_GLSL_BLOCK(STRUCT, BLOCK_NAME, ...) \
+    TRIENGINE_GLSL_STRUCT(STRUCT, __VA_ARGS__) \
+    static constexpr ::std::string_view glsl_block_name() noexcept { \
+        static_assert(::std::string_view(BLOCK_NAME).size() > 0, "a GLSL block needs a block name"); \
+        return BLOCK_NAME; \
     }
 
 #include "shader_block_layout_impl.hh"

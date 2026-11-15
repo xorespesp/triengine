@@ -52,22 +52,33 @@ namespace triengine::core::shader_block
         using type = typename detail::eigen_glsl_type<_Scalar, _Rows, _Columns>::type;
     };
 
+    // A struct with `TRIENGINE_GLSL_STRUCT` or `TRIENGINE_GLSL_BLOCK`.
     template <class _Type, class = void>
-    struct is_shader_block_struct : std::false_type {};
+    struct has_glsl_fields : std::false_type {};
 
     template <class _Type>
-    struct is_shader_block_struct<_Type, std::void_t<decltype(_Type::shader_block_fields())>> : std::true_type {};
+    struct has_glsl_fields<_Type, std::void_t<decltype(_Type::glsl_fields())>> : std::true_type {};
 
     template <class _Type>
-    inline constexpr bool is_shader_block_struct_v = is_shader_block_struct<_Type>::value;
+    inline constexpr bool has_glsl_fields_v = has_glsl_fields<_Type>::value;
+
+    // A struct with `TRIENGINE_GLSL_BLOCK`.
+    template <class _Type, class = void>
+    struct is_glsl_block : std::false_type {};
+
+    template <class _Type>
+    struct is_glsl_block<_Type, std::void_t<decltype(_Type::glsl_block_name())>> : std::true_type {};
+
+    template <class _Type>
+    inline constexpr bool is_glsl_block_v = is_glsl_block<_Type>::value;
 
     namespace detail
     {
         // ---------------------------------------------------------------------------------
-        // Field list of a shader block struct (TRIENGINE_SHADER_BLOCK_FIELDS)
+        // Field list (TRIENGINE_GLSL_STRUCT, TRIENGINE_GLSL_BLOCK)
         // ---------------------------------------------------------------------------------
 
-        // One entry of a TRIENGINE_SHADER_BLOCK_FIELDS list.
+        // One entry of a field list.
         template <class _Struct, class _Field>
         struct field_descriptor {
             using struct_type = _Struct;
@@ -82,7 +93,7 @@ namespace triengine::core::shader_block
         }
 
         template <class _Struct>
-        using fields_of = decltype(_Struct::shader_block_fields());
+        using fields_of = decltype(_Struct::glsl_fields());
 
         template <class _Struct, size_t _Index>
         using field_type_of = typename std::tuple_element_t<_Index, fields_of<_Struct>>::field_type;
@@ -112,12 +123,12 @@ namespace triengine::core::shader_block
 
         inline constexpr size_t kNoField = static_cast<size_t>(-1);
 
-        // Position of a field in the TRIENGINE_SHADER_BLOCK_FIELDS list.(0 for the first)
+        // Position of a field in the field list.(0 for the first)
         // `kNoField` if it is not listed. (NOTE: NOT a byte offset)
         template <auto _FieldPointer, size_t... _Indices>
         constexpr size_t get_field_index(std::index_sequence<_Indices...>) noexcept
         {
-            constexpr auto fields = member_pointer_traits<decltype(_FieldPointer)>::struct_type::shader_block_fields();
+            constexpr auto fields = member_pointer_traits<decltype(_FieldPointer)>::struct_type::glsl_fields();
             constexpr auto target = make_field({}, _FieldPointer);
 
             size_t index = kNoField;
@@ -138,28 +149,28 @@ namespace triengine::core::shader_block
         struct is_std_vector<std::vector<_Type, _Alloc>> : std::true_type {};
 
         // ---------------------------------------------------------------------------------
-        // Checks of a TRIENGINE_SHADER_BLOCK_FIELDS list (compile time)
+        // Checks of a field list (compile time)
         // ---------------------------------------------------------------------------------
 
         template <class _Struct, size_t... _Indices>
         constexpr void check_field_list(std::index_sequence<_Indices...>) noexcept
         {
             constexpr size_t field_count = sizeof...(_Indices);
-            static_assert(field_count > 0, "a shader block struct needs a field");
+            static_assert(field_count > 0, "a GLSL struct or block needs a field");
 
             static_assert((std::is_same_v<typename std::tuple_element_t<_Indices, fields_of<_Struct>>::struct_type, _Struct> && ...),
-                "TRIENGINE_SHADER_BLOCK_FIELDS of another struct: a derived struct, or a wrong struct name in the macro");
+                "the field list of another struct: a derived struct, or a wrong struct name in the macro");
 
             static_assert([] {
                 // Every field of the list matches exactly one field, itself.
-                constexpr auto fields = _Struct::shader_block_fields();
+                constexpr auto fields = _Struct::glsl_fields();
                 const auto times_listed = [&](const auto& field) {
                     size_t count = 0;
                     ((count += same_field(field, std::get<_Indices>(fields)) ? 1 : 0), ...);
                     return count;
                 };
                 return ((times_listed(std::get<_Indices>(fields)) == 1) && ...);
-            }(), "a field is listed more than once in TRIENGINE_SHADER_BLOCK_FIELDS");
+            }(), "a field is listed more than once");
 
             static_assert(((!is_std_vector<field_type_of<_Struct, _Indices>>::value || _Indices + 1 == field_count) && ...),
                 "a std::vector field (runtime-sized array) must be the last field");
@@ -173,14 +184,14 @@ namespace triengine::core::shader_block
         // A nested struct makes get_type_layout call get_struct_layout, which calls get_type_layout for its fields.
         // ---------------------------------------------------------------------------------
 
-        // Layout of one field type: a GLSL type, a std::array, or a nested shader block struct.
+        // Layout of one field type: a GLSL type, a std::array, or a nested GLSL struct.
         struct type_layout_info {
             size_t alignment;    // the field's offset is a multiple of this
             size_t size;         // bytes the field takes; the next field may start right after
             size_t array_stride; // distance between elements when this type is an array element; 0 if it cannot be one
         };
 
-        // Layout of a shader block struct.
+        // Layout of a GLSL struct or block.
         template <size_t _FieldCount>
         struct struct_layout_info {
             std::array<size_t, _FieldCount> field_offsets{}; // offset of each field from the struct start, in listing order
@@ -214,7 +225,7 @@ namespace triengine::core::shader_block
         template <layout_rule _Rule, class _Struct>
         constexpr struct_layout_info<field_count_v<_Struct>> get_struct_layout() noexcept
         {
-            static_assert(is_shader_block_struct_v<_Struct>, "list the fields with TRIENGINE_SHADER_BLOCK_FIELDS");
+            static_assert(has_glsl_fields_v<_Struct>, "list the fields with TRIENGINE_GLSL_STRUCT or TRIENGINE_GLSL_BLOCK");
             check_field_list<_Struct>(std::make_index_sequence<field_count_v<_Struct>>{});
 
             struct_layout_info<field_count_v<_Struct>> info{};
@@ -243,7 +254,7 @@ namespace triengine::core::shader_block
             };
             std::apply(
                 [&](const auto&... fields) { (place_field(fields), ...); }, 
-                _Struct::shader_block_fields()
+                _Struct::glsl_fields()
             );
 
             info.alignment = struct_alignment(max_alignment, _Rule);
@@ -254,10 +265,11 @@ namespace triengine::core::shader_block
         template <layout_rule _Rule, class _Type>
         constexpr type_layout_info get_type_layout() noexcept
         {
-            if constexpr (is_shader_block_struct_v<_Type>) {
+            if constexpr (has_glsl_fields_v<_Type>) {
                 // A nested struct; in an array, its elements are one struct size apart.
+                static_assert(!is_glsl_block_v<_Type>, "a GLSL block cannot be a field; mirror the nested GLSL struct with TRIENGINE_GLSL_STRUCT");
                 constexpr auto info = get_struct_layout<_Rule, _Type>();
-                static_assert(!info.has_runtime_array, "only the outermost shader block struct may end with a std::vector field");
+                static_assert(!info.has_runtime_array, "only the outermost struct may end with a std::vector field");
                 return { info.alignment, info.size, info.size };
             } else if constexpr (is_std_array<_Type>::value) {
                 // A fixed-size array; it cannot itself be an array element.
@@ -266,7 +278,7 @@ namespace triengine::core::shader_block
                 return { array.alignment, array.stride * std::tuple_size_v<_Type>, 0 };
             } else if constexpr (is_std_vector<_Type>::value) {
                 // A runtime-sized array anywhere but the last field of the outermost struct (`get_struct_layout` places that one).
-                static_assert(always_false_v<_Type>, "a std::vector field must be the last field of the outermost shader block struct");
+                static_assert(always_false_v<_Type>, "a std::vector field must be the last field of the outermost struct");
                 return {};
             } else {
                 // A GLSL scalar, vector or matrix: from the table.
@@ -283,9 +295,9 @@ namespace triengine::core::shader_block
         template <layout_rule _Rule, class _Type>
         void write_value(std::byte* const dst, const _Type& value)
         {
-            if constexpr (is_shader_block_struct_v<_Type>)
+            if constexpr (has_glsl_fields_v<_Type>)
             {
-                // Shader block struct: each field at its offset.
+                // GLSL struct or block: each field at its offset.
                 constexpr auto info = get_struct_layout<_Rule, _Type>();
                 size_t index = 0;
                 const auto write_field = [&](const auto& field) {
@@ -304,7 +316,7 @@ namespace triengine::core::shader_block
                 // A comma fold runs left to right, so `index` follows the field order.
                 std::apply(
                     [&](const auto&... fields) { (write_field(value.*(fields.memptr)), ...); },
-                    _Type::shader_block_fields()
+                    _Type::glsl_fields()
                 );
             }
             else if constexpr (is_std_array<_Type>::value)
@@ -349,9 +361,9 @@ namespace triengine::core::shader_block
         template <layout_rule _Rule, class _Type>
         void read_value(const std::byte* const src, const size_t runtime_element_count, _Type& value)
         {
-            if constexpr (is_shader_block_struct_v<_Type>)
+            if constexpr (has_glsl_fields_v<_Type>)
             {
-                // Shader block struct: each field from its offset.
+                // GLSL struct or block: each field from its offset.
                 constexpr auto info = get_struct_layout<_Rule, _Type>();
                 size_t index = 0;
                 const auto read_field = [&](auto& field) {
@@ -371,7 +383,7 @@ namespace triengine::core::shader_block
                 // A comma fold runs left to right, so `index` follows the field order.
                 std::apply(
                     [&](const auto&... fields) { (read_field(value.*(fields.memptr)), ...); },
-                    _Type::shader_block_fields()
+                    _Type::glsl_fields()
                 );
             }
             else if constexpr (is_std_array<_Type>::value)
@@ -419,7 +431,7 @@ namespace triengine::core::shader_block
         {
             constexpr size_t last = field_count_v<_Block> - 1;
             static_assert(is_std_vector<field_type_of<_Block, last>>::value, "the block has no runtime-sized array");
-            return (block.*(std::get<last>(_Block::shader_block_fields()).memptr)).size();
+            return (block.*(std::get<last>(_Block::glsl_fields()).memptr)).size();
         }
 
         // ---------------------------------------------------------------------------------
@@ -474,10 +486,10 @@ namespace triengine::core::shader_block
         struct is_array_of_structs : std::false_type {};
 
         template <class _Element, size_t _Count>
-        struct is_array_of_structs<std::array<_Element, _Count>> : std::bool_constant<is_shader_block_struct_v<_Element>> {};
+        struct is_array_of_structs<std::array<_Element, _Count>> : std::bool_constant<has_glsl_fields_v<_Element>> {};
 
         template <class _Element, class _Alloc>
-        struct is_array_of_structs<std::vector<_Element, _Alloc>> : std::bool_constant<is_shader_block_struct_v<_Element>> {};
+        struct is_array_of_structs<std::vector<_Element, _Alloc>> : std::bool_constant<has_glsl_fields_v<_Element>> {};
 
         // Declared element count of an array field; 0 for the runtime-sized array.
         template <class _Array>
@@ -520,9 +532,9 @@ namespace triengine::core::shader_block
             const size_t offset,
             const top_level_array_info& top_level)
         {
-            if constexpr (is_shader_block_struct_v<_Type>)
+            if constexpr (has_glsl_fields_v<_Type>)
             {
-                // Shader block struct: each field as `name.field`.
+                // GLSL struct: each field as `name.field`.
                 constexpr auto info = get_struct_layout<_Rule, _Type>();
                 size_t index = 0;
                 const auto collect_field = [&](const auto& field) {
@@ -532,7 +544,7 @@ namespace triengine::core::shader_block
                 };
                 std::apply(
                     [&](const auto&... fields) { (collect_field(fields), ...); },
-                    _Type::shader_block_fields()
+                    _Type::glsl_fields()
                 );
             }
             else if constexpr (is_array_of_structs<_Type>::value)
@@ -587,7 +599,7 @@ namespace triengine::core::shader_block
             };
             std::apply(
                 [&](const auto&... fields) { (collect_member(fields), ...); },
-                _Block::shader_block_fields()
+                _Block::glsl_fields()
             );
             return variables;
         }
@@ -619,7 +631,7 @@ namespace triengine::core::shader_block
         static_assert(std::is_same_v<struct_type, _Block>, "not a field of this block; use the layout of the struct that has it");
 
         constexpr size_t index = detail::get_field_index<_FieldPointer>(std::make_index_sequence<detail::field_count_v<_Block>>{});
-        static_assert(index != detail::kNoField, "not a field listed with TRIENGINE_SHADER_BLOCK_FIELDS");
+        static_assert(index != detail::kNoField, "not a field in the macro's field list");
 
         return detail::get_struct_layout<_Rule, _Block>().field_offsets[index];
     }

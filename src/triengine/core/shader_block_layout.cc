@@ -159,7 +159,7 @@ namespace triengine::core::shader_block::detail
         {
             const auto it = reported.find(variable.name);
             if (it == reported.end()) {
-                problems.push_back(c_format("`%s`: in TRIENGINE_SHADER_BLOCK_FIELDS but not in GLSL", variable.name.c_str()));
+                problems.push_back(c_format("`%s`: in the C++ field list but not in GLSL", variable.name.c_str()));
                 continue;
             }
             const reported_variable& gl = it->second;
@@ -196,7 +196,7 @@ namespace triengine::core::shader_block::detail
             return lhs.second.offset != rhs.second.offset ? lhs.second.offset < rhs.second.offset : lhs.first < rhs.first;
         });
         for (const auto& [name, gl] : unlisted) {
-            problems.push_back(c_format("`%s`: in GLSL (offset %d, %s) but not in TRIENGINE_SHADER_BLOCK_FIELDS"
+            problems.push_back(c_format("`%s`: in GLSL (offset %d, %s) but not in the C++ field list"
                 , name.c_str()
                 , gl.offset
                 , get_type_name(gl.type).c_str()));
@@ -254,14 +254,14 @@ namespace triengine::core::shader_block
         static_assert(struct_size(72, struct_alignment(16, std140)) == 80);
         static_assert(struct_size(72, struct_alignment(16, std430)) == 80);
 
-        // Shader block structs: offsets the GLSL compiler must assign to the same declarations.
+        // GLSL structs and blocks: offsets the GLSL compiler must assign to the same declarations.
 
         // struct point_light { vec3 position; float intensity; vec3 color; }
         struct point_light {
             vec3_f32 position;
             float intensity;
             vec3_f32 color;
-            TRIENGINE_SHADER_BLOCK_FIELDS(point_light, position, intensity, color)
+            TRIENGINE_GLSL_STRUCT(point_light, position, intensity, color)
         };
         static_assert(block_layout<std430, point_light>::offset_of<&point_light::position>() == 0);
         static_assert(block_layout<std430, point_light>::offset_of<&point_light::intensity>() == 12); // fills the gap after the vec3
@@ -272,7 +272,7 @@ namespace triengine::core::shader_block
         struct float_array {
             float a;
             std::array<float, 4> b;
-            TRIENGINE_SHADER_BLOCK_FIELDS(float_array, a, b)
+            TRIENGINE_GLSL_STRUCT(float_array, a, b)
         };
         static_assert(block_layout<std140, float_array>::offset_of<&float_array::b>() == 16 && block_layout<std140, float_array>::size() == 80);
         static_assert(block_layout<std430, float_array>::offset_of<&float_array::b>() == 4 && block_layout<std430, float_array>::size() == 20);
@@ -281,7 +281,7 @@ namespace triengine::core::shader_block
         struct matrix_then_float {
             mat3_f32 m;
             float f;
-            TRIENGINE_SHADER_BLOCK_FIELDS(matrix_then_float, m, f)
+            TRIENGINE_GLSL_STRUCT(matrix_then_float, m, f)
         };
         static_assert(block_layout<std430, matrix_then_float>::offset_of<&matrix_then_float::f>() == 48 && block_layout<std430, matrix_then_float>::size() == 64);
 
@@ -290,7 +290,7 @@ namespace triengine::core::shader_block
             float a;
             point_light light;
             float b;
-            TRIENGINE_SHADER_BLOCK_FIELDS(nested, a, light, b)
+            TRIENGINE_GLSL_STRUCT(nested, a, light, b)
         };
         static_assert(block_layout<std430, nested>::offset_of<&nested::light>() == 16 && block_layout<std430, nested>::offset_of<&nested::b>() == 48);
         static_assert(block_layout<std430, nested>::size() == 64);
@@ -299,20 +299,22 @@ namespace triengine::core::shader_block
         struct two_floats {
             float a;
             float b;
-            TRIENGINE_SHADER_BLOCK_FIELDS(two_floats, a, b)
+            TRIENGINE_GLSL_STRUCT(two_floats, a, b)
         };
         struct two_floats_array {
             std::array<two_floats, 3> items;
-            TRIENGINE_SHADER_BLOCK_FIELDS(two_floats_array, items)
+            TRIENGINE_GLSL_STRUCT(two_floats_array, items)
         };
         static_assert(block_layout<std140, two_floats_array>::size() == 48 && block_layout<std430, two_floats_array>::size() == 24);
 
-        // buffer Lights { uint count; point_light lights[]; }
+        // buffer LightsBlock { uint count; point_light lights[]; }
         struct lights_block {
             uint32_t count;
             std::vector<point_light> lights;
-            TRIENGINE_SHADER_BLOCK_FIELDS(lights_block, count, lights)
+            TRIENGINE_GLSL_BLOCK(lights_block, "LightsBlock", count, lights)
         };
+        static_assert(is_glsl_block_v<lights_block> && lights_block::glsl_block_name() == "LightsBlock");
+        static_assert(has_glsl_fields_v<point_light> && !is_glsl_block_v<point_light>);
         static_assert(block_layout<std430, lights_block>::offset_of<&lights_block::lights>() == 16);
         static_assert(block_layout<std430, lights_block>::size() == 16 && block_layout<std430, lights_block>::runtime_array_stride() == 32);
         static_assert(block_layout<std430, lights_block>::size_for(3) == 112);
@@ -322,7 +324,7 @@ namespace triengine::core::shader_block
             bool a;
             bool b;
             float c;
-            TRIENGINE_SHADER_BLOCK_FIELDS(bools_then_float, a, b, c)
+            TRIENGINE_GLSL_STRUCT(bools_then_float, a, b, c)
         };
         static_assert(block_layout<std430, bools_then_float>::offset_of<&bools_then_float::b>() == 4);
         static_assert(block_layout<std430, bools_then_float>::offset_of<&bools_then_float::c>() == 8 && block_layout<std430, bools_then_float>::size() == 12);
@@ -332,7 +334,7 @@ namespace triengine::core::shader_block
             vec3_f32 color;
             bool enabled;
             std::array<bool, 2> flags;
-            TRIENGINE_SHADER_BLOCK_FIELDS(vec3_then_bools, color, enabled, flags)
+            TRIENGINE_GLSL_STRUCT(vec3_then_bools, color, enabled, flags)
         };
         static_assert(block_layout<std140, vec3_then_bools>::offset_of<&vec3_then_bools::enabled>() == 12);
         static_assert(block_layout<std140, vec3_then_bools>::offset_of<&vec3_then_bools::flags>() == 16 && block_layout<std140, vec3_then_bools>::size() == 48);
