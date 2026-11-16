@@ -2,6 +2,7 @@
 #include <triengine/core/gpu_frame_profiler.hh>
 #include <triengine/utility/gl_utils.hh>
 #include <triengine/geometry/mesh_object.hh>
+#include <triengine/math/constants.hh>
 #include <triengine/visualization/visualizer.hh>
 
 #include <GLFW/glfw3.h>
@@ -28,11 +29,13 @@ namespace
 {
     // Draw-call bound scene: many small lit boxes, each with its own transform and material,
     // seen from a fixed camera. Every run with the same options renders the same frames.
+    // `--animate` spins some of the boxes in place, so their per-object data changes every frame.
     //   - ESC : close the window
 
     constexpr uint32_t kSceneSeed = 20261108;
     constexpr float kBoxSize = 0.2f;
     constexpr float kGridSpacing = 0.5f;
+    constexpr double kAnimatedRadiansPerFrame = 0.01;
     constexpr int32_t kWindowWidth = 1280;
     constexpr int32_t kWindowHeight = 720;
     constexpr double kReportIntervalSeconds = 1.0;
@@ -58,23 +61,45 @@ namespace
         return std::round(ms * 1000.0) / 1000.0;
     }
 
+    // Which boxes `--animate` changes, by their order in the object list. The renderer writes the per-object records
+    // in that order too, so this decides the range of records that changes each frame.
+    enum class animated_layout {
+        contiguous, // the first boxes
+        strided, // evenly spaced boxes
+    };
+
+    struct animated_options {
+        size_t percent{}; // of the boxes, from 1 to 100, rounded up to a whole box
+        animated_layout layout{ animated_layout::strided };
+    };
+
     struct bench_options {
         size_t object_count{ 10000 };
         std::vector<size_t> sweep_object_counts; // empty: report every second for `object_count` until closed
         std::string json_path; // sweep results, written when the bench exits
         std::optional<size_t> monitor_index; // `nullopt`: the primary monitor
         bool postfx{ false }; // bloom and SMAA; off keeps the GPU cost small next to the submission cost
+        std::optional<animated_options> animated; // `nullopt`: every box stays still
     };
 
     void print_usage()
     {
         std::fprintf(stderr,
-            "usage: draw-bench [--n <object count> | --sweep <count,count,...> [--json <path>]] [--postfx on|off] [--monitor <index>]\n"
-            "  --n        number of boxes, reported every second until closed (default 10000)\n"
-            "  --sweep    measure each number of boxes in turn, then exit\n"
-            "  --json     write the sweep results to a JSON file\n"
-            "  --postfx   bloom and SMAA (default off)\n"
-            "  --monitor  open the window centered on this monitor, from 0 (default: the primary monitor)\n");
+            "usage: draw-bench [--n <object count> | --sweep <count,count,...> [--json <path>]]\n"
+            "                  [--animate <percent> [--animate-layout contiguous|strided]] [--postfx on|off] [--monitor <index>]\n"
+            "  --n               number of boxes, reported every second until closed (default 10000)\n"
+            "  --sweep           measure each number of boxes in turn, then exit\n"
+            "  --json            write the sweep results to a JSON file\n"
+            "  --animate         spin this percent of the boxes every frame, from 1 to 100 (default: none)\n"
+            "  --animate-layout  which boxes spin, in the order they were added: the first ones (contiguous)\n"
+            "                    or evenly spaced ones (strided, default)\n"
+            "  --postfx          bloom and SMAA (default off)\n"
+            "  --monitor         open the window centered on this monitor, from 0 (default: the primary monitor)\n");
+    }
+
+    const char* to_string(const animated_layout layout)
+    {
+        return layout == animated_layout::contiguous ? "contiguous" : "strided";
     }
 
     std::optional<size_t> parse_object_count(const char* text)
@@ -97,6 +122,15 @@ namespace
         return static_cast<size_t>(index);
     }
 
+    std::optional<size_t> parse_percent(const char* text)
+    {
+        const auto percent = parse_index(text);
+        if (!percent || *percent == 0 || *percent > 100) {
+            return std::nullopt;
+        }
+        return percent;
+    }
+
     // "100,1000,10000" -> { 100, 1000, 10000 }
     std::optional<std::vector<size_t>> parse_object_counts(const std::string& text)
     {
@@ -117,6 +151,7 @@ namespace
     std::optional<bench_options> parse_args(const int argc, char** argv)
     {
         bench_options opts;
+        std::optional<animated_layout> layout; // `--animate-layout`, which needs `--animate`
         for (int i = 1; i < argc; ++i) {
             const bool has_value = i + 1 < argc;
             if (std::strcmp(argv[i], "--n") == 0 && has_value) {
@@ -149,12 +184,35 @@ namespace
                 }
                 opts.postfx = value == "on";
             }
+            else if (std::strcmp(argv[i], "--animate") == 0 && has_value) {
+                const auto percent = parse_percent(argv[++i]);
+                if (!percent) {
+                    return std::nullopt;
+                }
+                opts.animated = animated_options{ *percent };
+            }
+            else if (std::strcmp(argv[i], "--animate-layout") == 0 && has_value) {
+                const std::string value{ argv[++i] };
+                if (value == "contiguous") {
+                    layout = animated_layout::contiguous;
+                } else if (value == "strided") {
+                    layout = animated_layout::strided;
+                } else {
+                    return std::nullopt;
+                }
+            }
             else {
                 return std::nullopt;
             }
         }
         if (!opts.json_path.empty() && opts.sweep_object_counts.empty()) {
             return std::nullopt; // only a sweep has one result per object count to write
+        }
+        if (layout) {
+            if (!opts.animated) {
+                return std::nullopt; // a layout with no boxes to spin
+            }
+            opts.animated->layout = *layout;
         }
         return opts;
     }
@@ -198,8 +256,23 @@ namespace
         return placement;
     }
 
-    // Lays the boxes out on a cube-shaped grid centered at the origin.
-    void populate_scene(triengine::scene& scn, const size_t object_count)
+    // A box that `--animate` spins in place about its initial rotation axis.
+    struct animated_object {
+        std::shared_ptr<triengine::geometry::mesh_object> object;
+        triengine::vec3_f32 axis;
+        float initial_angle{};
+    };
+
+    // Index in the object list of animated box `j`, out of `animated_count` boxes among `object_count`.
+    // Increases with `j`, so the boxes can be picked while the list is built.
+    size_t get_animated_index(const size_t j, const size_t object_count, const size_t animated_count, const animated_layout layout)
+    {
+        return layout == animated_layout::contiguous ? j : j * object_count / animated_count;
+    }
+
+    // Lays the boxes out on a cube-shaped grid centered at the origin, and returns the ones `animated` picks.
+    std::vector<animated_object> populate_scene(triengine::scene& scn, const size_t object_count,
+        const std::optional<animated_options>& animated)
     {
         const size_t side = static_cast<size_t>(std::ceil(std::cbrt(static_cast<double>(object_count))));
         const float half_extent = 0.5f * kGridSpacing * static_cast<float>(side - 1);
@@ -207,6 +280,10 @@ namespace
         std::mt19937 rng{ kSceneSeed };
         std::uniform_real_distribution<float> unit{ 0.0f, 1.0f };
         std::uniform_real_distribution<float> signed_unit{ -1.0f, 1.0f };
+
+        const size_t animated_count = animated ? (object_count * animated->percent + 99) / 100 : 0;
+        std::vector<animated_object> animated_objects;
+        animated_objects.reserve(animated_count);
 
         for (size_t i = 0; i < object_count; ++i) {
             const size_t x = i % side;
@@ -224,12 +301,17 @@ namespace
             material->shininess = static_cast<uint16_t>(16 + static_cast<int>(unit(rng) * 112.0f));
 
             const triengine::vec3_f32 axis = triengine::vec3_f32{ signed_unit(rng), signed_unit(rng), signed_unit(rng) }.normalized();
-            box->rotate(triengine::quat_f32{ Eigen::AngleAxisf{ unit(rng) * 3.14159265f, axis } });
+            const float angle = unit(rng) * 3.14159265f;
+            box->rotate(triengine::quat_f32{ Eigen::AngleAxisf{ angle, axis } });
             box->translate(triengine::vec3_f32{
                 kGridSpacing * static_cast<float>(x) - half_extent,
                 kGridSpacing * static_cast<float>(y) - half_extent,
                 kGridSpacing * static_cast<float>(z) - half_extent });
 
+            if (animated_objects.size() < animated_count
+                && i == get_animated_index(animated_objects.size(), object_count, animated_count, animated->layout)) {
+                animated_objects.push_back(animated_object{ box, axis, angle });
+            }
             scn.add_geometry(box);
         }
 
@@ -239,6 +321,7 @@ namespace
         cam.set_yaw(30.0f);
         cam.set_pitch(25.0f);
         cam.set_zoom_distance(1.0f + 4.6f * half_extent); // fits the grid's bounding sphere in the 45 deg vertical fov
+        return animated_objects;
     }
 
     // `q` in [0, 1]; reorders `values`.
@@ -313,6 +396,7 @@ namespace
 
     struct sweep_result {
         size_t object_count{};
+        size_t animated_object_count{};
         frames_summary frames;
 #if defined(TRIENGINE_DEBUG_MODE)
         gl_call_counts gl_calls;
@@ -368,13 +452,16 @@ namespace
             _vis->get_pass_cpu_profiler().request_enabled(true);
             _vis->get_pass_gpu_profiler().request_enabled(true);
 
-            std::printf("monitor=%s (%d Hz) postfx=%s\n",
-                _placement.monitor_name.c_str(), _placement.refresh_hz, _opts.postfx ? "on" : "off");
+            const std::string animate = _opts.animated
+                ? std::to_string(_opts.animated->percent) + "% (" + to_string(_opts.animated->layout) + ")"
+                : "off";
+            std::printf("monitor=%s (%d Hz) postfx=%s animate=%s\n",
+                _placement.monitor_name.c_str(), _placement.refresh_hz, _opts.postfx ? "on" : "off", animate.c_str());
             if (this->_is_sweep()) {
                 this->_start_sweep_step();
             } else {
-                populate_scene(*_scene, _opts.object_count);
-                std::printf("objects=%zu\n", _opts.object_count);
+                _animated_objects = populate_scene(*_scene, _opts.object_count, _opts.animated);
+                std::printf("objects=%zu animated=%zu\n", _opts.object_count, _animated_objects.size());
             }
         }
 
@@ -388,6 +475,7 @@ namespace
         void run()
         {
             while (_vis->update_window()) {
+                this->_animate_objects();
                 _vis->render();
                 if (this->_is_sweep()) {
                     this->_step_sweep();
@@ -403,12 +491,27 @@ namespace
     private:
         bool _is_sweep() const noexcept { return !_opts.sweep_object_counts.empty(); }
 
+        // Spins the animated boxes in place, each about its initial rotation axis. The angle depends only on
+        // the number of frames since the scene was built, so every run with the same options renders the same frames.
+        void _animate_objects()
+        {
+            if (_animated_objects.empty()) {
+                return;
+            }
+            const float advance = static_cast<float>(
+                std::fmod(kAnimatedRadiansPerFrame * static_cast<double>(_animated_frames++), 2.0 * triengine::math::kPi));
+            for (const animated_object& animated : _animated_objects) {
+                animated.object->rotate(triengine::quat_f32{ Eigen::AngleAxisf{ animated.initial_angle + advance, animated.axis } });
+            }
+        }
+
         // Rebuilds the scene with the next object count and starts its warm-up.
         void _start_sweep_step()
         {
             const size_t object_count = _opts.sweep_object_counts[_sweep_index];
             _scene->clear_geometries();
-            populate_scene(*_scene, object_count);
+            _animated_objects = populate_scene(*_scene, object_count, _opts.animated);
+            _animated_frames = 0;
 
             _sweep_phase = sweep_phase::warmup;
             _sweep_phase_started = bench_clock::now();
@@ -451,8 +554,9 @@ namespace
 
                 sweep_result result;
                 result.object_count = _opts.sweep_object_counts[_sweep_index];
+                result.animated_object_count = _animated_objects.size();
                 result.frames = this->_summarize(_measure_first_frame_id, _measure_last_frame_id);
-                std::printf("objects=%zu\n", result.object_count);
+                std::printf("objects=%zu animated=%zu\n", result.object_count, result.animated_object_count);
                 this->_print_summary(result.frames);
 #if defined(TRIENGINE_DEBUG_MODE)
                 result.gl_calls = this->_count_gl_calls();
@@ -668,6 +772,9 @@ namespace
             json meta;
             meta["debug_mode"] = kDebugMode;
             meta["postfx"] = _opts.postfx;
+            meta["animated"] = _opts.animated
+                ? json{ { "percent", _opts.animated->percent }, { "layout", to_string(_opts.animated->layout) } }
+                : json(nullptr);
             meta["monitor"] = { { "name", _placement.monitor_name }, { "refresh_hz", _placement.refresh_hz } };
             meta["warmup_s"] = kSweepWarmup.count();
             meta["measure_s"] = kSweepMeasure.count();
@@ -716,6 +823,7 @@ namespace
 
             json run = {
                 { "objects", result.object_count },
+                { "animated_objects", result.animated_object_count },
                 { "frames", frames.frames },
                 { "frame_p50_ms", round_ms(frames.frame_p50_ms) },
                 { "frame_p95_ms", round_ms(frames.frame_p95_ms) },
@@ -744,6 +852,10 @@ namespace
         std::unique_ptr<triengine::visualization::visualizer> _vis;
         std::shared_ptr<triengine::scene> _scene;
         window_placement _placement;
+
+        // Boxes spun every frame, in the object list order
+        std::vector<animated_object> _animated_objects;
+        uint64_t _animated_frames{}; // frames animated since the scene was built
 
         std::optional<size_t> _scene_render_stage;
         std::optional<size_t> _swap_stage;
