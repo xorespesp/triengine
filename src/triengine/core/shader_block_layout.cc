@@ -211,7 +211,7 @@ namespace triengine::core::shader_block::detail
             TRIENGINE_PANIC(message);
         }
 
-        TRIENGINE_DEBUG("%s '%s' (%s, binding %u) matches its C++ layout: %zu variables, %d bytes"
+        TRIENGINE_DEBUG("%s '%s' (%s, binding point %u) matches its C++ layout: %zu variables, %d bytes"
             , block_type_name
             , block_name.c_str()
             , rule_name

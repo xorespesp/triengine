@@ -11,7 +11,8 @@ namespace triengine::core::shader_block::detail
     {
         GLuint buffer_id = 0;
         GLCall(::glCreateBuffers(1, &buffer_id));
-        // Immutable storage: a block's size never changes. `GL_DYNAMIC_STORAGE_BIT` allows `glNamedBufferSubData`.
+        // Immutable storage: a block's size never changes, and a growing storage vector replaces its buffer.
+        // `GL_DYNAMIC_STORAGE_BIT` allows `glNamedBufferSubData`.
         GLCall(::glNamedBufferStorage(buffer_id, static_cast<GLsizeiptr>(initial_bytes.size()), initial_bytes.data(), GL_DYNAMIC_STORAGE_BIT));
         return buffer_id;
     }
@@ -19,6 +20,15 @@ namespace triengine::core::shader_block::detail
     void delete_buffer(const uint32_t buffer_id) noexcept
     {
         ::glDeleteBuffers(1, &buffer_id);
+    }
+
+    void upload_bytes(
+        const uint32_t buffer_id,
+        const size_t offset,
+        const std::byte* const data,
+        const size_t byte_count)
+    {
+        GLCall(::glNamedBufferSubData(buffer_id, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(byte_count), data));
     }
 
     void upload_changed_bytes(
@@ -37,7 +47,7 @@ namespace triengine::core::shader_block::detail
         // One upload from the first to the last changed byte: fewer GL calls than one per changed run.
         const auto offset = first - new_bytes.begin();
         const auto byte_count = last.base() - first;
-        GLCall(::glNamedBufferSubData(buffer_id, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(byte_count), new_bytes.data() + offset));
+        upload_bytes(buffer_id, static_cast<size_t>(offset), new_bytes.data() + offset, static_cast<size_t>(byte_count));
     }
 
     void bind_buffer(const block_type type, const uint32_t binding_point_index, const uint32_t buffer_id)

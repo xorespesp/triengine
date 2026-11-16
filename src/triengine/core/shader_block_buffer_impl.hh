@@ -7,11 +7,13 @@ namespace triengine::core::shader_block
 {
     namespace detail
     {
-        // GL calls of `block_buffer` (shader_block_buffer.cc).
+        // GL calls of `block_buffer` & `shader_storage_vector` (shader_block_buffer.cc)
         uint32_t create_buffer(const std::vector<std::byte>& initial_bytes);
         void delete_buffer(uint32_t buffer_id) noexcept;
+        void upload_bytes(uint32_t buffer_id, size_t offset, const std::byte* data, size_t byte_count); // every upload of both
         void upload_changed_bytes(uint32_t buffer_id, const std::vector<std::byte>& new_bytes, const std::vector<std::byte>& old_bytes);
         void bind_buffer(block_type type, uint32_t binding_point_index, uint32_t buffer_id);
+
     } // namespace
 
     template <block_type _Type, layout_rule _Rule, class _Block>
@@ -57,7 +59,7 @@ namespace triengine::core::shader_block
     template <block_type _Type, layout_rule _Rule, class _Block>
     void block_buffer<_Type, _Rule, _Block>::update(const _Block& block)
     {
-        TRIENGINE_ASSERT(_buffer_id != 0);
+        this->_ensure_buffer_id();
         layout::serialize(block, _staging_bytes);
         detail::upload_changed_bytes(_buffer_id, _staging_bytes, _uploaded_bytes);
         // The buffer now holds the staging bytes. A swap, not a copy: the next `serialize` rewrites them whole.
@@ -67,8 +69,16 @@ namespace triengine::core::shader_block
     template <block_type _Type, layout_rule _Rule, class _Block>
     void block_buffer<_Type, _Rule, _Block>::bind() const
     {
-        TRIENGINE_ASSERT(_buffer_id != 0);
+        this->_ensure_buffer_id();
         detail::bind_buffer(_Type, _binding_point_index, _buffer_id);
+    }
+
+    template <block_type _Type, layout_rule _Rule, class _Block>
+    void block_buffer<_Type, _Rule, _Block>::_ensure_buffer_id() const
+    {
+        if (_buffer_id == 0) {
+            TRIENGINE_PANIC("Invalid buffer id (binding point %u)", _binding_point_index);
+        }
     }
 
 } // namespace

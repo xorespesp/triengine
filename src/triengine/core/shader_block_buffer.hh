@@ -26,11 +26,11 @@ namespace triengine::core::shader_block
     public:
         using layout = block_layout<_Rule, _Block>;
 
-        static_assert(layout::runtime_array_stride() == 0, "block buffers do not take a runtime-sized array yet");
+        static_assert(layout::runtime_array_stride() == 0, "block buffers hold fixed-size blocks only");
 
         static constexpr block_type type() noexcept { return _Type; }
 
-        // Allocates the buffer, filled with zeros. `binding_point_index` is the `binding` of the GLSL block.
+        // Allocates the buffer, filled with zeros.
         explicit block_buffer(uint32_t binding_point_index);
         ~block_buffer();
 
@@ -45,6 +45,9 @@ namespace triengine::core::shader_block
 
         uint32_t buffer_id() const noexcept { return _buffer_id; }
         uint32_t binding_point_index() const noexcept { return _binding_point_index; }
+
+    private:
+        void _ensure_buffer_id() const;
 
     private:
         uint32_t _buffer_id{ 0 };

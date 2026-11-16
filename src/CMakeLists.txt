@@ -101,6 +101,8 @@ set(TRIENGINE_LIBRARY_HEADERS_PUBLIC
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_block_layout_impl.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_block_buffer.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_block_buffer_impl.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_storage_vector.hh"
+    "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_storage_vector_impl.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_preprocessor.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/shader_loader.hh"
     "${TRIENGINE_LIBRARY_HEADERS_DIR}/core/render_target.hh"
