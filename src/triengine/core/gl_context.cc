@@ -502,7 +502,7 @@ namespace triengine::core
             TRIENGINE_DEBUG("GL renderer: %s", _device_info.device.c_str());
         }
 
-        constexpr char kDefaultGLSLShaderVersion[] = "#version 450 core";
+        constexpr char kDefaultGLSLShaderVersion[] = "#version 460 core";
 
         _shader_ldr = std::make_shared<shader_loader>();
         _shader_ldr->initialize(

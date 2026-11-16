@@ -20,7 +20,7 @@ namespace triengine::core
          * @brief Initializes the loader with embedded binary data
          * @param data Pointer to the zip binary data embedded in the binary
          * @param size Size of the data (in bytes)
-         * @param glsl_shader_version The GLSL shader version to use (e.g., "#version 450 core")
+         * @param glsl_shader_version The GLSL shader version to use (e.g., "#version 460 core")
          * @return true if initialization succeeds, false if it fails
          */
         bool initialize(
