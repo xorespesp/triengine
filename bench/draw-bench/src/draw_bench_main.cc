@@ -307,6 +307,7 @@ namespace
         uint64_t uniform{}; // glProgramUniform*
         uint64_t draw{}; // glDraw*
         uint64_t bind_vertex_array{};
+        uint64_t named_buffer_sub_data{};
     };
 #endif
 
@@ -623,17 +624,19 @@ namespace
             counts.uniform = gl_calls.calls_with_prefix("glProgramUniform");
             counts.draw = gl_calls.calls_with_prefix("glDraw");
             counts.bind_vertex_array = gl_calls.calls_with_prefix("glBindVertexArray");
+            counts.named_buffer_sub_data = gl_calls.calls_with_prefix("glNamedBufferSubData");
             return counts;
         }
 
         void _report_gl_calls(const bool with_top_sites)
         {
             const gl_call_counts counts = this->_count_gl_calls();
-            std::printf("  gl calls/frame: total %llu  glProgramUniform* %llu  glDraw* %llu  glBindVertexArray %llu\n",
+            std::printf("  gl calls/frame: total %llu  glProgramUniform* %llu  glDraw* %llu  glBindVertexArray %llu  glNamedBufferSubData %llu\n",
                 static_cast<unsigned long long>(counts.total),
                 static_cast<unsigned long long>(counts.uniform),
                 static_cast<unsigned long long>(counts.draw),
-                static_cast<unsigned long long>(counts.bind_vertex_array));
+                static_cast<unsigned long long>(counts.bind_vertex_array),
+                static_cast<unsigned long long>(counts.named_buffer_sub_data));
 
             if (!with_top_sites) {
                 return;
@@ -728,6 +731,7 @@ namespace
                 { "uniform", result.gl_calls.uniform },
                 { "draw", result.gl_calls.draw },
                 { "bind_vertex_array", result.gl_calls.bind_vertex_array },
+                { "named_buffer_sub_data", result.gl_calls.named_buffer_sub_data },
             };
 #endif
             return run;
