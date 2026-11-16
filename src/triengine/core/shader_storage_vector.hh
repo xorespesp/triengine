@@ -22,7 +22,7 @@ namespace triengine::core::shader_block
     // Writes go to a CPU copy of the buffer and are compared with it element by element. `upload` sends the elements
     // that changed, from the first to the last, in one call; `clear` keeps the copy, so writing the same elements
     // again uploads nothing. Shaders see `capacity()` elements.
-    // The vector owns its binding point: `upload` rebinds it after growing, so no other buffer may share it.
+    // `bind` it before the draws that read it; `upload` also rebinds it after growing the buffer.
     template <class _Element>
     class shader_storage_vector final
         : utility::noncopyable

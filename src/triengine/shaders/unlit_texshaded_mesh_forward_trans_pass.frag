@@ -9,6 +9,7 @@ in VS_OUT
 {
     vec3 fragPosInView; // view-space fragment position (for WBOIT weight)
     vec2 texCoords; // texture uv coordinate
+    flat uint objectIndex; // index of the object's record in `u_phongShadedObjects`
 } fsi;
 
 ////////////////////////////////////////////
@@ -21,10 +22,12 @@ layout(location = 1) out float fso_reveal;
 // shader uniforms
 ////////////////////////////////////////////
 layout(binding = 0) uniform sampler2D u_diffuseMap; // base color map (RGB)
-uniform float u_alpha; // object transparency (for WBOIT transparent pass)
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 void main()
 {
+    float alpha = u_phongShadedObjects.elements[fsi.objectIndex].alpha;
+
     // Unlit: use the base color directly (no lighting applied).
     const vec3 baseColor = texture(u_diffuseMap, fsi.texCoords).rgb;
 
@@ -32,7 +35,7 @@ void main()
     // WBOIT pass
     ////////////////////////////////////////////////////////////////////
 
-    const vec4 blendColor = vec4(baseColor, u_alpha);
+    const vec4 blendColor = vec4(baseColor, alpha);
 
     // calculate weight
     const float weight = computeWBOITWeight(blendColor, -fsi.fragPosInView.z);

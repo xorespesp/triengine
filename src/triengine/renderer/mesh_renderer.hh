@@ -1,6 +1,11 @@
 #pragma once
 #include <triengine/renderer/renderer_base.hh>
+#include <triengine/renderer/phong_shaded_object_block.hh>
 #include <triengine/geometry/mesh_object.hh>
+
+#include <cstdint>
+#include <optional>
+#include <vector>
 
 namespace triengine::renderer
 {
@@ -40,6 +45,41 @@ namespace triengine::renderer
             _unlit_texshaded_forward_opaque_pass_shader,
             _unlit_texshaded_forward_trans_pass_shader,
             _normal_vis_shader;
+
+        // Per-object records of each draw loop, one vector per shader program
+        std::optional<phong_shaded_object_storage_vector>
+            _lit_vtxshaded_deferred_opaque_pass_records,
+            _lit_vtxshaded_forward_opaque_pass_records,
+            _lit_vtxshaded_forward_trans_pass_records,
+            _lit_texshaded_deferred_opaque_pass_records,
+            _lit_texshaded_forward_opaque_pass_records,
+            _lit_texshaded_forward_trans_pass_records,
+            _unlit_vtxshaded_forward_opaque_pass_records,
+            _unlit_vtxshaded_forward_trans_pass_records,
+            _unlit_texshaded_forward_opaque_pass_records,
+            _unlit_texshaded_forward_trans_pass_records,
+            _normal_vis_records;
+
+        // A draw collected by a draw loop, after its record is written
+        struct draw_item {
+            uint32_t vao;
+            int32_t index_count;
+            uint32_t record_index; // `baseinstance` of the draw
+        };
+        std::vector<draw_item> _draw_items; // reused by the draw loops that bind no textures
+
+        // A draw of a lit texture-shaded object, which also binds its diffuse and specular maps
+        struct lit_texshaded_draw_item : draw_item {
+            uint32_t diffuse_map;  // texture bound to unit 0
+            uint32_t specular_map; // texture bound to unit 1
+        };
+        std::vector<lit_texshaded_draw_item> _lit_texshaded_draw_items; // reused by the lit texture-shaded draw loops
+
+        // A draw of an unlit texture-shaded object, which also binds its diffuse map
+        struct unlit_texshaded_draw_item : draw_item {
+            uint32_t diffuse_map; // texture bound to unit 0
+        };
+        std::vector<unlit_texshaded_draw_item> _unlit_texshaded_draw_items; // reused by the unlit texture-shaded draw loops
 
     public:
         mesh_renderer();

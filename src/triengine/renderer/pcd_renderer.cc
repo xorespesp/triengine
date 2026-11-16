@@ -1,6 +1,7 @@
 #include "pcd_renderer.hh"
 #include <triengine/renderer/camera_block.hh>
 #include <triengine/renderer/lighting_block.hh>
+#include <triengine/renderer/phong_shaded_object_block.hh>
 
 #include <triengine/utility/debug_utils.hh>
 
@@ -37,6 +38,8 @@ namespace triengine::renderer
             .attach_fragment_shader({ shader_ldr->load("pcd_deferred_geom_pass.frag")->c_str() })
             .link();
         verify_camera_block(_deferred_opaque_pass_shader);
+        verify_phong_shaded_object_block(_deferred_opaque_pass_shader);
+        _deferred_opaque_pass_records.emplace(kPhongShadedObjectBlockBindingPointIndex);
 
         _forward_trans_pass_shader
             .attach_vertex_shader({ shader_ldr->load("pcd_forward_trans_pass.vert")->c_str() })
@@ -44,6 +47,8 @@ namespace triengine::renderer
             .link();
         verify_camera_block(_forward_trans_pass_shader);
         verify_lighting_block(_forward_trans_pass_shader);
+        verify_phong_shaded_object_block(_forward_trans_pass_shader);
+        _forward_trans_pass_records.emplace(kPhongShadedObjectBlockBindingPointIndex);
     }
 
     void pcd_renderer::destroy_impl()
@@ -53,7 +58,9 @@ namespace triengine::renderer
             this->set_creation_flag(false);
 
             _deferred_opaque_pass_shader.destroy();
+            _deferred_opaque_pass_records.reset();
             _forward_trans_pass_shader.destroy();
+            _forward_trans_pass_records.reset();
 
             _glctx = nullptr;
         }
@@ -84,8 +91,13 @@ namespace triengine::renderer
         case render_pass_type::deferred_opaque_pass:
         {
             auto* const draw_shader = &_deferred_opaque_pass_shader;
+            auto& object_records = *_deferred_opaque_pass_records;
 
             draw_shader->use();
+
+            // Write a record per draw and collect the draws
+            object_records.clear();
+            _draw_items.clear();
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_obj_list)
@@ -110,32 +122,38 @@ namespace triengine::renderer
                 const auto& vertex_positions = object->points;
                 const auto& material = object->material;
 
-                // Update model(transform) matrix in shader
-                const mat4_f32& model = object->get_model();
-                draw_shader->set_uniform_mat4("u_model", model);
-
-                // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-                draw_shader->set_uniform_mat3("u_nmv", 
-                    (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
-
-                // Update material
-                draw_shader->set_uniform_float("u_phongMaterial.ambientIntensity", material.ambient_intensity);
-                draw_shader->set_uniform_float("u_phongMaterial.diffuseIntensity", material.diffuse_intensity);
-                draw_shader->set_uniform_float("u_phongMaterial.specularIntensity", material.specular_intensity);
-                draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material.shininess));
-
                 // Update VAO (if needed)
                 if (object->is_dirty()) {
                     object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
-                // Render pointcloud
-                GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
-                GLCall(::glDrawArrays(
+                const size_t record_index = object_records.push_back(
+                    make_phong_shaded_object_record(object->get_model(), material)
+                );
+                _draw_items.push_back(draw_item{
+                    object_gpu_rsrc->vao,
+                    static_cast<int32_t>(vertex_positions.size()),
+                    static_cast<uint32_t>(record_index),
+                });
+            } // for
+
+            // Upload the records written above, before the draws that read them
+            object_records.upload();
+            object_records.bind();
+
+            // Render pointcloud
+            for (const draw_item& item : _draw_items)
+            {
+                GLCall(::glBindVertexArray(item.vao));
+                // Draws like `glDrawArrays`, and also hands `baseinstance` to the shaders as `gl_BaseInstance`.
+                // With one instance, that number is just the index of this object's record in `u_phongShadedObjects`.
+                GLCall(::glDrawArraysInstancedBaseInstance(
                     GL_POINTS,
-                    0,
-                    static_cast<GLsizei>(vertex_positions.size())
+                    0/* GLint first */,
+                    item.vertex_count,
+                    1/* GLsizei instancecount */,
+                    item.record_index/* GLuint baseinstance */
                 ));
                 //GLCall(::glBindVertexArray(0)); // Unbind VAO (optional)
             } // for
@@ -145,8 +163,13 @@ namespace triengine::renderer
         case render_pass_type::forward_transparent_pass:
         {
             auto* const draw_shader = &_forward_trans_pass_shader;
+            auto& object_records = *_forward_trans_pass_records;
 
             draw_shader->use();
+
+            // Write a record per draw and collect the draws
+            object_records.clear();
+            _draw_items.clear();
 
             auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
             for (const auto& object : render_obj_list)
@@ -171,35 +194,38 @@ namespace triengine::renderer
                 const auto& vertex_positions = object->points;
                 const auto& material = object->material;
 
-                // Update model(transform) matrix in shader
-                const mat4_f32& model = object->get_model();
-                draw_shader->set_uniform_mat4("u_model", model);
-
-                // Update view-space normal matrix; `mat3(transpose(inverse(u_view * u_model)))`
-                draw_shader->set_uniform_mat3("u_nmv", 
-                    (render_ctx.view * model).inverse().transpose().topLeftCorner<3, 3>());
-
-                // Update material
-                draw_shader->set_uniform_float("u_phongMaterial.ambientIntensity", material.ambient_intensity);
-                draw_shader->set_uniform_float("u_phongMaterial.diffuseIntensity", material.diffuse_intensity);
-                draw_shader->set_uniform_float("u_phongMaterial.specularIntensity", material.specular_intensity);
-                draw_shader->set_uniform_float("u_phongMaterial.shininess", static_cast<float>(material.shininess));
-
-                // Update alpha material (WBOIT)
-                draw_shader->set_uniform_float("u_alpha", material.alpha);
-
                 // Update VAO (if needed)
                 if (object->is_dirty()) {
                     object_gpu_rsrc->update(object);
                     object->clear_dirty();
                 }
 
-                // Render pointcloud
-                GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
-                GLCall(::glDrawArrays(
+                const size_t record_index = object_records.push_back(
+                    make_phong_shaded_object_record(object->get_model(), material)
+                );
+                _draw_items.push_back(draw_item{
+                    object_gpu_rsrc->vao,
+                    static_cast<int32_t>(vertex_positions.size()),
+                    static_cast<uint32_t>(record_index),
+                });
+            } // for
+
+            // Upload the records written above, before the draws that read them
+            object_records.upload();
+            object_records.bind();
+
+            // Render pointcloud
+            for (const draw_item& item : _draw_items)
+            {
+                GLCall(::glBindVertexArray(item.vao));
+                // Draws like `glDrawArrays`, and also hands `baseinstance` to the shaders as `gl_BaseInstance`.
+                // With one instance, that number is just the index of this object's record in `u_phongShadedObjects`.
+                GLCall(::glDrawArraysInstancedBaseInstance(
                     GL_POINTS,
-                    0,
-                    static_cast<GLsizei>(vertex_positions.size())
+                    0/* GLint first */,
+                    item.vertex_count,
+                    1/* GLsizei instancecount */,
+                    item.record_index/* GLuint baseinstance */
                 ));
                 //GLCall(::glBindVertexArray(0)); // Unbind VAO (optional)
             } // for

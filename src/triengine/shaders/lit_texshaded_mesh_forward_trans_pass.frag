@@ -3,7 +3,6 @@
 #define USE_BLINN_PHONG_SHADING 1
 //#define DISABLE_TWO_SIDED_LIGHTING 1
 #include "includes/phong_lighting.glsl"
-#include "includes/phong_material.glsl"
 #include "includes/WBOIT.glsl"
 #include "includes/simple_fog.glsl"
 
@@ -15,6 +14,7 @@ in VS_OUT
     vec3 fragPosInView; // view-space fragment position
     vec3 fragNormalInView; // view-space fragment normal
     vec2 texCoords; // texture uv coordinate
+    flat uint objectIndex; // index of the object's record in `u_phongShadedObjects`
 } fsi;
 
 ////////////////////////////////////////////
@@ -33,11 +33,15 @@ layout (location = 1) out float fso_reveal;
 // --- materials ---
 layout(binding = 0) uniform sampler2D u_diffuseMap; // diffuse color map (RGB)
 layout(binding = 1) uniform sampler2D u_specularMap; // specular color map (grayscale)
-uniform PhongShadedObjectMaterial u_phongMaterial;
-uniform float u_alpha; // object transparency (for WBOIT transparent pass)
+
+// --- object records ---
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 void main()
 {
+    PhongShadedObjectMaterial material = u_phongShadedObjects.elements[fsi.objectIndex].material;
+    float alpha = u_phongShadedObjects.elements[fsi.objectIndex].alpha;
+
     ////////////////////////////////////////////////////////////////////
     // Forward Lighting pass
     ////////////////////////////////////////////////////////////////////
@@ -49,9 +53,9 @@ void main()
     const vec3 diffuseMapColor = texture(u_diffuseMap, fsi.texCoords).rgb;
     const float specularMapColor = texture(u_specularMap, fsi.texCoords).r;
 
-    const vec3 ambientColor = diffuseMapColor * u_phongMaterial.ambientIntensity;
-    const vec3 diffuseColor = diffuseMapColor * u_phongMaterial.diffuseIntensity;
-    const vec3 specularColor = vec3(specularMapColor) * u_phongMaterial.specularIntensity;
+    const vec3 ambientColor = diffuseMapColor * material.ambientIntensity;
+    const vec3 diffuseColor = diffuseMapColor * material.diffuseIntensity;
+    const vec3 specularColor = vec3(specularMapColor) * material.specularIntensity;
 
     vec3 resultColor = vec3(0.0);
     
@@ -64,7 +68,7 @@ void main()
             ambientColor,
             diffuseColor,
             specularColor,
-            u_phongMaterial.shininess 
+            material.shininess 
         );
     }
 
@@ -78,7 +82,7 @@ void main()
             ambientColor,
             diffuseColor,
             specularColor,
-            u_phongMaterial.shininess
+            material.shininess
         );
     }
     
@@ -112,7 +116,7 @@ void main()
     // WBOIT pass
     ////////////////////////////////////////////////////////////////////
 
-	const vec4 blendColor = vec4(resultColor, u_alpha);
+	const vec4 blendColor = vec4(resultColor, alpha);
     
 	// calculate weight
     const float weight = computeWBOITWeight(blendColor, -fsi.fragPosInView.z);

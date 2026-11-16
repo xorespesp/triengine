@@ -3,7 +3,6 @@
 #define USE_BLINN_PHONG_SHADING 1
 //#define DISABLE_TWO_SIDED_LIGHTING 1
 #include "includes/phong_lighting.glsl"
-#include "includes/phong_material.glsl"
 #include "includes/WBOIT.glsl"
 #include "includes/simple_fog.glsl"
 
@@ -15,6 +14,7 @@ in VS_OUT
     vec3 fragPosInView; // view-space fragment position
     vec3 fragNormalInView; // view-space fragment normal
     vec3 fragColor; // fragment color
+    flat uint objectIndex; // index of the object's record in `u_phongShadedObjects`
 } fsi;
 
 ////////////////////////////////////////////
@@ -30,12 +30,14 @@ layout (location = 1) out float fso_reveal;
 // --- lights and fog ---
 #include "includes/lighting_block.glsl" // u_dirLight, u_pointLight, u_simpleFog
 
-// --- materials ---
-uniform PhongShadedObjectMaterial u_phongMaterial;
-uniform float u_alpha; // object transparency (WBOIT)
+// --- object records ---
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 void main()
 {
+    PhongShadedObjectMaterial material = u_phongShadedObjects.elements[fsi.objectIndex].material;
+    float alpha = u_phongShadedObjects.elements[fsi.objectIndex].alpha;
+
     ////////////////////////////////////////////////////////////////////
     // Forward Lighting pass
     ////////////////////////////////////////////////////////////////////
@@ -44,9 +46,9 @@ void main()
     const vec3 eyeDirInView = normalize(-fsi.fragPosInView); // view-space eye(view) direction; 
                                                              // the viewer is always at `(0,0,0)`, so eye(view) direction is: `(0,0,0) - Position == -Position`
     
-    const vec3 ambientColor = fsi.fragColor * u_phongMaterial.ambientIntensity;
-    const vec3 diffuseColor = fsi.fragColor * u_phongMaterial.diffuseIntensity;
-    const vec3 specularColor = vec3(1.0) * u_phongMaterial.specularIntensity;
+    const vec3 ambientColor = fsi.fragColor * material.ambientIntensity;
+    const vec3 diffuseColor = fsi.fragColor * material.diffuseIntensity;
+    const vec3 specularColor = vec3(1.0) * material.specularIntensity;
     
     vec3 resultColor = vec3(0.0);
     
@@ -59,7 +61,7 @@ void main()
             ambientColor,
             diffuseColor,
             specularColor,
-            u_phongMaterial.shininess 
+            material.shininess 
         );
     }
 
@@ -73,7 +75,7 @@ void main()
             ambientColor,
             diffuseColor,
             specularColor,
-            u_phongMaterial.shininess
+            material.shininess
         );
     }
     
@@ -107,7 +109,7 @@ void main()
     // WBOIT pass
     ////////////////////////////////////////////////////////////////////
 
-	const vec4 blendColor = vec4(resultColor, u_alpha);
+	const vec4 blendColor = vec4(resultColor, alpha);
 
 	// calculate weight
     const float weight = computeWBOITWeight(blendColor, -fsi.fragPosInView.z);

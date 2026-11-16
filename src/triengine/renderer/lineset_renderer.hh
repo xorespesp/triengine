@@ -1,6 +1,11 @@
 #pragma once
 #include <triengine/renderer/renderer_base.hh>
+#include <triengine/renderer/object_model_block.hh>
 #include <triengine/geometry/lineset_object.hh>
+
+#include <cstdint>
+#include <optional>
+#include <vector>
 
 namespace triengine::renderer
 {
@@ -11,6 +16,17 @@ namespace triengine::renderer
         // Renderer resources
         core::gl_context* _glctx{ nullptr };
         core::shader_program _shader;
+
+        // Model matrices of the draw loop
+        std::optional<object_model_storage_vector> _object_models;
+
+        // A draw collected by the draw loop, after its model matrix is written
+        struct draw_item {
+            uint32_t vao;
+            int32_t index_count;
+            uint32_t model_index; // `baseinstance` of the draw
+        };
+        std::vector<draw_item> _draw_items;
 
     public:
         lineset_renderer();

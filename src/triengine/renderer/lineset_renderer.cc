@@ -1,6 +1,7 @@
 #include "lineset_renderer.hh"
 #include <triengine/renderer/camera_block.hh>
 #include <triengine/renderer/lighting_block.hh>
+#include <triengine/renderer/object_model_block.hh>
 
 #include <triengine/utility/debug_utils.hh>
 
@@ -36,6 +37,8 @@ namespace triengine::renderer
             .link();
         verify_camera_block(_shader);
         verify_lighting_block(_shader);
+        verify_object_model_block(_shader);
+        _object_models.emplace(kObjectModelBlockBindingPointIndex);
     }
 
     void lineset_renderer::destroy_impl()
@@ -45,6 +48,7 @@ namespace triengine::renderer
             this->set_creation_flag(false);
 
             _shader.destroy();
+            _object_models.reset();
             _glctx = nullptr;
         }
     }
@@ -64,6 +68,7 @@ namespace triengine::renderer
         }
 
         auto& draw_shader = _shader;
+        auto& object_models = *_object_models;
         draw_shader.use();
 
         // Enable depth testing
@@ -73,6 +78,10 @@ namespace triengine::renderer
         //GLCall(::glEnable(GL_LINE_SMOOTH));
 
         GLCall(::glLineWidth(1.0f));
+
+        // Write a model matrix per draw and collect the draws
+        object_models.clear();
+        _draw_items.clear();
 
         auto gpu_rsrc_mgr = _glctx->get_gpu_resource_manager();
         for (const auto& object : render_obj_list)
@@ -92,23 +101,38 @@ namespace triengine::renderer
 
             const auto& line_indices = object->line_indices;
 
-            // update model(transform) matrix in shader
-            draw_shader.set_uniform_mat4("u_model", object->get_model());
-
             // Update VAO (if needed)
             if (object->is_dirty()) {
                 object_gpu_rsrc->update(object); 
                 object->clear_dirty();
             }
 
-            // Render lines
-            GLCall(::glBindVertexArray(object_gpu_rsrc->vao));
-            GLCall(::glDrawElementsBaseVertex(
-                GL_LINES, 
-                static_cast<GLsizei>(line_indices.size() * std::decay_t<decltype(line_indices)>::value_type::SizeAtCompileTime),
+            const size_t model_index = object_models.push_back(object->get_model());
+            _draw_items.push_back(draw_item{
+                object_gpu_rsrc->vao,
+                static_cast<int32_t>(line_indices.size() * std::decay_t<decltype(line_indices)>::value_type::SizeAtCompileTime),
+                static_cast<uint32_t>(model_index),
+            });
+        } // for
+
+        // Upload the model matrices written above, before the draws that read them
+        object_models.upload();
+        object_models.bind();
+
+        // Render lines
+        for (const draw_item& item : _draw_items)
+        {
+            GLCall(::glBindVertexArray(item.vao));
+            // Draws like `glDrawElements`, and also hands `baseinstance` to the shaders as `gl_BaseInstance`.
+            // With one instance, that number is just the index of this object's model in `u_objectModels`.
+            GLCall(::glDrawElementsInstancedBaseVertexBaseInstance(
+                GL_LINES,
+                item.index_count,
                 GL_UNSIGNED_INT,
                 nullptr/* const GLvoid* indices */,
-                0/* GLint basevertex */
+                1/* GLsizei instancecount */,
+                0/* GLint basevertex */,
+                item.model_index/* GLuint baseinstance */
             ));
             //GLCall(::glBindVertexArray(0)); // Unbind VAO (optional)
         } // for

@@ -18,12 +18,12 @@ out VS_OUT
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform mat4 u_model; // model matrix
 #include "includes/camera_block.glsl" // u_view, u_proj
+#include "includes/object_model_block.glsl" // u_objectModels
 
 void main()
 {
-    vso.fragPosInView = vec3(u_view * u_model * vec4(vsi_vertPos, 1.0));
+    vso.fragPosInView = vec3(u_view * (u_objectModels.elements[gl_BaseInstance] * vec4(vsi_vertPos, 1.0)));
     vso.fragColor = vsi_vertColor;
     gl_Position = u_proj * vec4(vso.fragPosInView, 1.0);
 }

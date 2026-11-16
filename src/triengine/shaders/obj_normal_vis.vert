@@ -18,19 +18,20 @@ out VS_OUT {
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform mat4 u_model; // model matrix
 #include "includes/camera_block.glsl" // u_view, u_proj
-uniform mat3 u_nm; // normal matrix; `mat3(transpose(inverse(u_model)))`
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 const float kNormalMagnitude = 0.03; // Unit: [m]
 
 void main()
 {
+    PhongShadedObjectRecord object = u_phongShadedObjects.elements[gl_BaseInstance];
+
     // Transform vertex position to world space
-    const vec4 vertex_position_world = u_model * vec4(vsi_vertPos, 1.0);
+    const vec4 vertex_position_world = object.model * vec4(vsi_vertPos, 1.0);
             
     // Transform and normalize the normal to world space
-    const vec3 normal_world = normalize(u_nm * vsi_vertNormal);
+    const vec3 normal_world = normalize(object.normalMatrixInWorld * vsi_vertNormal);
 
     // Calculate the end position of the normal in world space
     const vec4 normal_end_world = vertex_position_world + vec4(normal_world * kNormalMagnitude, 0.0);

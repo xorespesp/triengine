@@ -15,20 +15,23 @@ out VS_OUT
     vec3 fragPosInView; // view-space fragment position
     vec3 fragNormalInView; // view-space fragment normal
     vec3 fragColor; // fragment color
+    flat uint objectIndex; // index of the object's record in `u_phongShadedObjects`
 } vso;
 
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform mat4 u_model; // model matrix
 #include "includes/camera_block.glsl" // u_view, u_proj
-uniform mat3 u_nmv; // normal matrix in view-space; `mat3(transpose(inverse(u_view * u_model)))`
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 void main()
 {
-    vso.fragPosInView = vec3(u_view * u_model * vec4(vsi_vertPos, 1.0));
-    vso.fragNormalInView = u_nmv * vsi_vertNormal;
+    PhongShadedObjectRecord object = u_phongShadedObjects.elements[gl_BaseInstance];
+
+    vso.fragPosInView = vec3(u_view * (object.model * vec4(vsi_vertPos, 1.0)));
+    vso.fragNormalInView = mat3(u_view) * (object.normalMatrixInWorld * vsi_vertNormal);
     vso.fragColor = vsi_vertColor;
+    vso.objectIndex = gl_BaseInstance;
 
     gl_Position = u_proj * vec4(vso.fragPosInView, 1.0);
 }

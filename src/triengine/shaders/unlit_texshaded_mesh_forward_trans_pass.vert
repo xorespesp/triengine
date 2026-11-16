@@ -13,17 +13,21 @@ out VS_OUT
 {
     vec3 fragPosInView; // view-space fragment position (for WBOIT weight)
     vec2 texCoords; // texture uv coordinate
+    flat uint objectIndex; // index of the object's record in `u_phongShadedObjects`
 } vso;
 
 ////////////////////////////////////////////
 // shader uniforms
 ////////////////////////////////////////////
-uniform mat4 u_model; // model matrix
 #include "includes/camera_block.glsl" // u_view, u_proj
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 void main()
 {
-    vso.fragPosInView = vec3(u_view * u_model * vec4(vsi_vertPos, 1.0));
+    mat4 model = u_phongShadedObjects.elements[gl_BaseInstance].model;
+
+    vso.fragPosInView = vec3(u_view * (model * vec4(vsi_vertPos, 1.0)));
     vso.texCoords = vsi_texCoords;
+    vso.objectIndex = gl_BaseInstance;
     gl_Position = u_proj * vec4(vso.fragPosInView, 1.0);
 }

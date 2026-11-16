@@ -1,7 +1,5 @@
 // Vertex-Shaded Mesh Object Fragment Shader (deferred geometry pass)
 
-#include "includes/phong_material.glsl"
-
 ////////////////////////////////////////////
 // shader inputs
 ////////////////////////////////////////////
@@ -10,6 +8,7 @@ in VS_OUT
     vec3 fragPosInView; // view-space fragment position
     vec3 fragNormalInView; // view-space fragment normal
     vec3 fragColor; // fragment color
+    flat uint objectIndex; // index of the object's record in `u_phongShadedObjects`
 } fsi;
 
 ////////////////////////////////////////////
@@ -24,11 +23,12 @@ layout (location = 3) out vec4 fso_gBufferMaterial;   // [3]: material buffer; a
 // shader uniforms
 ////////////////////////////////////////////
 
-// --- materials ---
-uniform PhongShadedObjectMaterial u_phongMaterial;
+#include "includes/phong_shaded_object_block.glsl" // u_phongShadedObjects
 
 void main()
 {
+    PhongShadedObjectMaterial material = u_phongShadedObjects.elements[fsi.objectIndex].material;
+
     // Position
     fso_gBufferFragPos = fsi.fragPosInView;
 
@@ -43,9 +43,9 @@ void main()
 
     // Materials
     fso_gBufferMaterial = vec4(
-        u_phongMaterial.ambientIntensity, 
-        u_phongMaterial.diffuseIntensity, 
-        u_phongMaterial.specularIntensity, 
-        u_phongMaterial.shininess
+        material.ambientIntensity,
+        material.diffuseIntensity,
+        material.specularIntensity,
+        material.shininess
     );
 }
