@@ -24,7 +24,8 @@ namespace triengine::gui
         struct window_state_t {
             ImRect prev_content_region{};
             ImRect curr_content_region{};
-            bool flag_window_focused{ false };
+            bool flag_window_focused{ false }; // focused and hovered: keyboard input goes to the scene
+            bool flag_window_hovered{ false }; // the cursor is over this window, with nothing in front
             bool flag_invalidate_fbo{ false };
 
             // overlay options

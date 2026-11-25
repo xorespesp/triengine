@@ -63,8 +63,9 @@ namespace triengine::gui
     }
 
     bool scene_view_window::check_cursor_in_scene_viewport(vec2_f32 cursor_screen_pos) const {
+        // Hover, not focus: focus arrives a frame after the click that gives it.
         return
-            _state.flag_window_focused &&
+            _state.flag_window_hovered &&
             _state.curr_content_region.Contains(ImVec2{ cursor_screen_pos.x(), cursor_screen_pos.y() });
     }
 
@@ -130,9 +131,12 @@ namespace triengine::gui
             flag_window_size_changed &&
             ImGui::IsMouseDragging(ImGuiMouseButton_Left);
 
-        _state.flag_window_focused =
-            ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy) &&
+        _state.flag_window_hovered =
             ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_DockHierarchy/* | ImGuiHoveredFlags_AnyWindow*/);
+
+        _state.flag_window_focused =
+            _state.flag_window_hovered &&
+            ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy);
 
         if (!flag_window_resizing)
         {
