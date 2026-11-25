@@ -358,7 +358,7 @@ namespace triengine::core
             _wboit_fb = frame_buffer::create_color_depth_stencil_buffer(
                 {
                     GL_RGBA16F/* GL_COLOR_ATTACHMENT0: WBOIT opaque color buffer, used in WBOIT opaque pass */,
-                    GL_RGBA16F/* GL_COLOR_ATTACHMENT1: WBOIT accum color buffer, used in WBOIT transparent pass */,
+                    GL_RGBA32F/* GL_COLOR_ATTACHMENT1: WBOIT accum color buffer, used in WBOIT transparent pass */,
                     GL_R8     /* GL_COLOR_ATTACHMENT2: WBOIT reveal color buffer, used in WBOIT transparent pass */
                 },
                 GL_DEPTH24_STENCIL8,
