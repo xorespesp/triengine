@@ -166,6 +166,8 @@ namespace triengine
 
     void fly_camera::process_keyboard_translation(const camera_movement_type move_dir, const float delta_time)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -194,6 +196,8 @@ namespace triengine
 
     void fly_camera::process_mouse_rotation(vec2_f32 move_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -221,6 +225,8 @@ namespace triengine
 
     void fly_camera::process_mouse_perspective_zoom(const float zoom_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -233,6 +239,8 @@ namespace triengine
 
     void fly_camera::update_animation(const float delta_time)
     {
+        this->_advance_input_idle_time(delta_time);
+
         //
         // Determine how much to interpolate in the current frame (how quickly to approach the target values)
         // and update the camera parameters (gradually and smoothly) based on that interpolation value.
@@ -335,6 +343,26 @@ namespace triengine
         _target_fovy = clamped_fovy;
     }
 
+    void fly_camera::add_yaw(const float yaw_delta) noexcept
+    {
+        _yaw += yaw_delta;
+        _target_yaw += yaw_delta;
+        this->update_camera_vectors();
+    }
+
+    void fly_camera::add_pitch(const float pitch_delta) noexcept
+    {
+        _pitch = std::clamp(_pitch + pitch_delta, camera_constants::kMinPitch, camera_constants::kMaxPitch);
+        _target_pitch = std::clamp(_target_pitch + pitch_delta, camera_constants::kMinPitch, camera_constants::kMaxPitch);
+        this->update_camera_vectors();
+    }
+
+    void fly_camera::offset_position(const vec3_f32& offset) noexcept
+    {
+        this->_set_position((this->get_position() + offset).eval());
+        _target_position += offset;
+    }
+
     void fly_camera::update_camera_vectors()
     {
         const vec3_f32 new_front{
@@ -380,6 +408,8 @@ namespace triengine
 
     void arcball_camera::process_keyboard_translation(const camera_movement_type move_dir, const float delta_time)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -457,10 +487,13 @@ namespace triengine
 
         const vec3_f32 translation_offset = end_world_pos - start_world_pos;
         _target_pivot_point -= translation_offset;
+        this->_reset_input_idle_time();
     }
 
     void arcball_camera::process_mouse_rotation(vec2_f32 move_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -480,6 +513,8 @@ namespace triengine
 
     void arcball_camera::process_mouse_zoom(const float zoom_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -492,6 +527,8 @@ namespace triengine
 
     void arcball_camera::process_mouse_perspective_zoom(const float zoom_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -504,6 +541,8 @@ namespace triengine
 
     void arcball_camera::update_animation(const float delta_time)
     {
+        this->_advance_input_idle_time(delta_time);
+
         //
         // Determine how much to interpolate in the current frame (how quickly to approach the target values)
         // and update the camera parameters (gradually and smoothly) based on that interpolation value.
@@ -599,6 +638,42 @@ namespace triengine
         _target_fovy = clamped_fovy;
     }
 
+    void arcball_camera::add_yaw(const float yaw_delta) noexcept
+    {
+        _yaw += yaw_delta;
+        _target_yaw += yaw_delta;
+        this->update_camera_vectors();
+    }
+
+    void arcball_camera::add_pitch(const float pitch_delta) noexcept
+    {
+        _pitch = std::clamp(_pitch + pitch_delta, camera_constants::kMinPitch, camera_constants::kMaxPitch);
+        _target_pitch = std::clamp(_target_pitch + pitch_delta, camera_constants::kMinPitch, camera_constants::kMaxPitch);
+        this->update_camera_vectors();
+    }
+
+    void arcball_camera::offset_pivot_point(const vec3_f32& offset)
+    {
+        _pivot_point += offset;
+        _target_pivot_point += offset;
+        this->update_camera_vectors();
+    }
+
+    void arcball_camera::scale_zoom_distance(const float factor) noexcept
+    {
+        _zoom_distance = std::clamp(
+            _zoom_distance * factor,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+        _target_zoom_distance = std::clamp(
+            _target_zoom_distance * factor,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+        this->update_camera_vectors();
+    }
+
     void arcball_camera::update_camera_vectors()
     {
         // Calculate new camera position using spherical coordinates
@@ -660,6 +735,8 @@ namespace triengine
 
     void ortho_camera::process_keyboard_translation(const camera_movement_type move_dir, const float delta_time)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -737,10 +814,13 @@ namespace triengine
 
         const vec3_f32 translation_offset = end_world_pos - start_world_pos;
         _target_pivot_point -= translation_offset;
+        this->_reset_input_idle_time();
     }
 
     void ortho_camera::process_mouse_rotation(vec2_f32 move_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -760,6 +840,8 @@ namespace triengine
 
     void ortho_camera::process_mouse_zoom(const float zoom_offset)
     {
+        this->_reset_input_idle_time();
+
         // NOTE: For smooth animation, this function modifies the "target value" instead of the actual camera parameters.
         // (The actual camera parameter updates are performed in the update_animation function)
 
@@ -780,6 +862,8 @@ namespace triengine
 
     void ortho_camera::update_animation(const float delta_time)
     {
+        this->_advance_input_idle_time(delta_time);
+
         //
         // Determine how much to interpolate in the current frame (how quickly to approach the target values)
         // and update the camera parameters (gradually and smoothly) based on that interpolation value.
@@ -873,6 +957,56 @@ namespace triengine
 
         // Always update the target state regardless of animation
         _target_ortho_view_height = clamped_view_height;
+    }
+
+    void ortho_camera::add_yaw(const float yaw_delta) noexcept
+    {
+        _yaw += yaw_delta;
+        _target_yaw += yaw_delta;
+        this->update_camera_vectors();
+    }
+
+    void ortho_camera::add_pitch(const float pitch_delta) noexcept
+    {
+        _pitch = std::clamp(_pitch + pitch_delta, camera_constants::kMinPitch, camera_constants::kMaxPitch);
+        _target_pitch = std::clamp(_target_pitch + pitch_delta, camera_constants::kMinPitch, camera_constants::kMaxPitch);
+        this->update_camera_vectors();
+    }
+
+    void ortho_camera::offset_pivot_point(const vec3_f32& offset)
+    {
+        _pivot_point += offset;
+        _target_pivot_point += offset;
+        this->update_camera_vectors();
+    }
+
+    void ortho_camera::scale_zoom_distance(const float factor) noexcept
+    {
+        _zoom_distance = std::clamp(
+            _zoom_distance * factor,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+        _target_zoom_distance = std::clamp(
+            _target_zoom_distance * factor,
+            camera_constants::kMinArcballZoomDistance,
+            camera_constants::kMaxArcballZoomDistance
+        );
+        this->update_camera_vectors();
+    }
+
+    void ortho_camera::scale_ortho_view_height(const float factor) noexcept
+    {
+        _ortho_view_height = std::clamp(
+            _ortho_view_height * factor,
+            camera_constants::kMinOrthoViewHeight,
+            camera_constants::kMaxOrthoViewHeight
+        );
+        _target_ortho_view_height = std::clamp(
+            _target_ortho_view_height * factor,
+            camera_constants::kMinOrthoViewHeight,
+            camera_constants::kMaxOrthoViewHeight
+        );
     }
 
     void ortho_camera::update_camera_vectors()

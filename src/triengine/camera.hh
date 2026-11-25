@@ -6,6 +6,9 @@
 #include <triengine/utility/string_format.hh>
 #include <triengine/utility/noncopyable.hh>
 
+#include <chrono>
+#include <limits>
+
 namespace triengine
 {
     // OpenGL-compatible screen viewport
@@ -234,6 +237,12 @@ namespace triengine
         void set_viewport(const view_port& viewport);
 
         /**
+         * @brief Time since input (`process_xxxxx`) last moved the camera.
+         * Advanced by `update_animation()`; infinite until the first input.
+         */
+        std::chrono::duration<float> get_input_idle_time() const noexcept { return _input_idle_time; }
+
+        /**
          * @brief Projects a 3D world space point to NDC space coordinates.
          *
          * @param target_world_pos The target 3D point in world space to project.
@@ -309,6 +318,16 @@ namespace triengine
             _position = position;
         }
 
+        // NOTE: Call from every `process_xxxxx` that moves the camera.
+        void _reset_input_idle_time() noexcept {
+            _input_idle_time = std::chrono::duration<float>::zero();
+        }
+
+        // NOTE: Call from `update_animation()`.
+        void _advance_input_idle_time(float delta_time) noexcept {
+            _input_idle_time += std::chrono::duration<float>{ delta_time };
+        }
+
     private:
         template<typename _Ty>
         inline bool _is_castable_to() const noexcept {
@@ -334,6 +353,8 @@ namespace triengine
 
         // Viewport for the camera
         view_port _viewport;
+
+        std::chrono::duration<float> _input_idle_time{ std::numeric_limits<float>::infinity() };
     };
 
     //-------------------------------------------------------------------------------------------------
@@ -387,6 +408,17 @@ namespace triengine
 
         float get_fovy() const noexcept { return _fovy; }
         void set_fovy(float fovy, bool smooth_update = false) noexcept;
+
+        //
+        // Relative moves
+        //
+        // Shift the current and target state together. Unlike `set_xxxxx`, they keep input that
+        // is still being smoothed in, so they are safe to call every frame.
+        //
+
+        void add_yaw(float yaw_delta) noexcept;
+        void add_pitch(float pitch_delta) noexcept;
+        void offset_position(const vec3_f32& offset) noexcept;
 
     private:
         void update_camera_vectors();
@@ -464,6 +496,18 @@ namespace triengine
 
         float get_fovy() const noexcept { return _fovy; }
         void set_fovy(float fovy, bool smooth_update = false) noexcept;
+
+        //
+        // Relative moves
+        //
+        // Shift the current and target state together. Unlike `set_xxxxx`, they keep input that
+        // is still being smoothed in, so they are safe to call every frame.
+        //
+
+        void add_yaw(float yaw_delta) noexcept;
+        void add_pitch(float pitch_delta) noexcept;
+        void offset_pivot_point(const vec3_f32& offset);
+        void scale_zoom_distance(float factor) noexcept;
 
     private:
         void update_camera_vectors();
@@ -553,6 +597,19 @@ namespace triengine
 
         float get_ortho_view_height() const noexcept { return _ortho_view_height; }
         void set_ortho_view_height(float ortho_view_height, bool smooth_update = false) noexcept;
+
+        //
+        // Relative moves
+        //
+        // Shift the current and target state together. Unlike `set_xxxxx`, they keep input that
+        // is still being smoothed in, so they are safe to call every frame.
+        //
+
+        void add_yaw(float yaw_delta) noexcept;
+        void add_pitch(float pitch_delta) noexcept;
+        void offset_pivot_point(const vec3_f32& offset);
+        void scale_zoom_distance(float factor) noexcept;
+        void scale_ortho_view_height(float factor) noexcept;
 
     private:
         void update_camera_vectors();
