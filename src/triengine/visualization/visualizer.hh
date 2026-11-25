@@ -65,6 +65,10 @@ namespace triengine::visualization
         void set_close_callback(close_callback_type cb);
         void set_dpi_change_callback(dpi_change_callback_type cb);
         void set_key_callback(key_callback_type cb);
+
+        // NOTE: A drag that begins on the scene is delivered here until every button is up, 
+        // wherever the cursor goes; one that begins elsewhere is not. Scroll goes by cursor position.
+        // `handled` keeps the event from the camera (on a button press: until its release).
         void set_mouse_button_callback(mouse_button_callback_type cb);
         void set_mouse_move_callback(mouse_move_callback_type cb);
         void set_mouse_scroll_callback(mouse_scroll_callback_type cb);
@@ -168,6 +172,7 @@ namespace triengine::visualization
 
         // Input filters applied before the user callbacks. Return false to drop the event.
         // (e.g. when the event belongs to a gui widget)
+        // The mouse filter is asked at the first press of a drag, and its answer holds for the drag.
         virtual bool _accepts_keyboard_input() const { return true; }
         virtual bool _accepts_mouse_input([[maybe_unused]] vec2_f32 cursor_screen_pos) const { return true; }
 

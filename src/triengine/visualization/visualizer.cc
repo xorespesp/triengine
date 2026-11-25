@@ -49,6 +49,17 @@ namespace triengine::visualization
         // frame time calculation
         double _frame_time_delta{ 0.0 }, _last_frame_time{ 0.0 };
 
+        // Mouse capture: the first button press decides who owns the drag, until all buttons are up.
+        enum class drag_owner {
+            none,  // no button is down
+            scene, // began on the scene
+            other, // began elsewhere (e.g. on a gui widget)
+        };
+        drag_owner _drag_owner{ drag_owner::none };
+        uint32_t _buttons_down{ 0 };             // bit per button
+        uint32_t _buttons_kept_from_camera{ 0 }; // bit per button whose press a callback handled
+
+        // Cursor position at the last move the camera followed
         std::optional<vec2_f32> _begin_click_cursor_screen_pos;
     };
 
@@ -483,91 +494,132 @@ namespace triengine::visualization
 
     void visualizer::_handle_mouse_button_event(
         const int32_t button,
-        [[maybe_unused]] const int32_t action,
-        [[maybe_unused]] const int32_t mods)
+        const int32_t action,
+        const int32_t mods)
     {
-        const vec2_f32 curr_cursor_screen_pos = _imp->_glctx.get_cursor_screen_pos();
-        if (!this->_accepts_mouse_input(curr_cursor_screen_pos)) {
+        if (button < 0 || button >= 32) {
+            return;
+        }
+        const uint32_t button_bit = uint32_t{ 1 } << static_cast<uint32_t>(button);
+
+        if (action == GLFW_PRESS)
+        {
+            // The first button of a drag decides its owner.
+            if (_imp->_buttons_down == 0) {
+                _imp->_drag_owner = this->_accepts_mouse_input(_imp->_glctx.get_cursor_screen_pos())
+                    ? impl::drag_owner::scene
+                    : impl::drag_owner::other;
+            }
+            _imp->_buttons_down |= button_bit;
+        }
+        else if (action == GLFW_RELEASE)
+        {
+            // Ignore a release without a press.
+            if ((_imp->_buttons_down & button_bit) == 0) {
+                return;
+            }
+            _imp->_buttons_down &= ~button_bit;
+            _imp->_buttons_kept_from_camera &= ~button_bit;
+        }
+        else
+        {
+            return;
+        }
+
+        const bool is_scene_drag = (_imp->_drag_owner == impl::drag_owner::scene);
+
+        // The last release ends the drag.
+        if (_imp->_buttons_down == 0) {
+            _imp->_drag_owner = impl::drag_owner::none;
+        }
+
+        if (!is_scene_drag) {
             return;
         }
 
         if (_imp->_cb_mouse_button) {
             bool handled = false;
             _imp->_cb_mouse_button(button, action, mods, handled);
-            if (handled) { return; }
+
+            // A handled press keeps the button from the camera until it is released.
+            if (handled && action == GLFW_PRESS) {
+                _imp->_buttons_kept_from_camera |= button_bit;
+            }
         }
     }
 
     void visualizer::_handle_mouse_move_event(const vec2_f64 cursor_pos)
     {
         const vec2_f32 cursor_screen_pos = cursor_pos.cast<float>();
-        if (!this->_accepts_mouse_input(cursor_screen_pos)) {
+
+        // A drag goes to its owner wherever the cursor is; without one, the cursor position decides.
+        switch (_imp->_drag_owner) {
+        case impl::drag_owner::scene:
+            break;
+        case impl::drag_owner::other:
             return;
+        case impl::drag_owner::none:
+            if (!this->_accepts_mouse_input(cursor_screen_pos)) {
+                return;
+            }
+            break;
         }
 
+        bool handled = false;
         if (_imp->_cb_mouse_move) {
-            bool handled = false;
             _imp->_cb_mouse_move(cursor_pos, handled);
-            if (handled) { return; }
-        }
-
-        // Drop any drag in progress, so that re-enabling does not jump the camera.
-        if (!_imp->_flag_camera_interaction) {
-            _imp->_begin_click_cursor_screen_pos.reset();
-            return;
-        }
-
-        // If the cursor is not hovered over the scene viewport, skip scene interaction control.
-        if (!this->_is_cursor_in_scene_viewport(cursor_screen_pos)) {
-            return;
         }
 
         //
         // Scene interaction control start
         //
 
+        const uint32_t camera_buttons = _imp->_buttons_down & ~_imp->_buttons_kept_from_camera;
+        const auto is_camera_button_down = [camera_buttons](const int32_t button) {
+            return (camera_buttons & (uint32_t{ 1 } << static_cast<uint32_t>(button))) != 0;
+        };
         const bool
-            fl_l_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_imp->_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_LEFT),
-            fl_r_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_imp->_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_RIGHT),
-            fl_m_mouse_pressed = GLFW_PRESS == ::glfwGetMouseButton(_imp->_glctx.get_glfw_window(), GLFW_MOUSE_BUTTON_MIDDLE);
+            fl_l_mouse_pressed = is_camera_button_down(GLFW_MOUSE_BUTTON_LEFT),
+            fl_r_mouse_pressed = is_camera_button_down(GLFW_MOUSE_BUTTON_RIGHT),
+            fl_m_mouse_pressed = is_camera_button_down(GLFW_MOUSE_BUTTON_MIDDLE);
 
-        if (fl_l_mouse_pressed || fl_r_mouse_pressed || fl_m_mouse_pressed)
+        // When the camera stops following, the drag position is dropped so that it does not jump on resuming.
+        const bool camera_follows =
+            !handled &&
+            _imp->_flag_camera_interaction &&
+            _imp->_drag_owner == impl::drag_owner::scene &&
+            (fl_l_mouse_pressed || fl_r_mouse_pressed || fl_m_mouse_pressed) &&
+            this->_is_cursor_in_scene_viewport(cursor_screen_pos);
+        if (!camera_follows) {
+            _imp->_begin_click_cursor_screen_pos.reset();
+            return;
+        }
+
+        const vec2_f32 begin_cursor_screen_pos = _imp->_begin_click_cursor_screen_pos.value_or(cursor_screen_pos);
+        const vec2_f32 move_offset{
+            cursor_screen_pos.x() - begin_cursor_screen_pos.x(),
+            begin_cursor_screen_pos.y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
+        };
+
+        abstract_camera* const scn_camera = this->get_current_scene()->get_camera();
+
+        if (fl_l_mouse_pressed)
         {
-            const vec2_f32 move_offset{
-                cursor_screen_pos.x() - _imp->_begin_click_cursor_screen_pos.value_or(cursor_screen_pos).x(),
-                _imp->_begin_click_cursor_screen_pos.value_or(cursor_screen_pos).y() - cursor_screen_pos.y() // reversed since y-coordinates go from bottom to top
-            };
-
-            abstract_camera* const scn_camera = this->get_current_scene()->get_camera();
-
-            if (fl_l_mouse_pressed)
-            {
-                scn_camera->process_mouse_rotation(move_offset);
-            }
-            else if (fl_m_mouse_pressed)
-            {
-                const vec2_f32 start_viewport_pos = this->_try_convert_screen_pos_2_viewport_pos(
-                    _imp->_begin_click_cursor_screen_pos.value_or(cursor_screen_pos)
-                ).value();
-
-                const vec2_f32 end_viewport_pos = this->_try_convert_screen_pos_2_viewport_pos(
-                    cursor_screen_pos
-                ).value();
-
+            scn_camera->process_mouse_rotation(move_offset);
+        }
+        else if (fl_m_mouse_pressed)
+        {
+            const std::optional<vec2_f32> start_viewport_pos = this->_try_convert_screen_pos_2_viewport_pos(begin_cursor_screen_pos);
+            const std::optional<vec2_f32> end_viewport_pos = this->_try_convert_screen_pos_2_viewport_pos(cursor_screen_pos);
+            if (start_viewport_pos && end_viewport_pos) {
                 scn_camera->process_mouse_translation(
-                    start_viewport_pos,
-                    end_viewport_pos
+                    *start_viewport_pos,
+                    *end_viewport_pos
                 );
             }
+        }
 
-            _imp->_begin_click_cursor_screen_pos = cursor_screen_pos;
-        }
-        else
-        {
-            if (_imp->_begin_click_cursor_screen_pos) {
-                _imp->_begin_click_cursor_screen_pos.reset();
-            }
-        }
+        _imp->_begin_click_cursor_screen_pos = cursor_screen_pos;
     }
 
     void visualizer::_handle_mouse_scroll_event(const vec2_f64 scroll_offset)
